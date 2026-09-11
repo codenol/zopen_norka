@@ -599,3 +599,139 @@ fn content_sized_boards_still_step_down_by_the_preset_height() {
         "the desktop preset height drives the row step: {positions:?}"
     );
 }
+
+#[test]
+fn kit_chassis_unavailable_without_sentinel_in_the_library() {
+    let state = op_editor_core::EditorState::new();
+    assert!(!kit_chassis_available(&state, false));
+    assert!(kit_chassis_commands(&state, false, None).is_none());
+}
+
+#[test]
+fn kit_chassis_skipped_on_mobile_even_with_empty_state() {
+    let state = op_editor_core::EditorState::new();
+    assert!(!kit_chassis_available(&state, true));
+}
+
+fn kit_sentinel_component() -> (op_editor_core::EditorState, String) {
+    let mut state = op_editor_core::EditorState::new();
+    let kit = op_editor_core::session_kit();
+    let root: jian_ops_schema::node::PenNode = serde_json::from_value(serde_json::json!({
+        "id": kit.sentinel_master_id,
+        "type": "frame",
+        "name": "Layout/Default",
+        "reusable": true,
+        "x": 0,
+        "y": 0,
+        "width": 1440.0,
+        "height": 850.0,
+        "children": [{
+            "id": "tpl-layout-main",
+            "type": "frame",
+            "name": "Main container",
+            "width": 400.0,
+            "height": 400.0,
+            "children": [{
+                "id": "tpl-layout-main-label",
+                "type": "text",
+                "name": "label",
+                "content": "Main container"
+            }]
+        }]
+    }))
+    .expect("frame fixture");
+    state.components.insert(op_editor_core::Component {
+        id: op_editor_core::NodeId::new(kit.sentinel_master_id.clone()),
+        name: "Layout".into(),
+        root,
+    });
+    (state, kit.sentinel_master_id.clone())
+}
+
+#[test]
+fn kit_chassis_instantiates_session_sentinel() {
+    let (state, _) = kit_sentinel_component();
+    assert!(kit_chassis_available(&state, false));
+    let cmds = kit_chassis_commands(&state, false, Some("starter")).expect("kit chassis");
+    assert_eq!(cmds.len(), 1);
+    match &cmds[0] {
+        EditorCommand::InsertSubtree {
+            nodes, parent_id, ..
+        } => {
+            assert_eq!(nodes.len(), 1);
+            assert!(!parent_id.is_real());
+            assert_eq!(nodes[0].base().name.as_deref(), Some("Layout/Default"));
+            assert_eq!(nodes[0].base().x, Some(SAFE_CANVAS_X));
+            assert_eq!(nodes[0].base().y, Some(SAFE_CANVAS_Y));
+            match &nodes[0] {
+                jian_ops_schema::node::PenNode::Frame(frame) => {
+                    assert_ne!(frame.reusable, Some(true));
+                }
+                other => panic!("expected Frame, got {other:?}"),
+            }
+        }
+        other => panic!("expected InsertSubtree, got {other:?}"),
+    }
+    assert!(
+        kit_chassis_commands(&state, true, None).is_none(),
+        "mobile keeps its own scaffold"
+    );
+}
+
+#[test]
+fn kit_chassis_never_leaves_the_page_empty() {
+    let (mut state, _) = kit_sentinel_component();
+    let starter: jian_ops_schema::node::PenNode = serde_json::from_value(serde_json::json!({
+        "id": "starter",
+        "type": "frame",
+        "name": "Frame",
+        "width": 800.0,
+        "height": 600.0
+    }))
+    .expect("starter");
+    assert!(state.apply(EditorCommand::InsertAuthoredSubtree {
+        nodes: vec![starter],
+        parent_id: op_editor_core::NodeId::NONE,
+        page_id: None,
+    }));
+    assert_eq!(state.active_children().len(), 1);
+    let cmds = kit_chassis_commands(&state, false, Some("starter")).expect("kit chassis");
+    assert_eq!(cmds.len(), 1);
+    assert!(
+        state.apply(cmds.into_iter().next().expect("insert")),
+        "chassis insert must apply"
+    );
+    assert_eq!(state.active_children().len(), 1);
+    let root = &state.active_children()[0];
+    assert_eq!(root.base().name.as_deref(), Some("Layout/Default"));
+    assert_ne!(root.id_str(), "starter");
+    let slot = crate::run::find_descendant_id_by_name(
+        &state,
+        root.id_str(),
+        op_editor_core::session_kit().content_slot_name(),
+    );
+    assert!(slot.is_some(), "Main container must survive instantiate");
+}
+
+#[test]
+fn prepare_kit_content_area_commands_stack_the_slot() {
+    let cmds = prepare_kit_content_area_commands("slot");
+    let props: Vec<&str> = cmds
+        .iter()
+        .filter_map(|cmd| match cmd {
+            EditorCommand::SetNodeLayoutProp { property, .. } => Some(property.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        props,
+        [
+            "layout",
+            "alignItems",
+            "justifyContent",
+            "height",
+            "padding",
+            "gap"
+        ]
+    );
+}

@@ -222,6 +222,7 @@ pub async fn run_spawned_agents_concurrent(
                     SubtaskOutcome {
                         id: subtask.id.clone(),
                         node_count: 0,
+                        paintable_nodes: 0,
                         error: Some("aborted".into()),
                         inserted_root_ids: Vec::new(),
                         subtask: None,

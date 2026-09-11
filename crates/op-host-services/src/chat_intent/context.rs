@@ -177,6 +177,13 @@ pub(super) fn scalar_display(value: &jian_ops_schema::variable::VariableScalar) 
 }
 
 /// Pre-built `generateDesignModification` request inputs.
+/// What the host placed before this turn, for the prompt's framing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecipeBaseHint {
+    pub recipe_id: String,
+    pub name: String,
+}
+
 pub struct ModifyPlan {
     /// `CONTEXT NODES + INSTRUCTION (+ variable context)` user message.
     pub user_message: String,
@@ -184,6 +191,9 @@ pub struct ModifyPlan {
     pub system_prompt: String,
     /// Immutable write scope captured when the turn starts.
     pub target_frame_ids: Vec<String>,
+    /// True when the host just placed a recipe and this turn rewrites its
+    /// sample content, which needs more reply room than a small edit.
+    pub rewrites_a_placed_recipe: bool,
 }
 
 pub(super) fn strip_base64_data_uris(value: &mut serde_json::Value) {
@@ -296,6 +306,21 @@ pub(super) fn selected_frame_ids(state: &EditorState) -> Option<Vec<String>> {
 }
 
 pub fn build_modify_plan(state: &EditorState, instruction: &str) -> Option<ModifyPlan> {
+    build_modify_plan_with(state, instruction, None)
+}
+
+/// As [`build_modify_plan`], but told which recipe the host just placed.
+///
+/// A freshly placed recipe is full of the kit's placeholder content, and the
+/// user's message ("список коммутаторов") reads as a request to *build* that
+/// screen rather than to fill it in. Naming the base and the placeholder duty
+/// explicitly is what makes the turn a rewrite of the sample data instead of
+/// a coin flip on whether the model notices the columns say something else.
+pub fn build_modify_plan_with(
+    state: &EditorState,
+    instruction: &str,
+    recipe_base: Option<&RecipeBaseHint>,
+) -> Option<ModifyPlan> {
     let children = state.active_children();
     let target_frame_ids = selected_frame_ids(state)?;
     let targets = target_frame_ids
@@ -306,7 +331,19 @@ pub fn build_modify_plan(state: &EditorState, instruction: &str) -> Option<Modif
     let mut context = serde_json::to_value(&targets).ok()?;
     strip_base64_data_uris(&mut context);
     let context_json = serde_json::to_string(&context).ok()?;
-    let mut user_message = format!("CONTEXT NODES:\n{context_json}\n\nINSTRUCTION:\n{instruction}");
+    let mut user_message = String::new();
+    if let Some(base) = recipe_base {
+        user_message.push_str(&format!(
+            "THIS SCREEN WAS JUST PLACED FROM RECIPE `{}` ({}) AND IS SELECTED ABOVE.\n\
+             Everything it shows is the kit's placeholder sample, not this product's content. \
+             Replace it with content that answers the request: retitle the columns to what \
+             this list actually has, and replace EVERY sample row with a distinct realistic \
+             row of the same kind (the sample repeats one row; that is not data). Keep the \
+             layout, the table chrome and the shell exactly as they are.\n\n",
+            base.recipe_id, base.name
+        ));
+    }
+    user_message.push_str(&format!("CONTEXT NODES:\n{context_json}\n\nINSTRUCTION:\n{instruction}"));
     if let Some(var_context) = build_variable_context(state) {
         user_message.push_str("\n\n");
         user_message.push_str(&var_context);
@@ -332,14 +369,18 @@ pub fn build_modify_plan(state: &EditorState, instruction: &str) -> Option<Modif
         .map(|s| s.content.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
-    if let Some(spec) = state.doc.design_md.as_ref() {
-        system_prompt.push_str("\n\n");
-        system_prompt.push_str(&op_orchestrator::build_design_md_style_policy(spec));
+    let rules_policy = op_editor_core::build_effective_rules_policy(
+        &op_editor_core::effective_design_rules(state.doc.design_md.as_ref()),
+    );
+    if !rules_policy.is_empty() {
+        system_prompt.push_str("\n\nSESSION RULES (follow these EXACTLY):\n");
+        system_prompt.push_str(&rules_policy);
     }
 
     Some(ModifyPlan {
         user_message,
         system_prompt,
         target_frame_ids,
+        rewrites_a_placed_recipe: recipe_base.is_some(),
     })
 }

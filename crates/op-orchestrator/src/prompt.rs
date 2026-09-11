@@ -12,7 +12,6 @@
 
 use crate::compact_prompt::build_compact_planning_prompt;
 use crate::compact_skills::{apply_skill_filter, SkillNamed};
-use crate::design_md_policy::build_design_md_style_policy;
 use crate::design_type::{detect_design_type, DesignType};
 use crate::model_profile::{resolve_model_profile, ModelTier};
 use crate::plan::{OrchestratorPlan, Subtask};
@@ -162,18 +161,22 @@ fn planning_suffix(mode: PlanningMode) -> &'static str {
     }
 }
 
-/// 丢掉 `landing-page-predesign` skill(除非设计类型是 landing-page)。
+/// 丢掉 catalog `design-system-composition`(session kit owns composition)
+/// 以及 `landing-page-predesign`(除非设计类型是 landing-page)。
 /// 见 spec §5.10。
 fn filter_planning_skills_for_prompt(
     skills: Vec<op_ai_skills::ResolvedSkill>,
     prompt: &str,
 ) -> Vec<op_ai_skills::ResolvedSkill> {
-    if detect_design_type(prompt).type_ == DesignType::LandingPage {
-        return skills;
-    }
+    let is_landing = detect_design_type(prompt).type_ == DesignType::LandingPage;
     skills
         .into_iter()
-        .filter(|s| s.meta.name != "landing-page-predesign")
+        .filter(|s| {
+            if s.meta.name == "design-system-composition" {
+                return false;
+            }
+            is_landing || s.meta.name != "landing-page-predesign"
+        })
         .collect()
 }
 
@@ -200,13 +203,19 @@ pub fn build_orchestrator_prompt(
             let t = apply_profile_to_timeouts(builtin_planning_timeouts(profile.tier), multiplier);
             let cp = build_compact_planning_prompt(
                 &req.prompt,
-                req.design_md.as_ref(),
+                &req.rules,
                 req.pinned_style_guide.as_deref(),
             );
             PlanningPrompt {
                 call_request: CallRequest {
                     system_prompt: cp.system,
-                    user_prompt: cp.user_prompt,
+                    user_prompt: {
+                        let mut user = cp.user_prompt;
+                        user.push_str(&crate::reference_brief::reference_brief_prompt_block(
+                            req.reference_brief.as_deref(),
+                        ));
+                        user
+                    },
                     model: req.model.clone(),
                     provider: req.provider.clone(),
                     timeout: t.hard,
@@ -225,7 +234,7 @@ pub fn build_orchestrator_prompt(
                 &req.prompt,
                 req.model.as_deref(),
                 mode,
-                req.design_md.as_ref(),
+                &req.rules,
                 req.pinned_style_guide.as_deref(),
             );
             let opts = op_ai_skills::ResolveOptions {
@@ -245,10 +254,25 @@ pub fn build_orchestrator_prompt(
                 .join("\n\n");
             system_prompt.push_str(PLANNING_QUALITY_GUARDRAILS);
             system_prompt.push_str(planning_suffix(mode));
+            system_prompt.push_str("\n\n");
+            system_prompt.push_str(&session_kit_planning_block(
+                detect_design_type(&req.prompt).type_ == DesignType::DesktopScreen,
+            ));
+            if req.reference_brief.is_some() {
+                system_prompt.push_str(
+                    "\n\nREFERENCE GROUNDING: A reference screen brief is appended to the \
+                     user message. Subtasks MUST map 1:1 to brief-visible regions only. \
+                     Ban kpi / signals / credits / charts unless the brief lists them.",
+                );
+            }
+            let mut user_prompt = req.prompt.clone();
+            user_prompt.push_str(&crate::reference_brief::reference_brief_prompt_block(
+                req.reference_brief.as_deref(),
+            ));
             PlanningPrompt {
                 call_request: CallRequest {
                     system_prompt,
-                    user_prompt: req.prompt.clone(),
+                    user_prompt,
                     model: req.model.clone(),
                     provider: req.provider.clone(),
                     timeout: t.hard,

@@ -81,12 +81,14 @@ fn paint_panel(panel: &AIChatPlaceholder<'_>, rect: Rect) -> SelectedChipPaintBa
 }
 
 #[test]
-fn selected_count_zero_has_no_chip_row() {
+fn selected_count_zero_has_no_selection_chip() {
     let (state, rect) = panel_with_selection(0);
     let panel = AIChatPlaceholder::from_editor(&state);
 
-    assert_eq!(panel.chip_row_h(), 0.0);
-    assert_eq!(panel.input_height(), INPUT_BASE_HEIGHT);
+    // The row itself stays — it carries the session's rules chip — but the
+    // selection chip is absent, so nothing on it names a selection.
+    assert!(panel.chip_row_h() > 0.0);
+    assert!(panel.chip_row(panel.input_rect(rect)).selection.is_none());
 
     let backend = paint_panel(&panel, rect);
     assert!(!backend

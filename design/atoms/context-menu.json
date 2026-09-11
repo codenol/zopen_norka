@@ -1,0 +1,872 @@
+{
+  "id": "page-atom-context-menu",
+  "name": "Atoms · ContextMenu",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-context-menu-item-col-text",
+      "name": "Text",
+      "x": 0.0,
+      "y": 0,
+      "width": 304.0,
+      "layout": "vertical",
+      "gap": 16.0,
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-text-default",
+          "name": "ContextMenuItem/Text/Default",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-text-default-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-text-hover",
+          "name": "ContextMenuItem/Text/Hover",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/hover"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-text-hover-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/hover"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-text-selected",
+          "name": "ContextMenuItem/Text/Selected",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/selected"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-text-selected-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/selected"
+                }
+              ]
+            }
+          ],
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$context-menu/menu-item/border/selected"
+              }
+            ]
+          }
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-text-disabled",
+          "name": "ContextMenuItem/Text/Disabled",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/disabled"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-text-disabled-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/disabled"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-context-menu-item-col-icon",
+      "name": "WithIcon",
+      "x": 344.0,
+      "y": 0,
+      "width": 304.0,
+      "layout": "vertical",
+      "gap": 16.0,
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-icon-default",
+          "name": "ContextMenuItem/WithIcon/Default",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-context-menu-item-icon-default-icon",
+              "name": "icon",
+              "iconFontName": "map-pin",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/icon/default"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-icon-default-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-icon-hover",
+          "name": "ContextMenuItem/WithIcon/Hover",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/hover"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-context-menu-item-icon-hover-icon",
+              "name": "icon",
+              "iconFontName": "map-pin",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/icon/hover"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-icon-hover-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/hover"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-icon-selected",
+          "name": "ContextMenuItem/WithIcon/Selected",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/selected"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-context-menu-item-icon-selected-icon",
+              "name": "icon",
+              "iconFontName": "map-pin",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/icon/selected"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-icon-selected-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/selected"
+                }
+              ]
+            }
+          ],
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$context-menu/menu-item/border/selected"
+              }
+            ]
+          }
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-icon-disabled",
+          "name": "ContextMenuItem/WithIcon/Disabled",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/disabled"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-context-menu-item-icon-disabled-icon",
+              "name": "icon",
+              "iconFontName": "map-pin",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/icon/disabled"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-icon-disabled-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/disabled"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-icon-danger",
+          "name": "ContextMenuItem/WithIcon/Danger",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-context-menu-item-icon-danger-icon",
+              "name": "icon",
+              "iconFontName": "map-pin",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/icon/danger"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-icon-danger-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-icon-info",
+          "name": "ContextMenuItem/WithIcon/Info",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-context-menu-item-icon-info-icon",
+              "name": "icon",
+              "iconFontName": "map-pin",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/icon/info"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-icon-info-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-icon-success",
+          "name": "ContextMenuItem/WithIcon/Success",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-context-menu-item-icon-success-icon",
+              "name": "icon",
+              "iconFontName": "map-pin",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/icon/success"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-icon-success-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/default"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-context-menu-item-col-chip",
+      "name": "WithChip",
+      "x": 688.0,
+      "y": 0,
+      "width": 304.0,
+      "layout": "vertical",
+      "gap": 16.0,
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-chip-default",
+          "name": "ContextMenuItem/WithChip/Default",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-chip-default-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/default"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "id": "atom-context-menu-item-chip-default-chip",
+              "ref": "atom-chip-default"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-chip-hover",
+          "name": "ContextMenuItem/WithChip/Hover",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/hover"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-chip-hover-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/hover"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "id": "atom-context-menu-item-chip-hover-chip",
+              "ref": "atom-chip-default"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-chip-selected",
+          "name": "ContextMenuItem/WithChip/Selected",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/selected"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-chip-selected-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/selected"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "id": "atom-context-menu-item-chip-selected-chip",
+              "ref": "atom-chip-default"
+            }
+          ],
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$context-menu/menu-item/border/selected"
+              }
+            ]
+          }
+        },
+        {
+          "type": "frame",
+          "id": "atom-context-menu-item-chip-disabled",
+          "name": "ContextMenuItem/WithChip/Disabled",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": "fill_container",
+          "height": 30.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            0.0,
+            8.0
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$context-menu/menu-item/background/disabled"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-context-menu-item-chip-disabled-label",
+              "name": "label",
+              "content": "ContextMenuItem",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$context-menu/menu-item/text/disabled"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "id": "atom-context-menu-item-chip-disabled-chip",
+              "ref": "atom-chip-disabled"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

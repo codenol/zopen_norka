@@ -1,0 +1,2481 @@
+{
+  "id": "page-atom-table",
+  "name": "Atoms · Table",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-table-icon-lock-default",
+      "name": "Table/Icon/Lock/Default",
+      "reusable": true,
+      "x": 0.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-lock-default-icon",
+          "name": "icon",
+          "iconFontName": "lock",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-lock-active",
+      "name": "Table/Icon/Lock/Active",
+      "reusable": true,
+      "x": 32.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-lock-active-icon",
+          "name": "icon",
+          "iconFontName": "lock",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/brand"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-lock-disabled",
+      "name": "Table/Icon/Lock/Disabled",
+      "reusable": true,
+      "x": 64.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-lock-disabled-icon",
+          "name": "icon",
+          "iconFontName": "lock",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$cool-gray/200"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-filter-default",
+      "name": "Table/Icon/Filter/Default",
+      "reusable": true,
+      "x": 96.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-filter-default-icon",
+          "name": "icon",
+          "iconFontName": "funnel",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-filter-active",
+      "name": "Table/Icon/Filter/Active",
+      "reusable": true,
+      "x": 128.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-filter-active-icon",
+          "name": "icon",
+          "iconFontName": "funnel",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/brand"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-sort-default",
+      "name": "Table/Icon/Sort/Default",
+      "reusable": true,
+      "x": 160.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-sort-default-icon",
+          "name": "icon",
+          "iconFontName": "arrow-up-down",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-sort-desc",
+      "name": "Table/Icon/Sort/Desc",
+      "reusable": true,
+      "x": 192.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-sort-desc-icon",
+          "name": "icon",
+          "iconFontName": "arrow-down",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/brand"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-sort-asc",
+      "name": "Table/Icon/Sort/Asc",
+      "reusable": true,
+      "x": 224.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-sort-asc-icon",
+          "name": "icon",
+          "iconFontName": "arrow-up",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/brand"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-kebab",
+      "name": "Table/Icon/Kebab",
+      "reusable": true,
+      "x": 256.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-kebab-icon",
+          "name": "icon",
+          "iconFontName": "ellipsis-vertical",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-grip",
+      "name": "Table/Icon/Grip",
+      "reusable": true,
+      "x": 288.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-grip-icon",
+          "name": "icon",
+          "iconFontName": "grip-vertical",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-chevron",
+      "name": "Table/Icon/Chevron",
+      "reusable": true,
+      "x": 320.0,
+      "y": 0,
+      "width": 12.0,
+      "height": 12.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-chevron-icon",
+          "name": "icon",
+          "iconFontName": "chevron-right",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-settings",
+      "name": "Table/Icon/Settings",
+      "reusable": true,
+      "x": 352.0,
+      "y": 0,
+      "width": 16.0,
+      "height": 16.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-settings-icon",
+          "name": "icon",
+          "iconFontName": "settings",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-columns",
+      "name": "Table/Icon/Columns",
+      "reusable": true,
+      "x": 388.0,
+      "y": 0,
+      "width": 16.0,
+      "height": 16.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-columns-icon",
+          "name": "icon",
+          "iconFontName": "rows-3",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-hide",
+      "name": "Table/Icon/Hide",
+      "reusable": true,
+      "x": 424.0,
+      "y": 0,
+      "width": 16.0,
+      "height": 16.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-hide-icon",
+          "name": "icon",
+          "iconFontName": "x",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-icon-info",
+      "name": "Table/Icon/Info",
+      "reusable": true,
+      "x": 460.0,
+      "y": 0,
+      "width": 16.0,
+      "height": 16.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-table-icon-info-icon",
+          "name": "icon",
+          "iconFontName": "info",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/icon/info"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-text-sort-filter",
+      "name": "Table/Header/TextSortFilter",
+      "reusable": true,
+      "x": 0.0,
+      "y": 36.0,
+      "width": 262.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-text-sort-filter-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 262.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-header-text-sort-filter-label",
+              "name": "label",
+              "content": "Расположение",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/primary"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-table-header-text-sort-filter-icons",
+              "name": "icons",
+              "width": "fit_content",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 4.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-text-sort-filter-sort-default",
+                  "ref": "atom-table-icon-sort-default"
+                },
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-text-sort-filter-filter-default",
+                  "ref": "atom-table-icon-filter-default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-text-sort-filter-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 262.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-checkbox-text-sort-filter",
+      "name": "Table/Header/CheckboxTextSortFilter",
+      "reusable": true,
+      "x": 282.0,
+      "y": 36.0,
+      "width": 262.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-checkbox-text-sort-filter-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 262.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-table-header-checkbox-text-sort-filter-leading",
+              "name": "leading",
+              "width": "fit_content",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 8,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-checkbox-text-sort-filter-checkbox",
+                  "ref": "atom-checkbox-unchecked-default-icon"
+                },
+                {
+                  "type": "text",
+                  "id": "atom-table-header-checkbox-text-sort-filter-label",
+                  "name": "label",
+                  "content": "Расположение",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 500,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/text/primary"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-table-header-checkbox-text-sort-filter-icons",
+              "name": "icons",
+              "width": "fit_content",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 4.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-checkbox-text-sort-filter-sort-default",
+                  "ref": "atom-table-icon-sort-default"
+                },
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-checkbox-text-sort-filter-filter-default",
+                  "ref": "atom-table-icon-filter-default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-checkbox-text-sort-filter-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 262.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-text",
+      "name": "Table/Header/Text",
+      "reusable": true,
+      "x": 564.0,
+      "y": 36.0,
+      "width": 262.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-text-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 262.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-header-text-label",
+              "name": "label",
+              "content": "Расположение",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/primary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-text-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 262.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-text-info-sort-filter",
+      "name": "Table/Header/TextInfoSortFilter",
+      "reusable": true,
+      "x": 846.0,
+      "y": 36.0,
+      "width": 262.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-text-info-sort-filter-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 262.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-table-header-text-info-sort-filter-leading",
+              "name": "leading",
+              "width": "fit_content",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 8,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "atom-table-header-text-info-sort-filter-label",
+                  "name": "label",
+                  "content": "Расположение",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 500,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/text/primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-text-info-sort-filter-info",
+                  "ref": "atom-table-icon-info"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-table-header-text-info-sort-filter-icons",
+              "name": "icons",
+              "width": "fit_content",
+              "height": "fit_content",
+              "layout": "horizontal",
+              "gap": 4.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-text-info-sort-filter-sort-default",
+                  "ref": "atom-table-icon-sort-default"
+                },
+                {
+                  "type": "ref",
+                  "id": "atom-table-header-text-info-sort-filter-filter-default",
+                  "ref": "atom-table-icon-filter-default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-text-info-sort-filter-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 262.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-empty",
+      "name": "Table/Header/Empty",
+      "reusable": true,
+      "x": 1128.0,
+      "y": 36.0,
+      "width": 44.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-empty-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": []
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-empty-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-checkbox",
+      "name": "Table/Header/Checkbox",
+      "reusable": true,
+      "x": 1192.0,
+      "y": 36.0,
+      "width": 56.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-checkbox-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 56.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-header-checkbox-box",
+              "ref": "atom-checkbox-unchecked-default-icon"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-checkbox-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 56.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-settings",
+      "name": "Table/Header/Settings",
+      "reusable": true,
+      "x": 1268.0,
+      "y": 36.0,
+      "width": 44.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-settings-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-header-settings-icon",
+              "ref": "atom-table-icon-settings"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-settings-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-columns",
+      "name": "Table/Header/Columns",
+      "reusable": true,
+      "x": 1332.0,
+      "y": 36.0,
+      "width": 44.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-columns-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-header-columns-icon",
+              "ref": "atom-table-icon-columns"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-columns-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-hide",
+      "name": "Table/Header/Hide",
+      "reusable": true,
+      "x": 1396.0,
+      "y": 36.0,
+      "width": 44.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-hide-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-header-hide-icon",
+              "ref": "atom-table-icon-hide"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-hide-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-info",
+      "name": "Table/Header/Info",
+      "reusable": true,
+      "x": 1460.0,
+      "y": 36.0,
+      "width": 44.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-info-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-header-info-icon",
+              "ref": "atom-table-icon-info"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-info-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-chevron",
+      "name": "Table/Header/Chevron",
+      "reusable": true,
+      "x": 1524.0,
+      "y": 36.0,
+      "width": 44.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-chevron-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-header-chevron-icon",
+              "ref": "atom-table-icon-chevron"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-chevron-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-header-sort-filter",
+      "name": "Table/Header/SortFilter",
+      "reusable": true,
+      "x": 1588.0,
+      "y": 36.0,
+      "width": 82.0,
+      "height": 52.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/header/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-header-sort-filter-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 82.0,
+          "height": 52.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-header-sort-filter-grip",
+              "ref": "atom-table-icon-grip"
+            },
+            {
+              "type": "ref",
+              "id": "atom-table-header-sort-filter-sort",
+              "ref": "atom-table-icon-sort-default"
+            },
+            {
+              "type": "ref",
+              "id": "atom-table-header-sort-filter-filter",
+              "ref": "atom-table-icon-filter-default"
+            }
+          ],
+          "gap": 8
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-header-sort-filter-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 51.0,
+          "width": 82.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/header/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-text-default",
+      "name": "Table/Cell/Text/Default",
+      "reusable": true,
+      "x": 0.0,
+      "y": 108.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-text-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-cell-text-default-label",
+              "name": "label",
+              "content": "Label",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/primary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-text-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-link-default",
+      "name": "Table/Cell/Link/Default",
+      "reusable": true,
+      "x": 220.0,
+      "y": 108.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-link-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-cell-link-default-label",
+              "name": "label",
+              "content": "Link",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/link"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-link-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-text-icon-default",
+      "name": "Table/Cell/TextIcon/Default",
+      "reusable": true,
+      "x": 440.0,
+      "y": 108.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-text-icon-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-cell-text-icon-default-label",
+              "name": "label",
+              "content": "Label",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/primary"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "id": "atom-table-cell-text-icon-default-icon",
+              "ref": "atom-table-icon-info"
+            }
+          ],
+          "gap": 8
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-text-icon-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-badge-default",
+      "name": "Table/Cell/Badge/Default",
+      "reusable": true,
+      "x": 660.0,
+      "y": 108.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-badge-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-badge-default-badge",
+              "ref": "atom-badge-green-filled-text",
+              "descendants": {
+                "atom-badge-green-filled-text-label": {
+                  "content": "VALUE"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-badge-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-empty-default",
+      "name": "Table/Cell/Empty/Default",
+      "reusable": true,
+      "x": 880.0,
+      "y": 108.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-empty-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": []
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-empty-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-checkbox-default",
+      "name": "Table/Cell/Checkbox/Default",
+      "reusable": true,
+      "x": 944.0,
+      "y": 108.0,
+      "width": 56.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-checkbox-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 56.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-checkbox-default-box",
+              "ref": "atom-checkbox-unchecked-default-icon"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-checkbox-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 56.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-kebab-default",
+      "name": "Table/Cell/Kebab/Default",
+      "reusable": true,
+      "x": 1020.0,
+      "y": 108.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-kebab-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-kebab-default-icon",
+              "ref": "atom-table-icon-kebab"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-kebab-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-chevron-default",
+      "name": "Table/Cell/Chevron/Default",
+      "reusable": true,
+      "x": 1084.0,
+      "y": 108.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-chevron-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-chevron-default-icon",
+              "ref": "atom-table-icon-chevron"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-chevron-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-grip-default",
+      "name": "Table/Cell/Grip/Default",
+      "reusable": true,
+      "x": 1148.0,
+      "y": 108.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-grip-default-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-grip-default-icon",
+              "ref": "atom-table-icon-grip"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-grip-default-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-text-alternative",
+      "name": "Table/Cell/Text/Alternative",
+      "reusable": true,
+      "x": 0.0,
+      "y": 172.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-text-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-cell-text-alternative-label",
+              "name": "label",
+              "content": "Label",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/primary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-text-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-link-alternative",
+      "name": "Table/Cell/Link/Alternative",
+      "reusable": true,
+      "x": 220.0,
+      "y": 172.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-link-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-cell-link-alternative-label",
+              "name": "label",
+              "content": "Link",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/link"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-link-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-text-icon-alternative",
+      "name": "Table/Cell/TextIcon/Alternative",
+      "reusable": true,
+      "x": 440.0,
+      "y": 172.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-text-icon-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-table-cell-text-icon-alternative-label",
+              "name": "label",
+              "content": "Label",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$table/text/primary"
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "id": "atom-table-cell-text-icon-alternative-icon",
+              "ref": "atom-table-icon-info"
+            }
+          ],
+          "gap": 8
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-text-icon-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-badge-alternative",
+      "name": "Table/Cell/Badge/Alternative",
+      "reusable": true,
+      "x": 660.0,
+      "y": 172.0,
+      "width": 200.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-badge-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 200.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            16.0
+          ],
+          "justifyContent": "start",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-badge-alternative-badge",
+              "ref": "atom-badge-green-filled-text",
+              "descendants": {
+                "atom-badge-green-filled-text-label": {
+                  "content": "VALUE"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-badge-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 200.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-empty-alternative",
+      "name": "Table/Cell/Empty/Alternative",
+      "reusable": true,
+      "x": 880.0,
+      "y": 172.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-empty-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": []
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-empty-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-checkbox-alternative",
+      "name": "Table/Cell/Checkbox/Alternative",
+      "reusable": true,
+      "x": 944.0,
+      "y": 172.0,
+      "width": 56.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-checkbox-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 56.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-checkbox-alternative-box",
+              "ref": "atom-checkbox-unchecked-default-icon"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-checkbox-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 56.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-kebab-alternative",
+      "name": "Table/Cell/Kebab/Alternative",
+      "reusable": true,
+      "x": 1020.0,
+      "y": 172.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-kebab-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-kebab-alternative-icon",
+              "ref": "atom-table-icon-kebab"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-kebab-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-chevron-alternative",
+      "name": "Table/Cell/Chevron/Alternative",
+      "reusable": true,
+      "x": 1084.0,
+      "y": 172.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-chevron-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-chevron-alternative-icon",
+              "ref": "atom-table-icon-chevron"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-chevron-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-table-cell-grip-alternative",
+      "name": "Table/Cell/Grip/Alternative",
+      "reusable": true,
+      "x": 1148.0,
+      "y": 172.0,
+      "width": 44.0,
+      "height": 44.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$table/row/background/alternative"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-table-cell-grip-alternative-content",
+          "name": "content",
+          "x": 0,
+          "y": 0,
+          "width": 44.0,
+          "height": 44.0,
+          "layout": "horizontal",
+          "padding": [
+            0,
+            0
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "ref",
+              "id": "atom-table-cell-grip-alternative-icon",
+              "ref": "atom-table-icon-grip"
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "atom-table-cell-grip-alternative-rule",
+          "name": "rule",
+          "x": 0,
+          "y": 43.0,
+          "width": 44.0,
+          "height": 1,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$table/row/border/default"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

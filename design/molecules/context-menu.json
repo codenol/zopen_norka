@@ -1,0 +1,919 @@
+{
+  "id": "page-molecule-context-menu",
+  "name": "Molecules · ContextMenu",
+  "children": [
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-base",
+      "name": "ContextMenu/Base",
+      "reusable": true,
+      "x": 0.0,
+      "y": 0,
+      "width": 320.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 0.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-0",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-1",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-2",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-3",
+          "ref": "atom-context-menu-item-text-selected"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-4",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-5",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-6",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-7",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-8",
+          "ref": "atom-context-menu-item-text-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-base-item-9",
+          "ref": "atom-context-menu-item-text-default"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-icon",
+      "name": "ContextMenu/WithIcon",
+      "reusable": true,
+      "x": 360.0,
+      "y": 0,
+      "width": 320.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 0.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-0",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-1",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-2",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-3",
+          "ref": "atom-context-menu-item-icon-selected"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-4",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-5",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-6",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-7",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-8",
+          "ref": "atom-context-menu-item-icon-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-icon-item-9",
+          "ref": "atom-context-menu-item-icon-default"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-badges",
+      "name": "ContextMenu/Badges",
+      "reusable": true,
+      "x": 720.0,
+      "y": 0,
+      "width": 320.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 0.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-0",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-1",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-2",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-3",
+          "ref": "atom-context-menu-item-chip-selected"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-4",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-5",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-6",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-7",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-8",
+          "ref": "atom-context-menu-item-chip-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-badges-item-9",
+          "ref": "atom-context-menu-item-chip-default"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-search",
+      "name": "ContextMenu/Search",
+      "reusable": true,
+      "x": 1080.0,
+      "y": 0,
+      "width": 320.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 8.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-search",
+          "name": "search",
+          "width": "fill_container",
+          "height": 32.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/default"
+            }
+          ],
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/default"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "molecule-context-menu-search-search-icon",
+              "name": "icon",
+              "iconFontName": "search",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/icon/default"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "molecule-context-menu-search-search-label",
+              "name": "label",
+              "content": "Поиск",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-divider",
+          "name": "divider",
+          "width": "fill_container",
+          "height": 1.0,
+          "layout": "none",
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$dropdown/border/default"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-list",
+          "name": "list",
+          "width": "fill_container",
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 0,
+          "clipContent": true,
+          "children": [
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-0",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-1",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-2",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-3",
+              "ref": "atom-context-menu-item-text-selected"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-4",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-5",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-6",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-7",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-8",
+              "ref": "atom-context-menu-item-text-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-item-9",
+              "ref": "atom-context-menu-item-text-default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-search-icon",
+      "name": "ContextMenu/SearchIcon",
+      "reusable": true,
+      "x": 1440.0,
+      "y": 0,
+      "width": 320.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 8.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-icon-search",
+          "name": "search",
+          "width": "fill_container",
+          "height": 32.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/default"
+            }
+          ],
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/default"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "molecule-context-menu-search-icon-search-icon",
+              "name": "icon",
+              "iconFontName": "search",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/icon/default"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "molecule-context-menu-search-icon-search-label",
+              "name": "label",
+              "content": "Поиск",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-icon-divider",
+          "name": "divider",
+          "width": "fill_container",
+          "height": 1.0,
+          "layout": "none",
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$dropdown/border/default"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-icon-list",
+          "name": "list",
+          "width": "fill_container",
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 0,
+          "clipContent": true,
+          "children": [
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-0",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-1",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-2",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-3",
+              "ref": "atom-context-menu-item-icon-selected"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-4",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-5",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-6",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-7",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-8",
+              "ref": "atom-context-menu-item-icon-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-icon-item-9",
+              "ref": "atom-context-menu-item-icon-default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-search-badges",
+      "name": "ContextMenu/SearchBadges",
+      "reusable": true,
+      "x": 1800.0,
+      "y": 0,
+      "width": 320.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 8.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-badges-search",
+          "name": "search",
+          "width": "fill_container",
+          "height": 32.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/default"
+            }
+          ],
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/default"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "molecule-context-menu-search-badges-search-icon",
+              "name": "icon",
+              "iconFontName": "search",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/icon/default"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "molecule-context-menu-search-badges-search-label",
+              "name": "label",
+              "content": "Поиск",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-badges-divider",
+          "name": "divider",
+          "width": "fill_container",
+          "height": 1.0,
+          "layout": "none",
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$dropdown/border/default"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "frame",
+          "id": "molecule-context-menu-search-badges-list",
+          "name": "list",
+          "width": "fill_container",
+          "height": "fit_content",
+          "layout": "vertical",
+          "gap": 0,
+          "clipContent": true,
+          "children": [
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-0",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-1",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-2",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-3",
+              "ref": "atom-context-menu-item-chip-selected"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-4",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-5",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-6",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-7",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-8",
+              "ref": "atom-context-menu-item-chip-default"
+            },
+            {
+              "type": "ref",
+              "id": "molecule-context-menu-search-badges-item-9",
+              "ref": "atom-context-menu-item-chip-default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-semantic",
+      "name": "ContextMenu/Semantic",
+      "reusable": true,
+      "x": 2160.0,
+      "y": 0,
+      "width": 320.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 0.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-semantic-item-0",
+          "ref": "atom-context-menu-item-icon-danger",
+          "descendants": {
+            "atom-context-menu-item-icon-danger-label": {
+              "content": "Danger"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-semantic-item-1",
+          "ref": "atom-context-menu-item-icon-info",
+          "descendants": {
+            "atom-context-menu-item-icon-info-label": {
+              "content": "Info"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-semantic-item-2",
+          "ref": "atom-context-menu-item-icon-success",
+          "descendants": {
+            "atom-context-menu-item-icon-success-label": {
+              "content": "Success"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-context-menu-pagesize",
+      "name": "ContextMenu/PageSize",
+      "reusable": true,
+      "x": 2520.0,
+      "y": 0,
+      "width": 160.0,
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 0.0,
+      "padding": 8.0,
+      "cornerRadius": 8.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$context-menu/background/default"
+        }
+      ],
+      "effects": [
+        {
+          "type": "shadow",
+          "offsetX": 0,
+          "offsetY": 6,
+          "blur": 8,
+          "spread": 0,
+          "color": "#00000014"
+        }
+      ],
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-pagesize-item-0",
+          "ref": "atom-context-menu-item-text-selected",
+          "descendants": {
+            "atom-context-menu-item-text-selected-label": {
+              "content": "10"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-pagesize-item-1",
+          "ref": "atom-context-menu-item-text-default",
+          "descendants": {
+            "atom-context-menu-item-text-default-label": {
+              "content": "20"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-pagesize-item-2",
+          "ref": "atom-context-menu-item-text-default",
+          "descendants": {
+            "atom-context-menu-item-text-default-label": {
+              "content": "50"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-context-menu-pagesize-item-3",
+          "ref": "atom-context-menu-item-text-default",
+          "descendants": {
+            "atom-context-menu-item-text-default-label": {
+              "content": "100"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -27,7 +27,10 @@ use crate::plan::{build_fallback_plan, OrchestratorPlan};
 use crate::plan_normalize::{normalize, NormInfo};
 use crate::plan_repair::parse_orchestrator_response;
 use crate::prompt::build_orchestrator_prompt;
-use crate::scaffold::{build_scaffold_at, build_scaffold_reusing};
+use crate::scaffold::{
+    build_scaffold_at, build_scaffold_reusing, kit_chassis_commands,
+    prepare_kit_content_area_commands,
+};
 use crate::screen_groups::group_subtasks_by_screen;
 use crate::subagent::{apply_command_with_reveal, reveal_now_millis, run_subtask_with_reveal_at};
 use crate::types::{
@@ -108,6 +111,34 @@ fn find_child_id_by_name(state: &EditorState, parent_id: &str, name: &str) -> Op
         .map(|c| c.id_str().to_string())
 }
 
+/// Find the id of a descendant of `parent_id` whose name matches `name`.
+pub(crate) fn find_descendant_id_by_name(
+    state: &EditorState,
+    parent_id: &str,
+    name: &str,
+) -> Option<String> {
+    fn walk(node: &jian_ops_schema::node::PenNode, name: &str) -> Option<String> {
+        if node.base().name.as_deref() == Some(name) {
+            return Some(node.id_str().to_string());
+        }
+        for child in node.children().into_iter().flatten() {
+            if let Some(id) = walk(child, name) {
+                return Some(id);
+            }
+        }
+        None
+    }
+    let parent = op_editor_core::walkers::find_node(
+        state.active_children(),
+        &op_editor_core::NodeId::new(parent_id.to_string()),
+    )?;
+    parent
+        .children()
+        .into_iter()
+        .flatten()
+        .find_map(|child| walk(child, name))
+}
+
 fn next_root_insert_position(state: &EditorState, planned_width: f64) -> (f64, f64) {
     let mut rightmost: Option<f64> = None;
     let mut top: Option<f64> = None;
@@ -179,7 +210,9 @@ async fn planning_loop(
                     // 回填 forced_style_guide_name(若 plan 未携带)
                     if plan.style_guide_name.is_none() {
                         if let Some(forced) = forced_style_guide_name {
-                            plan.style_guide_name = Some(forced);
+                            if !forced.is_empty() {
+                                plan.style_guide_name = Some(forced);
+                            }
                         }
                     }
                     // A pinned guide outranks whatever the model chose — and
@@ -224,6 +257,7 @@ async fn planning_loop(
 
     // 规划失败 → fallback plan(规划不可出错)
     let mut fallback = build_fallback_plan(request);
+    fallback = crate::plan_repair::finalize_plan(&mut fallback, None, request);
     // The fallback is heuristic, not modelled, so it names no guide at all —
     // without this a pin was lost precisely when planning had already failed
     // twice and the design needed every bit of direction it could get.

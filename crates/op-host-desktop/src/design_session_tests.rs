@@ -121,11 +121,13 @@ fn end_to_end_pump_round_trips_apply_and_progress_via_actor_channels() {
             subtasks: vec![SubtaskOutcome {
                 id: "s1".into(),
                 node_count: 3,
+                paintable_nodes: 3,
                 error: None,
                 inserted_root_ids: Vec::new(),
                 subtask: None,
             }],
             total_nodes: 3,
+            paintable_nodes: 3,
             unfilled_screens: Vec::new(),
         })));
         // Hold the sink so its channel survives until the UI has
@@ -230,11 +232,13 @@ fn pump_progress_captures_failed_subtask_specs_for_manual_retry() {
             subtasks: vec![SubtaskOutcome {
                 id: "hero".into(),
                 node_count: 0,
+                paintable_nodes: 0,
                 error: Some("empty content from provider".into()),
                 inserted_root_ids: Vec::new(),
                 subtask: Some(subtask),
             }],
             total_nodes: 0,
+            paintable_nodes: 0,
             unfilled_screens: Vec::new(),
         })));
         sink
@@ -296,13 +300,15 @@ fn persisted_request_json() -> String {
         prompt: "p".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: false,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     })
     .unwrap()
 }

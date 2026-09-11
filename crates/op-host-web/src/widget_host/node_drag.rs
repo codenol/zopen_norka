@@ -66,6 +66,11 @@ impl WidgetHost {
                 self.mark_dirty();
                 return true;
             }
+            if core_drag::jump_to_deepest_icon_swap(&mut self.editor_state, &hit_path) {
+                self.scroll_layer_panel_selection_into_view(viewport_height);
+                self.mark_dirty();
+                return true;
+            }
             if let Some(secondary) = resolved.targets.secondary_under_pointer {
                 core_drag::enter_child_scope(
                     &mut self.editor_state,

@@ -4,7 +4,7 @@
 //! up in the Dock as the raw executable name with a blank icon —
 //! there is no `Info.plist` to read `CFBundleName` / the icon from.
 //! [`apply`] sets both at runtime: the Dock / menu-bar name becomes
-//! "OpenPencil" and the Dock tile gets the brand icon. A packaged
+//! "Norka" and the Dock tile gets the brand icon. A packaged
 //! `.app` carries them in its bundle, so this is a dev-run nicety.
 
 /// Set the running app's Dock name + icon. macOS only; a no-op
@@ -21,7 +21,7 @@ pub fn apply() {
     };
 
     // Dock / menu-bar name — overrides the `argv[0]` basename.
-    let name = NSString::from_str("OpenPencil");
+    let name = NSString::from_str(op_editor_ui::PRODUCT_NAME);
     unsafe { NSProcessInfo::processInfo().setProcessName(&name) };
 
     // Dock icon — decode the embedded PNG into an `NSImage`.

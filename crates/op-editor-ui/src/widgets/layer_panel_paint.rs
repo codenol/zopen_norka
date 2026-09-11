@@ -2,16 +2,18 @@
 //! extracted to keep `layer_panel.rs` under the 800-line cap.
 
 use crate::theme::Theme;
-use crate::widgets::icons::draw_icon;
+use crate::widgets::icons::{draw_icon, Icon};
 use crate::widgets::property_panel_text_input::paint_text_input_view_value;
 use crate::widgets::PaintCx;
 use crate::{Color, Point2D, Rect, RenderBackend, TextLayout};
 use jian_core::text_input::TextInputState;
 
-use super::layer_panel::LayerItem;
+use super::layer_panel::{LayerItem, PageItem};
 use super::layer_panel_metrics::{
-    glyph_rect_in, layer_action_targets, layer_drag_target, layer_node_icon_x, LayerPanelMetrics,
+    delete_page_target, glyph_rect_in, layer_action_targets, layer_drag_target, layer_node_icon_x,
+    LayerPanelMetrics,
 };
+use super::layer_panel_walkers::visible_row_range;
 
 pub(super) const ROW_FONT: f32 = 13.0;
 /// Heuristic avg-char-width factor for system-ui at the row font.
@@ -331,4 +333,94 @@ pub(super) fn paint_section_header_with_metrics(
     };
     cx.backend
         .draw_text(&header_text, Point2D::new(x + metrics.row_pad_x, baseline));
+}
+
+/// Clipped page/component rows. `show_delete` is Pages-only; Components
+/// store pages cannot be removed from the rail.
+pub(super) fn paint_page_rows(
+    cx: &mut PaintCx<'_>,
+    theme: &Theme,
+    rect: Rect,
+    pages: &[PageItem],
+    rows_top: f32,
+    view_h: f32,
+    offset: f32,
+    hovered_page: Option<usize>,
+    rename_input: Option<&TextInputState>,
+    now_ms: u64,
+    metrics: LayerPanelMetrics,
+    show_delete: bool,
+) {
+    cx.backend.save();
+    cx.backend.clip_rect(Rect {
+        origin: Point2D::new(rect.origin.x, rows_top),
+        size: Point2D::new(rect.size.x, view_h),
+    });
+    for index in visible_row_range(pages.len(), offset, view_h, metrics.page_row_height) {
+        let page = &pages[index];
+        let y = rows_top - offset + index as f32 * metrics.page_row_height;
+        let row = Rect {
+            origin: Point2D::new(rect.origin.x + 6.0, y + 2.0),
+            size: Point2D::new(rect.size.x - 12.0, metrics.page_row_height - 4.0),
+        };
+        let page_hovered = hovered_page == Some(page.page_index);
+        if page.active {
+            cx.backend.fill_round_rect(row, 6.0, theme.row_selected);
+        } else if page_hovered {
+            cx.backend.fill_round_rect(row, 6.0, theme.button_hover);
+        }
+        let label_x = row.origin.x + 12.0;
+        let delete_target = delete_page_target(rect, y, metrics);
+        let label_max_x = if metrics.touch && show_delete {
+            delete_target.origin.x - 4.0
+        } else {
+            rect.origin.x + rect.size.x - metrics.row_pad_x - 18.0
+        };
+        let available_w = (label_max_x - label_x).max(0.0);
+        if page.renaming {
+            paint_rename_input_with_metrics(
+                cx,
+                theme,
+                rename_input.expect("renaming row has input"),
+                label_x,
+                y + 2.0,
+                available_w.max(40.0),
+                now_ms,
+                metrics,
+            );
+        } else {
+            let display = truncate_to_fit(&page.label, metrics.row_font, available_w);
+            let label = TextLayout::single_run(
+                &display,
+                "system-ui",
+                metrics.row_font,
+                (if page.active {
+                    theme.foreground
+                } else {
+                    theme.muted_foreground
+                })
+                .to_jian(),
+                Point2D::new(0.0, 0.0),
+            );
+            let baseline = if metrics.touch {
+                jian_widgets::centered_text_baseline_y(row, metrics.row_font)
+            } else {
+                row.origin.y + 19.0
+            };
+            cx.backend
+                .draw_text(&label, Point2D::new(label_x, baseline));
+        }
+        if show_delete && (page_hovered || metrics.touch) {
+            let close = glyph_rect_in(delete_target, metrics.glyph_size);
+            draw_icon(
+                cx.backend,
+                Icon::Close,
+                close.origin,
+                metrics.glyph_size,
+                theme.muted_foreground,
+                1.4,
+            );
+        }
+    }
+    cx.backend.restore();
 }

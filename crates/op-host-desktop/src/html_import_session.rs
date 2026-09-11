@@ -296,7 +296,7 @@ pub fn cancel(host: &mut WidgetHostNative, session: &mut Option<HtmlImportSessio
 
 fn refresh_title(window: Option<&winit::window::Window>) {
     let Some(window) = window else { return };
-    window.set_title("OpenPencil");
+    window.set_title(op_editor_ui::PRODUCT_NAME);
 }
 
 #[cfg(test)]

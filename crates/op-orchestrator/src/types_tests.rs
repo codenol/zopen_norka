@@ -135,13 +135,15 @@ fn design_request_append_context_none_compiles() {
         prompt: "test".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     assert!(req.append_context.is_none());
 }
@@ -159,13 +161,15 @@ fn design_request_append_context_some_compiles() {
         prompt: "extend page".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: Some(ctx),
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     assert!(req.append_context.is_some());
 }
@@ -177,13 +181,15 @@ fn design_request_append_context_omitted_from_json_when_none() {
         prompt: "test".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let json = serde_json::to_string(&req).expect("serialize");
     assert!(
@@ -453,13 +459,15 @@ fn design_request_validation_enabled_serde_roundtrip() {
         prompt: "test".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: false,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let json = serde_json::to_string(&req).expect("serialize");
     let back: DesignRequest = serde_json::from_str(&json).expect("deserialize");

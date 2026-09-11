@@ -1,6 +1,6 @@
 //! AI chat floating-panel geometry for the web host.
 
-use super::{WidgetHost, AICHAT_INSET_BOTTOM, AICHAT_INSET_LEFT};
+use super::{WidgetHost, AICHAT_INSET_BOTTOM, AICHAT_INSET_LEFT, AICHAT_INSET_RIGHT};
 use op_editor_ui::widgets::{AI_CHAT_HEIGHT, AI_CHAT_MINIMIZED_HEIGHT, AI_CHAT_WIDTH};
 use op_editor_ui::{Point2D, Rect};
 
@@ -70,18 +70,25 @@ impl WidgetHost {
                 (cx0 + AICHAT_INSET_LEFT, cy0 + AICHAT_INSET_BOTTOM)
             }
             op_editor_core::ChatAnchor::TopRight => (
-                cx0 + cw - panel_w - AICHAT_INSET_BOTTOM,
+                cx0 + cw - panel_w - AICHAT_INSET_RIGHT,
                 cy0 + AICHAT_INSET_BOTTOM,
             ),
             op_editor_core::ChatAnchor::BottomLeft => (
                 cx0 + AICHAT_INSET_LEFT,
                 cy0 + ch - panel_h - AICHAT_INSET_BOTTOM,
             ),
+            // The right gutter is its own constant: the panel sits higher
+            // now, and its horizontal placement must not follow that.
             op_editor_core::ChatAnchor::BottomRight => (
-                cx0 + cw - panel_w - AICHAT_INSET_BOTTOM,
+                cx0 + cw - panel_w - AICHAT_INSET_RIGHT,
                 cy0 + ch - panel_h - AICHAT_INSET_BOTTOM,
             ),
         };
+        // Short viewports: a top-anchored panel would otherwise hang off the
+        // bottom edge. Pull it up so its last row stays on screen, and only
+        // give up when the region cannot hold it at all.
+        let max_y = (cy0 + ch - panel_h - AICHAT_INSET_BOTTOM).max(cy0 + AICHAT_INSET_LEFT);
+        let y = y.min(max_y).max(cy0);
         Some(Rect {
             origin: Point2D::new(x, y),
             size: Point2D::new(panel_w, panel_h),

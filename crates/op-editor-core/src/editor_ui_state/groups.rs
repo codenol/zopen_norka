@@ -14,6 +14,7 @@
 
 use super::{DesignMdRequest, PreviewDeviceKind};
 use crate::design_md_button_state::DesignMdButton;
+use crate::design_rules_ui::{DesignRuleDraft, DesignRulesFilter};
 use crate::prompt_center_catalog::PromptCategory;
 use crate::scene_template_catalog::TemplateScene;
 use serde::{Deserialize, Serialize};
@@ -86,7 +87,8 @@ pub struct DesignMdPanelState {
     /// Whether the floating Design-MD panel is shown.
     pub open: bool,
     /// Which design-md-panel button the cursor is over (close / import
-    /// / export / remove / section header) — drives the hover wash.
+    /// / export / remove / section header / rule action) — drives the
+    /// hover wash.
     pub hover: Option<DesignMdButton>,
     /// Top-left corner of the panel in logical px. `None` until first
     /// opened — the host then centres it on the viewport.
@@ -104,6 +106,13 @@ pub struct DesignMdPanelState {
     /// by the desktop host (which owns the native file dialog).
     /// Transient: never serialized.
     pub request: Option<DesignMdRequest>,
+    /// The rules-view filter chip.
+    pub rules_filter: DesignRulesFilter,
+    /// Vertical scroll offset (px) of the rules list.
+    pub rules_scroll: jian_core::scroll::ScrollState,
+    /// The in-progress rule form. `None` while the rules view shows the
+    /// list. Transient: never serialized.
+    pub rule_draft: Option<DesignRuleDraft>,
 }
 
 impl Default for DesignMdPanelState {
@@ -117,6 +126,9 @@ impl Default for DesignMdPanelState {
             scroll: jian_core::scroll::ScrollState::default(),
             generating: false,
             request: None,
+            rules_filter: DesignRulesFilter::default(),
+            rules_scroll: jian_core::scroll::ScrollState::default(),
+            rule_draft: None,
         }
     }
 }

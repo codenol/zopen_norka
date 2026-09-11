@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Giải quyết từng xung đột bằng các thẻ bên dưới, sau đó áp dụng gộp.",
         "git.conflict.abort" => "Hủy hợp nhất",
         "git.conflict.nonOp.title" => "Gộp tạm dừng ở các tệp không phải .op",
-        "git.conflict.nonOp.description" => "Gộp .op đã hoàn tất, nhưng các tệp khác trong kho vẫn chưa được giải quyết. Giải quyết chúng bên ngoài OpenPencil, sau đó tiếp tục.",
+        "git.conflict.nonOp.description" => "Gộp .op đã hoàn tất, nhưng các tệp khác trong kho vẫn chưa được giải quyết. Giải quyết chúng bên ngoài Norka, sau đó tiếp tục.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 tệp cần xử lý",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} tệp cần xử lý",
         "git.conflict.nonOp.continue" => "Tiếp tục gộp",

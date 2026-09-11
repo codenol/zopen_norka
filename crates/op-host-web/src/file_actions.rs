@@ -295,6 +295,7 @@ pub fn ingest_op_source(
     let warnings = loaded.warnings.iter().map(|w| format!("{w:?}")).collect();
     let mut state = EditorState::from_document(loaded.value);
     op_pen_loader::apply_editor_meta_or_legacy_fallback(&mut state, editor_meta);
+    op_pen_loader::ensure_skala_session(&mut state);
     preserve_app_preferences(previous, &mut state);
     Ok(IngestedDoc::new(state, warnings))
 }

@@ -309,6 +309,31 @@ fn list_pages_emits_json_pages_array() {
 }
 
 #[test]
+fn list_pages_omits_component_store_pages() {
+    let mut s = state_with(vec![]);
+    let master = serde_json::from_value(serde_json::json!({
+        "id": "atom-btn", "type": "frame", "name": "Button/Default",
+        "reusable": true, "width": 80, "height": 32
+    }))
+    .expect("master");
+    assert_eq!(s.append_components_page_masters(vec![master]), 1);
+    s.ui.active_page_index = s
+        .doc
+        .pages
+        .as_ref()
+        .unwrap()
+        .iter()
+        .position(|page| page.name == "Components/Button")
+        .expect("store page");
+    let snap = list_pages_snapshot(&s);
+    assert_eq!(
+        (snap.page_count, snap.active_page_index, snap.pages.len()),
+        (1, 0, 1)
+    );
+    assert!(!op_editor_core::is_component_store_page(&snap.pages[0].1));
+}
+
+#[test]
 fn get_node_returns_record_for_known_id() {
     let s = sample();
     let tool = get_node_snapshot(&s);

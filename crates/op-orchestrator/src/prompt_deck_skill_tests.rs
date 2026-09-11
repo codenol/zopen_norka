@@ -59,13 +59,15 @@ fn deck_request(model: &str) -> DesignRequest {
         prompt: "帮我做一个 8 页的融资路演 PPT，深色科技感".into(),
         model: Some(model.into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 

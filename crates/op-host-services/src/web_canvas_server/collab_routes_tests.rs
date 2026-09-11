@@ -259,6 +259,7 @@ fn sync_reset_and_open_recent_are_refused_while_a_session_is_active() {
     for (path, body) in [
         ("/api/mcp/sync-reset", ""),
         ("/api/file/open-recent", r#"{"path":"/tmp/x.op"}"#),
+        ("/api/file/new", "{}"),
     ] {
         let mut state = daemon();
         state.editor.editor_ui.collab.set_authenticated_session(

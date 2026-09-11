@@ -7,6 +7,16 @@ use super::*;
 
 use jian_ops_schema::node::PenNode;
 use op_editor_core::{Component, NodeId};
+/// The rules a real turn carries: resolved, so the shipped working agreement
+/// and the kit's component rules are part of the prompt under test.
+fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
+    op_editor_core::effective_design_rules(None)
+        .into_iter()
+        .map(|entry| entry.rule)
+        .collect()
+}
+
+
 
 /// Build a `ComponentLibrary` with `n` reusable masters whose names cycle
 /// through a few categories so the grouped manifest exercises bucketing.
@@ -46,35 +56,52 @@ fn library_with(n: usize) -> ComponentLibrary {
     lib
 }
 
-/// With NO components, the prompt is unchanged: no AVAILABLE COMPONENTS block
-/// and no `ref` teaching from the `component-composition` skill.
+/// An empty harvested registry must NOT advertise kit master ids — those
+/// refs would paint blank until `ensure_skala_session` merges the library.
 #[test]
-fn no_components_prompt_omits_manifest_and_ref_teaching() {
-    let (cr, report) = build_subagent_prompt(
+fn empty_harvested_library_skips_kit_manifest() {
+    let (cr, _) = build_subagent_prompt(
         &subtask(),
         &plan(),
-        &req(),
+        &full_req(),
         AbortFlag::new(),
         false,
         false,
         &ComponentLibrary::default(),
     );
     assert!(
-        !cr.system_prompt.contains("AVAILABLE COMPONENTS"),
-        "empty library must not inject the components manifest"
+        !cr.system_prompt.contains("AVAILABLE COMPONENTS ("),
+        "empty library must not list phantom kit masters"
     );
-    // The component-composition skill only loads behind `hasReusableComponents`.
+}
+
+#[test]
+fn desktop_subagent_prompt_names_the_content_area() {
+    let mut req = full_req();
+    req.prompt = "собери дашборд".into();
+    // A real desktop turn always carries the kit's masters; the shell rules
+    // only make sense next to that list (they name its ids).
+    let (cr, _) = build_subagent_prompt(
+        &subtask(),
+        &plan(),
+        &req,
+        AbortFlag::new(),
+        false,
+        false,
+        &library_with(5),
+    );
     assert!(
-        !report
-            .included
-            .iter()
-            .any(|s| s.name == "component-composition"),
-        "component-composition skill must not load without components"
+        cr.user_prompt.contains("CONTENT AREA"),
+        "desktop generation must name the content area:\n{}",
+        cr.user_prompt
     );
-    // And the empty-library prompt must byte-match the no-arg path (the `bsp`
-    // shim forwards an empty library too).
-    let (baseline, _) = bsp(&subtask(), &plan(), &req(), AbortFlag::new(), false, false);
-    assert_eq!(cr.system_prompt, baseline.system_prompt);
+    assert!(cr.user_prompt.contains("Main container"));
+    assert!(cr.system_prompt.contains("content area"));
+    assert!(
+        cr.system_prompt.contains("Do NOT emit another Layout")
+            || cr.user_prompt.contains("Do NOT emit another Layout"),
+        "the shell rule must reach the generation prompt"
+    );
 }
 
 /// A Full-tier request (no budget override, no Basic allow-set) so the
@@ -82,6 +109,7 @@ fn no_components_prompt_omits_manifest_and_ref_teaching() {
 fn full_req() -> DesignRequest {
     DesignRequest {
         model: Some("claude-opus-4".into()),
+        rules: Vec::new(),
         ..req()
     }
 }
@@ -102,20 +130,31 @@ fn components_prompt_injects_manifest_and_ref_teaching() {
         &lib,
     );
     let sys = &cr.system_prompt;
+    let kit = op_editor_core::session_kit();
+    let button_id = kit
+        .type_by_id("button")
+        .map(|t| t.default_master_id.as_str())
+        .unwrap_or("");
     assert!(
         sys.contains("AVAILABLE COMPONENTS"),
         "manifest header must be present"
     );
-    // Concrete ids from the registry are listed.
-    assert!(sys.contains("comp-0"), "manifest must list component ids");
-    assert!(sys.contains("comp-4"), "manifest must list all 5 ids");
+    // Concrete default masters from the kit type index.
+    assert!(
+        sys.contains(button_id),
+        "manifest must list the default Button master"
+    );
+    assert!(
+        sys.contains(&kit.sentinel_master_id),
+        "manifest must list the sentinel template"
+    );
     // The `ref` instantiation teaching is present.
     assert!(
         sys.contains("\"type\":\"ref\""),
         "manifest must teach the ref node syntax"
     );
-    // Category grouping appears (button → Buttons bucket).
-    assert!(sys.contains("Buttons:"), "manifest groups by category");
+    // Frost layer grouping appears.
+    assert!(sys.contains("Atoms:"), "manifest groups by kit layer");
     // The component-composition skill loaded behind the flag.
     assert!(
         report
@@ -126,11 +165,10 @@ fn components_prompt_injects_manifest_and_ref_teaching() {
     );
 }
 
-/// A large library is capped: the manifest lists at most
-/// `MAX_COMPONENT_MANIFEST_ENTRIES` and notes the remainder, so the prompt
-/// budget can't be blown by a 200-master kit.
+/// A harvested library of hundreds of Button variants must NOT dump them
+/// into the prompt — the kit type index is the list.
 #[test]
-fn large_component_library_is_capped() {
+fn large_harvested_library_does_not_dump_variant_frames() {
     let lib = library_with(200);
     let (cr, _) = build_subagent_prompt(
         &subtask(),
@@ -142,18 +180,21 @@ fn large_component_library_is_capped() {
         &lib,
     );
     let sys = &cr.system_prompt;
-    // The header reports the true total even though the body is capped.
-    assert!(sys.contains("AVAILABLE COMPONENTS (200 reusable"));
+    let kit = op_editor_core::session_kit();
+    assert!(sys.contains(&format!("AVAILABLE COMPONENTS ({}", kit.name)));
     assert!(
-        sys.contains("more not listed"),
-        "capped manifest must note the remainder"
+        !sys.contains("comp-0"),
+        "harvested variant ids must not replace the kit type index"
     );
-    // The number of listed `- id (name)` rows must not exceed the cap.
-    let listed = sys.matches("  - comp-").count();
     assert!(
-        listed <= MAX_COMPONENT_MANIFEST_ENTRIES,
-        "listed {listed} entries exceeds cap {MAX_COMPONENT_MANIFEST_ENTRIES}"
+        !sys.contains("more not listed"),
+        "type index is small; no harvest cap remainder"
     );
+    assert!(sys.contains(
+        kit.type_by_id("button")
+            .map(|t| t.default_master_id.as_str())
+            .unwrap_or("")
+    ));
 }
 
 /// Regression guard for the protocol-mismatch stop-gate: the AVAILABLE
@@ -249,6 +290,7 @@ fn basic_tier_components_prompt_keeps_both_manifest_and_teaching() {
                  search, and bottom navigation using the available components"
             .into(),
         model: Some("minimax-m2.7".into()),
+        rules: Vec::new(),
         ..req()
     };
     let mut mobile_plan = plan();
@@ -296,8 +338,13 @@ fn basic_tier_components_prompt_keeps_both_manifest_and_teaching() {
         "Basic-tier prompt must carry the components manifest"
     );
     assert!(
-        sys.contains("comp-0") && sys.contains("comp-4"),
-        "manifest must list the concrete component ids"
+        sys.contains(
+            op_editor_core::session_kit()
+                .type_by_id("button")
+                .map(|t| t.default_master_id.as_str())
+                .unwrap_or(""),
+        ),
+        "manifest must list the session kit Button master"
     );
     assert!(
         sys.contains("\"type\":\"ref\""),
@@ -365,6 +412,7 @@ fn tight_budget_dashboard_keeps_component_composition() {
                  a chart panel, and a data table using the available components"
             .into(),
         model: Some("minimax-m2.7".into()),
+        rules: Vec::new(),
         ..req()
     };
     let mut dash_plan = plan();
@@ -460,8 +508,13 @@ fn tight_budget_dashboard_keeps_component_composition() {
         "tight-budget prompt must carry the components manifest"
     );
     assert!(
-        sys.contains("comp-0") && sys.contains("comp-4"),
-        "manifest must list the concrete component ids"
+        sys.contains(
+            op_editor_core::session_kit()
+                .type_by_id("button")
+                .map(|t| t.default_master_id.as_str())
+                .unwrap_or(""),
+        ),
+        "manifest must list the session kit Button master"
     );
     // (5) The budget never paid for a skill the tier filter was about to
     // delete. Every skill the Basic allow-set removes must be reported as
@@ -491,12 +544,13 @@ fn tight_budget_dashboard_keeps_component_composition() {
 /// component-composition skill — proving the pin is additive and never changes
 /// normal no-library generation.
 #[test]
-fn tight_budget_dashboard_without_library_does_not_pin_component_composition() {
+fn tight_budget_dashboard_without_harvested_library_does_not_pin_component_composition() {
     let basic_req = DesignRequest {
         prompt: "Design a 1280x800 analytics dashboard with metric cards, \
                  a chart panel, and a data table"
             .into(),
         model: Some("minimax-m2.7".into()),
+        rules: Vec::new(),
         ..req()
     };
     let mut dash_plan = plan();
@@ -532,14 +586,18 @@ fn tight_budget_dashboard_without_library_does_not_pin_component_composition() {
             .included
             .iter()
             .any(|s| s.name == "component-composition"),
-        "no library ⇒ component-composition must not be force-included; report={report:?}"
+        "empty harvested library must not pin component-composition; report={report:?}"
     );
     assert!(
-        !cr.system_prompt.contains("AVAILABLE COMPONENTS"),
-        "no library ⇒ no components manifest"
+        !cr.system_prompt.contains("AVAILABLE COMPONENTS ("),
+        "empty harvested library must not advertise phantom kit masters"
     );
-    assert!(
-        !cr.system_prompt.contains("COMPONENT COMPOSITION"),
-        "no library ⇒ no component-composition teaching"
-    );
+}
+
+#[test]
+fn kit_gap_rules_lock_the_magenta_fill_from_the_constant() {
+    let block = kit_gap_rules_block();
+    assert!(block.contains(KIT_GAP_FILL));
+    assert!(block.contains("KitGap /"));
+    assert!(block.contains("type:\"ref\""));
 }

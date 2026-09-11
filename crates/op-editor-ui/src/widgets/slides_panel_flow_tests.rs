@@ -92,7 +92,7 @@ fn the_scenario_names_the_tab_without_gating_it() {
 }
 
 #[test]
-fn presenting_and_empty_decks_show_no_tab_row() {
+fn presenting_hides_the_tab_row_empty_pages_keep_layers_and_assets() {
     let mut deck = deck_state(THREE_BOARDS);
     deck.editor_ui.enter_preview();
     assert!(!tab_row_visible(&deck), "the rail is gone while presenting");
@@ -100,13 +100,19 @@ fn presenting_and_empty_decks_show_no_tab_row() {
     assert!(tab_row_visible(&deck));
 
     let empty = deck_state(r#"{"version":"1.0.0","children":[]}"#);
-    assert!(!tab_row_visible(&empty));
+    assert!(
+        tab_row_visible(&empty),
+        "Layers and Assets stay on an empty page"
+    );
 }
 
 #[test]
-fn the_layers_tree_keeps_the_whole_rail_without_a_tab_row() {
+fn empty_pages_still_shift_content_below_the_tab_row() {
     let empty = deck_state(r#"{"version":"1.0.0","children":[]}"#);
-    assert_eq!(layers_content_rect(&empty, PANEL), PANEL);
+    assert_eq!(
+        layers_content_rect(&empty, PANEL).origin.y,
+        PANEL.origin.y + crate::widgets::slides_panel::SLIDES_TAB_ROW_HEIGHT
+    );
 
     let deck = deck_state(THREE_BOARDS);
     let content = layers_content_rect(&deck, PANEL);
@@ -124,6 +130,7 @@ fn touch_tabs_have_44_point_targets_and_shift_content_together() {
     assert_eq!(tabs.row.size.y, 52.0);
     assert_eq!(tabs.layers.size.y, 44.0);
     assert_eq!(tabs.slides.size.y, 44.0);
+    assert_eq!(tabs.assets.size.y, 44.0);
     assert_eq!(
         layers_content_rect(&deck, PANEL).origin.y,
         PANEL.origin.y + 52.0
@@ -340,26 +347,30 @@ fn the_tab_row_mode_follows_the_documents_own_labels() {
     };
 
     deck.editor_ui.locale = op_editor_core::Locale::EnUs;
-    let (layers, slides) = tab_labels(&deck);
-    assert_eq!((layers, slides), ("Layers", "Slides"));
+    let (layers, slides, assets) = tab_labels(&deck);
+    assert_eq!((layers, slides, assets), ("Layers", "Slides", "Assets"));
     assert!(
-        !tab_row(&deck, narrow).expect("tab row").compact,
-        "English fits the minimum rail, so it keeps its words"
+        tab_row(&deck, narrow).expect("tab row").compact,
+        "three English tabs do not fit the 180 px minimum rail"
     );
 
     deck.editor_ui.locale = op_editor_core::Locale::Vi;
-    let (layers, slides) = tab_labels(&deck);
+    let (layers, slides, assets) = tab_labels(&deck);
     assert!(
-        !layers.is_empty() && !slides.is_empty(),
-        "the Vietnamese catalogue answers for both tabs"
+        !layers.is_empty() && !slides.is_empty() && !assets.is_empty(),
+        "the Vietnamese catalogue answers for all three tabs"
     );
     assert!(
         tab_row(&deck, narrow).expect("tab row").compact,
         "Vietnamese does not fit the minimum rail, so it falls back to icons"
     );
+    let wide = Rect {
+        origin: PANEL.origin,
+        size: Point2D::new(360.0, PANEL.size.y),
+    };
     assert!(
-        !tab_row(&deck, PANEL).expect("tab row").compact,
-        "and gets its words back at the default width"
+        !tab_row(&deck, wide).expect("tab row").compact,
+        "and gets its words back on a wide rail"
     );
 }
 
@@ -369,7 +380,7 @@ fn the_tab_row_mode_follows_the_documents_own_labels() {
 fn the_scenario_label_is_the_one_the_row_is_measured_against() {
     let mut cards = deck_state(THREE_BOARDS);
     cards.editor_ui.scenario = Some(TemplateScene::Card);
-    let (_, slides) = tab_labels(&cards);
+    let (_, slides, _) = tab_labels(&cards);
     assert_eq!(
         slides,
         crate::widgets::editor_state_ext::translate(&cards.editor_ui, "slidesPanel.tabCards")

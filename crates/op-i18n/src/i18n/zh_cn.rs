@@ -1,4 +1,4 @@
-//! Canonical hand-maintained OpenPencil locale catalog.
+//! Canonical hand-maintained Norka locale catalog.
 
 const LOGIN_SCREEN_PROMPT: &str =
     "设计一个现代的移动端登录页面，包含邮箱输入框、密码输入框、登录按钮和社交登录选项";
@@ -6,7 +6,7 @@ const BOTTOM_NAV_PROMPT: &str =
     "设计一个包含 5 个标签的移动应用底部导航栏：首页、搜索、添加、消息、个人";
 const TEAM_DESCRIPTION: &str =
     "选择用于设计生成的模型。设置后，设计任务将自动委派给使用此模型的专业 Agent。";
-const MCP_TERMINAL_SUBTITLE_2: &str = "升级 OpenPencil 版本后，请重新安装 MCP 集成以确保兼容性。";
+const MCP_TERMINAL_SUBTITLE_2: &str = "升级 Norka 版本后，请重新安装 MCP 集成以确保兼容性。";
 const CLOSE_DIALOG_BODY: &str =
     "“{{name}}”有未保存的更改。\n\n是 = 保存,否 = 不保存,取消 = 返回继续编辑。";
 const UPGRADE_DIALOG_BODY: &str = "打开“{{name}}”时已兼容修复旧格式。\n\n是 = 用新格式覆盖原文件 · 否 = 保留原文件并生成编号副本 · 取消 = 暂不转换。";
@@ -80,6 +80,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "rightPanel.code" => "代码",
         "rightPanel.noSelection" => "选择一个元素",
         "pages.title" => "页面",
+        "components.title" => "组件",
         "pages.addPage" => "添加页面",
         "pages.moveUp" => "上移",
         "pages.moveDown" => "下移",
@@ -307,6 +308,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "designMd.export" => "导出 design.md",
         "designMd.autoGenerate" => "从设计自动生成",
         "designMd.empty" => "未加载设计系统",
+        "designMd.kitAttached" => "已附加组件 kit",
+        "designMd.kitAttachedHint" => "代理使用该 kit 的类型。仅在需要文字简述时导入 .md。",
         "designMd.importCta" => "导入 design.md",
         "designMd.autoGenerateCta" => "自动生成",
         "designMd.visualTheme" => "视觉主题",
@@ -429,7 +432,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "agents.transport" => "传输方式",
         "agents.port" => "端口",
         "agents.mcpRestart" => "MCP 集成将在重启终端后生效。",
-        "agents.mcpReinstallHint" => "升级 OpenPencil 版本后，请重新安装 MCP 集成以确保兼容性。",
+        "agents.mcpReinstallHint" => "升级 Norka 版本后，请重新安装 MCP 集成以确保兼容性。",
         "agents.modelCount" => "{{count}} 个模型",
         "agents.connectionFailed" => "连接失败",
         "agents.serverError" => "服务器错误 {{status}}",
@@ -534,7 +537,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "figma.noPages" => ".fig 文件中未找到页面",
         "figma.parseFailed" => "解析 .fig 文件失败",
         "figma.convertFailed" => "转换 Figma 文件失败",
-        "figma.overwriteTitle" => "同名 OpenPencil 文件已存在",
+        "figma.overwriteTitle" => "同名 Norka 文件已存在",
         "figma.overwriteBody" => "“{{name}}” 已存在。\n\n是 = 覆盖 · 否 = 保留两份（生成编号副本） · 取消 = 不导入。",
         "figma.parsing" => "正在解析 .fig 文件...",
         "figma.converting" => "正在转换节点...",
@@ -546,7 +549,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "figma.tryAgain" => "重试",
         "figma.layoutMode" => "布局模式：",
         "figma.preserveLayout" => "保留 Figma 布局",
-        "figma.autoLayout" => "OpenPencil 自动布局",
+        "figma.autoLayout" => "Norka 自动布局",
         "figma.comingSoon" => "即将推出",
         "landing.open" => "Open",
         "landing.pencil" => "Pencil",
@@ -596,7 +599,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "settings.account.notSignedIn" => "你尚未登录。",
         "settings.account.signIn" => "登录",
         "settings.account.signOut" => "退出登录",
-        "account.signInTitle" => "登录 OpenPencil",
+        "account.signInTitle" => "登录 Norka",
         "account.signInWithBrowser" => "使用浏览器登录",
         "account.signInComingSoon" => "浏览器登录即将上线。",
         "account.waitingForBrowser" => "正在等待浏览器…",
@@ -671,10 +674,10 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "dialog.closeBody" => CLOSE_DIALOG_BODY,
         "dialog.untitledDocument" => "未命名文档",
         "dialog.openErrorTitle" => "无法打开文件",
-        "dialog.openErrorLead" => "OpenPencil 无法解析该文件。",
+        "dialog.openErrorLead" => "Norka 无法解析该文件。",
         "dialog.saveErrorTitle" => "保存失败",
         "dialog.saveErrorLead" => "写入文件时出错。",
-        "dialog.upgradeOpTitle" => "转换为新版 OpenPencil 文件?",
+        "dialog.upgradeOpTitle" => "转换为新版 Norka 文件?",
         "dialog.upgradeOpBody" => UPGRADE_DIALOG_BODY,
         "dialog.exportErrorTitle" => "导出失败",
         "dialog.exportErrorLead" => "渲染图像时出错。",
@@ -708,7 +711,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         }
         "figma.importNotWired" => ".fig 文件导入尚未接入",
         "dialog.loadErrorInvalidUtf8" => "文件不是有效的 UTF-8 文本:{{detail}}",
-        "dialog.loadErrorOldVersion" => "该文件由旧版本 OpenPencil 保存,需要重新保存后才能打开。",
+        "dialog.loadErrorOldVersion" => "该文件由旧版本 Norka 保存,需要重新保存后才能打开。",
         "dialog.pickerOpenTitle" => "打开文档",
         "dialog.pickerSaveTitle" => "保存文档",
         "dialog.pickerExportTitle" => "导出图片",
@@ -719,7 +722,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "dialog.batchExportEmpty" => "当前页面没有可导出的顶层画框。",
         "dialog.updateTitle" => "有可用更新",
         "dialog.updateBody" => {
-            "OpenPencil {{version}} 已可用(当前版本 {{current}})。\n\n是否打开发布页面下载?"
+            "Norka {{version}} 已可用(当前版本 {{current}})。\n\n是否打开发布页面下载?"
         }
         "a11y.figmaImport" => "从 Figma 导入",
         "a11y.import" => "导入",
@@ -750,7 +753,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "menu.edit" => "编辑",
         "menu.view" => "视图",
         "menu.help" => "帮助",
-        "menu.quit" => "退出 OpenPencil",
+        "menu.quit" => "退出 Norka",
         "menu.new" => "新建",
         "menu.open" => "打开…",
         "menu.openRecent" => "打开最近文件",
@@ -767,7 +770,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "menu.gitPanel" => "Git 面板",
         "menu.designMdPanel" => "Design.md 面板",
         "menu.checkForUpdates" => "检查更新…",
-        "menu.githubLink" => "在 GitHub 上查看 OpenPencil",
+        "menu.githubLink" => "在 GitHub 上查看 Norka",
         "providerProbe.cliNotFound" => "未找到 {{name}} CLI",
         "providerProbe.cliNotResponding" => "{{name}} CLI 无响应",
         "providerProbe.noModelsClaude" => "未找到模型。Claude Code 未返回模型列表。请运行“claude login”登录，或在 ~/.claude/settings.json 中设置 ANTHROPIC_API_KEY。",

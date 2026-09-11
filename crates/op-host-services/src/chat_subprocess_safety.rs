@@ -85,9 +85,9 @@ pub fn grok_args(purpose: TurnPurpose) -> Vec<String> {
 }
 
 const AUTOMATION_GUARD: &str = "OPENPENCIL AUTOMATION SAFETY:\n\
-Use the OpenPencil MCP server only (`mcp__openpencil__*` / `openpencil/*`) to inspect or modify the canvas. \
+Use the Norka MCP server only (`mcp__openpencil__*` / `openpencil/*`) to inspect or modify the canvas. \
 Do not run terminal commands, write local files, browse the web, spawn subagents, or call any other MCP server. \
-Never request interactive approval. If the OpenPencil MCP tools are unavailable or denied, report that failure and stop.";
+Never request interactive approval. If the Norka MCP tools are unavailable or denied, report that failure and stop.";
 const GROK_COMPAT_SETTINGS: &[u8] = br#"{"permissions":{"defaultMode":"dontAsk"}}"#;
 
 pub struct IsolatedTurn {
@@ -350,13 +350,13 @@ fn prepare_antigravity_home(
             .ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::NotFound,
-                    "Antigravity requires OpenPencil MCP to be enabled in Settings",
+                    "Antigravity requires Norka MCP to be enabled in Settings",
                 )
             })?;
         if server.get("disabled").and_then(serde_json::Value::as_bool) == Some(true) {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
-                "Antigravity OpenPencil MCP connection is disabled",
+                "Antigravity Norka MCP connection is disabled",
             ));
         }
         let url = server
@@ -414,7 +414,7 @@ fn validate_openpencil_url(input: &str) -> io::Result<u16> {
     let url = reqwest::Url::parse(input).map_err(|_| {
         io::Error::new(
             io::ErrorKind::InvalidData,
-            "Antigravity OpenPencil MCP URL is invalid",
+            "Antigravity Norka MCP URL is invalid",
         )
     })?;
     let loopback = url
@@ -438,7 +438,7 @@ fn validate_openpencil_url(input: &str) -> io::Result<u16> {
     } else {
         Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "Antigravity OpenPencil MCP must use a local http://loopback:port/mcp URL",
+            "Antigravity Norka MCP must use a local http://loopback:port/mcp URL",
         ))
     }
 }
@@ -453,7 +453,7 @@ fn validate_live_mcp_record(host_home: &Path, expected_port: u16) -> io::Result<
     let record: serde_json::Value = serde_json::from_slice(&fs::read(path)?).map_err(|e| {
         io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("invalid OpenPencil MCP discovery record: {e}"),
+            format!("invalid Norka MCP discovery record: {e}"),
         )
     })?;
     let same_process = record.get("writerPid").and_then(serde_json::Value::as_u64)
@@ -466,7 +466,7 @@ fn validate_live_mcp_record(host_home: &Path, expected_port: u16) -> io::Result<
     } else {
         Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
-            "Antigravity OpenPencil MCP endpoint is not owned by this editor process",
+            "Antigravity Norka MCP endpoint is not owned by this editor process",
         ))
     }
 }

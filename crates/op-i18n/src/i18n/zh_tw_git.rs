@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "使用下方卡片逐一解決每個衝突，然後套用合併。",
         "git.conflict.abort" => "中止合併",
         "git.conflict.nonOp.title" => "合併因非 .op 檔案暫停",
-        "git.conflict.nonOp.description" => ".op 檔案合併已完成,但儲存庫中仍有其他檔案未解決。請在 OpenPencil 之外解決它們,然後繼續。",
+        "git.conflict.nonOp.description" => ".op 檔案合併已完成,但儲存庫中仍有其他檔案未解決。請在 Norka 之外解決它們,然後繼續。",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 個檔案需要處理",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} 個檔案需要處理",
         "git.conflict.nonOp.continue" => "繼續合併",

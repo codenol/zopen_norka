@@ -21,7 +21,7 @@ pub use super::pickers::{
     PageRenameState, PreviewDeviceKind, VariableRowFocus,
 };
 pub use super::slides_panel_state::{
-    LeftPanelTab, SlidesDrag, SlidesPanelState, SlidesPanelTarget,
+    AssetsHit, AssetsPanelState, LeftPanelTab, SlidesDrag, SlidesPanelState, SlidesPanelTarget,
 };
 
 // `Locale` is the i18n locale enum — dependency-free + wasm-clean, so

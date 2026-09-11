@@ -95,8 +95,8 @@ impl EditorState {
         if let Some(node) = find_node(self.active_children(), id) {
             return node_editable(node);
         }
-        let Some((ref_id, _child_id)) =
-            crate::instance_override::split_instance_child_anchor(id, &self.doc)
+        let Some((ref_id, _path)) =
+            crate::instance_override::split_instance_override_path(id, &self.doc)
         else {
             return false;
         };
@@ -168,7 +168,7 @@ impl EditorState {
         let children = self.active_children();
         self.selection.set.iter().any(|id| {
             find_node(children, id).is_some()
-                || crate::instance_override::split_instance_child_anchor(id, &self.doc).is_some()
+                || crate::instance_override::split_instance_override_path(id, &self.doc).is_some()
         })
     }
 
@@ -283,6 +283,21 @@ impl EditorState {
         let base = node.base_mut();
         let now_visible = base.visible.unwrap_or(true);
         base.visible = Some(!now_visible);
+        true
+    }
+
+    /// Hide the node if it is visible. True when this call changed it —
+    /// the flag-writer behind "hide these recipe blocks", which must be
+    /// idempotent: hiding an already-hidden block is not a change.
+    pub fn toggle_node_hidden_if_visible(&mut self, id: &NodeId) -> bool {
+        let Some(node) = find_node_mut(self.active_children_mut(), id) else {
+            return false;
+        };
+        let base = node.base_mut();
+        if !base.visible.unwrap_or(true) {
+            return false;
+        }
+        base.visible = Some(false);
         true
     }
 

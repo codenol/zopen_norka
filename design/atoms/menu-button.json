@@ -1,0 +1,177 @@
+{
+  "id": "page-atom-menu-button",
+  "name": "Atoms · MenuButton",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-menu-button-default",
+      "name": "MenuButton/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0,
+      "width": 40,
+      "height": 40,
+      "layout": "none",
+      "cornerRadius": 8,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$sidebar/menubutton/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-menu-button-default-icon",
+          "name": "icon",
+          "iconFontName": "bell",
+          "iconFontFamily": "lucide",
+          "width": 20.0,
+          "height": 20.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menubutton/icon/default"
+            }
+          ],
+          "x": 10.0,
+          "y": 10.0
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-menu-button-hover",
+      "name": "MenuButton/Hover",
+      "reusable": true,
+      "x": 0,
+      "y": 60,
+      "width": 40,
+      "height": 40,
+      "layout": "none",
+      "cornerRadius": 8,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$sidebar/menubutton/background/hover"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-menu-button-hover-icon",
+          "name": "icon",
+          "iconFontName": "bell",
+          "iconFontFamily": "lucide",
+          "width": 20.0,
+          "height": 20.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menubutton/icon/hover"
+            }
+          ],
+          "x": 10.0,
+          "y": 10.0
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-menu-button-active",
+      "name": "MenuButton/Active",
+      "reusable": true,
+      "x": 0,
+      "y": 120,
+      "width": 40,
+      "height": 40,
+      "layout": "none",
+      "cornerRadius": 8,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$sidebar/menubutton/background/active"
+        }
+      ],
+      "children": [
+        {
+          "type": "rectangle",
+          "id": "atom-menu-button-active-border",
+          "name": "border",
+          "x": 0.5,
+          "y": 0.5,
+          "width": 39,
+          "height": 39,
+          "cornerRadius": 7.5,
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$sidebar/menubutton/border/active"
+              }
+            ]
+          }
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-menu-button-active-icon",
+          "name": "icon",
+          "iconFontName": "bell",
+          "iconFontFamily": "lucide",
+          "width": 20.0,
+          "height": 20.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menubutton/icon/active"
+            }
+          ],
+          "x": 10.0,
+          "y": 10.0
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-menu-button-hover-active",
+      "name": "MenuButton/Hover active",
+      "reusable": true,
+      "x": 0,
+      "y": 180,
+      "width": 40,
+      "height": 40,
+      "layout": "none",
+      "cornerRadius": 8,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$sidebar/menubutton/background/active_hover"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-menu-button-hover-active-icon",
+          "name": "icon",
+          "iconFontName": "bell",
+          "iconFontFamily": "lucide",
+          "width": 20.0,
+          "height": 20.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menubutton/icon/active_hover"
+            }
+          ],
+          "x": 10.0,
+          "y": 10.0
+        }
+      ]
+    }
+  ]
+}

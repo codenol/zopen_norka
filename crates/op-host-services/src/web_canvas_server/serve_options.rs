@@ -221,6 +221,7 @@ pub(super) fn startup_editor_from_base_for_web_canvas(
         Some(p) => {
             let mut next = crate::mcp_serve::load_editor_state(&p)?;
             preserve_web_canvas_preferences(&base, &mut next);
+            op_pen_loader::ensure_skala_session(&mut next);
             set_file_name_display(&mut next, &p);
             next.editor_ui.touch_recent_file(
                 p.to_string_lossy().into_owned(),
@@ -231,7 +232,11 @@ pub(super) fn startup_editor_from_base_for_web_canvas(
             );
             Ok(next)
         }
-        None => Ok(base),
+        None => {
+            let mut base = base;
+            op_pen_loader::ensure_skala_session(&mut base);
+            Ok(base)
+        }
     }
 }
 

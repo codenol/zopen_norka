@@ -1,0 +1,44 @@
+<svg width="496" height="477" viewBox="0 0 496 477" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Input+icon set: trailing (x=2.5) and leading (x=258.5). Seven 236�32
+       fields, ~71px row pitch. Live text/icon in .op, not outlined here. -->
+  <path d="M10 0.5H230C234.142 0.5 237.5 3.85786 237.5 8V24C237.5 28.1421 234.142 31.5 230 31.5H10C5.85786 31.5 2.5 28.1421 2.5 24V8C2.5 3.85786 5.85786 0.5 10 0.5Z" fill="white" stroke="#DFE2E6"/>
+  <path d="M10 71.5H230C234.142 71.5 237.5 74.8579 237.5 79V95C237.5 99.1421 234.142 102.5 230 102.5H10C5.85786 102.5 2.5 99.1421 2.5 95V79C2.5 74.8579 5.85786 71.5 10 71.5Z" fill="white" stroke="#2D98B4"/>
+  <g filter="url(#focusGlowL)">
+    <path d="M2 150C2 145.582 5.58172 142 10 142H230C234.418 142 238 145.582 238 150V166C238 170.418 234.418 174 230 174H10C5.58172 174 2 170.418 2 166V150Z" fill="white"/>
+    <path d="M10 142.5H230C234.142 142.5 237.5 145.858 237.5 150V166C237.5 170.142 234.142 173.5 230 173.5H10C5.85786 173.5 2.5 170.142 2.5 166V150C2.5 145.858 5.85786 142.5 10 142.5Z" stroke="#60C4DD"/>
+  </g>
+  <path d="M10 213.5H230C234.142 213.5 237.5 216.858 237.5 221V237C237.5 241.142 234.142 244.5 230 244.5H10C5.85786 244.5 2.5 241.142 2.5 237V221C2.5 216.858 5.85786 213.5 10 213.5Z" fill="white" stroke="#DFE2E6"/>
+  <path d="M10 284.5H230C234.142 284.5 237.5 287.858 237.5 292V308C237.5 312.142 234.142 315.5 230 315.5H10C5.85786 315.5 2.5 312.142 2.5 308V292C2.5 287.858 5.85786 284.5 10 284.5Z" fill="white" stroke="#E19109"/>
+  <path d="M10 355.5H230C234.142 355.5 237.5 358.858 237.5 363V379C237.5 383.142 234.142 386.5 230 386.5H10C5.85786 386.5 2.5 383.142 2.5 379V363C2.5 358.858 5.85786 355.5 10 355.5Z" fill="white" stroke="#E53334"/>
+  <path d="M10 426.5H230C234.142 426.5 237.5 429.858 237.5 434V450C237.5 454.142 234.142 457.5 230 457.5H10C5.85786 457.5 2.5 454.142 2.5 450V434C2.5 429.858 5.85786 426.5 10 426.5Z" fill="#EEF1F5" stroke="#DFE2E6"/>
+  <path d="M266 0.5H486C490.142 0.5 493.5 3.85786 493.5 8V24C493.5 28.1421 490.142 31.5 486 31.5H266C261.858 31.5 258.5 28.1421 258.5 24V8C258.5 3.85786 261.858 0.5 266 0.5Z" fill="white" stroke="#DFE2E6"/>
+  <path d="M266 71.5H486C490.142 71.5 493.5 74.8579 493.5 79V95C493.5 99.1421 490.142 102.5 486 102.5H266C261.858 102.5 258.5 99.1421 258.5 95V79C258.5 74.8579 261.858 71.5 266 71.5Z" fill="white" stroke="#2D98B4"/>
+  <g filter="url(#focusGlowR)">
+    <path d="M258 150C258 145.582 261.582 142 266 142H486C490.418 142 494 145.582 494 150V166C494 170.418 490.418 174 486 174H266C261.582 174 258 170.418 258 166V150Z" fill="white"/>
+    <path d="M266 142.5H486C490.142 142.5 493.5 145.858 493.5 150V166C493.5 170.142 490.142 173.5 486 173.5H266C261.858 173.5 258.5 170.142 258.5 166V150C258.5 145.858 261.858 142.5 266 142.5Z" stroke="#60C4DD"/>
+  </g>
+  <path d="M266 213.5H486C490.142 213.5 493.5 216.858 493.5 221V237C493.5 241.142 490.142 244.5 486 244.5H266C261.858 244.5 258.5 241.142 258.5 237V221C258.5 216.858 261.858 213.5 266 213.5Z" fill="white" stroke="#DFE2E6"/>
+  <path d="M266 284.5H486C490.142 284.5 493.5 287.858 493.5 292V308C493.5 312.142 490.142 315.5 486 315.5H266C261.858 315.5 258.5 312.142 258.5 308V292C258.5 287.858 261.858 284.5 266 284.5Z" fill="white" stroke="#E19109"/>
+  <path d="M266 355.5H486C490.142 355.5 493.5 358.858 493.5 363V379C493.5 383.142 490.142 386.5 486 386.5H266C261.858 386.5 258.5 383.142 258.5 379V363C258.5 358.858 261.858 355.5 266 355.5Z" fill="white" stroke="#E53334"/>
+  <path d="M266 426.5H486C490.142 426.5 493.5 429.858 493.5 434V450C493.5 454.142 490.142 457.5 486 457.5H266C261.858 457.5 258.5 454.142 258.5 450V434C258.5 429.858 261.858 426.5 266 426.5Z" fill="#EEF1F5" stroke="#DFE2E6"/>
+  <defs>
+    <filter id="focusGlowL" x="0" y="140" width="240" height="36" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feMorphology radius="2" operator="dilate" in="SourceAlpha" result="effect1_dropShadow"/>
+      <feOffset/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.376471 0 0 0 0 0.768627 0 0 0 0 0.866667 0 0 0 0.3 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+    <filter id="focusGlowR" x="256" y="140" width="240" height="36" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feMorphology radius="2" operator="dilate" in="SourceAlpha" result="effect1_dropShadow"/>
+      <feOffset/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.376471 0 0 0 0 0.768627 0 0 0 0 0.866667 0 0 0 0.3 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+</svg>

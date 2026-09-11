@@ -31,6 +31,14 @@ impl WidgetHost {
             }
             return true;
         }
+        // Rules-form fields are the panel's own inputs — they own the
+        // keystroke while the form is open.
+        if let Some(changed) = shared::design_rule_text(&mut self.editor_state, c, self.now_ms) {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         if self.editor_state.editor_ui.collab_join_input_active() {
             let changed = op_editor_ui::widgets::collab_ui::join_address_text(
                 &mut self.editor_state.editor_ui,
@@ -81,6 +89,10 @@ impl WidgetHost {
         }
         // Variables-panel search filter — live append.
         if shared::variables_search_text(&mut self.editor_state, c, self.now_ms) {
+            self.mark_dirty();
+            return true;
+        }
+        if shared::assets_search_text(&mut self.editor_state, c, self.now_ms) {
             self.mark_dirty();
             return true;
         }
@@ -138,6 +150,14 @@ impl WidgetHost {
             }
             return true;
         }
+        // Rules-form fields are the panel's own inputs — they own the
+        // keystroke while the form is open.
+        if let Some(changed) = shared::design_rule_backspace(&mut self.editor_state, self.now_ms) {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         if self.editor_state.editor_ui.collab_join_input_active() {
             let changed = op_editor_ui::widgets::collab_ui::join_address_backspace(
                 &mut self.editor_state.editor_ui,
@@ -187,6 +207,13 @@ impl WidgetHost {
         // Variables-panel search filter — pop one char.
         if let Some(changed) =
             shared::variables_search_backspace(&mut self.editor_state, self.now_ms)
+        {
+            if changed {
+                self.mark_dirty();
+            }
+            return changed;
+        }
+        if let Some(changed) = shared::assets_search_backspace(&mut self.editor_state, self.now_ms)
         {
             if changed {
                 self.mark_dirty();
@@ -249,6 +276,14 @@ impl WidgetHost {
     }
 
     pub fn apply_send(&mut self) -> bool {
+        // Enter inside the guidelines rule editor inserts a newline: the
+        // panel's markdown field owns the key while its form is open.
+        if let Some(changed) = shared::design_rule_newline(&mut self.editor_state, self.now_ms) {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         if self.editor_state.editor_ui.prompt_center.open {
             return true;
         }
@@ -310,6 +345,10 @@ impl WidgetHost {
         // Enter in the variables search box just blurs it (the filter
         // is already live) — the same transition Escape runs.
         if self.editor_state.editor_ui.blur_variables_search() {
+            self.mark_dirty();
+            return true;
+        }
+        if self.editor_state.editor_ui.blur_assets_search() {
             self.mark_dirty();
             return true;
         }

@@ -105,7 +105,7 @@ fn any_document_with_boards_gets_the_slides_tab() {
 }
 
 #[test]
-fn a_page_with_no_boards_has_nothing_to_list_and_shows_no_tab() {
+fn a_page_with_no_boards_still_shows_layers_and_assets() {
     let _guard = test_lock();
     let mut empty = WidgetHostNative::new();
     empty.editor_state.editor_ui.slides_panel.tab = LeftPanelTab::Slides;
@@ -113,12 +113,15 @@ fn a_page_with_no_boards_has_nothing_to_list_and_shows_no_tab() {
     empty.last_viewport_h = VH;
     empty.editor_state.active_children_mut().clear();
     assert!(op_editor_core::preview_slideshow::active_page_boards(&empty.editor_state).is_empty());
-    assert!(empty.slides_tab_row(VW, VH).is_none());
+    assert!(
+        empty.slides_tab_row(VW, VH).is_some(),
+        "Layers and Assets stay on an empty page"
+    );
     assert!(empty.slides_panel_frame(VW, VH).is_none());
     assert_eq!(
         empty.layers_content_rect(VW, VH).origin.y,
-        op_editor_ui::widgets::TOP_BAR_HEIGHT,
-        "and the layer tree keeps the whole rail"
+        op_editor_ui::widgets::TOP_BAR_HEIGHT + op_editor_ui::widgets::SLIDES_TAB_ROW_HEIGHT,
+        "the layer tree starts below the tab row"
     );
 }
 

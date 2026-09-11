@@ -199,11 +199,23 @@ const DASHBOARD_WORDS: &[&str] = &[
     "admin",
     "workspace",
     "console",
+    "ops",
+    "sidebar",
+    "table",
+    "datagrid",
+    "data grid",
     "管理",
     "后台",
     "控制台",
     "工作台",
     "工作区",
+    "дашборд",
+    "консоль",
+    "сайдбар",
+    "таблица",
+    "коммутатор",
+    "сервер",
+    "панель",
 ];
 
 /// `needle` 在 `haystack` 中出现 —— ASCII needle 按 JS `\b` 词边界
@@ -529,6 +541,24 @@ mod tests {
         let p = detect_design_type("an analytics dashboard");
         assert_eq!(p.type_, DesignType::DesktopScreen);
         assert_eq!(p.width, 1200.0);
+    }
+
+    #[test]
+    fn russian_dashboard_detected() {
+        let p = detect_design_type("Собери дашборд");
+        assert_eq!(p.type_, DesignType::DesktopScreen);
+    }
+
+    #[test]
+    fn russian_ops_table_screen_is_desktop() {
+        let p = detect_design_type("Собери макет экрана коммутаторов: сайдбар + таблица серверов");
+        assert_eq!(p.type_, DesignType::DesktopScreen);
+    }
+
+    #[test]
+    fn ops_sidebar_table_prompt_is_desktop() {
+        let p = detect_design_type("assemble ops sidebar and servers table");
+        assert_eq!(p.type_, DesignType::DesktopScreen);
     }
 
     #[test]

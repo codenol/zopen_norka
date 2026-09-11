@@ -66,6 +66,19 @@ pub(crate) fn acknowledge_daemon_save(
     });
 }
 
+/// Record the live generation/revision as synced without advancing the
+/// daemon version baseline. File → New installs a local starter and must
+/// not push it (the daemon `/api/file/new` is the kit authority); the next
+/// version probe still pulls the library-rich document.
+pub(crate) fn acknowledge_current_pair(generation: u64, revision: u64) {
+    ACTIVE_SYNC.with(|slot| {
+        let Some(sync) = slot.borrow().as_ref().and_then(Weak::upgrade) else {
+            return;
+        };
+        sync.borrow_mut().gate.note_synced(generation, revision);
+    });
+}
+
 /// The document-identity pair every gating decision is keyed on. Read fresh
 /// from the live editor state at each decision point — never cached — so an
 /// edit that lands between a tick firing and its async response landing is

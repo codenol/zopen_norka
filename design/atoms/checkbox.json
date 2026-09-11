@@ -1,0 +1,3041 @@
+{
+  "id": "page-atom-checkbox",
+  "name": "Atoms · Checkbox",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-checkbox-set",
+      "name": "set",
+      "layout": "vertical",
+      "gap": 20.0,
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-checkbox-row-default",
+          "name": "Default",
+          "layout": "horizontal",
+          "gap": 20.0,
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-default-icon",
+              "name": "Checkbox/Unchecked/Default/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/unchecked/background/default"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/unchecked/border/default"
+                  }
+                ]
+              },
+              "children": [],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-default-text",
+              "name": "Checkbox/Unchecked/Default/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-default-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/default"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-default-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/default"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-default-text-info",
+              "name": "Checkbox/Unchecked/Default/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-default-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/default"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-default-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-unchecked-default-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-default-icon",
+              "name": "Checkbox/Checked/Default/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/checked/background/default"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/checked/border/default"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-checked-default-icon-check",
+                  "name": "check",
+                  "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                  "x": 4.0,
+                  "y": 5.3334,
+                  "width": 12.0,
+                  "height": 8.6666,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/icon/default"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-default-text",
+              "name": "Checkbox/Checked/Default/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-default-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/default"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-default-text-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-default-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/default"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-default-text-info",
+              "name": "Checkbox/Checked/Default/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-default-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/default"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-default-text-info-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-default-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-checked-default-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-default-icon",
+              "name": "Checkbox/Indeterminate/Default/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/indeterminate/background/default"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/indeterminate/border/default"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-indeterminate-default-icon-dash",
+                  "name": "dash",
+                  "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                  "x": 4.667,
+                  "y": 9.333,
+                  "width": 10.666,
+                  "height": 1.334,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/icon/default"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-default-text",
+              "name": "Checkbox/Indeterminate/Default/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-default-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/default"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-default-text-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-default-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/default"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-default-text-info",
+              "name": "Checkbox/Indeterminate/Default/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-default-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/default"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-default-text-info-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-default-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-indeterminate-default-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-checkbox-row-hover",
+          "name": "Hover",
+          "layout": "horizontal",
+          "gap": 20.0,
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-hover-icon",
+              "name": "Checkbox/Unchecked/Hover/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/unchecked/background/hover"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/unchecked/border/hover"
+                  }
+                ]
+              },
+              "children": [],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-hover-text",
+              "name": "Checkbox/Unchecked/Hover/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-hover-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/hover"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-hover-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/hover"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-hover-text-info",
+              "name": "Checkbox/Unchecked/Hover/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-hover-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/hover"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-hover-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/hover"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-unchecked-hover-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-hover-icon",
+              "name": "Checkbox/Checked/Hover/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/checked/background/hover"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/checked/border/hover"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-checked-hover-icon-check",
+                  "name": "check",
+                  "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                  "x": 4.0,
+                  "y": 5.3334,
+                  "width": 12.0,
+                  "height": 8.6666,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/icon/hover"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-hover-text",
+              "name": "Checkbox/Checked/Hover/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-hover-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/hover"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-hover-text-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/hover"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-hover-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/hover"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-hover-text-info",
+              "name": "Checkbox/Checked/Hover/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-hover-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/hover"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-hover-text-info-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/hover"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-hover-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/hover"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-checked-hover-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-hover-icon",
+              "name": "Checkbox/Indeterminate/Hover/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/indeterminate/background/hover"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/indeterminate/border/hover"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-indeterminate-hover-icon-dash",
+                  "name": "dash",
+                  "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                  "x": 4.667,
+                  "y": 9.333,
+                  "width": 10.666,
+                  "height": 1.334,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/icon/hover"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-hover-text",
+              "name": "Checkbox/Indeterminate/Hover/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-hover-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/hover"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-hover-text-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/hover"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-hover-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/hover"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-hover-text-info",
+              "name": "Checkbox/Indeterminate/Hover/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-hover-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/hover"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-hover-text-info-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/hover"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-hover-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/hover"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-indeterminate-hover-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-checkbox-row-focus",
+          "name": "Focus",
+          "layout": "horizontal",
+          "gap": 20.0,
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-focus-icon",
+              "name": "Checkbox/Unchecked/Focus/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/unchecked/background/focus"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/unchecked/border/focus"
+                  }
+                ]
+              },
+              "children": [],
+              "effects": [
+                {
+                  "type": "shadow",
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "blur": 0,
+                  "spread": 2,
+                  "color": "$effects/status/focus/default"
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-focus-text",
+              "name": "Checkbox/Unchecked/Focus/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-focus-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/focus"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/focus"
+                      }
+                    ]
+                  },
+                  "children": [],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-focus-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/focus"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-focus-text-info",
+              "name": "Checkbox/Unchecked/Focus/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-focus-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/focus"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/focus"
+                      }
+                    ]
+                  },
+                  "children": [],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-focus-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/focus"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-unchecked-focus-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-focus-icon",
+              "name": "Checkbox/Checked/Focus/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/checked/background/focus"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/checked/border/focus"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-checked-focus-icon-check",
+                  "name": "check",
+                  "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                  "x": 4.0,
+                  "y": 5.3334,
+                  "width": 12.0,
+                  "height": 8.6666,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/icon/focus"
+                    }
+                  ]
+                }
+              ],
+              "effects": [
+                {
+                  "type": "shadow",
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "blur": 0,
+                  "spread": 2,
+                  "color": "$effects/status/focus/default"
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-focus-text",
+              "name": "Checkbox/Checked/Focus/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-focus-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/focus"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/focus"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-focus-text-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/focus"
+                        }
+                      ]
+                    }
+                  ],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-focus-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/focus"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-focus-text-info",
+              "name": "Checkbox/Checked/Focus/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-focus-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/focus"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/focus"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-focus-text-info-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/focus"
+                        }
+                      ]
+                    }
+                  ],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-focus-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/focus"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-checked-focus-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-focus-icon",
+              "name": "Checkbox/Indeterminate/Focus/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/indeterminate/background/focus"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/indeterminate/border/focus"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-indeterminate-focus-icon-dash",
+                  "name": "dash",
+                  "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                  "x": 4.667,
+                  "y": 9.333,
+                  "width": 10.666,
+                  "height": 1.334,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/icon/focus"
+                    }
+                  ]
+                }
+              ],
+              "effects": [
+                {
+                  "type": "shadow",
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "blur": 0,
+                  "spread": 2,
+                  "color": "$effects/status/focus/default"
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-focus-text",
+              "name": "Checkbox/Indeterminate/Focus/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-focus-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/focus"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/focus"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-focus-text-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/focus"
+                        }
+                      ]
+                    }
+                  ],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-focus-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/focus"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-focus-text-info",
+              "name": "Checkbox/Indeterminate/Focus/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-focus-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/focus"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/focus"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-focus-text-info-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/focus"
+                        }
+                      ]
+                    }
+                  ],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-focus-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/focus"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-indeterminate-focus-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-checkbox-row-disabled",
+          "name": "Disabled",
+          "layout": "horizontal",
+          "gap": 20.0,
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-disabled-icon",
+              "name": "Checkbox/Unchecked/Disabled/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/unchecked/background/disabled"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/unchecked/border/disabled"
+                  }
+                ]
+              },
+              "children": [],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-disabled-text",
+              "name": "Checkbox/Unchecked/Disabled/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-disabled-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-disabled-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-disabled-text-info",
+              "name": "Checkbox/Unchecked/Disabled/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-disabled-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-disabled-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/disabled"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-unchecked-disabled-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-disabled-icon",
+              "name": "Checkbox/Checked/Disabled/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/checked/background/disabled"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/checked/border/disabled"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-checked-disabled-icon-check",
+                  "name": "check",
+                  "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                  "x": 4.0,
+                  "y": 5.3334,
+                  "width": 12.0,
+                  "height": 8.6666,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/icon/disabled"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-disabled-text",
+              "name": "Checkbox/Checked/Disabled/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-disabled-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-disabled-text-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/disabled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-disabled-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-disabled-text-info",
+              "name": "Checkbox/Checked/Disabled/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-disabled-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-disabled-text-info-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/disabled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-disabled-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/disabled"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-checked-disabled-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-disabled-icon",
+              "name": "Checkbox/Indeterminate/Disabled/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/indeterminate/background/disabled"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/indeterminate/border/disabled"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-indeterminate-disabled-icon-dash",
+                  "name": "dash",
+                  "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                  "x": 4.667,
+                  "y": 9.333,
+                  "width": 10.666,
+                  "height": 1.334,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/icon/disabled"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-disabled-text",
+              "name": "Checkbox/Indeterminate/Disabled/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-disabled-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-disabled-text-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/disabled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-disabled-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-disabled-text-info",
+              "name": "Checkbox/Indeterminate/Disabled/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-disabled-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-disabled-text-info-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/disabled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-disabled-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/disabled"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-indeterminate-disabled-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-checkbox-row-warning",
+          "name": "Warning",
+          "layout": "horizontal",
+          "gap": 20.0,
+          "alignItems": "center",
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-warning-icon",
+              "name": "Checkbox/Unchecked/Warning/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/unchecked/background/warning"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/unchecked/border/warning"
+                  }
+                ]
+              },
+              "children": [],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-warning-text",
+              "name": "Checkbox/Unchecked/Warning/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-warning-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/warning"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-warning-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/warning"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-unchecked-warning-text-info",
+              "name": "Checkbox/Unchecked/Warning/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-unchecked-warning-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/unchecked/border/warning"
+                      }
+                    ]
+                  },
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-unchecked-warning-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/unchecked/text/warning"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-unchecked-warning-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-warning-icon",
+              "name": "Checkbox/Checked/Warning/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/checked/background/warning"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/checked/border/warning"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-checked-warning-icon-check",
+                  "name": "check",
+                  "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                  "x": 4.0,
+                  "y": 5.3334,
+                  "width": 12.0,
+                  "height": 8.6666,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/icon/warning"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-warning-text",
+              "name": "Checkbox/Checked/Warning/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-warning-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/warning"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-warning-text-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/warning"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-warning-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/warning"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-checked-warning-text-info",
+              "name": "Checkbox/Checked/Warning/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-checked-warning-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/checked/border/warning"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-checked-warning-text-info-box-check",
+                      "name": "check",
+                      "d": "M14.862 5.5284C15.123 5.2685 15.545 5.2683 15.805 5.5284C16.065 5.7888 16.065 6.2115 15.805 6.4718L8.472 13.8048C8.211 14.0651 7.789 14.0651 7.528 13.8048L4.195 10.4718C3.935 10.2115 3.935 9.7888 4.195 9.5284C4.456 9.2683 4.878 9.2684 5.138 9.5284L8 12.3907L14.862 5.5284Z",
+                      "x": 4.0,
+                      "y": 5.3334,
+                      "width": 12.0,
+                      "height": 8.6666,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/checked/icon/warning"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-checked-warning-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/checked/text/warning"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-checked-warning-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-warning-icon",
+              "name": "Checkbox/Indeterminate/Warning/Icon",
+              "width": 20.0,
+              "height": 20.0,
+              "layout": "none",
+              "cornerRadius": 6.0,
+              "clipContent": false,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$checkbox/indeterminate/background/warning"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$checkbox/indeterminate/border/warning"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-checkbox-indeterminate-warning-icon-dash",
+                  "name": "dash",
+                  "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                  "x": 4.667,
+                  "y": 9.333,
+                  "width": 10.666,
+                  "height": 1.334,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/icon/warning"
+                    }
+                  ]
+                }
+              ],
+              "reusable": true
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-warning-text",
+              "name": "Checkbox/Indeterminate/Warning/Text",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 20.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-warning-text-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/warning"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-warning-text-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/warning"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-warning-text-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/warning"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-checkbox-indeterminate-warning-text-info",
+              "name": "Checkbox/Indeterminate/Warning/TextInfo",
+              "reusable": true,
+              "width": "fit_content",
+              "height": 24.0,
+              "layout": "horizontal",
+              "gap": 8.0,
+              "alignItems": "center",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-checkbox-indeterminate-warning-text-info-box",
+                  "name": "box",
+                  "width": 20.0,
+                  "height": 20.0,
+                  "layout": "none",
+                  "cornerRadius": 6.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$checkbox/indeterminate/border/warning"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "atom-checkbox-indeterminate-warning-text-info-box-dash",
+                      "name": "dash",
+                      "d": "M14.667 9.333C15.035 9.3332 15.333 9.6319 15.333 10C15.333 10.3681 15.035 10.6668 14.667 10.667H5.333C4.965 10.6668 4.667 10.3681 4.667 10C4.667 9.6319 4.965 9.3332 5.333 9.333H14.667Z",
+                      "x": 4.667,
+                      "y": 9.333,
+                      "width": 10.666,
+                      "height": 1.334,
+                      "fillRule": "evenodd",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$checkbox/indeterminate/icon/warning"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-checkbox-indeterminate-warning-text-info-label",
+                  "name": "label",
+                  "content": "Text",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 400,
+                  "lineHeight": 1.1429,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$checkbox/indeterminate/text/warning"
+                    }
+                  ]
+                },
+                {
+                  "type": "icon_font",
+                  "id": "atom-checkbox-indeterminate-warning-text-info-icon",
+                  "name": "icon",
+                  "iconFontName": "info",
+                  "iconFontFamily": "lucide",
+                  "width": 16.0,
+                  "height": 16.0,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$table/icon/info"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

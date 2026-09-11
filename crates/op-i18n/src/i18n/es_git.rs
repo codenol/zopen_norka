@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Resuelve cada conflicto usando las tarjetas de abajo y luego aplica la fusión.",
         "git.conflict.abort" => "Abortar fusión",
         "git.conflict.nonOp.title" => "Fusión pausada en archivos distintos de .op",
-        "git.conflict.nonOp.description" => "La fusión de .op terminó, pero otros archivos del repositorio siguen sin resolverse. Resuélvelos fuera de OpenPencil y luego continúa.",
+        "git.conflict.nonOp.description" => "La fusión de .op terminó, pero otros archivos del repositorio siguen sin resolverse. Resuélvelos fuera de Norka y luego continúa.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 archivo necesita atención",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} archivos necesitan atención",
         "git.conflict.nonOp.continue" => "Continuar fusión",

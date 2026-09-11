@@ -128,6 +128,12 @@ fn compact_subagent_skills<T: SkillNamed>(
             if has_design_system_substitute && name == "design-system" {
                 return false;
             }
+            // Session kit owns composition. Generic catalog composition
+            // (sidebar 240–280, pad 32, `$color-accent`) conflicts with the
+            // kit's layout tokens and type index.
+            if name == "design-system-composition" {
+                return false;
+            }
             true
         })
         .collect();

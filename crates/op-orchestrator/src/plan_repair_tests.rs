@@ -241,7 +241,7 @@ fn req(prompt: &str) -> DesignRequest {
         prompt: prompt.into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -249,6 +249,8 @@ fn req(prompt: &str) -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -257,20 +259,7 @@ fn req_with_design_md(prompt: &str) -> DesignRequest {
         prompt: prompt.into(),
         model: None,
         provider: None,
-        design_md: Some(jian_ops_schema::DesignMdSpec {
-            raw: String::new(),
-            project_name: None,
-            visual_theme: Some("light".into()),
-            color_palette: Some(vec![jian_ops_schema::DesignMdColor {
-                name: "Background".into(),
-                hex: "#F0F4F8".into(),
-                role: "page background".into(),
-            }]),
-            typography: None,
-            component_styles: None,
-            layout_principles: None,
-            generation_notes: None,
-        }),
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -278,6 +267,8 @@ fn req_with_design_md(prompt: &str) -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -335,7 +326,10 @@ fn repair_plan_object_style_guide_snake_case_alias() {
         "style_guide": "my-dark-theme"
     });
     let plan = repair_plan_object(&obj, &req("a page")).expect("repair should succeed");
-    assert_eq!(plan.style_guide_name.as_deref(), Some("my-dark-theme"));
+    assert_eq!(
+        plan.style_guide_name, None,
+        "snake_case alias is parsed then dropped: session kit owns style"
+    );
 }
 
 /// When all subtask objects are empty (no label, no valid fields), the
@@ -413,41 +407,120 @@ fn coerce_subtask_elements_array_joined() {
 
 // ── Task B2: finalize_plan ────────────────────────────────────────────────
 
-/// When `design_md` is present, `finalize_plan` must force
-/// `style_guide_name = "design-md-custom"` and overwrite `root_frame.fill`
-/// with the design.md background.
+/// A session kit is the design system, so `finalize_plan` never pins a
+/// catalog style guide — the markdown brief that used to force
+/// `design-md-custom` is gone from the product.
 #[test]
-fn finalize_plan_design_md_overrides_style_guide_and_fill() {
+fn finalize_plan_never_pins_a_catalog_style_guide() {
     let obj = json!({
         "rootFrame": { "id": "root", "name": "Page", "width": 1200.0, "height": 800.0 },
         "subtasks": [{ "id": "hero", "label": "Hero", "region": { "width": 1200.0, "height": 400.0 } }]
     });
     let plan = repair_plan_object(&obj, &req_with_design_md("a landing page"))
         .expect("repair should succeed");
-    assert_eq!(plan.style_guide_name.as_deref(), Some("design-md-custom"));
-    let fill = plan.root_frame.fill.as_ref().unwrap();
-    assert_eq!(fill.len(), 1);
-    // The design.md palette entry with role "page background" → #F0F4F8
-    assert_eq!(fill[0].color, "#F0F4F8");
+    assert_ne!(plan.style_guide_name.as_deref(), Some("design-md-custom"));
 }
 
-/// When `design_md` is absent and no `styleGuideName` is provided, the plan
-/// is returned as-is (style_guide_name may be None or from fallback).
+
+/// When `design_md` is absent the session kit owns fill and catalog names are dropped.
 #[test]
-fn finalize_plan_no_design_md_preserves_style_guide_name() {
+fn finalize_plan_no_design_md_uses_session_kit_fill() {
     let obj = json!({
         "rootFrame": { "id": "root", "name": "P", "width": 1200.0, "height": 800.0 },
         "subtasks": [{ "id": "s", "label": "S", "region": { "width": 1200.0, "height": 400.0 } }],
         "styleGuideName": "clean-minimal-light"
     });
     let plan = repair_plan_object(&obj, &req("a page")).expect("repair should succeed");
-    assert_eq!(
-        plan.style_guide_name.as_deref(),
-        Some("clean-minimal-light")
+    assert_eq!(plan.style_guide_name, None);
+    let fill = plan.root_frame.fill.expect("kit canvas fill");
+    let expected = op_editor_core::session_kit()
+        .canvas
+        .as_ref()
+        .map(|c| c.fill.as_str())
+        .unwrap_or("#EEF1F5");
+    assert_eq!(fill[0].color, expected);
+}
+
+#[test]
+fn finalize_plan_drops_sentinel_chrome_subtasks_on_desktop() {
+    let obj = json!({
+        "rootFrame": { "id": "root", "name": "P", "width": 1200.0, "height": 800.0 },
+        "subtasks": [
+            { "id": "sidebar", "label": "Sidebar", "region": { "width": 260.0, "height": 800.0 } },
+            { "id": "topbar", "label": "Top bar", "region": { "width": 940.0, "height": 56.0 } },
+            { "id": "kpi_cards", "label": "KPI cards", "region": { "width": 940.0, "height": 160.0 } },
+            { "id": "revenue_chart", "label": "Revenue chart", "region": { "width": 940.0, "height": 320.0 } }
+        ]
+    });
+    let plan = repair_plan_object(&obj, &req("собери дашборд")).expect("repair should succeed");
+    let ids: Vec<&str> = plan.subtasks.iter().map(|s| s.id.as_str()).collect();
+    assert!(!ids.iter().any(|id| *id == "sidebar" || *id == "topbar"));
+    assert!(
+        !ids.iter()
+            .any(|id| id.contains("kpi") || id.contains("chart")),
+        "non-kit KPI/chart modules must be stripped: {ids:?}"
+    );
+    assert!(
+        !plan.subtasks.is_empty(),
+        "must keep a content body subtask"
+    );
+    let kit = op_editor_core::session_kit();
+    if let Some(canvas) = &kit.canvas {
+        assert_eq!(plan.root_frame.width, canvas.width);
+        assert_eq!(plan.root_frame.height, canvas.height);
+    }
+}
+
+#[test]
+fn finalize_plan_genom_like_keeps_table_strips_analytics() {
+    let obj = json!({
+        "rootFrame": { "id": "root", "name": "P", "width": 1440.0, "height": 900.0 },
+        "subtasks": [
+            { "id": "sidebar", "label": "Sidebar", "region": { "width": 260.0, "height": 900.0 } },
+            { "id": "topbar", "label": "Top bar", "region": { "width": 1180.0, "height": 56.0 } },
+            { "id": "kpi-row", "label": "KPI row", "region": { "width": 1180.0, "height": 120.0 } },
+            { "id": "signals-table", "label": "Signals table", "region": { "width": 1180.0, "height": 480.0 } },
+            { "id": "pagination", "label": "Pagination", "region": { "width": 1180.0, "height": 48.0 } }
+        ]
+    });
+    let mut request = req("build an ops servers table screen like the reference");
+    request.reference_brief = Some(
+        "## Visible regions
+- toolbar with search
+- servers table
+- pagination
+\
+         ## Absent modules
+- no KPI cards
+- no charts
+- no analytics metrics"
+            .into(),
+    );
+    let plan = repair_plan_object(&obj, &request).expect("repair should succeed");
+    let ids: Vec<&str> = plan.subtasks.iter().map(|s| s.id.as_str()).collect();
+    assert!(!ids
+        .iter()
+        .any(|id| *id == "sidebar" || *id == "topbar" || id.contains("kpi")));
+    assert!(
+        ids.iter().any(|id| *id == "table" || id.contains("table")),
+        "table body must survive: {ids:?}"
+    );
+    assert!(
+        ids.iter().any(|id| *id == "pagination"),
+        "pagination must survive: {ids:?}"
     );
 }
 
 // ── Task B2: build_fallback_heights ───────────────────────────────────────
+
+#[test]
+fn allocate_section_heights_does_not_hang_when_min_exceeds_total() {
+    // 5 sections × min 80 = 400 > total 360 — the subtract fix-up used to
+    // spin forever here (Genom-like 5-subtask repair plans).
+    let heights = allocate_section_heights(360, 5);
+    assert_eq!(heights.len(), 5);
+    assert!(heights.iter().all(|&h| h >= 80));
+}
 
 #[test]
 fn build_fallback_heights_empty() {

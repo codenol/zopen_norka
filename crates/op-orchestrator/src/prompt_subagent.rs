@@ -99,38 +99,35 @@ pub(super) fn build_subagent_prompt_core(
     // manifest's ref-syntax example always matches the protocol this prompt
     // actually uses (SCRIPT_FORMAT vs NODE_FORMAT below).
     let component_manifest = available_components_manifest(components, script_on);
-    let has_reusable_components = component_manifest.is_some();
+    // Kit type index is always injected; pin `component-composition` only when
+    // the document library actually has masters (session merge). That keeps
+    // the empty-library budget path from truncating mobile-app.
+    let has_reusable_components = !components.is_empty();
 
-    // design.md payload for the `{{designMdContent}}` template. If the
-    // structured policy summary is empty (a bare-minimum design.md with only
-    // free-form text), fall back to the raw markdown so the sub-agent still
-    // sees the spec. Port of orchestrator-sub-agent.ts:379-384.
-    let design_md_content = req
-        .design_md
-        .as_ref()
-        .map(|spec| {
-            let structured = build_design_md_style_policy(spec);
-            let structured = structured.trim();
-            if structured.is_empty() {
-                spec.raw.trim().to_string()
-            } else {
-                structured.to_string()
-            }
-        })
-        .unwrap_or_default();
+    // Rules payload for the `{{designMdContent}}` template. The template
+    // name is historical: what the sub-agent receives is the session's
+    // structured rules, never a markdown brief.
+    // A reference turn keeps the recipe rules out of the sub-agent prompt too:
+    // those rules are what steer generation back to the ops screen.
+    let design_md_content = op_editor_core::build_design_rules_policy(
+        &op_editor_core::rules_without_recipes_for_reference(&req.rules, &req.prompt),
+    );
     let has_design_md = !design_md_content.is_empty();
     // Rust `OrchestratorPlan` carries only the style-guide NAME (the TS
     // `selectedStyleGuideContent` content field has no Rust equivalent yet),
     // so `style_guide_name.is_some()` is the faithful proxy for "a guide was
     // selected". Port of the flag block in orchestrator-sub-agent.ts:396-416.
-    let no_style_guide_match = plan.style_guide_name.is_none() && !has_design_md;
+    let has_session_kit = true;
+    let no_style_guide_match =
+        plan.style_guide_name.is_none() && !has_design_md && !has_session_kit;
 
     let mut flags = HashMap::new();
     flags.insert("isBasicTier".to_string(), tier == ModelTier::Basic);
     flags.insert("hasDesignMd".to_string(), has_design_md);
     // No existing-document variable context is wired into `DesignRequest`
     // (TS sources this from `request.context.variables`), so this is always
-    // false on the Rust path today.
+    // false on the Rust path today. Kit tokens are appended separately via
+    // `session_variable_index_block`.
     flags.insert("hasVariables".to_string(), false);
     flags.insert("noStyleGuideMatch".to_string(), no_style_guide_match);
     // Element-tools (N-tool) path is not ported to Rust (feature-flag off in
@@ -138,6 +135,8 @@ pub(super) fn build_subagent_prompt_core(
     flags.insert("hasMcpTools".to_string(), false);
     flags.insert("hasReusableComponents".to_string(), has_reusable_components);
 
+    // Measured before the text is moved into the dynamic content map.
+    let rules_tokens = (design_md_content.len() / 4) as u32;
     let mut dynamic_content = HashMap::new();
     if has_design_md {
         dynamic_content.insert("designMdContent".to_string(), design_md_content);
@@ -148,15 +147,26 @@ pub(super) fn build_subagent_prompt_core(
     // injects its palette/fonts into the sub-agent prompt (port of
     // `buildSubAgentStyleGuideInstruction`). When present this REPLACES the
     // generic `design-system` skill.
-    let style_guide_instruction =
-        build_style_guide_instruction(plan.style_guide_name.as_deref(), tier);
-    let resolved_style_instruction = build_resolved_style_instruction_for_plan(plan);
+    // The session kit owns style whenever it is present — with or without
+    // rules. (The old condition also required "no rules", which stopped being
+    // the same thing as "no design.md" once the rules became always-present.)
+    let style_guide_instruction = if has_session_kit {
+        None
+    } else {
+        build_style_guide_instruction(plan.style_guide_name.as_deref(), tier)
+    };
+    let resolved_style_instruction = if has_session_kit {
+        None
+    } else {
+        build_resolved_style_instruction_for_plan(plan)
+    };
     // `design-system` is dropped when ANOTHER styling source already covers it:
     // the `design-md` skill (`has_design_md`), the `style-defaults` skill (loads
     // on `noStyleGuideMatch`), OR a style instruction block just built.
     // Keeping it alongside any of those would inject design-system's conflicting
     // "output ONLY a JSON token object" header redundantly (Codex review).
     let design_system_covered = has_design_md
+        || has_session_kit
         || no_style_guide_match
         || style_guide_instruction.is_some()
         || resolved_style_instruction.is_some();
@@ -226,7 +236,7 @@ pub(super) fn build_subagent_prompt_core(
     let is_deck = is_deck_board(plan);
     let is_card = is_card_board(plan);
     let deck_budget = Phase::Generation.default_budget();
-    let budget_override = match tier {
+    let tier_budget = match tier {
         ModelTier::Basic if is_mobile_layout || is_mobile_screen => Some(9200),
         ModelTier::Basic if is_deck || is_card => Some(deck_budget),
         ModelTier::Basic => Some(5200),
@@ -235,6 +245,14 @@ pub(super) fn build_subagent_prompt_core(
         ModelTier::Standard => Some(6500),
         ModelTier::Full => None,
     };
+    // The session's rules are mandatory context, not a skill competing for
+    // room: they ride in the `design-md` skill, so without this the always-on
+    // rules would evict real skills (mobile-app disappeared from a mobile
+    // screen's budget the day the rules became unconditional). Their own cost
+    // is added on top, so a document with rules gets exactly the same skill
+    // set as one without, plus the rules.
+    let phase_budget = tier_budget.unwrap_or_else(|| Phase::Generation.default_budget());
+    let budget_override = Some(phase_budget.saturating_add(rules_tokens));
 
     // Force-include the component-instance teaching whenever a reusable-component
     // library is loaded. When a library is present the model already receives the
@@ -324,10 +342,19 @@ pub(super) fn build_subagent_prompt_core(
     // consult the concrete id list right before producing nodes. The
     // `component-composition` skill (loaded via `hasReusableComponents`) carries
     // the `ref` + `descendants` syntax; this block carries the actual ids.
+    // KitGap / recipe blocks that say "use AVAILABLE COMPONENTS" only make
+    // sense when that list is present — otherwise the model emits dangling
+    // refs that paint as an empty canvas.
     if let Some(manifest) = &component_manifest {
         system_prompt.push_str("\n\n");
         system_prompt.push_str(manifest);
+        system_prompt.push_str("\n\n");
+        system_prompt.push_str(&session_recipe_block());
+        system_prompt.push_str("\n\n");
+        system_prompt.push_str(&kit_gap_rules_block());
     }
+    system_prompt.push_str("\n\n");
+    system_prompt.push_str(&session_variable_index_block());
 
     let section_list = plan
         .subtasks
@@ -363,6 +390,23 @@ pub(super) fn build_subagent_prompt_core(
     } else {
         "SPACING CONSISTENCY: Use a single outer content gutter and consistent internal gaps. Do not create nested wrappers with conflicting padding or content touching edges."
     };
+    let content_area_block = if !is_mobile_layout
+        && detect_design_type(&req.prompt).type_ == DesignType::DesktopScreen
+    {
+        let kit = op_editor_core::session_kit();
+        format!(
+            "CONTENT AREA: Layout/Default is already on the canvas (sidebar + breadcrumbs + \
+             white content card). You are filling ONLY that content area (`{}`, id `{}`). \
+             Do not emit Layout/Default, Sidebar, or a second app shell. Adapt logo / nav / \
+             breadcrumb copy on the existing instance; put this screen's body in the card. \
+             Follow the REFERENCE SCREEN BRIEF when present — no KPI/chart modules unless \
+             the brief lists them.\n\n",
+            kit.content_slot_name(),
+            kit.content_slot_id()
+        )
+    } else {
+        String::new()
+    };
 
     // Two constraints differ by output protocol. The public subagent path uses
     // the script-gen branch; the raw-JSONL branch is legacy-only for direct
@@ -384,6 +428,7 @@ pub(super) fn build_subagent_prompt_core(
         "Page sections:\n{}\n\n\
 Generate ONLY \"{}\" (~{:.0}px of content).{}\n\
 Overall design: {}\n\n\
+{}\
 {}\
 {}\
 CRITICAL LAYOUT CONSTRAINTS:\n\
@@ -415,6 +460,7 @@ CRITICAL LAYOUT CONSTRAINTS:\n\
         req.prompt,
         screen_route_block,
         explicit_user_token_block,
+        content_area_block,
         root_rule,
         subtask.region.height,
         nesting_rule,
@@ -454,6 +500,10 @@ CRITICAL LAYOUT CONSTRAINTS:\n\
         };
         user_prompt.push_str(&block);
     }
+
+    user_prompt.push_str(&crate::reference_brief::reference_brief_prompt_block(
+        req.reference_brief.as_deref(),
+    ));
 
     // Port of orchestrator-sub-agent.ts:739-748 — APPEND MODE prompt injection.
     if let Some(labels) = subtask.existing_section_labels.as_ref() {
@@ -523,6 +573,10 @@ CRITICAL LAYOUT CONSTRAINTS:\n\
         budget_max,
     };
 
+    op_util::prompt_dump::dump_prompt(
+        "subagent-system",
+        &format!("{system_prompt}\n\n--- USER ---\n{user_prompt}"),
+    );
     (
         CallRequest {
             system_prompt,

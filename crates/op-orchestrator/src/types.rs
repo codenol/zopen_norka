@@ -582,7 +582,10 @@ pub fn report_to_progress_parts(
 #[derive(Debug, Clone)]
 pub struct SubtaskOutcome {
     pub id: String,
+    /// Forest-root count (insert bookkeeping / continue-stop).
     pub node_count: usize,
+    /// Resolved/paintable descendant count for honest Done reporting.
+    pub paintable_nodes: usize,
     pub error: Option<String>,
     /// Post-remap ids of the roots this subtask inserted (append-mode
     /// cleanup scopes to exactly these — Component 11). Empty on failure
@@ -602,7 +605,10 @@ pub struct SubtaskOutcome {
 pub struct RunSummary {
     pub root_frame_id: String,
     pub subtasks: Vec<SubtaskOutcome>,
+    /// Sum of forest-root counts (insert bookkeeping).
     pub total_nodes: usize,
+    /// Sum of resolved/paintable descendants — prefer this for Done copy.
+    pub paintable_nodes: usize,
     /// Names of top-level "screen" roots (`unfilled_screens::detect_unfilled_screens`)
     /// that never received real content by the time the run finished — the
     /// "promise-delivery" invariant's classic-path honest report. Empty on
@@ -672,6 +678,42 @@ pub struct ContinuationContext {
     pub screen_names: Vec<String>,
 }
 
+/// User-attached reference image for design grounding (screenshot to match).
+/// Not part of the JSON wire for `DesignRequest` — carried in-process only.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReferenceAttachment {
+    /// Original file name, e.g. `screenshot.png`.
+    pub name: String,
+    /// MIME type, e.g. `image/png`.
+    pub media_type: String,
+    /// Raw file bytes (not base64).
+    pub data: Vec<u8>,
+}
+
+impl ReferenceAttachment {
+    pub fn is_image(&self) -> bool {
+        self.media_type.starts_with("image/")
+    }
+}
+
+/// A recipe the product already placed in the document.
+///
+/// The product selects it (see `op_editor_core::select_recipe`) and inserts
+/// its master before the model runs, so "start from the recipe" is a fact the
+/// model can see rather than advice it may skip. The prompt then frames the
+/// turn as adaptation of `node_id`, not composition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecipeBase {
+    pub recipe_id: String,
+    pub master_id: String,
+    /// The placed root's node id in the live document.
+    pub node_id: String,
+    pub name: String,
+    /// What the recipe already provides, from the kit's own notes.
+    pub notes: String,
+}
+
 /// 编排器输入 —— 一次设计请求。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -679,8 +721,12 @@ pub struct DesignRequest {
     pub prompt: String,
     pub model: Option<String>,
     pub provider: Option<String>,
-    /// 当前文档的 design.md(若有)—— 规划 prompt 据此走 design.md 分支。
-    pub design_md: Option<jian_ops_schema::DesignMdSpec>,
+    /// Effective design rules for this session — the planning prompt's
+    /// only design-system input. The rules are already resolved (library
+    /// kit + document rules + overrides, disabled ones dropped) by the
+    /// caller, which owns that state.
+    #[serde(default)]
+    pub rules: Vec<jian_ops_schema::DesignRule>,
     /// 并发度:允许同时运行的 screen-group worker 数。
     /// 调用方应传 store-clamped 值 [1,6];crate 内部防御性 clamp。
     /// 默认为 1(顺序执行)。Port of TS `request.concurrency ?? 1`.
@@ -714,6 +760,17 @@ pub struct DesignRequest {
     /// name the registry has dropped falls back to the ranking with a log.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pinned_style_guide: Option<String>,
+    /// Reference screenshots the user attached for this design turn.
+    /// In-process only (`serde(skip)`); web/desktop hosts copy chat
+    /// attachments here before `Orchestrator::run`.
+    #[serde(skip)]
+    pub reference_attachments: Vec<ReferenceAttachment>,
+    /// Structured layout inventory from a multimodal pass over
+    /// [`Self::reference_attachments`]. Filled by
+    /// [`crate::reference_brief::enrich_request_with_reference_brief`]
+    /// before planning; in-process only.
+    #[serde(skip)]
+    pub reference_brief: Option<String>,
 }
 
 /// Mirrors the serde defaults exactly, so a request built through `Default`
@@ -727,13 +784,15 @@ impl Default for DesignRequest {
             prompt: String::new(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 1,
             append_context: None,
             continuation_context: None,
             validation_enabled: default_validation_enabled(),
             visual_ref_enabled: default_visual_ref_enabled(),
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         }
     }
 }

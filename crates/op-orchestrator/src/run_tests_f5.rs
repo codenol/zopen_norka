@@ -184,7 +184,7 @@ fn append_does_not_mutate_preexisting_styled_node() {
         prompt: "add a content area section".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: Some(AppendContext {
@@ -196,6 +196,8 @@ fn append_does_not_mutate_preexisting_styled_node() {
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
 
     futures::executor::block_on(Orchestrator::new().run(

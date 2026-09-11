@@ -1,0 +1,25 @@
+{
+  "id": "page-atom-divider",
+  "name": "Atoms · Divider",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-divider-default",
+      "name": "Divider/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0.0,
+      "width": 200.0,
+      "height": 1.0,
+      "layout": "none",
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$sidebar/border/default"
+        }
+      ],
+      "children": []
+    }
+  ]
+}

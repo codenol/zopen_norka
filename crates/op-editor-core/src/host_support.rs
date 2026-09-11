@@ -71,7 +71,9 @@ impl EditorState {
         let doc = jian_ops_schema::load_str(&src)
             .expect("EditorState::starter() fixture parses")
             .value;
-        Self::from_document(doc)
+        let mut state = Self::from_document(doc);
+        crate::kit_manifest::apply_skala_kit_policy(&mut state);
+        state
     }
 
     /// Spawn a fresh leaf node for the active shape / frame / text /
@@ -262,7 +264,10 @@ impl EditorState {
         if icon_name.is_empty() || family.is_empty() || !sel.is_real() || !self.is_editable(&sel) {
             return false;
         }
-        let can_replace = match self.selected_node() {
+        let display = self.selected_node().cloned().or_else(|| {
+            crate::instance_override::resolve_instance_display_node_for_anchor(&self.doc, &sel)
+        });
+        let can_replace = match display.as_ref() {
             Some(PenNode::IconFont(_)) => true,
             Some(PenNode::Path(n)) => n.icon_id.is_some(),
             _ => false,
@@ -271,6 +276,21 @@ impl EditorState {
             return false;
         }
         self.commit_history();
+        let instance_scope = self.begin_instance_write_for_anchor();
+        let wrote = self.replace_selected_icon_on_anchor(icon_name, family, svg_path_d);
+        if let Some(scope) = instance_scope {
+            self.finish_instance_write(scope);
+        }
+        wrote
+    }
+
+    fn replace_selected_icon_on_anchor(
+        &mut self,
+        icon_name: &str,
+        family: &str,
+        svg_path_d: Option<&str>,
+    ) -> bool {
+        let sel = self.selection.anchor.clone();
         let Some(node) = find_node_mut(self.active_children_mut(), &sel) else {
             return false;
         };

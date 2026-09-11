@@ -591,8 +591,10 @@ impl EditorUiState {
         self.layer_context_menu = None;
         self.layer_pages_scroll.offset = 0.0;
         self.layer_layers_scroll.offset = 0.0;
+        self.layer_components_scroll.offset = 0.0;
         self.layer_pages_h_scroll.offset = 0.0;
         self.layer_layers_h_scroll.offset = 0.0;
+        self.layer_components_h_scroll.offset = 0.0;
         self.collapsed_layers.clear();
         self.last_revealed_layer_anchor = None;
         self.last_layer_click = None;

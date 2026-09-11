@@ -14,6 +14,7 @@ use std::collections::HashSet;
 impl Default for EditorUiState {
     fn default() -> Self {
         Self {
+            now_unix_ms: 0.0,
             sidebar_open: true,
             layer_panel_width: 240.0,
             property_panel_width: 256.0,
@@ -53,8 +54,10 @@ impl Default for EditorUiState {
             property_panel_scroll: Default::default(),
             layer_pages_scroll: Default::default(),
             layer_layers_scroll: Default::default(),
+            layer_components_scroll: Default::default(),
             layer_pages_h_scroll: Default::default(),
             layer_layers_h_scroll: Default::default(),
+            layer_components_h_scroll: Default::default(),
             import_menu_open: false,
             import_menu: jian_widgets::components::select::SelectState::default(),
             figma_import_open: false,
@@ -69,6 +72,7 @@ impl Default for EditorUiState {
             scenario: None,
             preview: PreviewState::default(),
             slides_panel: super::SlidesPanelState::default(),
+            assets_panel: super::AssetsPanelState::default(),
             agent_settings_open: false,
             agent_settings: crate::agent_settings::AgentSettings::default(),
             agent_settings_drag: None,
@@ -228,6 +232,7 @@ impl Default for EditorUiState {
             component_browser_kit_request: None,
             ui_kits_changed: false,
             component_browser_pending_insert: None,
+            pending_skala_insert: None,
         }
     }
 }

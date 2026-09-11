@@ -37,13 +37,15 @@ fn persisted_request_json() -> String {
         prompt: "design profile".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 2,
         continuation_context: None,
         append_context: None,
         validation_enabled: false,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     })
     .unwrap()
 }
@@ -214,11 +216,13 @@ fn worker_summary_finishes_all_messages_and_keeps_retry_on_owning_worker() {
             subtasks: vec![SubtaskOutcome {
                 id: "hero".into(),
                 node_count: 0,
+                paintable_nodes: 0,
                 error: Some("empty content".into()),
                 inserted_root_ids: Vec::new(),
                 subtask: Some(subtask),
             }],
             total_nodes: 0,
+            paintable_nodes: 0,
             unfilled_screens: Vec::new(),
         })))
         .unwrap();
@@ -562,11 +566,13 @@ fn partial_summary_marks_omitted_active_rows_error() {
             subtasks: vec![SubtaskOutcome {
                 id: "trips".into(),
                 node_count: 7,
+                paintable_nodes: 7,
                 error: None,
                 inserted_root_ids: Vec::new(),
                 subtask: None,
             }],
             total_nodes: 7,
+            paintable_nodes: 7,
             unfilled_screens: Vec::new(),
         })))
         .unwrap();

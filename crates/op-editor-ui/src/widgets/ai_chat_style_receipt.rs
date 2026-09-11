@@ -48,28 +48,31 @@ pub(crate) struct StyleReceipt {
     pub swatches: Vec<Color>,
     /// Whether pressing ✕ can clear what this row describes.
     ///
-    /// False for the design.md row: design.md is bound and unbound from its
-    /// own panel, and a ✕ here would either do nothing or silently clear a
-    /// pin that is not the thing being reported.
+    /// False for the rules row: the session's design rules are always in
+    /// force — the AI reads them on every turn — so there is nothing to
+    /// clear. Only a catalog style guide the user pinned is clearable.
     pub clearable: bool,
+    /// Whether this row reports the session's design rules rather than a
+    /// pinned catalog guide. It changes only the label.
+    pub is_rules: bool,
 }
 
 impl StyleReceipt {
     /// The receipt for the current editor state, or `None` when the row
     /// should not paint at all.
     ///
-    /// Precedence mirrors the generation pipeline exactly, because a receipt
-    /// that disagreed with the pipeline would be worse than none: design.md
-    /// outranks a pin there, so it outranks it here.
+    /// The session's design rules outrank a pinned guide: the pipeline hands
+    /// the AI those rules on every turn, and the user cannot switch them off
+    /// — the row exists so the chat says what is actually in force.
     pub(crate) fn for_state(state: &EditorState) -> Option<Self> {
-        if state.doc.design_md.is_some() {
-            // Named rather than hidden. A user who pinned a style and sees
-            // "design.md" here learns why their pin is not showing up, which
-            // is the one question silence cannot answer.
+        let rules = op_editor_core::effective_design_rules(state.doc.design_md.as_ref());
+        if !rules.is_empty() {
             return Some(Self {
-                name: "design.md".to_string(),
+                // The count is the label's payload — see the chip's label.
+                name: rules.len().to_string(),
                 swatches: Vec::new(),
                 clearable: false,
+                is_rules: true,
             });
         }
         let pinned = state.editor_ui.pinned_style_guide.as_deref()?;
@@ -86,6 +89,7 @@ impl StyleReceipt {
                 .filter_map(|hex| parse(hex))
                 .collect(),
             clearable: true,
+            is_rules: false,
         }
     }
 }

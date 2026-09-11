@@ -152,4 +152,41 @@ impl WidgetHost {
             false
         }
     }
+
+    /// Drain a queued left-rail Assets insert: clone the Skala master
+    /// onto the active page at the viewport centre.
+    pub(in crate::widget_host) fn drain_skala_insert(
+        &mut self,
+        viewport_w: f32,
+        viewport_h: f32,
+    ) -> bool {
+        let Some(master_id) = self.editor_state.editor_ui.pending_skala_insert.take() else {
+            return false;
+        };
+        let component_id = op_editor_core::NodeId::new(master_id);
+        let Some(new_id) = self.editor_state.instantiate_component(&component_id) else {
+            return false;
+        };
+        let doc = op_editor_ui::widgets::host_canvas_geometry::canvas_centre_doc_point(
+            &self.editor_state,
+            viewport_w,
+            viewport_h,
+        );
+        if let Some(node) =
+            op_editor_core::walkers::find_node_mut(self.editor_state.active_children_mut(), &new_id)
+        {
+            use op_editor_core::PenNodeExt;
+            let x = node.base().x.unwrap_or(0.0);
+            let y = node.base().y.unwrap_or(0.0);
+            let w = node.width_px().unwrap_or(0.0);
+            let h = node.height_px().unwrap_or(0.0);
+            op_editor_core::walkers::translate_subtree(
+                node,
+                doc.x as f64 - w / 2.0 - x,
+                doc.y as f64 - h / 2.0 - y,
+            );
+        }
+        self.mark_dirty();
+        true
+    }
 }

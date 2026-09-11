@@ -476,6 +476,12 @@ pub const TOOL_PROFILES: &[ToolProfile] = &[
         ToolSurface::InMemory,
     ),
     ToolProfile::new("get_design_md", ToolAccess::Read, ToolSurface::InMemory),
+    ToolProfile::new("get_design_rule", ToolAccess::Read, ToolSurface::InMemory),
+    ToolProfile::new(
+        "get_effective_design_rules",
+        ToolAccess::Read,
+        ToolSurface::InMemory,
+    ),
     ToolProfile::new("get_design_prompt", ToolAccess::Read, ToolSurface::InMemory),
     ToolProfile::new(
         "get_design_quality",
@@ -527,7 +533,12 @@ pub const TOOL_PROFILES: &[ToolProfile] = &[
         ToolAccess::Write,
         ToolSurface::InMemory,
     ),
+    ToolProfile::new("list_recipes", ToolAccess::Read, ToolSurface::InMemory),
+    // A recipe is placed through the same kit-instantiation command as any
+    // other kit component, so it carries the same capability.
+    ToolProfile::new("use_recipe", ToolAccess::Write, ToolSurface::InMemory),
     ToolProfile::new("lint_document", ToolAccess::Read, ToolSurface::InMemory),
+    ToolProfile::new("list_design_rules", ToolAccess::Read, ToolSurface::InMemory),
     ToolProfile::new("list_components", ToolAccess::Read, ToolSurface::InMemory),
     ToolProfile::new("list_node_kinds", ToolAccess::Read, ToolSurface::InMemory),
     ToolProfile::new("list_pages", ToolAccess::Read, ToolSurface::InMemory),

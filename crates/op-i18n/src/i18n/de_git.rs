@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Löse jeden Konflikt mithilfe der Karten unten auf, dann wende den Merge an.",
         "git.conflict.abort" => "Merge abbrechen",
         "git.conflict.nonOp.title" => "Zusammenführung wegen Nicht-.op-Dateien pausiert",
-        "git.conflict.nonOp.description" => "Die .op-Zusammenführung ist abgeschlossen, aber andere Dateien im Repository sind noch nicht aufgelöst. Beheben Sie sie außerhalb von OpenPencil und fahren Sie dann fort.",
+        "git.conflict.nonOp.description" => "Die .op-Zusammenführung ist abgeschlossen, aber andere Dateien im Repository sind noch nicht aufgelöst. Beheben Sie sie außerhalb von Norka und fahren Sie dann fort.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 Datei benötigt Aufmerksamkeit",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} Dateien benötigen Aufmerksamkeit",
         "git.conflict.nonOp.continue" => "Zusammenführung fortsetzen",

@@ -1,4 +1,4 @@
-//! PKCS#11-backed OPLS signer for OpenPencil relay locators.
+//! PKCS#11-backed OPLS signer for Norka relay locators.
 //!
 //! This is a Unix-only daemon. Every guarantee it makes rests on a POSIX
 //! primitive for which no audited Windows equivalent is implemented here:
@@ -44,6 +44,6 @@ pub use pkcs11::KeyStore;
 
 /// Reported by the binary on platforms where the signer cannot run.
 #[cfg(not(unix))]
-pub const UNSUPPORTED_PLATFORM: &str = "the OpenPencil relay locator HSM signer requires a Unix \
+pub const UNSUPPORTED_PLATFORM: &str = "the Norka relay locator HSM signer requires a Unix \
 host: it authenticates callers with Unix-domain-socket peer credentials and guards its config \
 and PIN files with POSIX ownership, mode, and link-count checks";

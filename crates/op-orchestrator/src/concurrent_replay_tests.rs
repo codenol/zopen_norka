@@ -75,6 +75,7 @@ fn rejected_atomic_batch_rolls_back_and_becomes_a_failed_outcome() {
     let outcome = SubtaskOutcome {
         id: "section".into(),
         node_count: 1,
+        paintable_nodes: 1,
         error: None,
         inserted_root_ids: Vec::new(),
         subtask: None,

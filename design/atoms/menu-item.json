@@ -1,0 +1,286 @@
+{
+  "id": "page-atom-menu-item",
+  "name": "Atoms · MenuItem",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-menu-item-set",
+      "name": "set",
+      "layout": "vertical",
+      "gap": 8.0,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-menu-item-default",
+          "name": "MenuItem/Default",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 168.0,
+          "height": "fit_content",
+          "minHeight": 34.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menuitem/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-menu-item-default-icon",
+              "name": "icon",
+              "iconFontName": "eye",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/icon/default"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-menu-item-default-label",
+              "name": "label",
+              "content": "Обзор",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "lineHeight": 1.2857,
+              "textAlign": "left",
+              "width": 120.0,
+              "textGrowth": "fixed-width",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ref",
+          "id": "atom-menu-item-wrap-sample",
+          "name": "MenuItem/Wrap",
+          "ref": "atom-menu-item-default",
+          "descendants": {
+            "atom-menu-item-default-label": {
+              "content": "Диагностика метрики"
+            },
+            "atom-menu-item-default-icon": {
+              "iconFontName": "info"
+            }
+          }
+        },
+        {
+          "type": "frame",
+          "id": "atom-menu-item-hover",
+          "name": "MenuItem/Hover",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 168.0,
+          "height": "fit_content",
+          "minHeight": 34.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menuitem/background/hover"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-menu-item-hover-icon",
+              "name": "icon",
+              "iconFontName": "git-fork",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/icon/hover"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-menu-item-hover-label",
+              "name": "label",
+              "content": "Обзор",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "lineHeight": 1.2857,
+              "textAlign": "left",
+              "width": 120.0,
+              "textGrowth": "fixed-width",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/text/hover"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-menu-item-active",
+          "name": "MenuItem/Active",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 168.0,
+          "height": "fit_content",
+          "minHeight": 34.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menuitem/background/active"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-menu-item-active-icon",
+              "name": "icon",
+              "iconFontName": "git-fork",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/icon/active"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-menu-item-active-label",
+              "name": "label",
+              "content": "Обзор",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "lineHeight": 1.2857,
+              "textAlign": "left",
+              "width": 120.0,
+              "textGrowth": "fixed-width",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/text/active"
+                }
+              ]
+            }
+          ],
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$sidebar/menuitem/border/active"
+              }
+            ]
+          }
+        },
+        {
+          "type": "frame",
+          "id": "atom-menu-item-active-hover",
+          "name": "MenuItem/Active hover",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 168.0,
+          "height": "fit_content",
+          "minHeight": 34.0,
+          "layout": "horizontal",
+          "gap": 8.0,
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/menuitem/background/active_hover"
+            }
+          ],
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "atom-menu-item-active-hover-icon",
+              "name": "icon",
+              "iconFontName": "git-fork",
+              "iconFontFamily": "lucide",
+              "width": 16.0,
+              "height": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/icon/active_hover"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "atom-menu-item-active-hover-label",
+              "name": "label",
+              "content": "Обзор",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "lineHeight": 1.2857,
+              "textAlign": "left",
+              "width": 120.0,
+              "textGrowth": "fixed-width",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/menuitem/text/active_hover"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

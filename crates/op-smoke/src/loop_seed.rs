@@ -74,7 +74,7 @@ pub fn build_seed_command(prompt: &str) -> Result<EditorCommand, SeedBuildError>
         prompt: prompt.to_string(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         // concurrency 1 ⇒ the planner's simplest single-screen shape; the
         // seed path never engages the concurrent / dashboard branches.
         concurrency: 1,
@@ -83,6 +83,8 @@ pub fn build_seed_command(prompt: &str) -> Result<EditorCommand, SeedBuildError>
         validation_enabled: false,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     // Reuse the orchestrator's NO-LLM heuristic planner for the root-frame
     // spec + the section names/count.
@@ -164,13 +166,15 @@ pub fn seed_system_prompt_suffix(prompt: &str) -> String {
         prompt: prompt.to_string(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: false,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let plan = build_fallback_plan(&req);
     let section_list = plan

@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Resolve each conflict using the cards below, then apply the merge.",
         "git.conflict.abort" => "Abort merge",
         "git.conflict.nonOp.title" => "Merge paused on non-.op files",
-        "git.conflict.nonOp.description" => "The .op merge finished, but other files in this repo are still unresolved. Fix them outside OpenPencil, then continue.",
+        "git.conflict.nonOp.description" => "The .op merge finished, but other files in this repo are still unresolved. Fix them outside Norka, then continue.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 file needs attention",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} files need attention",
         "git.conflict.nonOp.continue" => "Continue merge",

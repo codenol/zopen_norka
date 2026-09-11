@@ -9,12 +9,21 @@ use crate::plan::PlanFill;
 use crate::plan::{OrchestratorPlan, Region, RootFrameSpec, Subtask};
 use crate::types::{ContinuationContext, DesignRequest};
 
+/// The rules a real turn carries: resolved, so the working agreement and the
+/// kit's component rules are part of the prompt under test.
+fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
+    op_editor_core::effective_design_rules(None)
+        .into_iter()
+        .map(|entry| entry.rule)
+        .collect()
+}
+
 fn req() -> DesignRequest {
     DesignRequest {
         prompt: "x".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: resolved_rules(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -22,6 +31,8 @@ fn req() -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 

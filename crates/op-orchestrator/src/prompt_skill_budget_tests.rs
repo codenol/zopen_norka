@@ -53,6 +53,7 @@ fn saturated_design_md() -> DesignMdSpec {
         component_styles: Some("c".repeat(600)),
         layout_principles: Some("l".repeat(800)),
         generation_notes: Some("n".repeat(800)),
+        rules: Vec::new(),
     }
 }
 
@@ -73,13 +74,24 @@ fn worst_case_style_guide_context() -> (String, String) {
     for mode in [PlanningMode::Rich, PlanningMode::Minimal] {
         for model in models {
             for prompt in prompts {
-                for spec in [None, Some(&design_md)] {
+                let one_rule = [jian_ops_schema::DesignRule {
+                    id: "local:1".into(),
+                    title: "Spacing".into(),
+                    instruction: "Use 8px steps".into(),
+                    kind: jian_ops_schema::DesignRuleKind::Require,
+                    scope: jian_ops_schema::DesignRuleScope::Global,
+                    condition: None,
+                    priority: 0,
+                    enabled: true,
+                    overrides: None,
+                }];
+                for rules in [&[][..], &one_rule[..]] {
                     let ctx =
-                        build_planning_style_guide_context(prompt, Some(model), mode, spec, None);
+                        build_planning_style_guide_context(prompt, Some(model), mode, rules, None);
                     if ctx.available_style_guides.chars().count() > worst.0.chars().count() {
                         let label = format!(
-                            "mode={mode:?} model={model:?} design_md={} prompt={prompt:?}",
-                            spec.is_some()
+                            "mode={mode:?} model={model:?} with_rules={} prompt={prompt:?}",
+                            !rules.is_empty()
                         );
                         worst = (ctx.available_style_guides, label);
                     }
@@ -147,6 +159,7 @@ fn every_augmented_placeholder_has_a_worst_case_in_this_guard() {
 fn decomposition_reaches_the_planning_prompt_with_its_tail_intact() {
     let request = DesignRequest {
         prompt: "帮我做一个 12 页的产品培训课件 PPT".into(),
+        rules: Vec::new(),
         ..req()
     };
     let pp = build_orchestrator_prompt(&request, PlanningMode::Rich, AbortFlag::new());
@@ -252,7 +265,8 @@ fn basic_tier_subtask_prompt_carries_the_sibling_isomorphism_rule() {
         &plan(),
         &DesignRequest {
             model: Some("glm-4.6".into()), // Basic arm — the 0814 budget fixture tier
-            ..req()
+            rules: Vec::new(),
+        ..req()
         },
         AbortFlag::new(),
         false,
@@ -326,7 +340,8 @@ fn basic_tier_subtask_prompt_carries_the_layout_margin_floor_sentence() {
         &plan(),
         &DesignRequest {
             model: Some("glm-4.6".into()),
-            ..req()
+            rules: Vec::new(),
+        ..req()
         },
         AbortFlag::new(),
         false,
@@ -351,7 +366,8 @@ fn basic_tier_subtask_prompt_carries_the_node_name_and_image_slot_contract() {
         &plan(),
         &DesignRequest {
             model: Some("glm-4.6".into()),
-            ..req()
+            rules: Vec::new(),
+        ..req()
         },
         AbortFlag::new(),
         false,
@@ -507,6 +523,7 @@ fn card_request(model: &str) -> DesignRequest {
     DesignRequest {
         prompt: "帮我做一套知识卡片：如何早起".into(),
         model: Some(model.into()),
+        rules: Vec::new(),
         ..req()
     }
 }
@@ -553,6 +570,7 @@ fn deck_request(model: &str) -> DesignRequest {
     DesignRequest {
         prompt: "帮我做一个 8 页的融资路演 PPT，深色科技感".into(),
         model: Some(model.into()),
+        rules: Vec::new(),
         ..req()
     }
 }

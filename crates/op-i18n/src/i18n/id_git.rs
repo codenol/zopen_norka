@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Selesaikan setiap konflik menggunakan kartu di bawah, lalu terapkan penggabungan.",
         "git.conflict.abort" => "Batalkan merge",
         "git.conflict.nonOp.title" => "Penggabungan dijeda pada file non-.op",
-        "git.conflict.nonOp.description" => "Penggabungan .op selesai, tetapi file lain di repo masih belum terselesaikan. Selesaikan di luar OpenPencil, lalu lanjutkan.",
+        "git.conflict.nonOp.description" => "Penggabungan .op selesai, tetapi file lain di repo masih belum terselesaikan. Selesaikan di luar Norka, lalu lanjutkan.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 file perlu perhatian",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} file perlu perhatian",
         "git.conflict.nonOp.continue" => "Lanjutkan penggabungan",

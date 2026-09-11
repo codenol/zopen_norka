@@ -91,7 +91,7 @@ fn req_validation_enabled() -> DesignRequest {
         prompt: "a landing page".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -99,6 +99,8 @@ fn req_validation_enabled() -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -107,7 +109,7 @@ fn req_validation_disabled() -> DesignRequest {
         prompt: "a landing page".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -115,6 +117,8 @@ fn req_validation_disabled() -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -329,7 +333,7 @@ fn dashboard_validation_enabled_emits_validation_done() {
             prompt: "an analytics admin dashboard".into(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 1,
             continuation_context: None,
             append_context: None,
@@ -337,6 +341,8 @@ fn dashboard_validation_enabled_emits_validation_done() {
 
             visual_ref_enabled: false,
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         },
         &mut sink,
         &llm,
@@ -392,7 +398,7 @@ fn dashboard_validation_disabled_no_validation_events() {
             prompt: "an analytics admin dashboard".into(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 1,
             continuation_context: None,
             append_context: None,
@@ -400,6 +406,8 @@ fn dashboard_validation_disabled_no_validation_events() {
 
             visual_ref_enabled: false,
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         },
         &mut sink,
         &llm,
@@ -438,7 +446,7 @@ fn concurrent_validation_enabled_emits_validation_done() {
             prompt: "a mobile app".into(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 2,
             continuation_context: None,
             append_context: None,
@@ -446,6 +454,8 @@ fn concurrent_validation_enabled_emits_validation_done() {
 
             visual_ref_enabled: false,
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         },
         &mut sink,
         &llm,
@@ -501,7 +511,7 @@ fn concurrent_validation_disabled_no_validation_events() {
             prompt: "a mobile app".into(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 2,
             continuation_context: None,
             append_context: None,
@@ -509,6 +519,8 @@ fn concurrent_validation_disabled_no_validation_events() {
 
             visual_ref_enabled: false,
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         },
         &mut sink,
         &llm,

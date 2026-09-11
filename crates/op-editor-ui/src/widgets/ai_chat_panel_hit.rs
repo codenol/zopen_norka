@@ -668,7 +668,13 @@ impl<'a> AIChatPlaceholder<'a> {
         }
         let input_rect = self.input_rect(rect);
         let attach_h = self.attachment_row_h();
-        let toolbar_top = input_rect.origin.y + self.input_area_height_for_rect(rect) + attach_h;
+        // The chip band is part of the block: without it every band below
+        // shifts up by the row height, and this path disagreed with both
+        // paint and `hit_test` for as long as a chip was on screen.
+        let toolbar_top = input_rect.origin.y
+            + self.chip_row_h()
+            + self.input_area_height_for_rect(rect)
+            + attach_h;
         let footer = self.footer_layout(rect, input_rect, toolbar_top);
         let picker = crate::widgets::ai_chat_panel_footer::parallel_agents_picker_rect(&footer);
         if !picker.contains(point) {

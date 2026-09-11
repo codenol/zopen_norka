@@ -103,7 +103,10 @@ pub async fn run_best_of(
         };
         let request = DesignRequest {
             prompt: template.prompt.clone(),
-            design_md: sink.state.doc.design_md.clone(),
+            rules: op_editor_core::effective_design_rules(sink.state.doc.design_md.as_ref())
+                .into_iter()
+                .map(|entry| entry.rule)
+                .collect(),
             ..template.clone()
         };
         let mut on_progress = |p: op_orchestrator::Progress| {

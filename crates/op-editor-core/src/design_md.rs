@@ -11,7 +11,13 @@ use std::collections::BTreeSet;
 use crate::pen_node_ext::PenNodeExt;
 use jian_ops_schema::node::PenNode;
 use jian_ops_schema::variable::{VariableKind, VariableScalar, VariableValue};
-use jian_ops_schema::{DesignMdColor, DesignMdSpec, DesignMdTypography, PenDocument};
+use jian_ops_schema::{
+    DesignMdColor, DesignMdSpec, DesignMdTypography, DesignRule, DesignRuleKind, PenDocument,
+};
+
+const RULES_SECTION_START: &str = "<!-- openpencil:design-rules:start -->";
+const RULES_SECTION_END: &str = "<!-- openpencil:design-rules:end -->";
+const RULE_RECORD_PREFIX: &str = "<!-- openpencil-rule:";
 
 /// Which structured field a `## ` section maps onto.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -22,6 +28,7 @@ enum SectionKey {
     ComponentStyles,
     LayoutPrinciples,
     GenerationNotes,
+    DesignRules,
     /// Unrecognised — folded into `component_styles` as a catch-all.
     Unknown,
 }
@@ -37,6 +44,8 @@ fn match_section_key(title: &str) -> SectionKey {
         SectionKey::ColorPalette
     } else if has(&["type", "font", "typo"]) {
         SectionKey::Typography
+    } else if has(&["rule", "guideline", "policy"]) && has(&["design", "component", "usage"]) {
+        SectionKey::DesignRules
     } else if has(&["component", "style", "element", "button", "card", "input"]) {
         SectionKey::ComponentStyles
     } else if has(&["layout", "spacing", "grid", "whitespace"]) {
@@ -181,6 +190,17 @@ fn append(existing: Option<String>, extra: String) -> String {
     }
 }
 
+fn parse_rule_records(content: &str) -> Vec<DesignRule> {
+    content
+        .lines()
+        .filter_map(|line| {
+            let start = line.find(RULE_RECORD_PREFIX)? + RULE_RECORD_PREFIX.len();
+            let json = line[start..].strip_suffix(" -->")?.replace("\\u002d", "-");
+            serde_json::from_str(&json).ok()
+        })
+        .collect()
+}
+
 /// Parse a design.md markdown string into a structured [`DesignMdSpec`].
 /// The original markdown is preserved verbatim in `raw`.
 pub fn parse_design_md(markdown: &str) -> DesignMdSpec {
@@ -193,6 +213,7 @@ pub fn parse_design_md(markdown: &str) -> DesignMdSpec {
         component_styles: None,
         layout_principles: None,
         generation_notes: None,
+        rules: Vec::new(),
     };
     let (project_name, sections) = split_sections(markdown);
     spec.project_name = project_name;
@@ -205,6 +226,7 @@ pub fn parse_design_md(markdown: &str) -> DesignMdSpec {
             SectionKey::Typography => spec.typography = Some(parse_typography(&content)),
             SectionKey::LayoutPrinciples => spec.layout_principles = Some(content),
             SectionKey::GenerationNotes => spec.generation_notes = Some(content),
+            SectionKey::DesignRules => spec.rules.extend(parse_rule_records(&content)),
             SectionKey::ComponentStyles | SectionKey::Unknown => {
                 spec.component_styles = Some(append(spec.component_styles.take(), content));
             }
@@ -244,7 +266,7 @@ pub fn parse_design_md(markdown: &str) -> DesignMdSpec {
 /// Generate markdown text from a structured design.md spec.
 pub fn generate_design_md(spec: &DesignMdSpec) -> String {
     if !spec.raw.is_empty() {
-        return spec.raw.clone();
+        return append_rule_projection(strip_rule_projection(&spec.raw), &spec.rules);
     }
 
     let mut lines = Vec::new();
@@ -301,7 +323,50 @@ pub fn generate_design_md(spec: &DesignMdSpec) -> String {
         lines.push(String::new());
     }
 
-    lines.join("\n")
+    append_rule_projection(lines.join("\n"), &spec.rules)
+}
+
+fn strip_rule_projection(markdown: &str) -> String {
+    let Some(start) = markdown.find(RULES_SECTION_START) else {
+        return markdown.trim_end().to_string();
+    };
+    let Some(relative_end) = markdown[start..].find(RULES_SECTION_END) else {
+        return markdown.trim_end().to_string();
+    };
+    let end = start + relative_end + RULES_SECTION_END.len();
+    format!("{}{}", &markdown[..start], &markdown[end..])
+        .trim_end()
+        .to_string()
+}
+
+fn append_rule_projection(mut markdown: String, rules: &[DesignRule]) -> String {
+    if rules.is_empty() {
+        return markdown;
+    }
+    if !markdown.is_empty() {
+        markdown.push_str("\n\n");
+    }
+    markdown.push_str(RULES_SECTION_START);
+    markdown.push_str("\n## 7. Component Rules\n\n");
+    for rule in rules {
+        let kind = match rule.kind {
+            DesignRuleKind::Do => "Do",
+            DesignRuleKind::Dont => "Don't",
+            DesignRuleKind::Require => "Require",
+            DesignRuleKind::Avoid => "Avoid",
+        };
+        let state = if rule.enabled { "" } else { " _(disabled)_" };
+        markdown.push_str(&format!(
+            "- **{kind} · {}** — {}{state}\n",
+            rule.title, rule.instruction
+        ));
+        if let Ok(json) = serde_json::to_string(rule) {
+            let safe_json = json.replace("--", "\\u002d\\u002d");
+            markdown.push_str(&format!("  {RULE_RECORD_PREFIX}{safe_json} -->\n"));
+        }
+    }
+    markdown.push_str(RULES_SECTION_END);
+    markdown
 }
 
 /// Best-effort extraction of a design.md spec from document variables
@@ -346,6 +411,7 @@ pub fn extract_design_md_from_document(doc: &PenDocument) -> DesignMdSpec {
         component_styles: None,
         layout_principles: None,
         generation_notes: None,
+        rules: Vec::new(),
     };
     spec.raw = generate_design_md(&spec);
     spec
@@ -417,6 +483,26 @@ mod tests {
             Some("just some freeform notes")
         );
         assert_eq!(spec.raw, "just some freeform notes");
+    }
+
+    #[test]
+    fn structured_rules_round_trip_through_markdown_projection() {
+        let mut spec = parse_design_md("# Design System: Demo\n");
+        spec.rules.push(DesignRule {
+            id: "local:button".into(),
+            title: "Primary button".into(),
+            instruction: "Use the shared component".into(),
+            kind: DesignRuleKind::Require,
+            scope: jian_ops_schema::DesignRuleScope::Global,
+            condition: None,
+            priority: 10,
+            enabled: true,
+            overrides: None,
+        });
+        let markdown = generate_design_md(&spec);
+        assert!(markdown.contains("## 7. Component Rules"));
+        assert!(markdown.contains("Require · Primary button"));
+        assert_eq!(parse_design_md(&markdown).rules, spec.rules);
     }
 
     #[test]

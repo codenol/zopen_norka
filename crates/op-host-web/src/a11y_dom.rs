@@ -96,7 +96,7 @@ impl A11yDomMirror {
                 // an interactive app surface, not a document to be read
                 // linearly — so arrow keys reach the canvas shortcuts.
                 let _ = el.set_attribute("role", "application");
-                let _ = el.set_attribute("aria-label", "OpenPencil editor");
+                let _ = el.set_attribute("aria-label", "Norka editor");
                 // Insert as a sibling right after the canvas when possible
                 // (keeps it adjacent in source order); else append to body.
                 if let Some(parent) = canvas.parent_node() {

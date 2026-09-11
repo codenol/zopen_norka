@@ -1,0 +1,461 @@
+{
+  "id": "page-atom-pagination",
+  "name": "Atoms · Pagination",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-number-default",
+      "name": "Pagination/Item/Number/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/number/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-pagination-item-number-default-label",
+          "name": "label",
+          "content": "1",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 400,
+          "lineHeight": 1.1429,
+          "textAlign": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/number/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-number-hover",
+      "name": "Pagination/Item/Number/Hover",
+      "reusable": true,
+      "x": 0,
+      "y": 52.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/number/background/hover"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-pagination-item-number-hover-label",
+          "name": "label",
+          "content": "1",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 400,
+          "lineHeight": 1.1429,
+          "textAlign": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/number/text/hover"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-number-selected",
+      "name": "Pagination/Item/Number/Selected",
+      "reusable": true,
+      "x": 0,
+      "y": 104.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/number/background/selected"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-pagination-item-number-selected-label",
+          "name": "label",
+          "content": "1",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 400,
+          "lineHeight": 1.1429,
+          "textAlign": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/number/text/selected"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-ellipsis-default",
+      "name": "Pagination/Item/Ellipsis/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 156.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/ellipsis/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-item-ellipsis-default-icon",
+          "name": "icon",
+          "iconFontName": "ellipsis",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/ellipsis/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-arrow-prev-default",
+      "name": "Pagination/Item/Arrow/Prev/Default",
+      "reusable": true,
+      "x": 0.0,
+      "y": 208.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/arrow/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-item-arrow-prev-default-icon",
+          "name": "icon",
+          "iconFontName": "chevron-left",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/arrow/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-arrow-next-default",
+      "name": "Pagination/Item/Arrow/Next/Default",
+      "reusable": true,
+      "x": 48.0,
+      "y": 208.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/arrow/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-item-arrow-next-default-icon",
+          "name": "icon",
+          "iconFontName": "chevron-right",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/arrow/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-arrow-prev-hover",
+      "name": "Pagination/Item/Arrow/Prev/Hover",
+      "reusable": true,
+      "x": 0.0,
+      "y": 260.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/arrow/background/hover"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-item-arrow-prev-hover-icon",
+          "name": "icon",
+          "iconFontName": "chevron-left",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/arrow/icon/hover"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-arrow-next-hover",
+      "name": "Pagination/Item/Arrow/Next/Hover",
+      "reusable": true,
+      "x": 48.0,
+      "y": 260.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/arrow/background/hover"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-item-arrow-next-hover-icon",
+          "name": "icon",
+          "iconFontName": "chevron-right",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/arrow/icon/hover"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-arrow-prev-disabled",
+      "name": "Pagination/Item/Arrow/Prev/Disabled",
+      "reusable": true,
+      "x": 0.0,
+      "y": 312.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/arrow/background/disabled"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-item-arrow-prev-disabled-icon",
+          "name": "icon",
+          "iconFontName": "chevron-left",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/arrow/icon/disabled"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-item-arrow-next-disabled",
+      "name": "Pagination/Item/Arrow/Next/Disabled",
+      "reusable": true,
+      "x": 48.0,
+      "y": 312.0,
+      "width": 32.0,
+      "height": 32.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$pagination/item/arrow/background/disabled"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-item-arrow-next-disabled-icon",
+          "name": "icon",
+          "iconFontName": "chevron-right",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$pagination/item/arrow/icon/disabled"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-pagination-pagesize-default",
+      "name": "Pagination/PageSize/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 364.0,
+      "width": "fit_content",
+      "height": 32.0,
+      "layout": "horizontal",
+      "gap": 8.0,
+      "padding": [
+        8.0,
+        12.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$dropdown/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$dropdown/border/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-pagination-pagesize-default-label",
+          "name": "label",
+          "content": "10",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 400,
+          "lineHeight": 1.1429,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$dropdown/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-pagination-pagesize-default-icon",
+          "name": "icon",
+          "iconFontName": "chevron-down",
+          "iconFontFamily": "lucide",
+          "width": 16.0,
+          "height": 16.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$dropdown/icon/default"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

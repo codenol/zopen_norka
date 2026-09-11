@@ -493,6 +493,31 @@ impl EditorState {
                 self.doc.design_md = Some(*spec);
                 true
             }
+            EditorCommand::UpsertDesignRule { rule } => {
+                let spec = self
+                    .doc
+                    .design_md
+                    .get_or_insert_with(|| crate::parse_design_md(""));
+                let changed = spec.rules.iter().find(|item| item.id == rule.id) != Some(&*rule);
+                if changed {
+                    crate::upsert_document_rule(spec, *rule);
+                }
+                changed
+            }
+            EditorCommand::SetDesignRuleEnabled { rule_id, enabled } => {
+                let spec = self
+                    .doc
+                    .design_md
+                    .get_or_insert_with(|| crate::parse_design_md(""));
+                crate::set_rule_enabled(spec, &rule_id, enabled)
+            }
+            EditorCommand::DeleteDesignRule { rule_id } => {
+                let spec = self
+                    .doc
+                    .design_md
+                    .get_or_insert_with(|| crate::parse_design_md(""));
+                crate::delete_rule(spec, &rule_id)
+            }
             EditorCommand::UpsertComponent {
                 key,
                 name,

@@ -80,3 +80,6 @@ packages/.toolchain/
 
 # Codex CLI local config
 .codex/
+
+# Local toolchain downloads (binaryen etc.) — machine-specific, multi-MB.
+.tools/

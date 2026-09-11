@@ -34,6 +34,9 @@ impl DesktopApp {
         // settings loader so `--serve-web` never exposes machine-local Zode
         // providers that the browser settings UI cannot manage.
         op_host_services::zode_import::import_zode_builtin_agents(host.editor_state_mut());
+        if !cfg!(test) {
+            op_pen_loader::ensure_skala_session(host.editor_state_mut());
+        }
         // Imported UIKits + browser-open flag (`uikits.json`). Skipped
         // under test like the update / model probes — unit tests must
         // not see a developer machine's kit store.
@@ -331,7 +334,7 @@ impl DesktopApp {
         }
     }
 
-    /// Set the window title to `<file> (<branch>) — OpenPencil`, with
+    /// Set the window title to `<file> (<branch>) — Norka`, with
     /// the branch shown only when the document is in a git repository.
     fn refresh_window_title(&self) {
         let Some(window) = self.window.as_ref() else {
@@ -343,9 +346,11 @@ impl DesktopApp {
             .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned());
         let title = match (name, self.git_session.current_branch()) {
-            (Some(name), Some(branch)) => format!("{name} ({branch}) — OpenPencil"),
-            (Some(name), None) => format!("{name} — OpenPencil"),
-            (None, _) => "OpenPencil".to_string(),
+            (Some(name), Some(branch)) => {
+                format!("{name} ({branch}) — {}", op_editor_ui::PRODUCT_NAME)
+            }
+            (Some(name), None) => format!("{name} — {}", op_editor_ui::PRODUCT_NAME),
+            (None, _) => op_editor_ui::PRODUCT_NAME.to_string(),
         };
         window.set_title(&title);
     }

@@ -29,6 +29,10 @@ impl Orchestrator {
         abort: &AbortFlag,
         providers: &ValidationProviders<'_>,
     ) -> Result<RunSummary, OrchestratorError> {
+        // -- Reference grounding (before planning) --
+        let mut request = request;
+        crate::reference_brief::enrich_request_with_reference_brief(&mut request, providers.vision);
+
         // -- 阶段 1:规划(单档 Rich + 规范化)--
         // `planning_loop` 内部已 normalize 并回传 `NormInfo`,此处不再二次规范化。
         on_progress(Progress::Planning);
@@ -125,7 +129,7 @@ impl Orchestrator {
         // another) tags NOTHING, so every reveal falls through to
         // `agent_indicators::cursor_agent` — the ONE identity the host's
         // transcript pump already confirms for the session. Before this fix
-        // the sequential path independently minted its own "Kiki" (seed-0)
+        // the sequential path independently minted its own "Norka" (seed-0)
         // identity and tagged frames with it while the host separately
         // confirmed a random transcript identity ("Fern") — two unrelated
         // sources that `canvas_agent_cursor.rs`'s old confirmed-always-wins
@@ -227,9 +231,15 @@ impl Orchestrator {
                 let reused_existing_frame = reuse_id.is_some();
                 let (insert_x, insert_y) =
                     next_root_insert_position(sink.state(), plan.root_frame.width);
-                let scaffold_cmds = match reuse_id.as_deref() {
-                    Some(id) => build_scaffold_reusing(&plan, effective_is_mobile, id),
-                    None => build_scaffold_at(&plan, effective_is_mobile, insert_x, insert_y),
+                let kit_cmds =
+                    kit_chassis_commands(sink.state(), effective_is_mobile, reuse_id.as_deref());
+                let used_kit_chassis = kit_cmds.is_some();
+                let scaffold_cmds = match kit_cmds {
+                    Some(cmds) => Ok(cmds),
+                    None => match reuse_id.as_deref() {
+                        Some(id) => build_scaffold_reusing(&plan, effective_is_mobile, id),
+                        None => build_scaffold_at(&plan, effective_is_mobile, insert_x, insert_y),
+                    },
                 };
                 match scaffold_cmds {
                     Ok(cmds) => {
@@ -265,12 +275,39 @@ impl Orchestrator {
                         "scaffold root `{planned_root_id}` was not inserted"
                     )));
                 };
-                // Route subtasks into the scaffold. For a pre-built two-column
-                // dashboard shell, the sidebar subtask fills the (260-wide) left
-                // column and every other subtask fills the content column; the
-                // column ids were remapped on insert, so re-resolve them by name.
-                // Any other plan keeps the single-root behaviour (all → root).
-                let two_col =
+                let kit_slot = used_kit_chassis.then(|| {
+                    find_descendant_id_by_name(
+                        sink.state(),
+                        &rid,
+                        op_editor_core::session_kit().content_slot_name(),
+                    )
+                });
+                if let Some(Some(slot_id)) = kit_slot.as_ref() {
+                    if let Some(label_id) =
+                        find_descendant_id_by_name(sink.state(), slot_id, "label")
+                    {
+                        let _ = apply_command_with_reveal(
+                            sink,
+                            EditorCommand::DeleteNode {
+                                node_id: NodeId::new(label_id),
+                                page_id: None,
+                            },
+                            self.agent_indicator_epoch,
+                            reveal_now_millis(),
+                        );
+                    }
+                    for cmd in prepare_kit_content_area_commands(slot_id) {
+                        let _ = apply_command_with_reveal(
+                            sink,
+                            cmd,
+                            self.agent_indicator_epoch,
+                            reveal_now_millis(),
+                        );
+                    }
+                }
+                let two_col = if used_kit_chassis {
+                    None
+                } else {
                     crate::scaffold::plan_is_sidebar_dashboard(&plan, effective_is_mobile)
                         .then(|| {
                             let sb = find_child_id_by_name(
@@ -285,17 +322,22 @@ impl Orchestrator {
                             );
                             sb.zip(ct)
                         })
-                        .flatten();
+                        .flatten()
+                };
                 for subtask in &mut plan.subtasks {
-                    let parent = match &two_col {
-                        Some((sidebar_id, content_id)) => {
-                            if crate::dashboard_columns::is_sidebar_subtask(subtask) {
-                                sidebar_id.clone()
-                            } else {
-                                content_id.clone()
+                    let parent = if let Some(Some(slot_id)) = kit_slot.as_ref() {
+                        slot_id.clone()
+                    } else {
+                        match &two_col {
+                            Some((sidebar_id, content_id)) => {
+                                if crate::dashboard_columns::is_sidebar_subtask(subtask) {
+                                    sidebar_id.clone()
+                                } else {
+                                    content_id.clone()
+                                }
                             }
+                            None => rid.clone(),
                         }
-                        None => rid.clone(),
                     };
                     subtask.parent_frame_id = Some(parent);
                 }
@@ -702,6 +744,7 @@ impl Orchestrator {
         }
 
         let total_nodes = outcomes.iter().map(|o| o.node_count).sum();
+        let paintable_nodes = outcomes.iter().map(|o| o.paintable_nodes).sum();
         Ok(RunSummary {
             // First surviving root is the "primary" root_frame_id — mirrors
             // the deleted concurrent path's identical convention so this
@@ -709,6 +752,7 @@ impl Orchestrator {
             root_frame_id: root_ids.first().cloned().unwrap_or_default(),
             subtasks: outcomes,
             total_nodes,
+            paintable_nodes,
             unfilled_screens,
         })
     }

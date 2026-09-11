@@ -348,8 +348,8 @@ fn report_sync_failure(status: Option<u16>) {
     #[cfg(target_arch = "wasm32")]
     {
         let message = status.map_or_else(
-            || "OpenPencil could not synchronize server credentials".to_string(),
-            |status| format!("OpenPencil server credential synchronization failed ({status})"),
+            || "Norka could not synchronize server credentials".to_string(),
+            |status| format!("Norka server credential synchronization failed ({status})"),
         );
         web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(&message));
     }

@@ -430,9 +430,12 @@ impl EditorCommand {
             | C::ReplaceAllMatchingProperties { .. }
             | C::PromoteLegacyWidgets => A::Document(D::Unsupported(U::BulkWrite)),
 
-            C::MergeAppState { .. } | C::SetDesignMd { .. } | C::UpsertScreen { .. } => {
-                A::Document(D::Unsupported(U::RootMetadata))
-            }
+            C::MergeAppState { .. }
+            | C::SetDesignMd { .. }
+            | C::UpsertDesignRule { .. }
+            | C::SetDesignRuleEnabled { .. }
+            | C::DeleteDesignRule { .. }
+            | C::UpsertScreen { .. } => A::Document(D::Unsupported(U::RootMetadata)),
             C::UpsertComponent { .. }
             | C::InstantiateComponent { .. }
             | C::CreateComponent { .. }

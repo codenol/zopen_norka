@@ -1,76 +1,28 @@
-//! Available-component manifest: category bucketing, ordering and the
-//! rendered manifest block.
+//! Available-component manifest from the session kit type index
+//! (not harvested variant frames).
 
 use super::*;
+use op_editor_core::{session_kit, KitLayer, KitManifest};
 
-/// Max component entries listed in the AVAILABLE COMPONENTS manifest. A large
-/// harvested library (shadcn, an imported design kit) can hold hundreds of
-/// masters; listing them all would blow the prompt budget, so the manifest
-/// caps at this many (grouped by category, alphabetical within a category) and
-/// notes the remainder.
-pub(super) const MAX_COMPONENT_MANIFEST_ENTRIES: usize = 60;
+/// Loud magenta for widgets the current kit has no type for.
+pub(crate) const KIT_GAP_FILL: &str = "#E6007A";
 
-/// Best-effort category bucket for a component, derived from its name. Pencil /
-/// shadcn kits name components like "Primary Button", "Card", "Nav Item",
-/// "Input"; bucketing by a recognised keyword groups the manifest so the model
-/// scans a short, readable list instead of a flat dump.
-pub(super) fn component_category(name: &str) -> &'static str {
-    let n = name.to_ascii_lowercase();
-    let has = |kw: &str| n.contains(kw);
-    if has("button") || has("btn") || has("cta") {
-        "Buttons"
-    } else if has("input") || has("field") || has("textarea") || has("select") || has("search") {
-        "Inputs"
-    } else if has("card") || has("tile") || has("panel") {
-        "Cards"
-    } else if has("nav") || has("tab") || has("menu") || has("sidebar") || has("breadcrumb") {
-        "Navigation"
-    } else if has("badge") || has("chip") || has("tag") || has("pill") || has("label") {
-        "Badges"
-    } else if has("avatar") || has("icon") || has("image") || has("logo") {
-        "Media"
-    } else if has("modal") || has("dialog") || has("popover") || has("tooltip") || has("toast") {
-        "Overlays"
-    } else if has("table") || has("row") || has("list") || has("cell") {
-        "Tables & Lists"
-    } else if has("header") || has("footer") || has("hero") || has("section") {
-        "Layout"
-    } else {
-        "Other"
+fn layer_heading(layer: KitLayer) -> &'static str {
+    match layer {
+        KitLayer::Atom => "Atoms",
+        KitLayer::Molecule => "Molecules",
+        KitLayer::Organism => "Organisms",
+        KitLayer::Template => "Templates",
+        KitLayer::Recipe => "Recipes",
     }
 }
 
-/// Stable category order so the manifest reads consistently across runs.
-pub(super) const COMPONENT_CATEGORY_ORDER: &[&str] = &[
-    "Buttons",
-    "Inputs",
-    "Cards",
-    "Navigation",
-    "Badges",
-    "Media",
-    "Overlays",
-    "Tables & Lists",
-    "Layout",
-    "Other",
-];
-
-/// Build the AVAILABLE COMPONENTS manifest block for the generation prompt.
+/// Build the AVAILABLE COMPONENTS manifest from the session kit type
+/// index — one row per type, not the first 60 Button variants.
 ///
-/// Returns `None` when the library is empty — so a no-component document's
-/// prompt is byte-for-byte unchanged (the block + the `component-composition`
-/// skill flag only fire when masters exist). When present, the block lists
-/// `id (Name)` entries grouped by category, capped at
-/// [`MAX_COMPONENT_MANIFEST_ENTRIES`], plus a one-line instruction pointing the
-/// model at the `ref` + `descendants` syntax taught by the
-/// `component-composition` skill.
-///
-/// `script_on` picks which of the two ref dialects the trailing instruction
-/// teaches. The subagent path always passes `true`; `false` is retained only
-/// for direct core callers/tests that still need the legacy NODE dialect.
-/// - `true` (script-gen) — a single
-///   `I(<containerBinding>, {"type":"ref", ...})` call.
-/// - `false` (legacy flat `_parent` JSONL) — a single
-///   `{"_parent":...,"id":...,"type":"ref", ...}` line.
+/// Returns `None` when the live document has no reusable masters: advertising
+/// kit ids without a merged library makes the model emit `ref`s that paint as
+/// empty (dropped by `resolve_refs_for_canvas`).
 pub(super) fn available_components_manifest(
     components: &ComponentLibrary,
     script_on: bool,
@@ -78,56 +30,158 @@ pub(super) fn available_components_manifest(
     if components.is_empty() {
         return None;
     }
-    // Bucket components by category, preserving registry order within a bucket.
-    let mut by_category: HashMap<&'static str, Vec<(&str, &str)>> = HashMap::new();
-    for c in &components.components {
-        by_category
-            .entry(component_category(&c.name))
-            .or_default()
-            .push((c.id.as_str(), c.name.as_str()));
-    }
+    Some(session_kit_components_manifest(script_on))
+}
 
-    let total = components.len();
+/// Compact token index from the session kit.
+pub(super) fn session_variable_index_block() -> String {
+    let kit = session_kit();
+    session_variable_index_block_for(kit)
+}
+
+pub(super) fn session_variable_index_block_for(kit: &KitManifest) -> String {
     let mut lines = vec![format!(
-        "AVAILABLE COMPONENTS ({total} reusable components in this document — \
-         PREFER instantiating these with a `ref` node over building from scratch):"
+        "SESSION DESIGN SYSTEM TOKENS ({} — authoritative; do not use generic \
+         `$color-accent` / `$color-surface` / sidebar 240–280):",
+        kit.name
     )];
-    let mut listed = 0usize;
-    'outer: for cat in COMPONENT_CATEGORY_ORDER {
-        let Some(entries) = by_category.get(*cat) else {
-            continue;
-        };
+    for entry in &kit.variable_index {
+        lines.push(format!("  - {entry}"));
+    }
+    lines.join("\n")
+}
+
+/// Recipe block for planning + generation.
+pub(super) fn session_recipe_block() -> String {
+    session_recipe_block_for(session_kit())
+}
+
+pub(super) fn session_recipe_block_for(kit: &KitManifest) -> String {
+    let mut lines = vec![format!("SESSION DESIGN SYSTEM RECIPES ({}):", kit.name)];
+    for recipe in &kit.recipes {
+        lines.push(format!(
+            "- `{}` ({}) → template id `{}`. {}",
+            recipe.id, recipe.name, recipe.template, recipe.notes
+        ));
+    }
+    lines.join("\n")
+}
+
+/// Chassis + type-index rules for compact/rich planning.
+pub(super) fn session_kit_planning_block(desktop: bool) -> String {
+    let kit = session_kit();
+    let mut lines = vec![format!(
+        "SESSION DESIGN SYSTEM: {} (id `{}`). Follow this kit, not a catalog style guide.",
+        kit.name, kit.id
+    )];
+    if desktop {
+        lines.push(kit.content_area_brief());
+        if let Some(canvas) = &kit.canvas {
+            lines.push(format!(
+                "Layout/Default artboard is {}x{} with fill {}.",
+                canvas.width as i32, canvas.height as i32, canvas.fill
+            ));
+        }
+        lines.push(
+            "Do NOT plan sidebar, topbar, header, or breadcrumbs as separate subtasks — \
+             they already live in Layout/Default. Plan 1-3 subtasks that only fill the \
+             content area. Retitle existing chrome for this product; do not invent \
+             widgets that are not in the type index."
+                .to_string(),
+        );
+    }
+    lines.push(session_recipe_block_for(kit));
+    lines.join("\n")
+}
+
+/// Recency override: kit types or loud KitGap, never invented chrome.
+pub(super) fn kit_gap_rules_block() -> String {
+    format!(
+        "KIT GAP RULES:\n\
+         - Chrome and controls MUST be `type:\"ref\"` to a default master from AVAILABLE COMPONENTS.\n\
+         - Layout/Default is the ready screen chassis. Put product UI in its content area \
+(`Main container`). Do NOT emit another Layout, Sidebar, or topbar.\n\
+         - Do NOT draw a second app shell, top nav, search field, bar chart, or KPI card unless that type is listed.\n\
+         - If no type fits, emit ONE frame named `KitGap / <needed widget>`, fill `{KIT_GAP_FILL}`, \
+white 12px label with that name. Do not fake it with lookalike cards.\n\
+         - Colors and radii only from SESSION DESIGN SYSTEM TOKENS (and design.md if present).\n\
+         - Format-example cards/rows above apply ONLY when a listed type matches."
+    )
+}
+
+fn session_kit_components_manifest(script_on: bool) -> String {
+    let kit = session_kit();
+    let total: u32 = kit.types.iter().map(|t| t.variant_count).sum();
+    let example = kit
+        .types
+        .iter()
+        .find(|t| t.id == "button")
+        .map(|t| t.default_master_id.as_str())
+        .unwrap_or(kit.sentinel_master_id.as_str());
+    let mut lines = vec![format!(
+        "AVAILABLE COMPONENTS ({} — {} types, {total} reusable masters; \
+         PREFER instantiating these with a `ref` node over building from scratch. \
+         Desktop screens already use Layout/Default — fill its content area, do not emit another shell):",
+        kit.name,
+        kit.types.len()
+    )];
+    for layer in [
+        KitLayer::Template,
+        KitLayer::Organism,
+        KitLayer::Molecule,
+        KitLayer::Atom,
+    ] {
+        let entries: Vec<_> = kit.types_in_layer(layer).collect();
         if entries.is_empty() {
             continue;
         }
-        lines.push(format!("{cat}:"));
-        for (id, name) in entries {
-            if listed >= MAX_COMPONENT_MANIFEST_ENTRIES {
-                lines.push(format!(
-                    "  …and {} more not listed (ask only for the ids above).",
-                    total - listed
-                ));
-                break 'outer;
+        lines.push(format!("{}:", layer_heading(layer)));
+        for ty in entries {
+            let slots = if ty.slots.is_empty() {
+                String::new()
+            } else {
+                let listed: Vec<String> = ty
+                    .slots
+                    .iter()
+                    .map(|s| format!("{} ({})", s.suffix, s.field))
+                    .collect();
+                format!(" slots {}", listed.join(", "))
+            };
+            lines.push(format!(
+                "  - {} ({}, {} variants, pattern `{}`){slots}",
+                ty.default_master_id, ty.name, ty.variant_count, ty.name_pattern
+            ));
+            for rule in ty.do_rules.iter().take(2) {
+                lines.push(format!("      do: {rule}"));
             }
-            lines.push(format!("  - {id} ({name})"));
-            listed += 1;
+            for rule in ty.dont_rules.iter().take(1) {
+                lines.push(format!("      don't: {rule}"));
+            }
         }
     }
-    // The example is COMPLETE (not just the envelope) so this block is
-    // self-sufficient: even if the component-composition skill were ever trimmed
-    // out, the model still has a usable, copy-pasteable instruction. Which
-    // dialect it shows MUST track `script_on` — see the doc comment above.
+    lines.push(session_recipe_block_for(kit));
+    let slot = kit.content_slot_name();
     let instruction = if script_on {
-        "To use one, call I with a single ref node — no children needed; override its text/fill \
-         via `descendants`. Example:\n  \
-         const cta = I(<containerBinding>, {\"type\":\"ref\",\"ref\":\"<id from above>\",\"descendants\":{\"<descendant-id>\":{\"content\":\"Get started\"}}});\n\
-         Only build an element by hand when no component above fits."
+        format!(
+            "To use one, call I with a single ref node — no children needed; override its text/fill \
+             via `descendants`. Example:\n  \
+             const cta = I(<containerBinding>, {{\"type\":\"ref\",\"ref\":\"{example}\",\"descendants\":{{\"{example}-label\":{{\"content\":\"Get started\"}}}}}});\n\
+             Layout/Default is already the page. Do NOT emit another Layout or Sidebar. \
+             Fill the content area `{slot}` (id `{}`) with kit refs. \
+             Only build an element by hand when no type above fits — then KitGap `{KIT_GAP_FILL}`.",
+            kit.content_slot_id()
+        )
     } else {
-        "To use one, emit a single node — `type:\"ref\"`, the component id, its `_parent`, and \
-         override its text/fill via `descendants` (it needs no `children`). Example:\n  \
-         {\"_parent\":\"<container-id>\",\"id\":\"<your-id>\",\"type\":\"ref\",\"ref\":\"<id from above>\",\"descendants\":{\"<descendant-id>\":{\"content\":\"Get started\"}}}\n\
-         Only build an element by hand when no component above fits."
+        format!(
+            "To use one, emit a single node — `type:\"ref\"`, the component id, its `_parent`, and \
+             override its text/fill via `descendants` (it needs no `children`). Example:\n  \
+             {{\"_parent\":\"<container-id>\",\"id\":\"<your-id>\",\"type\":\"ref\",\"ref\":\"{example}\",\"descendants\":{{\"{example}-label\":{{\"content\":\"Get started\"}}}}}}\n\
+             Layout/Default is already the page. Do NOT emit another Layout or Sidebar. \
+             Fill the content area `{slot}` (id `{}`) with kit refs. \
+             Only build an element by hand when no type above fits — then KitGap `{KIT_GAP_FILL}`.",
+            kit.content_slot_id()
+        )
     };
-    lines.push(instruction.to_string());
-    Some(lines.join("\n"))
+    lines.push(instruction);
+    lines.join("\n")
 }

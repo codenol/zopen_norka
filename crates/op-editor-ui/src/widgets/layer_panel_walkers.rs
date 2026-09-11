@@ -76,9 +76,32 @@ pub(super) fn pages_from_state(state: &EditorState, rename: &RenameView<'_>) -> 
         Some(pages) if !pages.is_empty() => pages
             .iter()
             .enumerate()
+            .filter(|(_, p)| !op_editor_core::is_component_store_page(&p.name))
             .map(|(i, p)| build(i, &p.name))
             .collect(),
         _ => vec![build(0, "Page 1")],
+    }
+}
+
+/// Component-type store pages (`Components/Button`, …) for the middle rail.
+pub(super) fn components_from_state(state: &EditorState) -> Vec<PageItem> {
+    let active = state.ui.active_page_index;
+    match state.doc.pages.as_ref() {
+        Some(pages) if !pages.is_empty() => pages
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| {
+                op_editor_core::is_component_store_page(&p.name)
+                    && p.name != op_editor_core::COMPONENTS_PAGE_NAME
+            })
+            .map(|(i, p)| PageItem {
+                page_index: i,
+                label: op_editor_core::component_store_page_label(&p.name).to_string(),
+                active: i == active,
+                renaming: false,
+            })
+            .collect(),
+        _ => Vec::new(),
     }
 }
 
@@ -330,9 +353,9 @@ pub struct LayerResolvedScroll {
     pub content_width: f32,
 }
 
-/// Resolved geometry of the LayerPanel's two bounded scroll regions
-/// (Pages + Layers). Paint, hit-test and the drop-target walk all
-/// derive from this single source so they stay aligned.
+/// Resolved geometry of the LayerPanel's bounded scroll regions
+/// (Pages + optional Components + Layers). Paint, hit-test and the
+/// drop-target walk all derive from this single source so they stay aligned.
 #[derive(Debug, Clone, Copy)]
 pub struct LayerRegions {
     /// y of the Pages section header.
@@ -343,6 +366,23 @@ pub struct LayerRegions {
     pub pages_view_h: f32,
     /// Pages-region scroll metrics, clamped to the scrollable range.
     pub pages: LayerResolvedScroll,
+    /// y of the Components section header (same as layers header when the
+    /// section is absent).
+    pub components_header_y: f32,
+    /// Top y of the clipped component-row viewport.
+    pub components_rows_top: f32,
+    /// Height of the component-row viewport (0 when the section is hidden).
+    pub components_view_h: f32,
+    /// Components-region scroll metrics.
+    pub components: LayerResolvedScroll,
+    /// y of the Recipes section header (same as layers header when absent).
+    pub recipes_header_y: f32,
+    /// Top y of the clipped recipe-row viewport.
+    pub recipes_rows_top: f32,
+    /// Height of the recipe-row viewport (0 when the section is hidden).
+    pub recipes_view_h: f32,
+    /// Recipes-region scroll metrics.
+    pub recipes: LayerResolvedScroll,
     /// y of the Layers section header.
     pub layers_header_y: f32,
     /// Top y of the clipped layer-row viewport.
@@ -357,22 +397,29 @@ pub struct LayerRegions {
 pub struct LayerRegionInput {
     pub rect: Rect,
     pub pages_len: usize,
+    pub components_len: usize,
+    /// Rows in the Recipes section — shipped composition documents.
+    pub recipes_len: usize,
     pub items_len: usize,
     pub pages: LayerScrollSnapshot,
+    pub components: LayerScrollSnapshot,
+    pub recipes: LayerScrollSnapshot,
     pub layers: LayerScrollSnapshot,
     pub metrics: LayerPanelMetrics,
 }
 
-/// Compute the bounded Pages / Layers scroll-region geometry for a
-/// LayerPanel painted into `rect`. Stored offsets are kept as
-/// [`ScrollState`] snapshots; the returned metrics are clamped to
-/// each region's scrollable range.
+/// Compute the bounded Pages / Components / Layers scroll-region geometry
+/// for a LayerPanel painted into `rect`.
 pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
     let LayerRegionInput {
         rect,
         pages_len,
+        components_len,
+        recipes_len,
         items_len,
         pages,
+        components,
+        recipes,
         layers,
         metrics,
     } = input;
@@ -382,10 +429,19 @@ pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
     let pages_content = pages_len as f32 * metrics.page_row_height;
     let pages_view_max = metrics.page_row_height * metrics.pages_max_rows as f32;
     let mut pages_view_h = pages_content.min(pages_view_max);
+    let show_components = components_len > 0;
     if metrics.touch {
+        let extra_components = if show_components {
+            metrics.section_gap
+                + metrics.section_header_height
+                + metrics.page_row_height * (components_len.min(metrics.pages_max_rows) as f32)
+        } else {
+            0.0
+        };
         let fixed_height = 8.0
             + metrics.section_header_height
             + metrics.section_gap
+            + extra_components
             + metrics.section_header_height
             + metrics.layer_row_height * 3.0
             + 8.0;
@@ -393,7 +449,67 @@ pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
     }
     let pages = resolve_layer_scroll(pages, pages_content, pages_view_h, rect.size.x);
 
-    let layers_header_y = pages_rows_top + pages_view_h + metrics.section_gap;
+    let components_header_y = pages_rows_top + pages_view_h + metrics.section_gap;
+    let components_rows_top = if show_components {
+        components_header_y + metrics.section_header_height
+    } else {
+        components_header_y
+    };
+    let components_content = components_len as f32 * metrics.page_row_height;
+    let mut components_view_h = if show_components {
+        components_content.min(pages_view_max)
+    } else {
+        0.0
+    };
+    if metrics.touch && show_components {
+        let after = metrics.section_gap
+            + metrics.section_header_height
+            + metrics.layer_row_height * 3.0
+            + 8.0;
+        components_view_h = components_view_h
+            .min((rect.origin.y + rect.size.y - after - components_rows_top).max(0.0));
+    }
+    let components = resolve_layer_scroll(
+        components,
+        components_content,
+        components_view_h,
+        rect.size.x,
+    );
+
+    // Recipes sit between the components and the layer tree: they are
+    // shipped documents, so they stay visible even in an empty file.
+    let show_recipes = recipes_len > 0;
+    let recipes_header_y = if show_components {
+        components_rows_top + components_view_h + metrics.section_gap
+    } else {
+        components_header_y
+    };
+    let recipes_rows_top = if show_recipes {
+        recipes_header_y + metrics.section_header_height
+    } else {
+        recipes_header_y
+    };
+    let recipes_content = recipes_len as f32 * metrics.page_row_height;
+    let mut recipes_view_h = if show_recipes {
+        recipes_content.min(pages_view_max)
+    } else {
+        0.0
+    };
+    if metrics.touch && show_recipes {
+        let after = metrics.section_gap
+            + metrics.section_header_height
+            + metrics.layer_row_height * 3.0
+            + 8.0;
+        recipes_view_h =
+            recipes_view_h.min((rect.origin.y + rect.size.y - after - recipes_rows_top).max(0.0));
+    }
+    let recipes = resolve_layer_scroll(recipes, recipes_content, recipes_view_h, rect.size.x);
+
+    let layers_header_y = if show_recipes {
+        recipes_rows_top + recipes_view_h + metrics.section_gap
+    } else {
+        recipes_header_y
+    };
     let layers_rows_top = layers_header_y + metrics.section_header_height;
     let layers_view_h = (rect.origin.y + rect.size.y - 8.0 - layers_rows_top).max(0.0);
     let layers_content = items_len.max(1) as f32 * metrics.layer_row_height;
@@ -404,6 +520,14 @@ pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
         pages_rows_top,
         pages_view_h,
         pages,
+        components_header_y,
+        components_rows_top,
+        components_view_h,
+        components,
+        recipes_header_y,
+        recipes_rows_top,
+        recipes_view_h,
+        recipes,
         layers_header_y,
         layers_rows_top,
         layers_view_h,

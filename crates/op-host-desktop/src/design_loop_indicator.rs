@@ -63,7 +63,7 @@ pub(crate) struct DesignLoopIndicator {
     pub epoch: u64,
     /// Hex colour assigned to the single agent, e.g. `"#FF6B6B"`.
     pub color: String,
-    /// Display name assigned to the single agent, e.g. `"Kiki"`.
+    /// Display name assigned to the single agent, e.g. `"Norka"`.
     pub name: String,
     /// Top-level Frame ids that existed BEFORE the turn started.
     /// Frames added during the turn are the ones we tag.

@@ -1,0 +1,59 @@
+{
+  "id": "page-atom-avatar",
+  "name": "Atoms · Avatar",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-avatar-default",
+      "name": "Avatar/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0.0,
+      "width": 40.0,
+      "height": 40.0,
+      "layout": "none",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-avatar-default-disc",
+          "name": "disc",
+          "x": 4.0,
+          "y": 4.0,
+          "width": 32.0,
+          "height": 32.0,
+          "cornerRadius": 16.0,
+          "layout": "horizontal",
+          "justifyContent": "center",
+          "alignItems": "center",
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/avatar/background/default"
+            }
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-avatar-default-initials",
+              "name": "initials",
+              "content": "AB",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "lineHeight": 1,
+              "textAlign": "center",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$sidebar/avatar/text/default"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

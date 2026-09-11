@@ -48,6 +48,12 @@ pub(super) fn rebuild_registry(
     register_tool!("load_theme_preset", load_theme_preset_snapshot());
     register_tool!("list_theme_presets", list_theme_presets_snapshot());
     register_tool!("get_design_md", get_design_md_snapshot(doc));
+    register_tool!("list_design_rules", list_design_rules_snapshot(doc));
+    register_tool!("get_design_rule", get_design_rule_snapshot(doc));
+    register_tool!(
+        "get_effective_design_rules",
+        get_effective_design_rules_snapshot(doc)
+    );
     register_tool!(
         "get_design_agent_prompt",
         get_design_agent_prompt_snapshot()
@@ -191,6 +197,8 @@ pub(super) fn rebuild_registry(
     register_tool!("delete_variable", delete_variable_snapshot(doc));
     register_tool!("rename_variable", rename_variable_snapshot(doc));
     register_tool!("instantiate_component", instantiate_component_snapshot());
+    register_tool!("use_recipe", op_mcp::use_recipe_snapshot());
+    register_tool!("list_recipes", op_mcp::list_recipes_snapshot());
     register_tool!("create_component", create_component_snapshot());
     register_tool!("delete_component", delete_component_snapshot());
     register_tool!("rename_component", rename_component_snapshot());

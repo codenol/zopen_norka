@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Разрешите каждый конфликт с помощью карточек ниже, затем примените слияние.",
         "git.conflict.abort" => "Отменить слияние",
         "git.conflict.nonOp.title" => "Слияние приостановлено из-за не-.op файлов",
-        "git.conflict.nonOp.description" => "Слияние .op файлов завершено, но другие файлы в репозитории ещё не разрешены. Разрешите их вне OpenPencil и продолжите.",
+        "git.conflict.nonOp.description" => "Слияние .op файлов завершено, но другие файлы в репозитории ещё не разрешены. Разрешите их вне Norka и продолжите.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 файл требует внимания",
         "git.conflict.nonOp.unresolvedHeading_other" => "Файлов, требующих внимания: {{count}}",
         "git.conflict.nonOp.continue" => "Продолжить слияние",

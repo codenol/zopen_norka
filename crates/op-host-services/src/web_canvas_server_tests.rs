@@ -713,6 +713,26 @@ fn unknown_route_404s() {
 }
 
 #[test]
+fn post_file_new_unbinds_path_and_installs_starter_policy() {
+    let mut s = fresh_state();
+    s.current_path = Some(PathBuf::from("/tmp/old.op"));
+    s.editor.editor_ui.file_name_display = Some("old.op".into());
+    s.editor.doc.children.clear();
+    s.editor.editor_ui.locale = op_editor_core::Locale::De;
+
+    let r = handle_web_canvas_request("POST", "/api/file/new", "{}", &mut s);
+
+    assert!(r.status.starts_with("200"), "{}", r.body);
+    assert!(r.body.contains("\"ok\":true"));
+    assert_eq!(s.version, 1);
+    assert!(s.current_path.is_none());
+    assert!(s.editor.editor_ui.file_name_display.is_none());
+    assert_eq!(s.editor.doc.children.len(), 1);
+    assert!(s.editor.doc.design_md.is_some());
+    assert_eq!(s.editor.editor_ui.locale, op_editor_core::Locale::De);
+}
+
+#[test]
 fn get_ai_models_returns_json_array() {
     let mut state = fresh_state();
     state

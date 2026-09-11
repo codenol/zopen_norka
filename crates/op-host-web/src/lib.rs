@@ -44,6 +44,7 @@ mod agent_indicator_sync;
 // Top-bar hover-tooltip dwell → rAF repaint (the web host has no
 // animation-deadline scheduler of its own).
 #[cfg(feature = "canvaskit")]
+mod build_stamp_pump;
 mod tooltip_pump;
 // Daemon device-login relay (action drain + login-status poll + popup).
 #[cfg(feature = "canvaskit")]
@@ -144,6 +145,7 @@ mod web_acp_connect;
 mod vscode_bridge;
 #[cfg(feature = "canvaskit")]
 mod web_storage;
+mod web_chat_persist;
 // Pure web_sys clipboard/download — Ctrl+C/X in inputs + Figma/file paste.
 #[cfg(feature = "canvaskit")]
 mod web_clipboard;

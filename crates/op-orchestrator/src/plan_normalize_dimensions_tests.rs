@@ -8,13 +8,15 @@ fn request(prompt: &str) -> DesignRequest {
         prompt: prompt.into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 

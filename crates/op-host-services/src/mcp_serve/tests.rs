@@ -22,9 +22,13 @@ fn tools_list_response_includes_all_registered_tools() {
     // the count first. Codex stop-gate: previous `contains`-only
     // checks would have silently passed if a new tool slipped into
     // TOOL_SCHEMAS without being added to the list below.
+    // 140 = 135 + the three read-only design-rule tools the rules centre
+    // added (`list_design_rules`, `get_design_rule`,
+    // `get_effective_design_rules`) + the two recipe tools
+    // (`list_recipes`, `use_recipe`).
     assert_eq!(
         TOOL_SCHEMAS.len(),
-        135,
+        140,
         "tools/list catalog count must match the registered tools — add the new tool to this test"
     );
     // Production catalog excludes debug tools (we removed the

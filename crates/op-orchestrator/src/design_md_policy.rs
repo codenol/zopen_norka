@@ -2,7 +2,7 @@
 //! `buildDesignMdStylePolicy` + `orchestrator-prompt-optimizer.ts`
 //! 的 `inferDesignMdBackground` / `guessNeutralBackgroundFromTheme`。
 
-use jian_ops_schema::DesignMdSpec;
+use jian_ops_schema::{DesignMdSpec, DesignRuleKind, DesignRuleScope};
 
 /// 按 char 数截断,超出补 `...`。
 fn truncate(s: &str, max: usize) -> String {
@@ -79,6 +79,48 @@ pub fn build_design_md_style_policy(spec: &DesignMdSpec) -> String {
         parts.push(format!("GENERATION NOTES:\n{}", truncate(n, 400)));
     }
 
+    let rules = op_editor_core::effective_design_rules(Some(spec));
+    if !rules.is_empty() {
+        let lines = rules
+            .iter()
+            .take(64)
+            .map(|entry| {
+                let kind = match entry.rule.kind {
+                    DesignRuleKind::Do => "DO",
+                    DesignRuleKind::Dont => "DON'T",
+                    DesignRuleKind::Require => "REQUIRE",
+                    DesignRuleKind::Avoid => "AVOID",
+                };
+                let scope = match &entry.rule.scope {
+                    DesignRuleScope::Global => "global".to_string(),
+                    DesignRuleScope::ComponentType { kit_id, type_id } => {
+                        format!("component-type:{kit_id}/{type_id}")
+                    }
+                    DesignRuleScope::ComponentMaster { component_id } => {
+                        format!("component:{component_id}")
+                    }
+                    DesignRuleScope::Recipe { recipe_id } => format!("recipe:{recipe_id}"),
+                };
+                let condition = entry
+                    .rule
+                    .condition
+                    .as_deref()
+                    .filter(|value| !value.is_empty())
+                    .map(|value| format!(" WHEN {}", truncate(value, 120)))
+                    .unwrap_or_default();
+                format!(
+                    "- [{kind}] [{scope}] {}: {}{condition}",
+                    truncate(&entry.rule.title, 100),
+                    truncate(&entry.rule.instruction, 240),
+                )
+            })
+            .collect::<Vec<_>>();
+        parts.push(format!(
+            "DESIGN RULES (higher priority first; REQUIRE/DON'T are mandatory):\n{}",
+            lines.join("\n")
+        ));
+    }
+
     parts.join("\n\n")
 }
 
@@ -148,6 +190,7 @@ mod tests {
             component_styles: None,
             layout_principles: None,
             generation_notes: None,
+            rules: Vec::new(),
         }
     }
 
@@ -219,7 +262,27 @@ mod tests {
             component_styles: None,
             layout_principles: None,
             generation_notes: None,
+            rules: Vec::new(),
         };
-        assert_eq!(build_design_md_style_policy(&spec), "");
+        assert!(build_design_md_style_policy(&spec).contains("DESIGN RULES"));
+    }
+
+    #[test]
+    fn style_policy_includes_document_rule() {
+        let mut spec = spec_with_palette(Vec::new());
+        spec.rules.push(jian_ops_schema::DesignRule {
+            id: "local:forms".into(),
+            title: "Form actions".into(),
+            instruction: "Use the shared Button component".into(),
+            kind: jian_ops_schema::DesignRuleKind::Require,
+            scope: jian_ops_schema::DesignRuleScope::Global,
+            condition: Some("when a form has a primary action".into()),
+            priority: 100,
+            enabled: true,
+            overrides: None,
+        });
+        let policy = build_design_md_style_policy(&spec);
+        assert!(policy.contains("[REQUIRE] [global] Form actions"));
+        assert!(policy.contains("WHEN when a form has a primary action"));
     }
 }

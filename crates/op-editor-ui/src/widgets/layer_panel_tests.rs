@@ -248,12 +248,7 @@ fn hit_test_resolves_first_layer_row() {
         origin: Point2D::new(0.0, 0.0),
         size: Point2D::new(LAYER_PANEL_WIDTH, panel.intrinsic_height()),
     };
-    let layer_y = 8.0
-        + SECTION_HEADER_HEIGHT
-        + PAGE_ROW_HEIGHT
-        + SECTION_GAP
-        + SECTION_HEADER_HEIGHT
-        + LAYER_ROW_HEIGHT / 2.0;
+    let layer_y = panel.regions(rect).layers_rows_top + LAYER_ROW_HEIGHT / 2.0;
     let p = Point2D::new(rect.size.x / 2.0, layer_y);
     match panel.hit_test(rect, p) {
         Some(LayerPanelHit::Layer(id)) => assert_eq!(id, panel.items[0].node_id),
@@ -262,11 +257,7 @@ fn hit_test_resolves_first_layer_row() {
 }
 
 fn first_layer_trailing_points(panel: &LayerPanel, rect: Rect) -> (Point2D, Point2D) {
-    let y = 8.0
-        + SECTION_HEADER_HEIGHT
-        + panel.pages.len() as f32 * PAGE_ROW_HEIGHT
-        + SECTION_GAP
-        + SECTION_HEADER_HEIGHT;
+    let y = panel.regions(rect).layers_rows_top;
     let row = Rect {
         origin: Point2D::new(rect.origin.x + 6.0, y + 2.0),
         size: Point2D::new(rect.size.x - 12.0, LAYER_ROW_HEIGHT - 4.0),
@@ -533,11 +524,7 @@ fn drop_indicator_matches_post_commit_layout_when_dragging_down() {
         origin: Point2D::new(0.0, 0.0),
         size: Point2D::new(LAYER_PANEL_WIDTH, panel.intrinsic_height()),
     };
-    let layers_top = 8.0
-        + SECTION_HEADER_HEIGHT
-        + panel.pages.len() as f32 * PAGE_ROW_HEIGHT
-        + SECTION_GAP
-        + SECTION_HEADER_HEIGHT;
+    let layers_top = panel.regions(rect).layers_rows_top;
     let row_top_of_d = layers_top + 2.0 * LAYER_ROW_HEIGHT;
     let drop = panel
         .drop_target_at(rect, Point2D::new(rect.size.x / 2.0, row_top_of_d + 4.0))
@@ -569,11 +556,7 @@ fn drop_target_at_resolves_before_and_after_halves() {
         origin: Point2D::new(0.0, 0.0),
         size: Point2D::new(LAYER_PANEL_WIDTH, panel.intrinsic_height()),
     };
-    let y0 = 8.0
-        + SECTION_HEADER_HEIGHT
-        + panel.pages.len() as f32 * PAGE_ROW_HEIGHT
-        + SECTION_GAP
-        + SECTION_HEADER_HEIGHT;
+    let y0 = panel.regions(rect).layers_rows_top;
     let mid_x = rect.size.x / 2.0;
     let before = panel
         .drop_target_at(rect, Point2D::new(mid_x, y0 + 4.0))
@@ -596,11 +579,7 @@ fn drop_target_at_in_empty_area_below_rows_drops_at_end() {
         origin: Point2D::new(0.0, 0.0),
         size: Point2D::new(LAYER_PANEL_WIDTH, panel.intrinsic_height() + 200.0),
     };
-    let layers_top = 8.0
-        + SECTION_HEADER_HEIGHT
-        + panel.pages.len() as f32 * PAGE_ROW_HEIGHT
-        + SECTION_GAP
-        + SECTION_HEADER_HEIGHT;
+    let layers_top = panel.regions(rect).layers_rows_top;
     let rows_bottom = layers_top + panel.items.len() as f32 * LAYER_ROW_HEIGHT;
     let drop = panel
         .drop_target_at(rect, Point2D::new(rect.size.x / 2.0, rows_bottom + 50.0))
@@ -773,4 +752,44 @@ fn pages_hit_test_uses_page_row_height() {
     .expect("point lands on a page row");
     assert_eq!(index, 41, "hit-test must map to the 32px-row index");
     assert!((row_top - (rows_top + PAGE_ROW_HEIGHT * 2.0)).abs() < 0.01);
+}
+
+#[test]
+fn component_store_pages_are_listed_between_pages_and_layers() {
+    let mut state = EditorState::new();
+    let master = serde_json::from_value(serde_json::json!({
+        "id": "atom-btn",
+        "type": "frame",
+        "name": "Button/Default",
+        "reusable": true,
+        "width": 80,
+        "height": 32
+    }))
+    .expect("master");
+    assert_eq!(state.append_components_page_masters(vec![master]), 1);
+    let panel = LayerPanel::from_editor(&state);
+    assert_eq!(panel.pages.len(), 1);
+    assert_eq!(panel.pages[0].label, "Page 1");
+    assert_eq!(panel.components.len(), 1);
+    assert_eq!(panel.components[0].label, "Button");
+}
+
+/// The Recipes section is a first-class rail section: its rows must be
+/// hittable, and they are listed even for a document with no rules.
+#[test]
+fn recipe_rows_are_hittable_in_the_rail() {
+    let state = EditorState::sample();
+    let panel = LayerPanel::from_editor(&state);
+    let rect = Rect {
+        origin: Point2D::new(0.0, 0.0),
+        size: Point2D::new(LAYER_PANEL_WIDTH, panel.intrinsic_height()),
+    };
+    assert!(!panel.recipes.is_empty(), "the session kit ships recipes");
+    let r = panel.regions(rect);
+    assert!(r.recipes_view_h > 0.0, "the recipes region must be laid out");
+    let p = Point2D::new(rect.size.x / 2.0, r.recipes_rows_top + PAGE_ROW_HEIGHT / 2.0);
+    match panel.hit_test(rect, p) {
+        Some(LayerPanelHit::Recipe(index)) => assert_eq!(index, 0),
+        other => panic!("expected the first recipe row, got {other:?}"),
+    }
 }

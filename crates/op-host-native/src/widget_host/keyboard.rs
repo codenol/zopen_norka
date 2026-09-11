@@ -36,6 +36,14 @@ impl WidgetHostNative {
             }
             return true;
         }
+        // Rules-form fields are the panel's own inputs — they own the
+        // keystroke while the form is open.
+        if let Some(changed) = shared::design_rule_text(&mut self.editor_state, c, self.now_ms) {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // Preview (Play) mode owns the keyboard: printable chars go to
         // the live runtime's focused widget, never editor editing.
         if self.preview.is_some() {
@@ -214,6 +222,10 @@ impl WidgetHostNative {
         // commit machinery (TS controlled `<input>`; same append/pop
         // discipline as the font-picker search).
         if shared::variables_search_text(&mut self.editor_state, c, self.now_ms) {
+            self.mark_dirty();
+            return true;
+        }
+        if shared::assets_search_text(&mut self.editor_state, c, self.now_ms) {
             self.mark_dirty();
             return true;
         }

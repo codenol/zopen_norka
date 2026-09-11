@@ -2,6 +2,16 @@
 //! templates, language consistency and design-system dropping.
 
 use super::*;
+/// The rules a real turn carries: resolved, so the shipped working agreement
+/// and the kit's component rules are part of the prompt under test.
+fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
+    op_editor_core::effective_design_rules(None)
+        .into_iter()
+        .map(|entry| entry.rule)
+        .collect()
+}
+
+
 
 #[test]
 fn subagent_prompt_injects_exact_json_quoted_screen_route_inventory() {
@@ -101,13 +111,15 @@ fn subagent_prompt_honors_explicit_radius_and_spacing_numbers() {
         prompt: "设计一个美食移动端首页，圆角和间距要统一，圆角 8 px，间距 12 px".into(),
         model: Some("claude-haiku".into()),
         provider: None,
-        design_md: None,
+        rules: resolved_rules(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let mut mobile_plan = plan();
     mobile_plan.root_frame.width = 402.0;
@@ -161,13 +173,15 @@ fn mobile_food_prompt_avoids_fixed_food_template() {
         prompt: "设计一个美食应用移动端首页，希望好看点".into(),
         model: Some("claude-haiku".into()),
         provider: None,
-        design_md: None,
+        rules: resolved_rules(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let mut mobile_plan = plan();
     mobile_plan.root_frame.width = 402.0;
@@ -245,13 +259,15 @@ fn chinese_mobile_food_prompt_carries_language_consistency_rule() {
         prompt: "设计一个美食应用移动端首页，包含配送地址、搜索、分类和主题推荐".into(),
         model: Some("claude-haiku".into()),
         provider: None,
-        design_md: None,
+        rules: resolved_rules(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let mut mobile_plan = plan();
     mobile_plan.root_frame.width = 390.0;
@@ -296,43 +312,47 @@ fn chinese_mobile_food_prompt_carries_language_consistency_rule() {
 }
 
 /// design-system is dropped whenever another styling source covers it:
-/// (a) no style guide → `style-defaults` loads; (b) a guide IS named → the
-/// style-guide instruction block (G2) is injected. In both cases the generic
-/// design-system skill is replaced, not kept alongside (Codex review +
-/// buildSubAgentStyleGuideInstruction port).
+/// session kit (its rules), or style-defaults. The markdown brief is gone.
 #[test]
 fn subagent_prompt_drops_design_system_when_styling_covered() {
     const DESIGN_SYSTEM_ONLY: &str = "design system architect";
     const STYLE_DEFAULTS_ONLY: &str = "VISUAL STYLE POLICY";
 
-    // (a) No style guide named, no design.md → noStyleGuideMatch → style-defaults
-    // loads and covers styling, so design-system is dropped.
+    // No style guide named, no design.md → session kit owns style.
     let (covered, _) = bsp(&subtask(), &plan(), &req(), AbortFlag::new(), false, false);
+    let kit = op_editor_core::session_kit();
     assert!(
-        covered.system_prompt.contains(STYLE_DEFAULTS_ONLY),
-        "no-style-guide prompt should load style-defaults"
+        covered.system_prompt.contains(&kit.name),
+        "session kit must cover styling when no catalog guide is named"
+    );
+    assert!(
+        covered.system_prompt.contains("COMPONENT RULES")
+            || covered.user_prompt.contains("COMPONENT RULES"),
+        "the kit's own rules cover styling when no catalog guide is named"
     );
     assert!(
         !covered.system_prompt.contains(DESIGN_SYSTEM_ONLY),
-        "design-system dropped when style-defaults covers styling"
+        "design-system dropped when the session kit covers styling"
+    );
+    assert!(
+        !covered.system_prompt.contains(STYLE_DEFAULTS_ONLY),
+        "catalog style-defaults must not load alongside the session kit"
     );
 
-    // (b) A style guide IS named → G2 injects its palette/fonts block, which
-    // REPLACES design-system. style-defaults does NOT load (noStyleGuideMatch
-    // false).
+    // A catalog styleGuideName on the plan is ignored while the kit owns style.
     let mut sg_plan = plan();
     sg_plan.style_guide_name = Some("saas-clean-light".into());
     let (with_guide, _) = bsp(&subtask(), &sg_plan, &req(), AbortFlag::new(), false, false);
     assert!(
-        with_guide.system_prompt.contains("VISUAL STYLE GUIDE"),
-        "named style guide injects its instruction block"
+        with_guide.system_prompt.contains(&kit.name),
+        "named catalog guide must not replace the session kit"
     );
     assert!(
         !with_guide.system_prompt.contains(DESIGN_SYSTEM_ONLY),
-        "design-system dropped when the style-guide block replaces it"
+        "design-system dropped when the session kit covers styling"
     );
     assert!(
         !with_guide.system_prompt.contains(STYLE_DEFAULTS_ONLY),
-        "named style guide should NOT load style-defaults"
+        "catalog style-defaults must not load alongside the session kit"
     );
 }

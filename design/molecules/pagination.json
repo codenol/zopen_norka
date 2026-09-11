@@ -1,0 +1,128 @@
+{
+  "id": "page-molecule-pagination",
+  "name": "Molecules · Pagination",
+  "children": [
+    {
+      "type": "frame",
+      "id": "molecule-pagination-default",
+      "name": "Pagination/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0,
+      "width": "fit_content",
+      "height": 32.0,
+      "layout": "horizontal",
+      "gap": 8.0,
+      "alignItems": "center",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-prev",
+          "ref": "atom-pagination-item-arrow-prev-disabled"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-page-1",
+          "ref": "atom-pagination-item-number-selected",
+          "descendants": {
+            "atom-pagination-item-number-selected-label": {
+              "content": "1"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-page-2",
+          "ref": "atom-pagination-item-number-default",
+          "descendants": {
+            "atom-pagination-item-number-default-label": {
+              "content": "2"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-page-3",
+          "ref": "atom-pagination-item-number-default",
+          "descendants": {
+            "atom-pagination-item-number-default-label": {
+              "content": "3"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-page-4",
+          "ref": "atom-pagination-item-number-default",
+          "descendants": {
+            "atom-pagination-item-number-default-label": {
+              "content": "4"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-ellipsis",
+          "ref": "atom-pagination-item-ellipsis-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-page-last",
+          "ref": "atom-pagination-item-number-default",
+          "descendants": {
+            "atom-pagination-item-number-default-label": {
+              "content": "45"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-next",
+          "ref": "atom-pagination-item-arrow-next-default"
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-default-pagesize",
+          "ref": "atom-pagination-pagesize-default",
+          "descendants": {
+            "atom-pagination-pagesize-default-label": {
+              "content": "10"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-pagination-pagesize-open",
+      "name": "Pagination/PageSize/Open",
+      "reusable": true,
+      "x": 0,
+      "y": 72.0,
+      "width": "fit_content",
+      "height": "fit_content",
+      "layout": "vertical",
+      "gap": 4.0,
+      "alignItems": "start",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-pagination-pagesize-open-trigger",
+          "ref": "atom-pagination-pagesize-default",
+          "descendants": {
+            "atom-pagination-pagesize-default-label": {
+              "content": "10"
+            }
+          }
+        },
+        {
+          "type": "ref",
+          "id": "molecule-pagination-pagesize-open-menu",
+          "ref": "molecule-context-menu-pagesize"
+        }
+      ]
+    }
+  ]
+}

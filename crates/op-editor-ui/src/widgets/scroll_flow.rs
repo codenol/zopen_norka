@@ -49,7 +49,10 @@ pub fn scroll_variables_panel(
     ))
 }
 
-/// Scroll the floating Design-MD panel body.
+/// Scroll the floating rules panel's list.
+///
+/// The filter bar above the list stays pinned, so a wheel event up there
+/// is swallowed without moving anything.
 pub fn scroll_design_md_panel(
     state: &mut EditorState,
     panel_rect: Option<Rect>,
@@ -60,9 +63,18 @@ pub fn scroll_design_md_panel(
     if !panel_rect.contains(point) {
         return None;
     }
-    let max = crate::widgets::DesignMdPanel::for_editor(state)?.max_scroll(panel_rect);
+    let (list_top, max) = {
+        let panel = crate::widgets::DesignMdPanel::for_editor(state)?;
+        (
+            crate::widgets::DesignMdPanel::rows_top(panel_rect),
+            panel.max_rules_scroll(panel_rect),
+        )
+    };
+    if point.y < list_top {
+        return Some(false);
+    }
     Some(scroll_by_max(
-        &mut state.editor_ui.design_md_panel.scroll,
+        &mut state.editor_ui.design_md_panel.rules_scroll,
         -delta_y,
         max,
     ))
@@ -283,6 +295,13 @@ pub fn scroll_layer_panel(
             &mut state.editor_ui.layer_layers_h_scroll,
             r.layers.max_offset,
             r.layers.max_horizontal_offset,
+        )
+    } else if r.components_view_h > 0.0 && point.y >= r.components_header_y {
+        (
+            &mut state.editor_ui.layer_components_scroll,
+            &mut state.editor_ui.layer_components_h_scroll,
+            r.components.max_offset,
+            r.components.max_horizontal_offset,
         )
     } else {
         (

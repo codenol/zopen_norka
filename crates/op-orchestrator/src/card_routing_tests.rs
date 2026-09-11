@@ -11,6 +11,7 @@
 use crate::compact_prompt::build_compact_planning_prompt;
 use crate::design_type::{detect_design_type, DesignType};
 use crate::style_guide_context::infer_tags_from_prompt;
+use op_editor_core::session_kit;
 
 const CARD_GUIDES: [&str; 4] = [
     "mingsha-mineral-dark",
@@ -36,11 +37,16 @@ fn a_card_prompt_reaches_a_card_style_guide() {
         assert!(tags.iter().any(|t| t == expected), "{expected} in {tags:?}");
     }
 
-    let built = build_compact_planning_prompt(CARD_PROMPT, None, None);
+    let built = build_compact_planning_prompt(CARD_PROMPT, &[], None);
+    let kit = session_kit();
     assert!(
-        CARD_GUIDES.contains(&built.selected_style_guide_name.as_str()),
-        "selected {:?}, expected one of the shipped card guides",
+        built.selected_style_guide_name.is_empty(),
+        "session kit owns style; catalog card guides must not be preselected, got {:?}",
         built.selected_style_guide_name
+    );
+    assert!(
+        built.system.contains(&kit.id),
+        "card planning must still name the session kit"
     );
     assert!(
         built.system.contains("width=1080") && built.system.contains("height=1440"),
@@ -89,7 +95,7 @@ fn a_component_request_never_lands_on_the_card_shelf() {
         "a profile card",
         "a card component for the design system",
     ] {
-        let built = build_compact_planning_prompt(prompt, None, None);
+        let built = build_compact_planning_prompt(prompt, &[], None);
         assert!(
             !CARD_GUIDES.contains(&built.selected_style_guide_name.as_str()),
             "{prompt} reached the card shelf: {:?}",
@@ -113,7 +119,7 @@ fn an_ordinary_web_request_is_unaffected() {
         "an analytics dashboard",
         "a mobile login screen",
     ] {
-        let built = build_compact_planning_prompt(prompt, None, None);
+        let built = build_compact_planning_prompt(prompt, &[], None);
         assert!(
             !CARD_GUIDES.contains(&built.selected_style_guide_name.as_str()),
             "{prompt} -> {:?}",

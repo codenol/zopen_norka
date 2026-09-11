@@ -61,8 +61,8 @@ const CAP_D: &str =
 
 /// Keep newly generated single-screen roots out from under the native
 /// floating toolbar.
-const SAFE_CANVAS_X: f64 = 80.0;
-const SAFE_CANVAS_Y: f64 = 40.0;
+pub(super) const SAFE_CANVAS_X: f64 = 80.0;
+pub(super) const SAFE_CANVAS_Y: f64 = 40.0;
 
 fn solid_fill_json(color: &str) -> serde_json::Value {
     serde_json::json!([{ "type": "solid", "color": color }])
@@ -389,6 +389,12 @@ pub fn build_scaffold_reusing(
         page_id: None,
     }])
 }
+
+#[path = "scaffold_kit.rs"]
+mod scaffold_kit;
+pub use scaffold_kit::{
+    kit_chassis_available, kit_chassis_commands, prepare_kit_content_area_commands,
+};
 
 /// Build the root-frame node (status-bar child injected when `is_mobile`),
 /// stamping `root_id` as its id so the caller can either insert it fresh or

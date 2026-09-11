@@ -192,6 +192,7 @@ fn document_design_md_outranks_the_pin_and_carries_its_own_values() {
         component_styles: None,
         layout_principles: None,
         generation_notes: None,
+        rules: Vec::new(),
     });
 
     let card = card_at(&state, STYLE_CARD_DWELL_MS).expect("a card");
@@ -311,16 +312,15 @@ fn the_hover_covers_the_whole_chip_and_nothing_else() {
         chip.origin.y + chip.size.y / 2.0,
     );
     assert!(panel.style_chip_hover_at(PANEL, centre));
-    // Including the ✕ — the card hangs above the row, so it never competes
-    // with the clear button, and blinking out on the way to it would read as
-    // a bug.
-    let clear = panel
-        .style_receipt_clear_rect(panel.input_rect(PANEL))
-        .expect("a clearable row");
-    assert!(panel.style_chip_hover_at(
-        PANEL,
-        Point2D::new(clear.origin.x + 2.0, clear.origin.y + clear.size.y / 2.0)
-    ));
+    // The whole row is hoverable, edge to edge: the row reports the session's
+    // rules and carries no clear button, so there is no dead zone in it.
+    let left = Point2D::new(chip.origin.x + 2.0, chip.origin.y + chip.size.y / 2.0);
+    let right = Point2D::new(
+        chip.origin.x + chip.size.x - 2.0,
+        chip.origin.y + chip.size.y / 2.0,
+    );
+    assert!(panel.style_chip_hover_at(PANEL, left));
+    assert!(panel.style_chip_hover_at(PANEL, right));
 
     // Just below the row is the text area, not the chip.
     assert!(!panel.style_chip_hover_at(
@@ -330,15 +330,22 @@ fn the_hover_covers_the_whole_chip_and_nothing_else() {
     assert!(!panel.style_chip_hover_at(PANEL, Point2D::new(centre.x, PANEL.origin.y + 4.0)));
 }
 
+/// The rules chip is present with nothing pinned — the session's rules are in
+/// force on their own — and hovering it opens the card like any other chip.
 #[test]
-fn nothing_pinned_means_the_chip_can_never_be_hovered() {
+fn the_rules_chip_is_hoverable_without_a_pin() {
     let _guard = exclusive_registry_for_tests();
     let state = EditorState::new();
     let panel = AIChatPlaceholder::from_editor_at(&state, 0);
-    let input = panel.input_rect(PANEL);
-    assert!(!panel.style_chip_hover_at(
+    let chip = panel
+        .style_chip_rect(PANEL)
+        .expect("the rules chip is always present");
+    assert!(panel.style_chip_hover_at(
         PANEL,
-        Point2D::new(input.origin.x + 10.0, input.origin.y + 4.0)
+        Point2D::new(
+            chip.origin.x + chip.size.x / 2.0,
+            chip.origin.y + chip.size.y / 2.0
+        )
     ));
 }
 

@@ -1,0 +1,41 @@
+{
+  "id": "page-molecule-button-badge",
+  "name": "Molecules · ButtonBadge",
+  "children": [
+    {
+      "type": "frame",
+      "id": "molecule-button-with-badge",
+      "name": "Button/WithBadge",
+      "reusable": true,
+      "x": 0,
+      "y": 0,
+      "width": 85.0,
+      "height": 40.0,
+      "layout": "none",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "ref",
+          "id": "molecule-button-with-badge-button",
+          "ref": "atom-button-filled-large-accent-default-text",
+          "x": 0,
+          "y": 8.0
+        },
+        {
+          "type": "ref",
+          "id": "molecule-button-with-badge-badge",
+          "ref": "atom-badge-basic-base",
+          "x": 69.0,
+          "y": 0.0
+        }
+      ]
+    },
+    {
+      "type": "ref",
+      "id": "page-molecule-button-badge-plain",
+      "ref": "atom-button-filled-large-accent-default-text",
+      "x": 0,
+      "y": 60.0
+    }
+  ]
+}

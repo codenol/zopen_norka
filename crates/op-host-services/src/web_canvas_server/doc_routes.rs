@@ -59,6 +59,7 @@ pub(super) fn open_recent_file(body: &str, state: &mut WebCanvasState) -> WebRep
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             next.editor_ui.touch_recent_file(path_s, now);
+            op_pen_loader::ensure_skala_session(&mut next);
             state.editor = next;
             state.current_path = Some(path);
             state.version += 1;
@@ -79,6 +80,34 @@ pub(super) fn open_recent_file(body: &str, state: &mut WebCanvasState) -> WebRep
                 .to_string(),
             }
         }
+    }
+}
+
+/// File → New: blank starter + Skala kit, unbound from the previous path.
+pub(super) fn new_untitled_file(state: &mut WebCanvasState) -> WebReply {
+    if let Err(refusal) = state.gate_daemon_mutation(
+        op_editor_core::CollabGateAction::ReplaceDocument,
+        op_editor_core::CollabEditSource::User,
+    ) {
+        return WebReply {
+            status: refusal.http_status(),
+            body: serde_json::json!({
+                "ok": false,
+                "error": refusal.code(),
+                "message": refusal.to_string(),
+            })
+            .to_string(),
+        };
+    }
+    let mut next = op_pen_loader::new_skala_editor_state();
+    preserve_web_canvas_preferences(&state.editor, &mut next);
+    next.editor_ui.file_name_display = None;
+    state.editor = next;
+    state.current_path = None;
+    state.version += 1;
+    WebReply {
+        status: "200 OK",
+        body: crate::mcp_serve::document_sync_ok(state.version),
     }
 }
 

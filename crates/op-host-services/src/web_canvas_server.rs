@@ -202,10 +202,13 @@ impl WebCanvasState {
         if let Some(path) = self.current_path.clone() {
             let mut next = crate::mcp_serve::load_editor_state(&path)?;
             preserve_web_canvas_preferences(&self.editor, &mut next);
+            op_pen_loader::ensure_skala_session(&mut next);
             set_file_name_display(&mut next, &path);
             self.editor = next;
         } else {
-            self.editor.replace_document(EditorState::starter().doc);
+            let mut next = op_pen_loader::new_skala_editor_state();
+            preserve_web_canvas_preferences(&self.editor, &mut next);
+            self.editor = next;
         }
         self.version += 1;
         Ok(self.version)
@@ -349,7 +352,13 @@ impl WebCanvasState {
                 }
             }
         } else {
-            self.replace_document(prepared.into_document())
+            let version = self.replace_document(prepared.into_document());
+            // File → New in the browser pushes a blank starter. Re-attach
+            // Skala here so the daemon stays the kit authority. Skip the
+            // collab ingest path above — peers already share one sequenced
+            // document.
+            op_pen_loader::ensure_skala_session(&mut self.editor);
+            version
         };
         op_pen_loader::apply_editor_meta(&mut self.editor, editor_meta);
         Ok(PushOutcome {
@@ -455,6 +464,7 @@ where
 ///   (and legacy `.opmeta` fallback compatibility)
 /// - `POST /api/file/open-recent` → local-daemon recent-file open, used by the
 ///   browser shell because only the daemon can read local paths.
+/// - `POST /api/file/new` → untitled starter + Skala library, unbound path
 /// - anything else → 404 (the JSON-RPC `/mcp` path + SSE are handled by the
 ///   caller's connection loop, not here).
 pub fn handle_web_canvas_request(
@@ -639,6 +649,7 @@ pub fn handle_web_canvas_request(
             },
         },
         ("POST", "/api/file/open-recent") => open_recent_file(body, state),
+        ("POST", "/api/file/new") => new_untitled_file(state),
         ("POST", "/api/export/pdf") => export_pdf_download(body, state),
         ("POST", "/api/export/raster") => export_raster_download(body, state),
         ("GET", "/api/ai/models") => WebReply {

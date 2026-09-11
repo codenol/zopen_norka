@@ -80,18 +80,29 @@ mod geometry_echo {
     use crate::types::{DesignRequest, GeometryEchoBudget, LlmError, Progress, SubtaskOutcome};
     use futures::executor::block_on;
 
-    fn req() -> DesignRequest {
+    /// The rules a real turn carries: resolved, so the working agreement and the
+/// kit's component rules are part of the prompt under test.
+fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
+    op_editor_core::effective_design_rules(None)
+        .into_iter()
+        .map(|entry| entry.rule)
+        .collect()
+}
+
+fn req() -> DesignRequest {
         DesignRequest {
             prompt: "a finance app".into(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 1,
             continuation_context: None,
             append_context: None,
             validation_enabled: true,
             visual_ref_enabled: false,
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         }
     }
 
@@ -168,6 +179,7 @@ mod geometry_echo {
         SubtaskOutcome {
             id: "goals".into(),
             node_count: 1,
+            paintable_nodes: 1,
             error: None,
             inserted_root_ids: vec!["rail".into()],
             subtask: None,
@@ -313,6 +325,7 @@ mod geometry_echo {
             SubtaskOutcome {
                 id: "goals".into(),
                 node_count: 1,
+                paintable_nodes: 1,
                 error: None,
                 inserted_root_ids: vec!["rail".into()],
                 subtask: None,
@@ -389,6 +402,7 @@ mod geometry_echo {
             SubtaskOutcome {
                 id: "goals".into(),
                 node_count: 0,
+                paintable_nodes: 0,
                 error: Some("script error: unexpected end of string".into()),
                 inserted_root_ids: Vec::new(),
                 subtask: None,
@@ -425,6 +439,7 @@ mod geometry_echo {
             SubtaskOutcome {
                 id: "goals".into(),
                 node_count: 1,
+                paintable_nodes: 1,
                 error: None,
                 inserted_root_ids: Vec::new(),
                 subtask: None,

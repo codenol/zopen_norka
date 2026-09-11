@@ -7,14 +7,17 @@
 //! `apps/web/src/services/ai/orchestrator-planning.ts:76-254`.
 //! Task B3 (parse_orchestrator_response) will be appended in the next task.
 
-use crate::design_md_policy::{guess_neutral_background_from_theme, infer_design_md_background};
+use crate::dashboard_columns::is_strong_sidebar_subtask;
+use crate::design_type::{detect_design_type, DesignType};
 use crate::plan::build_fallback_plan;
 use crate::plan::{OrchestratorPlan, PlanFill, Region, RootFrameSpec, Subtask};
+use crate::request_dimensions::requested_root_dimensions;
 use crate::types::DesignRequest;
-use jian_ops_schema::DesignMdSpec;
+use op_editor_core::session_kit;
 use serde_json::Value;
 
-/// The `styleGuideName` forced when `design_md` is present.
+/// Legacy constant kept for the plan JSON contract; session rules force
+/// no catalog style guide of their own.
 /// Port of `DESIGN_MD_STYLE_GUIDE_NAME` from `orchestrator-prompt-optimizer.ts`.
 pub(crate) const DESIGN_MD_STYLE_GUIDE_NAME: &str = "design-md-custom";
 
@@ -186,12 +189,21 @@ pub(crate) fn allocate_section_heights(total_height: i64, count: usize) -> Vec<i
         idx = (idx + 1) % count;
     }
 
-    // Subtract fix-up: trim from the end, respecting min_height
+    // Subtract fix-up: trim from the end, respecting min_height.
+    // If every section is already at min_height but the sum still exceeds
+    // total_height (e.g. 5×80 > 360), stop — otherwise this loops forever.
     let mut idx = count - 1;
+    let mut scanned = 0usize;
     while allocated > total_height {
         if heights[idx] > min_height {
             heights[idx] -= 1;
             allocated -= 1;
+            scanned = 0;
+        } else {
+            scanned += 1;
+            if scanned >= count {
+                break;
+            }
         }
         if idx == 0 {
             idx = count - 1;
@@ -265,16 +277,12 @@ pub(crate) fn repair_plan_object(obj: &Value, request: &DesignRequest) -> Option
         return None;
     }
 
-    // styleGuideName aliasing: design_md → force "design-md-custom";
-    // else prefer camelCase `styleGuideName`, then snake_case `style_guide`,
-    // then fallback.
-    let style_guide_name = if request.design_md.is_some() {
-        Some(DESIGN_MD_STYLE_GUIDE_NAME.to_owned())
-    } else {
-        as_string(&obj["styleGuideName"])
-            .or_else(|| as_string(&obj["style_guide"]))
-            .or_else(|| fallback.style_guide_name.clone())
-    };
+    // styleGuideName aliasing: prefer camelCase `styleGuideName`, then
+    // snake_case `style_guide`, then the fallback. Session rules are not a
+    // catalog style guide, so they force no name of their own.
+    let style_guide_name = as_string(&obj["styleGuideName"])
+        .or_else(|| as_string(&obj["style_guide"]))
+        .or_else(|| fallback.style_guide_name.clone());
 
     let mut repaired = OrchestratorPlan {
         root_frame,
@@ -282,37 +290,193 @@ pub(crate) fn repair_plan_object(obj: &Value, request: &DesignRequest) -> Option
         style_guide_name,
     };
 
-    Some(finalize_plan(
-        &mut repaired,
-        Some(obj),
-        request.design_md.as_ref(),
-    ))
+    Some(finalize_plan(&mut repaired, Some(obj), request))
 }
 
 /// Post-processes a plan after strict-parse or repair.
 ///
-/// - `design_md` present → force `style_guide_name = "design-md-custom"`,
-///   overwrite `root_frame.fill` with the design.md background color.
-/// - otherwise → leave the plan unchanged (the Rust struct has no
-///   `style_guide` inline field; catalog-guide recovery is a no-op here).
+/// - A session kit owns style: drop any catalog `styleGuideName` and apply
+///   the kit canvas fill when present.
+/// - desktop kit chassis: drop subtasks that duplicate sentinel chrome
+///   (sidebar / topbar / breadcrumbs) so generation only fills the slot.
 ///
-/// Port of `finalizePlan` from
-/// `apps/web/src/services/ai/orchestrator-planning.ts:140-184`.
+/// The old `design.md` branch that forced `style_guide_name =
+/// "design-md-custom"` and painted the page with the brief's palette is
+/// gone: rules carry no colours, and the kit is the design system.
 pub(crate) fn finalize_plan(
     plan: &mut OrchestratorPlan,
     _raw_obj: Option<&Value>,
-    design_md: Option<&DesignMdSpec>,
+    request: &DesignRequest,
 ) -> OrchestratorPlan {
-    if let Some(spec) = design_md {
-        plan.style_guide_name = Some(DESIGN_MD_STYLE_GUIDE_NAME.to_owned());
-        let bg = infer_design_md_background(spec)
-            .unwrap_or_else(|| guess_neutral_background_from_theme(spec.visual_theme.as_deref()));
+    if let Some(canvas) = session_kit().canvas.as_ref() {
+        plan.style_guide_name = None;
         plan.root_frame.fill = Some(vec![PlanFill {
             kind: "solid".to_owned(),
-            color: bg,
+            color: canvas.fill.clone(),
         }]);
     }
+    if detect_design_type(&request.prompt).type_ == DesignType::DesktopScreen {
+        strip_kit_owned_chrome_subtasks(plan);
+        strip_non_kit_invented_modules(plan, request);
+        normalize_body_subtask_ids(plan, request);
+        apply_kit_canvas_size(plan, &request.prompt);
+    }
     plan.clone()
+}
+
+fn is_kit_owned_chrome(st: &Subtask) -> bool {
+    if is_strong_sidebar_subtask(st) {
+        return true;
+    }
+    let t = format!("{} {}", st.id, st.label).to_lowercase();
+    let compact = t.replace([' ', '-', '_'], "");
+    compact.contains("topbar")
+        || compact.contains("breadcrumb")
+        || compact.contains("navbar")
+        || compact.contains("appbar")
+        || compact.contains("header")
+        || compact == "shell"
+        || compact.contains("appshell")
+}
+
+fn kit_has_type_matching(needle: &str) -> bool {
+    let needle = needle.to_lowercase();
+    op_editor_core::session_kit().types.iter().any(|ty| {
+        ty.id.to_lowercase().contains(&needle) || ty.name.to_lowercase().contains(&needle)
+    })
+}
+
+/// Drop planner-invented analytics modules that the session kit does not own
+/// (Skala has table/pagination/input — not KPI cards or charts).
+fn is_non_kit_invented_module(st: &Subtask) -> bool {
+    let t = format!("{} {}", st.id, st.label).to_lowercase();
+    let compact = t.replace([' ', '-', '_'], "");
+    // Keep table / toolbar / pagination body even if the planner named them
+    // "signals-table" etc.
+    if compact.contains("table")
+        || compact.contains("toolbar")
+        || compact.contains("pagination")
+        || compact.contains("paginat")
+        || t.contains("таблица")
+        || t.contains("поиск")
+    {
+        return false;
+    }
+    const PATTERNS: &[&str] = &[
+        "kpi",
+        "metric",
+        "chart",
+        "signal",
+        "signals",
+        "credits",
+        "exposure",
+        "drawdown",
+        "winrate",
+        "win-rate",
+        "analytics",
+    ];
+    for p in PATTERNS {
+        let compact_p = p.replace('-', "");
+        if (t.contains(p) || compact.contains(compact_p.as_str())) && !kit_has_type_matching(p) {
+            return true;
+        }
+    }
+    false
+}
+
+fn strip_non_kit_invented_modules(plan: &mut OrchestratorPlan, _request: &DesignRequest) {
+    // The kit is always the style source now; the old design.md escape
+    // hatch is gone with the brief.
+    plan.subtasks.retain(|st| !is_non_kit_invented_module(st));
+    ensure_content_subtask(plan);
+}
+
+fn brief_or_prompt_mentions_table(request: &DesignRequest) -> bool {
+    let mut hay = request.prompt.to_lowercase();
+    if let Some(brief) = request.reference_brief.as_ref() {
+        hay.push(' ');
+        hay.push_str(&brief.to_lowercase());
+    }
+    hay.contains("table")
+        || hay.contains("таблица")
+        || hay.contains("toolbar")
+        || hay.contains("pagination")
+        || hay.contains("пагинац")
+        || hay.contains("search")
+}
+
+fn normalize_body_subtask_ids(plan: &mut OrchestratorPlan, request: &DesignRequest) {
+    if !brief_or_prompt_mentions_table(request) {
+        return;
+    }
+    for st in &mut plan.subtasks {
+        let t = format!("{} {}", st.id, st.label).to_lowercase();
+        if t.contains("table") || t.contains("таблица") || t.contains("grid") || t.contains("row")
+        {
+            if st.id != "table" {
+                st.id = "table".into();
+            }
+            if st.label.to_lowercase().contains("kpi") {
+                st.label = "Table".into();
+            }
+        } else if t.contains("toolbar")
+            || t.contains("search")
+            || t.contains("filter")
+            || t.contains("поиск")
+        {
+            if st.id != "toolbar" {
+                st.id = "toolbar".into();
+            }
+        } else if t.contains("paginat") || t.contains("пагинац") {
+            if st.id != "pagination" {
+                st.id = "pagination".into();
+            }
+        }
+    }
+}
+
+fn ensure_content_subtask(plan: &mut OrchestratorPlan) {
+    if plan.subtasks.is_empty() {
+        let w = plan.root_frame.width;
+        let h = if plan.root_frame.height > 0.0 {
+            plan.root_frame.height
+        } else {
+            400.0
+        };
+        plan.subtasks.push(Subtask {
+            id: "main".into(),
+            label: "Main".into(),
+            region: Region {
+                width: w,
+                height: h,
+            },
+            id_prefix: "main".into(),
+            parent_frame_id: None,
+            elements: Some(
+                "product body in the Layout/Default content area (Main container)".into(),
+            ),
+            screen: None,
+            generated_root_id: None,
+            existing_section_labels: None,
+            retry_feedback: None,
+        });
+    }
+}
+
+fn strip_kit_owned_chrome_subtasks(plan: &mut OrchestratorPlan) {
+    plan.subtasks.retain(|st| !is_kit_owned_chrome(st));
+    ensure_content_subtask(plan);
+}
+
+fn apply_kit_canvas_size(plan: &mut OrchestratorPlan, prompt: &str) {
+    if requested_root_dimensions(prompt).is_some() {
+        return;
+    }
+    let Some(canvas) = session_kit().canvas.as_ref() else {
+        return;
+    };
+    plan.root_frame.width = canvas.width;
+    plan.root_frame.height = canvas.height;
 }
 
 /// Returns the first non-empty candidate array from `subtasks` / `sections` /
@@ -504,7 +668,7 @@ pub(crate) fn parse_orchestrator_response(
     let trimmed = raw.trim();
 
     // Strategy 1: direct
-    if let Some(plan) = try_parse_plan_strict(trimmed) {
+    if let Some(plan) = try_parse_plan_strict(trimmed, request) {
         return Some((plan, false));
     }
     if let Some(plan) = try_repair_plan_text(trimmed, request) {
@@ -514,7 +678,7 @@ pub(crate) fn parse_orchestrator_response(
     // Strategy 2: fenced code block
     if let Some(fenced_text) = extract_fence_content(trimmed) {
         let fenced_text = fenced_text.trim();
-        if let Some(plan) = try_parse_plan_strict(fenced_text) {
+        if let Some(plan) = try_parse_plan_strict(fenced_text, request) {
             return Some((plan, false));
         }
         if let Some(plan) = try_repair_plan_text(fenced_text, request) {
@@ -524,7 +688,7 @@ pub(crate) fn parse_orchestrator_response(
 
     // Strategy 3: brace-slice
     if let Some(braced_text) = extract_brace_slice(trimmed) {
-        if let Some(plan) = try_parse_plan_strict(braced_text) {
+        if let Some(plan) = try_parse_plan_strict(braced_text, request) {
             return Some((plan, false));
         }
         if let Some(plan) = try_repair_plan_text(braced_text, request) {
@@ -537,8 +701,9 @@ pub(crate) fn parse_orchestrator_response(
 
 /// Strict probe: delegate to `parse_plan` (serde deserialization + non-empty
 /// subtasks check).  Returns `None` on any parse or validation failure.
-fn try_parse_plan_strict(text: &str) -> Option<OrchestratorPlan> {
-    crate::plan::parse_plan(text).ok()
+fn try_parse_plan_strict(text: &str, request: &DesignRequest) -> Option<OrchestratorPlan> {
+    let mut plan = crate::plan::parse_plan(text).ok()?;
+    Some(finalize_plan(&mut plan, None, request))
 }
 
 /// Repair probe: `serde_json::from_str::<Value>` → `repair_plan_object`.

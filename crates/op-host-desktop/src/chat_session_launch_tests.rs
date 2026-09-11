@@ -77,13 +77,15 @@ fn stash_design_request_for_retry_writes_json_onto_the_last_message() {
         prompt: "design a login page".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
 
     stash_design_request_for_retry(&mut host, &request);

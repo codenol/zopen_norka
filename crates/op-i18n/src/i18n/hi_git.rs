@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "नीचे दिए कार्ड्स से प्रत्येक विरोध हल करें, फिर मर्ज लागू करें।",
         "git.conflict.abort" => "विलय रद्द करें",
         "git.conflict.nonOp.title" => ".op से भिन्न फ़ाइलों पर विलय रोका गया",
-        "git.conflict.nonOp.description" => ".op विलय पूरा हो गया है, लेकिन रेपो की अन्य फ़ाइलें अभी भी अनसुलझी हैं। उन्हें OpenPencil के बाहर हल करें, फिर जारी रखें।",
+        "git.conflict.nonOp.description" => ".op विलय पूरा हो गया है, लेकिन रेपो की अन्य फ़ाइलें अभी भी अनसुलझी हैं। उन्हें Norka के बाहर हल करें, फिर जारी रखें।",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 फ़ाइल को ध्यान चाहिए",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} फ़ाइलों को ध्यान चाहिए",
         "git.conflict.nonOp.continue" => "विलय जारी रखें",

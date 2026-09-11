@@ -11,11 +11,13 @@ use crate::command_node::{build_leaf_node, remap_subtree_ids_with_allocator};
 use crate::fills::set_primary_fill_hex;
 use crate::id_allocator::{IdAllocError, IdAllocator, SequentialIdAllocator};
 use crate::node_id::NodeId;
-use crate::pen_node_ext::PenNodeExt;
 use crate::state::EditorState;
 use crate::walkers;
 use jian_ops_schema::node::PenNode;
 use jian_ops_schema::page::PenPage;
+
+#[path = "components_page_layout.rs"]
+mod components_page_layout;
 
 /// Display name of the hidden master-store page that holds an imported
 /// component library's reusable masters. It is a side store, not a
@@ -23,9 +25,26 @@ use jian_ops_schema::page::PenPage;
 /// role/cleanup passes and page scoring never see the masters.
 pub const COMPONENTS_PAGE_NAME: &str = "Components";
 
+/// Per-type store pages are named `{COMPONENTS_PAGE_PREFIX}{Type}`.
+pub const COMPONENTS_PAGE_PREFIX: &str = "Components/";
+
+/// True for the legacy `Components` page and any `Components/{Type}` page.
+pub fn is_component_store_page(name: &str) -> bool {
+    name == COMPONENTS_PAGE_NAME || name.starts_with(COMPONENTS_PAGE_PREFIX)
+}
+
+/// Label shown in the Components rail: `Button` for `Components/Button`.
+pub fn component_store_page_label(name: &str) -> &str {
+    name.strip_prefix(COMPONENTS_PAGE_PREFIX).unwrap_or(name)
+}
+
+pub(super) fn component_store_page_name(group: &str) -> String {
+    format!("{COMPONENTS_PAGE_PREFIX}{group}")
+}
+
 /// Build a bare page with id / name / children. State + lifecycle
 /// default to `None`.
-fn make_page(id: String, name: String, children: Vec<PenNode>) -> PenPage {
+pub(crate) fn make_page(id: String, name: String, children: Vec<PenNode>) -> PenPage {
     PenPage {
         id,
         name,
@@ -198,10 +217,21 @@ impl EditorState {
                 }
             };
             let pages = self.doc.pages.as_mut().unwrap();
-            let n = pages.len() + 1;
-            let page_name = custom_name.unwrap_or_else(|| format!("Page {n}"));
-            pages.push(make_page(page_id.into(), page_name, page_children));
-            let new_index = pages.len() - 1;
+            let insert_at = pages
+                .iter()
+                .position(|page| is_component_store_page(&page.name))
+                .unwrap_or(pages.len());
+            let design_n = pages
+                .iter()
+                .filter(|page| !is_component_store_page(&page.name))
+                .count()
+                + 1;
+            let page_name = custom_name.unwrap_or_else(|| format!("Page {design_n}"));
+            pages.insert(
+                insert_at,
+                make_page(page_id.into(), page_name, page_children),
+            );
+            let new_index = insert_at;
             self.ui.active_page_index = new_index;
             self.clear_selection();
             Ok(Some(new_index))
@@ -214,24 +244,14 @@ impl EditorState {
         result
     }
 
-    /// Append the reusable masters of an imported component library
-    /// onto a dedicated, hidden [`COMPONENTS_PAGE_NAME`] page — NOT the
-    /// active design page. Keeps `active_children()` clean (only the
-    /// design) so the orchestrator's scaffold + role/cleanup passes are
-    /// unaffected, while the masters stay in `doc.pages` where the
-    /// document-wide component lookup (`ComponentLibrary::from_document`
-    /// + `ref_resolve::resolve_refs_for_canvas`) still finds them.
+    /// Append reusable library masters onto per-type [`COMPONENTS_PAGE_PREFIX`]
+    /// pages — NOT the active design page. One type (`Button`, `Logo`, …)
+    /// maps to one store page. Keeps `active_children()` as the design so
+    /// scaffold + role/cleanup passes stay unaffected, while masters remain
+    /// in `doc.pages` for document-wide `ref` resolution.
     ///
-    /// Master ids are preserved verbatim (NO remapping) so `ref` nodes
-    /// keep resolving to their targets. Masters are deduped by id
-    /// against whatever already lives on the components page, so a
-    /// re-import is idempotent.
-    ///
-    /// Returns the number of masters actually appended (post-dedup).
-    /// The active page index is preserved: a single-page document is
-    /// first migrated so its design becomes page 0, and the components
-    /// page is appended after it, so the caller's active page keeps
-    /// pointing at the design.
+    /// Master ids are preserved verbatim. Dedup is by id across every store
+    /// page. The caller's active page index is restored.
     pub fn append_components_page_masters(&mut self, masters: Vec<PenNode>) -> usize {
         let Ok(mut allocator) = SequentialIdAllocator::for_document(&self.doc, 1) else {
             return 0;
@@ -249,74 +269,66 @@ impl EditorState {
         if masters.is_empty() {
             return Ok(0);
         }
-        // Preserve the active design page across the migration: a
-        // single-page document moves its `doc.children` into page 0,
-        // and the components page is appended at the end.
         let active = self.ui.active_page_index;
         let before_doc = self.doc.clone();
         let before_selection = self.selection.clone();
         let mut taken = self.collect_node_ids();
-        if let Err(error) = self.ensure_pages_with_allocator(allocator, &mut taken) {
-            self.doc = before_doc;
-            self.ui.active_page_index = active;
-            self.selection = before_selection;
-            return Err(error);
-        }
-
-        // Find (or create) the dedicated components page.
-        let page_idx = match self
-            .doc
-            .pages
-            .as_ref()
-            .unwrap()
-            .iter()
-            .position(|p| p.name == COMPONENTS_PAGE_NAME)
-        {
-            Some(idx) => idx,
-            None => {
-                // Mint a non-colliding page id without disturbing the
-                // master ids (which must stay verbatim for refs).
-                let page_id = match allocator.allocate(&mut taken) {
-                    Ok(page_id) => page_id,
-                    Err(error) => {
-                        self.doc = before_doc;
-                        self.ui.active_page_index = active;
-                        self.selection = before_selection;
-                        return Err(error);
-                    }
-                };
-                let pages = self.doc.pages.as_mut().unwrap();
-                pages.push(make_page(
-                    page_id.into(),
-                    COMPONENTS_PAGE_NAME.to_string(),
-                    Vec::new(),
-                ));
-                pages.len() - 1
+        let result = (|| {
+            self.ensure_pages_with_allocator(allocator, &mut taken)?;
+            self.distribute_component_masters(masters, allocator, &mut taken)
+        })();
+        match result {
+            Ok(added) => {
+                self.ui.active_page_index = active.min(self.page_count().saturating_sub(1));
+                Ok(added)
             }
-        };
+            Err(error) => {
+                self.doc = before_doc;
+                self.ui.active_page_index = active;
+                self.selection = before_selection;
+                Err(error)
+            }
+        }
+    }
 
-        let pages = self.doc.pages.as_mut().unwrap();
-        let page = &mut pages[page_idx];
-        let mut existing: std::collections::HashSet<String> = page
-            .children
+    /// Number of design pages (store pages excluded). Used by the mobile
+    /// page pill so kit galleries do not count as slides.
+    pub fn design_page_count(&self) -> usize {
+        match self.doc.pages.as_ref() {
+            Some(pages) if !pages.is_empty() => pages
+                .iter()
+                .filter(|page| !is_component_store_page(&page.name))
+                .count()
+                .max(1),
+            _ => 1,
+        }
+    }
+
+    /// Previous/next design page, skipping `Components/{Type}` store pages.
+    pub fn adjacent_design_page(&self, current: usize, delta: i32) -> Option<usize> {
+        let pages = self.doc.pages.as_ref()?;
+        let design: Vec<usize> = pages
             .iter()
-            .map(|n| n.id_str().to_string())
+            .enumerate()
+            .filter(|(_, page)| !is_component_store_page(&page.name))
+            .map(|(index, _)| index)
             .collect();
-        let mut added = 0usize;
-        for master in masters {
-            let id = master.id_str().to_string();
-            if existing.contains(&id) {
-                continue;
-            }
-            existing.insert(id);
-            page.children.push(master);
-            added += 1;
+        if design.is_empty() {
+            return None;
         }
-
-        // The components page is hidden side storage — never the active
-        // page. Restore the caller's active index (page 0 = design).
-        self.ui.active_page_index = active;
-        Ok(added)
+        let pos = design.iter().position(|&index| index == current);
+        let Some(pos) = pos else {
+            return if delta < 0 {
+                design.last().copied()
+            } else {
+                design.first().copied()
+            };
+        };
+        let next = pos as i32 + delta;
+        if next < 0 || next >= design.len() as i32 {
+            return None;
+        }
+        Some(design[next as usize])
     }
 
     /// Duplicate the page at `idx`, inserting the clone after it.
@@ -359,6 +371,9 @@ impl EditorState {
             let Some(source) = pages.get(idx) else {
                 return Ok(None);
             };
+            if is_component_store_page(&source.name) {
+                return Ok(None);
+            }
             let new_page_id = allocator.allocate(&mut taken)?;
             let new_children: Result<Vec<PenNode>, IdAllocError> = source
                 .children
@@ -403,6 +418,9 @@ impl EditorState {
         let Some(page) = pages.get_mut(idx) else {
             return false;
         };
+        if is_component_store_page(&page.name) {
+            return false;
+        };
         page.name = name;
         true
     }
@@ -416,7 +434,14 @@ impl EditorState {
         if from >= pages.len() {
             return false;
         }
-        let to = to.min(pages.len().saturating_sub(1));
+        if is_component_store_page(&pages[from].name) {
+            return false;
+        }
+        let store_start = pages
+            .iter()
+            .position(|page| is_component_store_page(&page.name))
+            .unwrap_or(pages.len());
+        let to = to.min(store_start.saturating_sub(1));
         if from == to {
             return false;
         }
@@ -458,6 +483,16 @@ impl EditorState {
             return false;
         };
         if idx >= pages.len() || pages.len() <= 1 {
+            return false;
+        }
+        if is_component_store_page(&pages[idx].name) {
+            return false;
+        }
+        let design_count = pages
+            .iter()
+            .filter(|page| !is_component_store_page(&page.name))
+            .count();
+        if design_count <= 1 {
             return false;
         }
         pages.remove(idx);

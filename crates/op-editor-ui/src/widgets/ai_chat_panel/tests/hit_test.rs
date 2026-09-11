@@ -164,7 +164,11 @@ fn streaming_attachment_button_is_consumed_without_opening_picker_like_ts() {
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
     let attach_center = Point2D::new(
         footer.attach.origin.x + footer.attach.size.x / 2.0,
@@ -185,7 +189,11 @@ fn hit_test_resolves_bottom_toolbar_actions() {
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let y = toolbar_center_y();
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
 
     // model pill center (x=PAD+8 = 24, in range 16..196)
@@ -225,7 +233,11 @@ fn footer_hover_maps_bottom_toolbar_actions() {
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let y = toolbar_center_y();
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
 
     assert_eq!(
@@ -278,7 +290,11 @@ fn footer_speed_chip_is_clickable_and_opens_parallel_agents_picker() {
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
     let point = Point2D::new(
         footer.speed.origin.x + footer.speed.size.x / 2.0,
@@ -321,7 +337,8 @@ fn hit_test_resolves_model_search_clear_button() {
     s.editor_ui.chat_model_picker_input.set_text("231");
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
-    let input_h = INPUT_BASE_HEIGHT;
+    // The block grew by the chip band, so its top moved up.
+    let input_h = panel.input_height_for_rect(rect);
     let input_rect = Rect::xywh(
         PAD,
         AI_CHAT_HEIGHT - input_h + 1.0,

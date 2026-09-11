@@ -4853,6 +4853,7 @@ dependencies = [
 name = "op-orchestrator"
 version = "0.8.5"
 dependencies = [
+ "base64",
  "futures",
  "jian-ops-schema",
  "jian-scene",

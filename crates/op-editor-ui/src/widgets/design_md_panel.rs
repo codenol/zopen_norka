@@ -1,30 +1,38 @@
-//! `DesignMdPanel` — the floating Design-MD editor panel.
+//! `DesignMdPanel` — the floating design-rules panel.
 //!
-//! The Rust counterpart of the TS `design-md-panel.tsx` +
-//! `design-md-editor.tsx`: a draggable floating panel that shows the
-//! open document's design-system brief (`PenDocument.design_md`) —
-//! project name, visual theme, colour palette, typography and the
-//! component / layout / notes sections — each collapsible, with the
-//! markdown body rendered through the lightweight syntax-highlighting
-//! renderer in [`crate::widgets::design_md_markdown`].
+//! The panel is the editor's guidelines center: it lists the rules the
+//! active component kit contributes plus the document's own rules and
+//! overrides, and it owns the markdown editor for a single rule.
 //!
-//! The panel is platform-free: the desktop host paints it, maps a
-//! click to a [`DesignMdHit`], and owns import / export / drag.
-
-use std::rc::Rc;
+//! There is deliberately **no markdown brief view** any more. Structured
+//! rules are the single source of truth for both the author and the AI,
+//! so a per-document `design.md` prose block has nothing left to
+//! contribute — the schema still carries it for compatibility with older
+//! `.op` files, and nothing reads it.
+//!
+//! The panel is platform-free: the host paints it, maps a click to a
+//! [`DesignMdHit`], and owns dragging.
 
 use crate::theme::Theme;
-use crate::widgets::button::paint_ghost_button_feedback;
-use crate::widgets::design_md_markdown::{parse_blocks, parse_inline, wrap_runs, MdBlock, MdRun};
 use crate::widgets::editor_state_ext::theme_for;
 use crate::widgets::{Icon, PaintCx};
 use crate::{Point2D, Rect};
-use op_editor_core::{ButtonPressTarget, DesignMdButton, DesignMdSpec, EditorState, Locale};
+use op_editor_core::{
+    ButtonPressTarget, DesignMdButton, DesignRuleDraft, EditorState, Locale, PanelRow,
+};
 
 mod helpers;
-#[cfg(test)]
-pub(crate) use helpers::layout_call_count;
-use helpers::truncate;
+// Shared button chrome + the text primitive, in a sibling file so this
+// module stays under the repo's 800-line ceiling.
+#[path = "design_md_panel_paint.rs"]
+mod paint;
+
+/// The rules view (filters, list, markdown editor) — layout + hit-test
+/// here, paint in the `_rules_paint.rs` sibling.
+#[path = "design_md_panel_rules.rs"]
+mod rules;
+#[path = "design_md_panel_rules_paint.rs"]
+mod rules_paint;
 
 /// Panel width in logical px.
 pub const DESIGN_MD_PANEL_W: f32 = 480.0;
@@ -33,104 +41,57 @@ pub const DESIGN_MD_PANEL_H: f32 = 560.0;
 
 const PAD: f32 = 14.0;
 const HEADER_H: f32 = 40.0;
-const BTN: f32 = 24.0;
-const BTN_GAP: f32 = 6.0;
-const SECTION_HEADER_H: f32 = 28.0;
-const SECTION_GAP: f32 = 6.0;
-const LINE_H: f32 = 16.0;
-const HEADING_H: f32 = 18.0;
-const COLOR_ROW_H: f32 = 24.0;
-const FOOTER_H: f32 = 22.0;
-const BLOCK_GAP: f32 = 5.0;
-const CHAR_W: f32 = 6.0;
-const BODY_INDENT: f32 = 12.0;
 
-/// The 6 design-md sections, in display order. The index doubles as
-/// the `EditorUiState.design_md_panel.expanded` bitmask position.
-const SECTION_COUNT: usize = 6;
-
-/// What a click landed on inside the Design-MD panel.
+/// What a click landed on inside the rules panel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DesignMdHit {
     /// The header ✕ — close the panel.
     Close,
-    /// The header import button — pick + parse a `.md` file.
-    Import,
-    /// The header / empty-state auto-generate button.
-    AutoGenerate,
-    /// The header export button — write the design.md to disk.
-    Export,
-    /// The footer "remove" link — clear `design_md`.
-    Remove,
-    /// A section header row — toggle section `index` (0..6) expanded.
-    ToggleSection(u8),
     /// The header bar (not on a button) — start a panel drag.
     DragHeader,
+    /// The "new rule" button — open a blank author rule.
+    NewRule,
+    /// The on/off switch of rule row `index`.
+    RuleToggle(u16),
+    /// The delete button of rule row `index`.
+    RuleDelete(u16),
+    /// The body of rule row `index` — open the editor on it.
+    RuleEdit(u16),
+    /// A click inside the editor's body — the byte offset for the caret.
+    RuleBodyCaret(u32),
+    /// A click inside an author rule's title field.
+    RuleTitleCaret(u32),
+    /// Save the editor — writes the rule into the document.
+    RuleSave,
+    /// Undo the last document change without leaving the editor.
+    RuleUndo,
+    /// Redo the last undone change without leaving the editor.
+    RuleRedo,
+    /// Close the editor without writing anything.
+    RuleCancel,
     /// Inside the panel but not on an interactive target.
     Inside,
 }
 
-/// The floating Design-MD panel, built from an [`EditorState`].
+/// The floating design-rules panel, built from an [`EditorState`].
 pub struct DesignMdPanel<'a> {
-    spec: Option<&'a DesignMdSpec>,
     pub(in crate::widgets) theme: Theme,
     locale: Locale,
-    /// Bitmask of expanded sections (bit 0 = theme … 5 = notes).
-    expanded: u8,
-    scroll: f32,
-    generating: bool,
     /// Which target the cursor is over — drives the hover wash.
     hover: Option<DesignMdButton>,
-    /// Which Design-MD target is actively pressed.
+    /// Which target is actively pressed.
     pub(in crate::widgets) pressed: Option<DesignMdButton>,
-}
-
-/// One rendered line within a section body. `pub(super)` (rather than
-/// private) so the sibling `design_md_line_cache` module — which
-/// memoizes `section_lines`'s parse + wrap output across frames — can
-/// name the type; see that module's docs for why the cache lives
-/// outside this file instead of as a field here.
-#[derive(Clone)]
-pub(super) enum RenderLine {
-    /// A markdown heading — font size + pre-split inline runs.
-    Heading(f32, Vec<MdRun>),
-    /// A paragraph / bullet continuation line.
-    Body(Vec<MdRun>),
-    /// A bullet's first line (gets a `•` marker).
-    Bullet(Vec<MdRun>),
-    /// A colour-palette row — index into `color_palette`.
-    Color(usize),
-    /// Vertical spacing between blocks.
-    Gap,
-}
-
-impl RenderLine {
-    fn height(&self) -> f32 {
-        match self {
-            RenderLine::Heading(..) => HEADING_H,
-            RenderLine::Body(_) | RenderLine::Bullet(_) => LINE_H,
-            RenderLine::Color(_) => COLOR_ROW_H,
-            RenderLine::Gap => BLOCK_GAP,
-        }
-    }
-}
-
-/// One section's computed layout — header rect + (optional) body.
-struct SectionLayout {
-    /// Section index 0..6.
-    index: u8,
-    /// i18n key for the section title.
-    title_key: &'static str,
-    /// Clickable header-row rect.
-    header: Rect,
-    /// Whether the section is expanded.
-    expanded: bool,
-    /// `y` where the body begins (panel coords).
-    body_top: f32,
-    /// Rendered body lines (empty when collapsed). Shared with the
-    /// `design_md_line_cache` slot — cloning this is a refcount bump,
-    /// not a deep copy of every parsed `RenderLine`.
-    lines: Rc<Vec<RenderLine>>,
+    /// The rows the list shows: one document per component, then the
+    /// author's own rules.
+    pub(in crate::widgets) rows: Vec<PanelRow>,
+    /// Vertical scroll offset of the rule list.
+    rules_scroll: f32,
+    /// The open create / edit editor, if any.
+    pub(in crate::widgets) draft: Option<&'a DesignRuleDraft>,
+    /// Whether the document history can undo / redo — drives the editor's
+    /// own undo / redo buttons.
+    pub(in crate::widgets) can_undo: bool,
+    pub(in crate::widgets) can_redo: bool,
 }
 
 impl<'a> DesignMdPanel<'a> {
@@ -139,18 +100,22 @@ impl<'a> DesignMdPanel<'a> {
         if !state.editor_ui.design_md_panel.open {
             return None;
         }
+        let kit = op_editor_core::session_kit();
+        let panel_state = &state.editor_ui.design_md_panel;
+        let spec = state.doc.design_md.as_ref();
         Some(DesignMdPanel {
-            spec: state.doc.design_md.as_ref(),
             theme: theme_for(&state.editor_ui),
             locale: state.editor_ui.effective_locale(),
-            expanded: state.editor_ui.design_md_panel.expanded,
-            scroll: state.editor_ui.design_md_panel.scroll.offset,
-            generating: state.editor_ui.design_md_panel.generating,
-            hover: state.editor_ui.design_md_panel.hover,
+            hover: panel_state.hover,
             pressed: match state.editor_ui.pressed_button {
                 Some(ButtonPressTarget::DesignMd(button)) => Some(button),
                 _ => None,
             },
+            rows: op_editor_core::panel_rows(kit, spec),
+            rules_scroll: panel_state.rules_scroll.offset,
+            draft: panel_state.rule_draft.as_ref(),
+            can_undo: state.history.can_undo(),
+            can_redo: state.history.can_redo(),
         })
     }
 
@@ -158,15 +123,19 @@ impl<'a> DesignMdPanel<'a> {
     /// and keeps only the button variants (drag-header / inside → None).
     pub fn hover_at(&self, panel: Rect, point: Point2D) -> Option<DesignMdButton> {
         use DesignMdButton as B;
-        match self.hit_test(panel, point)? {
-            DesignMdHit::Close => Some(B::Close),
-            DesignMdHit::Import => Some(B::Import),
-            DesignMdHit::AutoGenerate => Some(B::AutoGenerate),
-            DesignMdHit::Export => Some(B::Export),
-            DesignMdHit::Remove => Some(B::Remove),
-            DesignMdHit::ToggleSection(i) => Some(B::ToggleSection(i)),
-            DesignMdHit::DragHeader | DesignMdHit::Inside => None,
-        }
+        Some(match self.hit_test(panel, point)? {
+            DesignMdHit::Close => B::Close,
+            DesignMdHit::NewRule => B::NewRule,
+            DesignMdHit::RuleToggle(index) => B::RuleToggle(index),
+            DesignMdHit::RuleDelete(index) => B::RuleDelete(index),
+            DesignMdHit::RuleEdit(index) => B::RuleEdit(index),
+            DesignMdHit::RuleBodyCaret(_) | DesignMdHit::RuleTitleCaret(_) => return None,
+            DesignMdHit::RuleSave => B::RuleSave,
+            DesignMdHit::RuleUndo => B::RuleUndo,
+            DesignMdHit::RuleRedo => B::RuleRedo,
+            DesignMdHit::RuleCancel => B::RuleCancel,
+            DesignMdHit::DragHeader | DesignMdHit::Inside => return None,
+        })
     }
 
     /// Translate `key` through the active locale tables.
@@ -178,227 +147,26 @@ impl<'a> DesignMdPanel<'a> {
         self.pressed == Some(button)
     }
 
-    /// Whether the spec carries content worth a section view (a bare
-    /// `raw` / `project_name` does not count — mirrors the TS check).
-    fn has_content(&self) -> bool {
-        let Some(s) = self.spec else {
-            return false;
-        };
-        s.visual_theme.is_some()
-            || s.color_palette.as_ref().is_some_and(|c| !c.is_empty())
-            || s.typography.is_some()
-            || s.component_styles.is_some()
-            || s.layout_principles.is_some()
-            || s.generation_notes.is_some()
+    /// How many rows the list currently shows.
+    pub fn rule_count(&self) -> usize {
+        self.rows.len()
     }
 
-    /// The four header buttons `[import, auto-generate, export, close]`, right-aligned.
-    fn header_buttons(panel: Rect) -> [Rect; 4] {
-        let y = panel.origin.y + (HEADER_H - BTN) / 2.0;
-        let right = panel.origin.x + panel.size.x - PAD;
-        let slot = |from_right: f32| Rect {
-            origin: Point2D::new(right - (from_right + 1.0) * BTN - from_right * BTN_GAP, y),
-            size: Point2D::new(BTN, BTN),
-        };
-        // from_right 0 = close (rightmost) … 3 = import.
-        [slot(3.0), slot(2.0), slot(1.0), slot(0.0)]
-    }
-
-    fn empty_action_buttons(panel: Rect) -> [(DesignMdHit, DesignMdButton, Icon, Rect); 2] {
-        let w = 138.0;
-        let h = 32.0;
-        let gap = 10.0;
-        let y = panel.origin.y + panel.size.y / 2.0 + 42.0;
-        let left = panel.origin.x + (panel.size.x - w * 2.0 - gap) / 2.0;
-        [
-            (
-                DesignMdHit::Import,
-                DesignMdButton::Import,
-                Icon::FolderOpen,
-                Rect::xywh(left, y, w, h),
-            ),
-            (
-                DesignMdHit::AutoGenerate,
-                DesignMdButton::AutoGenerate,
-                Icon::Wand2,
-                Rect::xywh(left + w + gap, y, w, h),
-            ),
-        ]
-    }
-
-    /// The raw markdown content of section `index`, capped at `limit`.
-    /// Borrows straight from `self.spec` (lifetime `'a`, not tied to
-    /// `&self`) instead of cloning, so `section_lines` can compare it
-    /// against the parse cache's stored key WITHOUT an eager allocation
-    /// on every call — the cache only clones into an owned `String` on
-    /// an actual miss.
-    fn section_content(&self, index: u8) -> Option<(&'a str, usize)> {
-        let s = self.spec?;
-        match index {
-            0 => s.visual_theme.as_deref().map(|c| (c, 600)),
-            2 => s
-                .typography
-                .as_ref()
-                .and_then(|t| t.scale.as_deref())
-                .map(|c| (c, 600)),
-            3 => s.component_styles.as_deref().map(|c| (c, 1000)),
-            4 => s.layout_principles.as_deref().map(|c| (c, 1000)),
-            5 => s.generation_notes.as_deref().map(|c| (c, 600)),
-            _ => None,
-        }
-    }
-
-    /// Whether section `index` has any content to show.
-    fn section_present(&self, index: u8) -> bool {
-        if index == 1 {
-            self.spec
-                .and_then(|s| s.color_palette.as_ref())
-                .is_some_and(|c| !c.is_empty())
-        } else {
-            self.section_content(index).is_some()
-        }
-    }
-
-    /// i18n title key for section `index`.
-    fn section_title_key(index: u8) -> &'static str {
-        match index {
-            0 => "designMd.visualTheme",
-            1 => "designMd.colors",
-            2 => "designMd.typography",
-            3 => "designMd.componentStyles",
-            4 => "designMd.layoutPrinciples",
-            _ => "designMd.generationNotes",
-        }
-    }
-
-    /// Render section `index`'s body into positioned lines. The
-    /// expensive part (`parse_blocks` + `parse_inline` + `wrap_runs`)
-    /// is memoized cross-frame in `design_md_line_cache`, keyed on the
-    /// section's raw content by value — see that module's docs. Returns
-    /// the cache's shared `Rc` directly (a hit is a refcount bump, not a
-    /// deep clone of every `RenderLine`).
-    fn section_lines(&self, index: u8) -> Rc<Vec<RenderLine>> {
-        // The colour section is a swatch list, not markdown — cheap
-        // enough (just an index range) that it needs no cache.
-        if index == 1 {
-            let count = self
-                .spec
-                .and_then(|s| s.color_palette.as_ref())
-                .map_or(0, |c| c.len());
-            return Rc::new((0..count).map(RenderLine::Color).collect());
-        }
-        let Some((content, limit)) = self.section_content(index) else {
-            return Rc::new(Vec::new());
-        };
-        let budget = ((DESIGN_MD_PANEL_W - PAD * 2.0 - BODY_INDENT) / CHAR_W) as usize;
-        super::design_md_line_cache::resolve(index, content, limit, || {
-            let mut lines = Vec::new();
-            for (bi, block) in parse_blocks(content, limit).into_iter().enumerate() {
-                if bi > 0 {
-                    lines.push(RenderLine::Gap);
-                }
-                match block {
-                    MdBlock::Heading { level, text } => {
-                        let size = if level <= 3 { 12.0 } else { 11.5 };
-                        lines.push(RenderLine::Heading(size, parse_inline(&text)));
-                    }
-                    MdBlock::Paragraph(text) => {
-                        for wl in wrap_runs(&parse_inline(&text), budget) {
-                            lines.push(RenderLine::Body(wl));
-                        }
-                    }
-                    MdBlock::Bullet(text) => {
-                        let wrapped = wrap_runs(&parse_inline(&text), budget.saturating_sub(2));
-                        for (i, wl) in wrapped.into_iter().enumerate() {
-                            if i == 0 {
-                                lines.push(RenderLine::Bullet(wl));
-                            } else {
-                                lines.push(RenderLine::Body(wl));
-                            }
-                        }
-                    }
-                }
-            }
-            lines
-        })
-    }
-
-    /// Compute every section's layout — shared by paint + hit-test so
-    /// they always agree on row positions. `paint` / `hit_test` each
-    /// call this at most once per pass and thread the result into their
-    /// other helpers, instead of the pre-fix up-to-3 independent calls.
-    fn layout(&self, panel: Rect) -> Vec<SectionLayout> {
-        #[cfg(test)]
-        helpers::tick_layout_call();
-        let left = panel.origin.x + PAD;
-        let inner_w = panel.size.x - PAD * 2.0;
-        let mut y = panel.origin.y + HEADER_H + SECTION_GAP;
-        // A project-name line sits above the sections when present.
-        if self.spec.and_then(|s| s.project_name.as_deref()).is_some() {
-            y += HEADING_H + SECTION_GAP;
-        }
-        let mut out = Vec::new();
-        for index in 0..SECTION_COUNT as u8 {
-            if !self.section_present(index) {
-                continue;
-            }
-            let expanded = self.expanded & (1 << index) != 0;
-            let header = Rect {
-                origin: Point2D::new(left, y),
-                size: Point2D::new(inner_w, SECTION_HEADER_H),
-            };
-            y += SECTION_HEADER_H;
-            let body_top = y;
-            let lines = if expanded {
-                self.section_lines(index)
-            } else {
-                Rc::new(Vec::new())
-            };
-            let body_h: f32 = lines.iter().map(RenderLine::height).sum();
-            y += body_h + SECTION_GAP;
-            out.push(SectionLayout {
-                index,
-                title_key: Self::section_title_key(index),
-                header,
-                expanded,
-                body_top,
-                lines,
-            });
-        }
-        out
-    }
-
-    /// The footer "remove" link rect — below the last section. Takes
-    /// the caller's already-computed `sections` (from a single
-    /// [`Self::layout`] call) instead of recomputing it.
-    fn remove_rect(&self, panel: Rect, sections: &[SectionLayout]) -> Rect {
-        let bottom = sections
-            .last()
-            .map(|s| s.body_top + s.lines.iter().map(RenderLine::height).sum::<f32>())
-            .unwrap_or(panel.origin.y + HEADER_H + SECTION_GAP);
+    /// The header's close button — the only chrome the panel still has.
+    fn close_button(panel: Rect) -> Rect {
+        let size = 24.0;
         Rect {
-            origin: Point2D::new(panel.origin.x + PAD, bottom + SECTION_GAP),
-            size: Point2D::new(140.0, FOOTER_H),
+            origin: Point2D::new(
+                panel.origin.x + panel.size.x - PAD - size,
+                panel.origin.y + (HEADER_H - size) / 2.0,
+            ),
+            size: Point2D::new(size, size),
         }
     }
 
-    fn content_bottom(&self, panel: Rect, sections: &[SectionLayout]) -> f32 {
-        if !self.has_content() {
-            return panel.origin.y + HEADER_H;
-        }
-        let remove = self.remove_rect(panel, sections);
-        remove.origin.y + remove.size.y + PAD
-    }
-
-    /// Public entry point (host wheel-scroll clamp).
-    pub fn max_scroll(&self, panel: Rect) -> f32 {
-        let sections = self.layout(panel);
-        (self.content_bottom(panel, &sections) - (panel.origin.y + panel.size.y)).max(0.0)
-    }
-
-    fn effective_scroll(&self, panel: Rect, sections: &[SectionLayout]) -> f32 {
-        let max = (self.content_bottom(panel, sections) - (panel.origin.y + panel.size.y)).max(0.0);
-        self.scroll.clamp(0.0, max)
+    /// `y` where the panel body begins.
+    pub(super) fn body_top(&self, panel: Rect) -> f32 {
+        panel.origin.y + HEADER_H
     }
 
     /// Map a click at `point` onto a [`DesignMdHit`]. `None` when the
@@ -407,45 +175,14 @@ impl<'a> DesignMdPanel<'a> {
         if !panel.contains(point) {
             return None;
         }
-        let [import, auto, export, close] = Self::header_buttons(panel);
-        if close.contains(point) {
+        if Self::close_button(panel).contains(point) {
             return Some(DesignMdHit::Close);
-        }
-        if import.contains(point) {
-            return Some(DesignMdHit::Import);
-        }
-        if auto.contains(point) {
-            return Some(DesignMdHit::AutoGenerate);
-        }
-        if export.contains(point) {
-            return Some(DesignMdHit::Export);
         }
         // Anywhere else in the header bar starts a drag.
         if point.y <= panel.origin.y + HEADER_H {
             return Some(DesignMdHit::DragHeader);
         }
-        if self.has_content() {
-            // Resolve `layout()` once and thread it into the scroll clamp
-            // + section walk + remove-link check below.
-            let sections = self.layout(panel);
-            let scroll = self.effective_scroll(panel, &sections);
-            let content_point = Point2D::new(point.x, point.y + scroll);
-            for sec in &sections {
-                if sec.header.contains(content_point) {
-                    return Some(DesignMdHit::ToggleSection(sec.index));
-                }
-            }
-            if self.remove_rect(panel, &sections).contains(content_point) {
-                return Some(DesignMdHit::Remove);
-            }
-        } else {
-            for (hit, _, _, button) in Self::empty_action_buttons(panel) {
-                if button.contains(point) {
-                    return Some(hit);
-                }
-            }
-        }
-        Some(DesignMdHit::Inside)
+        Some(self.hit_test_rules(panel, point))
     }
 
     /// Paint the panel into `rect`.
@@ -454,48 +191,23 @@ impl<'a> DesignMdPanel<'a> {
         cx.backend
             .stroke_round_rect(rect, 12.0, self.theme.border, 1.0);
 
-        // Header — title + import / export / close.
+        // Header — title + close. The label is the rules-tab string the
+        // panel used to carry in its tab strip; the panel is rules-only now,
+        // so it is the panel's name rather than a tab's.
         self.text(
             cx,
-            self.t("designMd.title"),
+            self.t("designMd.tab.rules"),
             rect.origin.x + PAD,
             rect.origin.y + HEADER_H / 2.0 + 4.0,
             13.0,
             self.theme.foreground,
         );
-        let [import, auto, export, close] = Self::header_buttons(rect);
-        use DesignMdButton as B;
         self.icon_button(
             cx,
-            import,
-            Icon::FolderOpen,
-            self.hover == Some(B::Import),
-            self.is_pressed(B::Import),
-        );
-        self.icon_button(
-            cx,
-            auto,
-            if self.generating {
-                Icon::Loader
-            } else {
-                Icon::Wand2
-            },
-            self.hover == Some(B::AutoGenerate),
-            self.is_pressed(B::AutoGenerate),
-        );
-        self.icon_button(
-            cx,
-            export,
-            Icon::Download,
-            self.hover == Some(B::Export),
-            self.is_pressed(B::Export),
-        );
-        self.icon_button(
-            cx,
-            close,
+            Self::close_button(rect),
             Icon::Close,
-            self.hover == Some(B::Close),
-            self.is_pressed(B::Close),
+            self.hover == Some(DesignMdButton::Close),
+            self.is_pressed(DesignMdButton::Close),
         );
         cx.backend.fill_rect(
             Rect {
@@ -505,113 +217,13 @@ impl<'a> DesignMdPanel<'a> {
             self.theme.border,
         );
 
-        // Body — clipped so long content cannot bleed past the panel.
+        // Body — clipped so a long list cannot bleed past the panel.
         cx.backend.save();
         cx.backend.clip_rect(Rect {
-            origin: Point2D::new(rect.origin.x, rect.origin.y + HEADER_H + 1.0),
+            origin: Point2D::new(rect.origin.x, self.body_top(rect) + 1.0),
             size: Point2D::new(rect.size.x, rect.size.y - HEADER_H - 1.0),
         });
-        if self.has_content() {
-            self.paint_content(cx, rect);
-        } else {
-            self.paint_empty(cx, rect);
-        }
+        self.paint_rules(cx, rect);
         cx.backend.restore();
     }
-
-    /// Paint the empty-state message.
-    fn paint_empty(&self, cx: &mut PaintCx<'_>, rect: Rect) {
-        let cx_mid = rect.origin.x + rect.size.x / 2.0;
-        let cy = rect.origin.y + rect.size.y / 2.0;
-        let heading = self.t("designMd.empty");
-        let hint = self.t("designMd.emptyHint");
-        self.text(
-            cx,
-            heading,
-            cx_mid - heading.chars().count() as f32 * 3.5,
-            cy - 6.0,
-            13.0,
-            self.theme.foreground,
-        );
-        self.text(
-            cx,
-            hint,
-            cx_mid - hint.chars().count() as f32 * 3.0,
-            cy + 14.0,
-            11.0,
-            self.theme.muted_foreground,
-        );
-        for (_, button, mut icon, button_rect) in Self::empty_action_buttons(rect) {
-            if button == DesignMdButton::AutoGenerate && self.generating {
-                icon = Icon::Loader;
-            }
-            self.action_button(
-                cx,
-                button_rect,
-                icon,
-                self.t(match button {
-                    DesignMdButton::Import => "designMd.importCta",
-                    DesignMdButton::AutoGenerate => "designMd.autoGenerateCta",
-                    _ => unreachable!("empty action button must be import or auto-generate"),
-                }),
-                self.hover == Some(button),
-                self.is_pressed(button),
-            );
-        }
-    }
-
-    /// Paint the project name + every present section. Resolves
-    /// `layout()` once for the whole paint pass and threads it into the
-    /// scroll clamp, the section walk, and the footer remove-link rect.
-    fn paint_content(&self, cx: &mut PaintCx<'_>, rect: Rect) {
-        let left = rect.origin.x + PAD;
-        let sections = self.layout(rect);
-        let scroll = self.effective_scroll(rect, &sections);
-        if let Some(name) = self.spec.and_then(|s| s.project_name.as_deref()) {
-            self.text(
-                cx,
-                &truncate(name, 56),
-                left,
-                rect.origin.y + HEADER_H + SECTION_GAP + 12.0 - scroll,
-                13.0,
-                self.theme.foreground,
-            );
-        }
-        // Compute the remove rect from the same `sections` before the
-        // loop below consumes it by value.
-        let mut remove = self.remove_rect(rect, &sections);
-        for mut sec in sections {
-            sec.header.origin.y -= scroll;
-            sec.body_top -= scroll;
-            self.paint_section_header(cx, &sec);
-            if sec.expanded {
-                self.paint_section_body(cx, rect, &sec);
-            }
-        }
-        // Footer "remove" link.
-        remove.origin.y -= scroll;
-        let remove_hovered = self.hover == Some(DesignMdButton::Remove);
-        let remove_color = paint_ghost_button_feedback(
-            cx.backend,
-            &self.theme,
-            remove,
-            remove_hovered,
-            self.is_pressed(DesignMdButton::Remove),
-        );
-        self.text(
-            cx,
-            self.t("designMd.remove"),
-            remove.origin.x,
-            remove.origin.y + 13.0,
-            11.0,
-            remove_color,
-        );
-    }
 }
-
-// The section-body / colour-row / inline-run / shared-chrome paint
-// helpers live in a sibling file (`_paint.rs`) to keep this module
-// under the 800-line ceiling; a second `impl DesignMdPanel` block, not
-// re-exported (inherent methods resolve crate-wide without an import).
-#[path = "design_md_panel_paint.rs"]
-mod paint;

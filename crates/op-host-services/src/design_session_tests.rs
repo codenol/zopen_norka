@@ -4,6 +4,7 @@
 //! per-topic modules' `use super::*` reaching `design_session`'s items.
 
 use super::*;
+use op_editor_core::EditorCommand;
 
 #[cfg(test)]
 mod spawn_worker_tests {
@@ -56,13 +57,15 @@ mod spawn_worker_tests {
             prompt: "p".into(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 3,
             continuation_context: None,
             append_context: None,
             validation_enabled: false,
             visual_ref_enabled: false,
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         }
     }
 
@@ -193,13 +196,15 @@ mod subtask_retry_tests {
             prompt: "p".into(),
             model: None,
             provider: None,
-            design_md: None,
+            rules: Vec::new(),
             concurrency: 1,
             continuation_context: None,
             append_context: None,
             validation_enabled: false,
             visual_ref_enabled: false,
             pinned_style_guide: None,
+            reference_attachments: Vec::new(),
+            reference_brief: None,
         }
     }
 

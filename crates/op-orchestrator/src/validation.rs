@@ -419,8 +419,8 @@ pub struct ValidationSummary {
 /// a vision round starts. Once `ValidationStarted` has been emitted, every
 /// return path also emits terminal `ValidationDone`.
 ///
-/// `reference_screenshot` is currently always `None` from within this function;
-/// D1's host wiring will thread host-side reference images through.
+/// `reference_screenshot` is threaded from the first
+/// [`DesignRequest::reference_attachments`] image when present.
 #[allow(clippy::too_many_arguments)]
 pub fn run_post_generation_validation(
     sink: &mut dyn DocSink,
@@ -492,7 +492,10 @@ pub fn run_post_generation_validation(
         // 5d: build node-tree dump.
         let node_tree_dump = build_node_tree_dump(sink.state());
 
-        // 5e: call vision LLM (reference_screenshot = None for C2; D1 wires host ref).
+        // 5e: call vision LLM — thread the user's first reference attachment
+        // when present so the critique can compare against the intended UI.
+        let reference_screenshot =
+            crate::reference_brief::first_reference_image_base64(&request.reference_attachments);
         let result = validate_design_screenshot(
             vision,
             system_prompt,
@@ -500,7 +503,7 @@ pub fn run_post_generation_validation(
             &node_tree_dump,
             request.model.as_deref(),
             request.provider.as_deref(),
-            None, // reference_screenshot — D1 will thread host-side refs here
+            reference_screenshot.as_deref(),
             round,
         );
 
@@ -511,6 +514,27 @@ pub fn run_post_generation_validation(
 
         // Unwrap the response (skipped=false guarantees Some).
         let response = result.response.unwrap_or_default();
+
+        // When a reference screenshot was provided and quality is clearly
+        // below threshold after the final round budget, surface a chat warning
+        // so Success is not silent against a mismatched layout.
+        if reference_screenshot.is_some()
+            && response.quality_score > 0
+            && response.quality_score < VALIDATION_QUALITY_THRESHOLD
+            && round == MAX_VALIDATION_ROUNDS
+        {
+            tracing::warn!(
+                quality_score = response.quality_score,
+                threshold = VALIDATION_QUALITY_THRESHOLD,
+                "reference screenshot mismatch after validation rounds"
+            );
+            on_progress(Progress::UnfilledScreens {
+                names: vec![format!(
+                    "Reference mismatch (quality {score}/{VALIDATION_QUALITY_THRESHOLD}) — check layout against the attached screenshot",
+                    score = response.quality_score
+                )],
+            });
+        }
 
         // 5g: quality_score==0 && issues.is_empty() → parse failure → break.
         if response.quality_score == 0 && response.issues.is_empty() {

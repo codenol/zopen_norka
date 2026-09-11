@@ -480,6 +480,36 @@ pub fn apply_layer_panel_click(
         state.editor_ui.last_layer_click = Some((target, now_ms));
     }
     match hit {
+        // A recipe row opens the recipe, exactly like a component row opens
+        // its master: the kit keeps every master on its own page, and the row
+        // switches to the page that carries this recipe's master.
+        LayerPanelHit::Recipe(index) => {
+            let kit = op_editor_core::session_kit();
+            let Some(recipe) = kit.recipes.get(index) else {
+                return LayerPanelClick::Dirty;
+            };
+            let master_id = recipe.template.as_str();
+            let page_index = state.doc.pages.as_ref().and_then(|pages| {
+                use op_editor_core::PenNodeExt as _;
+                pages.iter().position(|page| {
+                    page.children
+                        .iter()
+                        .any(|root| root.id_str() == master_id)
+                })
+            });
+            let Some(page_index) = page_index else {
+                return LayerPanelClick::Dirty;
+            };
+            let changed = page_index != state.ui.active_page_index;
+            let _ = state.set_active_page(page_index);
+            state.clear_selection();
+            if changed {
+                // Land on the master instead of keeping the previous pan/zoom.
+                LayerPanelClick::Refit
+            } else {
+                LayerPanelClick::Dirty
+            }
+        }
         LayerPanelHit::Page(idx) => {
             let page_changed = idx != state.ui.active_page_index;
             let _ = state.set_active_page(idx);

@@ -13,7 +13,7 @@ fn req() -> DesignRequest {
         prompt: "a page".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -21,6 +21,8 @@ fn req() -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 

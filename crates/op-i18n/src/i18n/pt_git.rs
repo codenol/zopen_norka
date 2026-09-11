@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Resolva cada conflito usando os cartões abaixo, depois aplique a mesclagem.",
         "git.conflict.abort" => "Abortar mesclagem",
         "git.conflict.nonOp.title" => "Mesclagem pausada em arquivos não .op",
-        "git.conflict.nonOp.description" => "A mesclagem dos arquivos .op foi concluída, mas outros arquivos do repositório ainda não foram resolvidos. Resolva-os fora do OpenPencil e continue.",
+        "git.conflict.nonOp.description" => "A mesclagem dos arquivos .op foi concluída, mas outros arquivos do repositório ainda não foram resolvidos. Resolva-os fora do Norka e continue.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 arquivo precisa de atenção",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} arquivos precisam de atenção",
         "git.conflict.nonOp.continue" => "Continuar mesclagem",

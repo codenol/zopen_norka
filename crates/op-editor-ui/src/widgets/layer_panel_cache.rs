@@ -105,8 +105,10 @@ pub(crate) fn next_owner() -> u64 {
 /// (see the module docs) — the panel overlays them live.
 pub(crate) struct CachedLayerRows {
     pub pages: Rc<Vec<PageItem>>,
+    pub components: Rc<Vec<PageItem>>,
     pub items: Rc<Vec<LayerItem>>,
     pub pages_content_width: f32,
+    pub components_content_width: f32,
     pub layers_content_width: f32,
 }
 

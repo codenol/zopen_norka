@@ -331,15 +331,15 @@ pub(crate) mod ai_chat_transcript_steps;
 pub(crate) mod ai_chat_transcript_text;
 pub(crate) mod ai_chat_transcript_tools;
 pub mod align_toolbar;
+pub mod assets_panel;
 pub mod color_picker;
 mod component_browser_kits;
 pub mod component_browser_panel;
 pub mod deck_boards;
-pub(crate) mod design_md_line_cache;
-pub mod design_md_markdown;
 pub mod design_md_panel;
 #[cfg(test)]
-mod design_md_panel_tests;
+mod design_md_panel_rules_tests;
+pub mod design_md_rules_flow;
 pub mod editor_toast;
 pub mod editor_toast_flow;
 #[cfg(test)]
@@ -398,6 +398,7 @@ pub mod slides_panel_flow;
 pub mod slideshow_toolbar;
 pub mod status_bar;
 pub mod tooltip;
+pub mod build_stamp;
 pub mod top_bar;
 mod top_bar_geometry;
 mod top_bar_paint;
@@ -453,6 +454,7 @@ pub use ai_chat_panel::{
 pub use ai_chat_panel_minimized::{AI_CHAT_MINIMIZED_HEIGHT, AI_CHAT_MINIMIZED_MIN_WIDTH};
 pub use ai_chat_transcript_design::{parse_design_json_nodes, DesignParseError};
 pub use align_toolbar::{AlignToolbar, AlignToolbarHit, ALIGN_TOOLBAR_HEIGHT, ALIGN_TOOLBAR_WIDTH};
+pub use assets_panel::AssetsPanel;
 pub use collab_panel::{CollabPanel, CollabPanelHit, COLLAB_PANEL_WIDTH};
 pub use component_browser_panel::{
     ComponentBrowserHit, ComponentBrowserPanel, COMPONENT_BROWSER_PANEL_H,
@@ -460,6 +462,7 @@ pub use component_browser_panel::{
 };
 pub use deck_boards::BoardChip;
 pub use design_md_panel::{DesignMdHit, DesignMdPanel, DESIGN_MD_PANEL_H, DESIGN_MD_PANEL_W};
+pub use design_md_rules_flow::{apply_design_rules_hit, scroll_rules};
 pub use editor_toast::{EditorToast, EditorToastHit};
 pub use export_dialog::{ExportDialog, ExportDialogHit, ExportFormat};
 pub use export_quick_menu::{ExportQuickMenu, ExportQuickMenuHit};

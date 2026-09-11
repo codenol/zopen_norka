@@ -277,15 +277,71 @@ pub fn stream_standard_turn<W: Write>(
         Err(error) => return write_error_event(out, &error.to_string()),
     };
 
+    // The recipe goes in before the turn is classified: with the base on the
+    // page and selected, this is a modification of a real screen instead of a
+    // request to invent one.
+    //
+    // A reference image changes that: "make it like this picture" is a request
+    // to follow the picture, and routing it into a recipe rewrite throws the
+    // picture away (the modify path never sees attachments). So the reference
+    // wins and the recipe stays out of the way.
+    let has_reference_image = req.attachments.iter().any(|a| a.is_image());
+    let placed_recipe = if op_editor_core::recipe_to_place(
+        &req.ai.user,
+        has_reference_image,
+        op_editor_core::session_kit(),
+    )
+    .is_some()
+    {
+        place_selected_recipe(&req.ai.user, state, hub, write_barrier)
+    } else {
+        None
+    };
+    if placed_recipe.is_some() {
+        snapshot = {
+            let guard = state.lock().unwrap_or_else(|p| p.into_inner());
+            guard.editor.clone()
+        };
+    }
+
     let classified = crate::chat_intent::classify_intent_for_standard_route(
         classify_provider.as_ref(),
         &snapshot,
         &req.ai.user,
         model.clone(),
     );
-    let modify_plan = crate::chat_intent::build_modify_plan(&snapshot, &req.ai.user);
+    // When the host placed a recipe, the turn is a rewrite of that screen's
+    // placeholder content — say so, instead of leaving the model to infer it
+    // from a request that reads like "build me a switches screen".
+    let recipe_hint = placed_recipe.as_ref().map(|(recipe_id, _)| {
+        let name = op_editor_core::session_kit()
+            .recipes
+            .iter()
+            .find(|r| &r.id == recipe_id)
+            .map(|r| r.name.clone())
+            .unwrap_or_else(|| recipe_id.clone());
+        crate::chat_intent::RecipeBaseHint {
+            recipe_id: recipe_id.clone(),
+            name,
+        }
+    });
+    let modify_plan = crate::chat_intent::build_modify_plan_with(
+        &snapshot,
+        &req.ai.user,
+        recipe_hint.as_ref(),
+    );
     let page_children_empty = snapshot.active_children().is_empty();
-    let intent = resolve_standard_route(classified, page_children_empty, modify_plan.is_some());
+    let intent = if has_reference_image {
+        // "Make it like this picture" with the picture attached is a build
+        // request by construction: the reference brief is what the turn is
+        // for. Letting the classifier read it as conversation answered a
+        // question the user did not ask.
+        crate::chat_intent::DesignIntent::New
+    } else if placed_recipe.is_some() && modify_plan.is_some() {
+        crate::chat_intent::DesignIntent::Modify
+    } else {
+        resolve_standard_route(classified, page_children_empty, modify_plan.is_some())
+    };
 
     match intent {
         crate::chat_intent::DesignIntent::Chat => {
@@ -417,7 +473,7 @@ fn inject_transient_builtin(state: &mut EditorState, transient: Option<&BuiltinA
     state.rebuild_chat_models();
 }
 
-fn clear_fresh_starter_frame_for_design(state: &mut EditorState) -> bool {
+pub(crate) fn clear_fresh_starter_frame_for_design(state: &mut EditorState) -> bool {
     if state.doc != EditorState::starter().doc {
         return false;
     }
@@ -436,6 +492,65 @@ fn clear_live_starter_frame_for_design(state: &mut WebCanvasState) -> Option<u64
     }
     state.version += 1;
     Some(state.version)
+}
+
+/// Place the recipe this request asks for, before anything is classified.
+///
+/// Returns the placed root's id. The selection lands on it, so the turn that
+/// follows is a *modification* of an existing screen rather than a request to
+/// compose one — which is the difference between "adapt the recipe" as an
+/// instruction the model may skip and as the shape of the turn itself.
+fn place_selected_recipe(
+    user_message: &str,
+    state: &Mutex<WebCanvasState>,
+    hub: &SseHub,
+    write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
+) -> Option<(String, op_editor_core::NodeId)> {
+    let recipe = op_editor_core::select_recipe(user_message, op_editor_core::session_kit())?;
+    let master = op_editor_core::NodeId::new(recipe.template.clone());
+    let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
+    let gated = guard
+        .gate_daemon_mutation(
+            op_editor_core::CollabGateAction::Document(
+                op_editor_core::CollabDocumentMutation::BasicNodeInsert,
+            ),
+            op_editor_core::CollabEditSource::Ai,
+        )
+        .is_ok();
+    if !gated {
+        return None;
+    }
+    let _pass = admit_document_write(write_barrier).ok()?;
+    // Clear the starter BEFORE placing: the clear only recognises an
+    // untouched starter document, and placing the recipe already touched it.
+    clear_fresh_starter_frame_for_design(&mut guard.editor);
+    let node_id = guard.editor.instantiate_component(&master)?;
+    // The request may name blocks it does not want. That is a product
+    // decision like the recipe choice itself, so it happens here rather
+    // than in a prompt the model may or may not honour.
+    let hidden = op_editor_core::hide_blocks_in_subtree(
+        &mut guard.editor,
+        &node_id,
+        &op_editor_core::requested_hidden_blocks(user_message, recipe),
+    );
+    if hidden > 0 {
+        guard.editor.mark_document_changed();
+    }
+    // An empty root beside the placed screen is noise the user has to delete
+    // (it is either the untouched starter or a root the model opened and left
+    // blank). The recipe root is the page now.
+    let keep = node_id.as_str().to_string();
+    {
+        use op_editor_core::PenNodeExt as _;
+        guard.editor.active_children_mut().retain(|child| {
+            child.id_str() == keep || child.children().is_some_and(|kids| !kids.is_empty())
+        });
+    }
+    guard.editor.set_single_selection(node_id.clone());
+    let tick = guard.sse_tick();
+    drop(guard);
+    hub.broadcast(tick);
+    Some((recipe.id.clone(), node_id))
 }
 
 fn resolve_standard_route(
@@ -491,10 +606,14 @@ fn stream_modify_route<W: Write>(
 ) -> std::io::Result<()> {
     write_delta_event(out, STANDARD_MODIFY_STEP)?;
     let target_frame_ids = plan.target_frame_ids;
+    // Rewriting a whole placed screen — every column header and every sample
+    // row — does not fit in the default reply budget, and a reply cut short
+    // is what "it changed the headers but not the data" looks like.
+    let max_output_tokens = if plan.rewrites_a_placed_recipe { 16384 } else { 8192 };
     let request = ChatRequest {
         system_prompt: plan.system_prompt,
         user_message: plan.user_message,
-        max_output_tokens: 8192,
+        max_output_tokens,
         ..Default::default()
     };
     let mut full_response = String::new();
@@ -588,11 +707,69 @@ fn stream_new_design_route<W: Write>(
     target: CanvasWriteTarget<'_>,
 ) -> std::io::Result<()> {
     let append_context = crate::chat_intent::detect_append_intent(&snapshot, &req.ai.user);
-    let request = DesignRequest {
+    let reference_attachments = req
+        .attachments
+        .iter()
+        .filter(|a| a.is_image())
+        .map(|a| op_orchestrator::ReferenceAttachment {
+            name: a.name.clone(),
+            media_type: a.media_type.clone(),
+            data: a.data.clone(),
+        })
+        .collect();
+    // Select and place the recipe BEFORE the model runs. "The model should
+    // pick the recipe" is a hope; matching the request against the kit's own
+    // words is a decision. Once placed, the turn is framed as adaptation of a
+    // node that already exists, which is what stops the model composing the
+    // same screen from scratch.
+    let mut rules: Vec<jian_ops_schema::DesignRule> =
+        op_editor_core::effective_design_rules(snapshot.doc.design_md.as_ref())
+            .into_iter()
+            .map(|entry| entry.rule)
+            .collect();
+    if let Some(recipe) =
+        op_editor_core::select_recipe(&req.ai.user, op_editor_core::session_kit())
+    {
+        // Placed through the daemon's own lock, like every other write on
+        // this path, so the browser sees the base on its next sync.
+        let placed = {
+            let mut guard = target.state.lock().unwrap_or_else(|p| p.into_inner());
+            guard
+                .editor
+                .instantiate_component(&op_editor_core::NodeId::new(recipe.template.clone()))
+        };
+        if let Some(node_id) = placed {
+            rules.insert(
+                0,
+                jian_ops_schema::DesignRule {
+                    id: "doc:recipe-base".into(),
+                    title: format!("Recipe already placed: {}", recipe.name),
+                    instruction: format!(
+                        "The product already placed recipe `{}` as node `{}`. It is the base for \
+                         this turn: keep its shell, table chrome and pagination, and adapt what \
+                         it provides — retitle it for this product, replace the sample column \
+                         data, delete or hide the blocks the request does not need. Do not \
+                         compose this screen again and do not rebuild its structure.",
+                        recipe.id,
+                        node_id.as_str()
+                    ),
+                    kind: jian_ops_schema::DesignRuleKind::Require,
+                    scope: jian_ops_schema::DesignRuleScope::Global,
+                    condition: None,
+                    priority: i32::MIN + 1,
+                    enabled: true,
+                    overrides: None,
+                },
+            );
+        }
+    }
+    let mut request = DesignRequest {
         prompt: req.ai.user,
         model: model.clone(),
         provider: None,
-        design_md: snapshot.doc.design_md.clone(),
+        // The AI reads the session's resolved rules — never the document's
+        // markdown brief, which the editor no longer maintains.
+        rules,
         continuation_context: None,
         append_context,
         concurrency: req
@@ -602,15 +779,27 @@ fn stream_new_design_route<W: Write>(
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: snapshot.editor_ui.pinned_style_guide.clone(),
+        reference_attachments,
+        reference_brief: None,
     };
-    // Share one provider Arc between the design LLM and (optionally) the
-    // vision validator, so the real vision loop reuses the same auth/model
-    // the user picked instead of needing a second key.
+    // Share one provider Arc between the design LLM and vision brief /
+    // (optionally) the vision validator.
     let provider_arc: Arc<dyn ChatProvider> = Arc::from(provider);
     let llm = ChatProviderLlmClient::new(provider_arc.clone()).with_model(model.clone());
     let mut sink = WebDesignDocSink::new(target.state, target.hub, target.write_barrier, snapshot);
     let abort = AbortFlag::new();
     let pre_validator = LintPreValidator;
+
+    // Always use a real multimodal client for reference briefs when the user
+    // attached images. Post-gen validation stays behind OPENPENCIL_VISION_VALIDATION.
+    let brief_vision = crate::validation_providers::ChatVisionLlmClient::new(provider_arc.clone())
+        .with_model(model.clone());
+    if !request.reference_attachments.is_empty() {
+        op_orchestrator::reference_brief::enrich_request_with_reference_brief(
+            &mut request,
+            &brief_vision,
+        );
+    }
 
     // ── Class-C vision-validation provider selection (Track-1 Step 3) ──────────
     // REAL providers only when `OPENPENCIL_VISION_VALIDATION=1` (defaults OFF);
@@ -684,8 +873,9 @@ fn stream_new_design_route<W: Write>(
             write_delta_event(
                 out,
                 &format!(
-                    "\n\nDone — {} subtask(s) succeeded, {} failed, {} node(s) total.",
-                    ok, failed, summary.total_nodes
+                    "\n\nDone — {} subtask(s) succeeded, {} failed, {} paintable node(s) \
+                     ({} forest root(s)).",
+                    ok, failed, summary.paintable_nodes, summary.total_nodes
                 ),
             )?;
             write_done_event(out)

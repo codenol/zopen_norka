@@ -150,6 +150,43 @@ impl LayerPanel {
                 return Some(LayerPanelHit::Page(page.page_index));
             }
         }
+        if r.components_view_h > 0.0 {
+            if let Some((index, y)) = row_index_at(
+                self.components.len(),
+                r.components_rows_top,
+                r.components.offset,
+                r.components_view_h,
+                self.metrics.page_row_height,
+                point.y,
+            ) {
+                let page = &self.components[index];
+                let row = Rect {
+                    origin: Point2D::new(rect.origin.x, y),
+                    size: Point2D::new(rect.size.x, self.metrics.page_row_height),
+                };
+                if row.contains(point) {
+                    return Some(LayerPanelHit::Page(page.page_index));
+                }
+            }
+        }
+        if r.recipes_view_h > 0.0 {
+            if let Some((index, y)) = row_index_at(
+                self.recipes.len(),
+                r.recipes_rows_top,
+                r.recipes.offset,
+                r.recipes_view_h,
+                self.metrics.page_row_height,
+                point.y,
+            ) {
+                let row = Rect {
+                    origin: Point2D::new(rect.origin.x, y),
+                    size: Point2D::new(rect.size.x, self.metrics.page_row_height),
+                };
+                if row.contains(point) {
+                    return Some(LayerPanelHit::Recipe(index));
+                }
+            }
+        }
         if let Some((index, y)) = row_index_at(
             self.items.len(),
             r.layers_rows_top,

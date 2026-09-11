@@ -1,0 +1,1372 @@
+{
+  "id": "page-atom-input-icon",
+  "name": "Atoms · Input icon",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-input-icon-set",
+      "name": "set",
+      "layout": "horizontal",
+      "gap": 20.0,
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-input-icon-col-trailing",
+          "name": "Trailing",
+          "layout": "vertical",
+          "gap": 20.0,
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-trailing-default",
+              "name": "Trailing Default",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-trailing-default",
+                  "name": "Input/Icon/Trailing/Default",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/default"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-trailing-default-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/default"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-trailing-default-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-trailing-default-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/default"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-trailing-hover",
+              "name": "Trailing Hover",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-trailing-hover",
+                  "name": "Input/Icon/Trailing/Hover",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/hover"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-trailing-hover-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/hover"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-trailing-hover-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/hover"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-trailing-hover-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/hover"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-trailing-focused",
+              "name": "Trailing Focused",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-trailing-focused",
+                  "name": "Input/Icon/Trailing/Focused",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/focused"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/focused"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-trailing-focused-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/focused"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-trailing-focused-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/focused"
+                        }
+                      ]
+                    }
+                  ],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-trailing-focused-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/focused"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-trailing-filled",
+              "name": "Trailing Filled",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-trailing-filled",
+                  "name": "Input/Icon/Trailing/Filled",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/filled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/filled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-trailing-filled-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/filled"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-trailing-filled-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/filled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-trailing-filled-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/filled"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-trailing-warning",
+              "name": "Trailing Warning",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-trailing-warning",
+                  "name": "Input/Icon/Trailing/Warning",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/warning"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-trailing-warning-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/warning"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-trailing-warning-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/warning"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-trailing-warning-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/border/warning"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-trailing-error",
+              "name": "Trailing Error",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-trailing-error",
+                  "name": "Input/Icon/Trailing/Error",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/error"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/error"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-trailing-error-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/error"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-trailing-error-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/error"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-trailing-error-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/border/error"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-trailing-disabled",
+              "name": "Trailing Disabled",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-trailing-disabled",
+                  "name": "Input/Icon/Trailing/Disabled",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-trailing-disabled-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/disabled"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-trailing-disabled-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/disabled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-trailing-disabled-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-input-icon-col-leading",
+          "name": "Leading",
+          "layout": "vertical",
+          "gap": 20.0,
+          "clipContent": false,
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-leading-default",
+              "name": "Leading Default",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-leading-default",
+                  "name": "Input/Icon/Leading/Default",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/default"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/default"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-leading-default-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/default"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-leading-default-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-leading-default-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/default"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-leading-hover",
+              "name": "Leading Hover",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-leading-hover",
+                  "name": "Input/Icon/Leading/Hover",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/hover"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/hover"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-leading-hover-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/hover"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-leading-hover-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/hover"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-leading-hover-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/hover"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-leading-focused",
+              "name": "Leading Focused",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-leading-focused",
+                  "name": "Input/Icon/Leading/Focused",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/focused"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/focused"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-leading-focused-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/focused"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-leading-focused-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/focused"
+                        }
+                      ]
+                    }
+                  ],
+                  "effects": [
+                    {
+                      "type": "shadow",
+                      "offsetX": 0,
+                      "offsetY": 0,
+                      "blur": 0,
+                      "spread": 2,
+                      "color": "$effects/status/focus/default"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-leading-focused-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/focused"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-leading-filled",
+              "name": "Leading Filled",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-leading-filled",
+                  "name": "Input/Icon/Leading/Filled",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/filled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/filled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-leading-filled-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/filled"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-leading-filled-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/filled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-leading-filled-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/filled"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-leading-warning",
+              "name": "Leading Warning",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-leading-warning",
+                  "name": "Input/Icon/Leading/Warning",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/warning"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/warning"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-leading-warning-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/warning"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-leading-warning-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/warning"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-leading-warning-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/border/warning"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-leading-error",
+              "name": "Leading Error",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-leading-error",
+                  "name": "Input/Icon/Leading/Error",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/error"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/error"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-leading-error-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/error"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-leading-error-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/error"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-leading-error-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/border/error"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "atom-input-icon-sample-leading-disabled",
+              "name": "Leading Disabled",
+              "layout": "vertical",
+              "gap": 8.0,
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "atom-input-icon-leading-disabled",
+                  "name": "Input/Icon/Leading/Disabled",
+                  "reusable": true,
+                  "width": 236.0,
+                  "height": 32.0,
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "padding": [
+                    8.0,
+                    12.0
+                  ],
+                  "justifyContent": "start",
+                  "alignItems": "center",
+                  "cornerRadius": 8.0,
+                  "clipContent": false,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/background/disabled"
+                    }
+                  ],
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "$input/border/disabled"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "atom-input-icon-leading-disabled-icon",
+                      "name": "icon",
+                      "iconFontName": "map-pin",
+                      "iconFontFamily": "lucide",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/icon/disabled"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "atom-input-icon-leading-disabled-label",
+                      "name": "label",
+                      "content": "Input",
+                      "fontFamily": "Roboto",
+                      "fontSize": 14,
+                      "fontWeight": 400,
+                      "lineHeight": 1.1429,
+                      "textAlign": "left",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$input/text/disabled"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "atom-input-icon-leading-disabled-hint",
+                  "name": "hint",
+                  "content": "hint message",
+                  "fontFamily": "Roboto",
+                  "fontSize": 12,
+                  "fontWeight": 400,
+                  "lineHeight": 1.3333,
+                  "textAlign": "left",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$input/text/disabled"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

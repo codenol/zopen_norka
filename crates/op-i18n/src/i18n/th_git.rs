@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "แก้ไขแต่ละความขัดแย้งโดยใช้การ์ดด้านล่าง จากนั้นใช้การรวม",
         "git.conflict.abort" => "ยกเลิกการรวม",
         "git.conflict.nonOp.title" => "การรวมหยุดชั่วคราวที่ไฟล์ที่ไม่ใช่ .op",
-        "git.conflict.nonOp.description" => "การรวมไฟล์ .op เสร็จแล้ว แต่ไฟล์อื่นในที่เก็บยังไม่ได้แก้ไข แก้ไขนอก OpenPencil แล้วดำเนินการต่อ",
+        "git.conflict.nonOp.description" => "การรวมไฟล์ .op เสร็จแล้ว แต่ไฟล์อื่นในที่เก็บยังไม่ได้แก้ไข แก้ไขนอก Norka แล้วดำเนินการต่อ",
         "git.conflict.nonOp.unresolvedHeading_one" => "ต้องการการแก้ไข 1 ไฟล์",
         "git.conflict.nonOp.unresolvedHeading_other" => "ต้องการการแก้ไข {{count}} ไฟล์",
         "git.conflict.nonOp.continue" => "ดำเนินการรวมต่อ",

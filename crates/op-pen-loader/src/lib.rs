@@ -29,6 +29,7 @@ mod layout_repair;
 mod layout_scene;
 mod legacy_payload_repair;
 mod library;
+mod skala_session;
 // Only the real-shaper (`skia-measure`) build benefits from caching; the
 // estimate backend is already cheap, so the module is gated to avoid dead code
 // under the CanvasKit (no-skia-measure) web build.
@@ -112,6 +113,10 @@ pub use library::{
 pub use payload::{
     load_canonical, write_normalized_source_with_current_schema, DocPayload, NodePayload,
     NormalizedWriteError, PagePayload, StrokePayload,
+};
+pub use skala_session::{
+    ensure_skala_session, new_skala_editor_state, skala_library_candidates, SkalaSessionReport,
+    SkalaSkip,
 };
 pub use variables::{var_table_from_payload, var_table_to_payload, VarTablePayload};
 

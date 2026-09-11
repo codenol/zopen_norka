@@ -25,6 +25,7 @@ use crate::ui_draft::PropertyFocus;
 use crate::walkers::ReorderDirection;
 use crate::Tool;
 
+pub use crate::assets_panel_keyboard::{assets_search_backspace, assets_search_text};
 pub use crate::prompt_center_keyboard::{
     backspace as prompt_center_backspace, delete_forward as prompt_center_delete_forward,
     move_caret as prompt_center_caret, select_all as prompt_center_select_all,
@@ -405,6 +406,140 @@ macro_rules! edited {
     }};
 }
 
+// ─── Rules-form input ──────────────────────────────────────────────────
+//
+// The guidelines panel's rule editor is a markdown text area: one field
+// holding `## Title` plus the instruction body. It sits above the chat
+// but below every modal / popover input, so a keystroke only reaches it
+// when nothing more modal is open. Each helper reports `None` while the
+// editor is closed, so the host ladder falls through to the next surface.
+
+/// Insert `c` into the rule editor's markdown field.
+pub fn design_rule_text(state: &mut EditorState, c: char, now_ms: u64) -> Option<bool> {
+    let draft = state.editor_ui.design_md_panel.rule_draft.as_mut()?;
+    if c == '\n' {
+        draft.focused_input().insert_str("\n", now_ms);
+        return Some(true);
+    }
+    // Every other control character stays with the host's shortcuts.
+    if c.is_control() {
+        return Some(false);
+    }
+    let mut buf = [0u8; 4];
+    draft
+        .focused_input()
+        .insert_str(c.encode_utf8(&mut buf), now_ms);
+    Some(true)
+}
+
+/// Enter in the rule editor — a newline inside the markdown field.
+pub fn design_rule_newline(state: &mut EditorState, now_ms: u64) -> Option<bool> {
+    let draft = state.editor_ui.design_md_panel.rule_draft.as_mut()?;
+    draft.focused_input().insert_str("\n", now_ms);
+    Some(true)
+}
+
+/// Backspace in the rule editor.
+pub fn design_rule_backspace(state: &mut EditorState, now_ms: u64) -> Option<bool> {
+    let draft = state.editor_ui.design_md_panel.rule_draft.as_mut()?;
+    let input = draft.focused_input();
+    let before = (input.text().to_owned(), input.caret());
+    input.backspace(now_ms);
+    Some((before.0.as_str(), before.1) != (input.text(), input.caret()))
+}
+
+/// Forward-delete in the rule editor.
+pub fn design_rule_delete_forward(state: &mut EditorState, now_ms: u64) -> Option<bool> {
+    let draft = state.editor_ui.design_md_panel.rule_draft.as_mut()?;
+    let input = draft.focused_input();
+    let before = (input.text().to_owned(), input.caret());
+    input.delete_forward(now_ms);
+    Some((before.0.as_str(), before.1) != (input.text(), input.caret()))
+}
+
+/// Move the caret one character inside the rule editor.
+pub fn design_rule_caret_move(
+    state: &mut EditorState,
+    forward: bool,
+    select: bool,
+    now_ms: u64,
+) -> Option<bool> {
+    let draft = state.editor_ui.design_md_panel.rule_draft.as_mut()?;
+    let input = draft.focused_input();
+    let before = (input.text().to_owned(), input.caret());
+    if forward {
+        input.move_right(select, now_ms);
+    } else {
+        input.move_left(select, now_ms);
+    }
+    Some((before.0.as_str(), before.1) != (input.text(), input.caret()))
+}
+
+/// Route an arrow `(dx, dy)` into the rule editor's caret.
+///
+/// `None` while the editor is closed — the caller then falls through to
+/// canvas nudging. `Some` means the editor owns the key either way.
+pub fn design_rule_caret_step(
+    state: &mut EditorState,
+    dx: f32,
+    dy: f32,
+    select: bool,
+    now_ms: u64,
+) -> Option<bool> {
+    if dx != 0.0 {
+        return design_rule_caret_move(state, dx > 0.0, select, now_ms);
+    }
+    if dy != 0.0 {
+        return design_rule_vertical_caret(state, dy > 0.0, now_ms);
+    }
+    None
+}
+
+/// Move the caret one *logical* line up / down inside the rule editor.
+///
+/// Deliberately line-based rather than wrap-aware: the rule body is short
+/// prose, and keeping this backend-free means Up / Down stay a pure state
+/// transition instead of needing the wrapped layout at press time.
+pub fn design_rule_vertical_caret(
+    state: &mut EditorState,
+    down: bool,
+    now_ms: u64,
+) -> Option<bool> {
+    let draft = state.editor_ui.design_md_panel.rule_draft.as_mut()?;
+    // The title is a single line: nothing to move between.
+    if draft.focus == crate::design_rules_ui::DesignRuleFocus::Title {
+        return Some(false);
+    }
+    let input = &mut draft.body;
+    let text = input.text().to_owned();
+    let caret = input.caret().min(text.len());
+    let line_start = text[..caret].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = text[caret..].find('\n').map_or(text.len(), |i| caret + i);
+    let column = caret - line_start;
+    let target = if down {
+        if line_end >= text.len() {
+            text.len()
+        } else {
+            let next_start = line_end + 1;
+            let next_end = text[next_start..]
+                .find('\n')
+                .map_or(text.len(), |i| next_start + i);
+            (next_start + column).min(next_end)
+        }
+    } else if line_start == 0 {
+        0
+    } else {
+        let prev_end = line_start - 1;
+        let prev_start = text[..prev_end].rfind('\n').map_or(0, |i| i + 1);
+        (prev_start + column).min(prev_end)
+    };
+    if target == caret {
+        return Some(false);
+    }
+    input.set_caret(target, now_ms);
+    Some(true)
+}
+
 /// Backspace in the focused property-panel / effect-parameter input.
 pub fn property_input_backspace(state: &mut EditorState, now_ms: u64) -> bool {
     let changed = edited!(
@@ -656,6 +791,7 @@ pub fn delete_owned_by_chrome_input(state: &EditorState) -> bool {
         // fall-through this predicate exists to stop.
         || state.editor_ui.preset_name_input_active()
         || state.editor_ui.variables_search_input_active()
+        || state.editor_ui.assets_search_input_active()
         || state.editor_ui.icon_picker.open
         || state.editor_ui.prompt_center.open
         || state.editor_ui.chat_model_picker.open

@@ -65,7 +65,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "collab.session.role.viewer" => "Viewer",
         "collab.session.pending" => "Waiting for the owner to confirm your edit…",
         "collab.status.disconnectedReadOnly" => {
-            "Connection lost. Editing is paused while OpenPencil reconnects."
+            "Connection lost. Editing is paused while Norka reconnects."
         }
         "collab.status.ticketExpired" => "Your collaboration sign-in expired. Sign in again.",
         "collab.status.ownerLeft" => {
@@ -184,7 +184,34 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "builtin.typeModelManually" => "Failed to fetch the model list. Enter model IDs manually, one per line.",
         "settings.provider.deepSeekHarness" => "DeepSeek Harness models",
         "settings.agents.deleteProvider" => "Delete provider",
-        "chat.mcpRequired" => "{cli} needs the OpenPencil MCP integration enabled in Settings",
+        "chat.mcpRequired" => "{cli} needs the Norka MCP integration enabled in Settings",
+        "designMd.tab.document" => "Document",
+        "designMd.tab.rules" => "Rules",
+        "designMd.rules.filter.all" => "All",
+        "designMd.rules.filter.global" => "Global",
+        "designMd.rules.filter.components" => "Components",
+        "designMd.rules.filter.local" => "Local",
+        "designMd.rules.new" => "New rule",
+        "designMd.rules.empty" => "No rules match this filter",
+        "designMd.rules.kind.do" => "Do",
+        "designMd.rules.kind.dont" => "Don't",
+        "designMd.rules.kind.require" => "Require",
+        "designMd.rules.kind.avoid" => "Avoid",
+        "designMd.rules.source.library" => "Library",
+        "designMd.rules.source.local" => "Local",
+        "designMd.rules.source.override" => "Override",
+        "designMd.rules.scope.global" => "Global",
+        "designMd.rules.scope.component" => "Component type",
+        "designMd.rules.form.title" => "Rule title",
+        "designMd.rules.form.instruction" => "Instruction",
+        "designMd.rules.form.save" => "Save",
+        "designMd.rules.form.cancel" => "Cancel",
+        "designMd.rules.form.incomplete" => "Title and instruction are required",
+        "designMd.rules.form.condition" => "When",
+        "designMd.rules.form.conditionHint" => "Optional condition",
+        "designMd.rules.aiInstructions" => "AI instructions",
+        "recipes.title" => "Recipes",
+        "ai.rulesActive" => "Rules · {{count}}",
         _ => return None,
     })
 }

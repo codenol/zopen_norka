@@ -597,6 +597,7 @@ fn modify_target_state() -> WebCanvasState {
 
 fn modify_plan() -> crate::chat_intent::ModifyPlan {
     crate::chat_intent::ModifyPlan {
+        rewrites_a_placed_recipe: false,
         user_message: "rename the card".into(),
         system_prompt: String::new(),
         target_frame_ids: vec!["n217".to_string()],

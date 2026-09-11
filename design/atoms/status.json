@@ -1,0 +1,136 @@
+{
+  "id": "page-atom-status",
+  "name": "Atoms · Status",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-status-dot-default",
+      "name": "Status/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0.0,
+      "width": 40.0,
+      "height": 40.0,
+      "layout": "none",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-status-dot-default-dot",
+          "name": "dot",
+          "x": 10.0,
+          "y": 10.0,
+          "width": 20.0,
+          "height": 20.0,
+          "cornerRadius": 10.0,
+          "layout": "none",
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/status/indicator/default"
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-status-dot-lock",
+      "name": "Status/Lock",
+      "reusable": true,
+      "x": 0,
+      "y": 46.0,
+      "width": 40.0,
+      "height": 40.0,
+      "layout": "none",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-status-dot-lock-dot",
+          "name": "dot",
+          "x": 10.0,
+          "y": 10.0,
+          "width": 20.0,
+          "height": 20.0,
+          "cornerRadius": 10.0,
+          "layout": "none",
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/status/indicator/lock"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "atom-status-dot-lock-keyhole",
+              "name": "lock-keyhole",
+              "x": 4.0,
+              "y": 4.0,
+              "width": 12.0,
+              "height": 12.0,
+              "layout": "none",
+              "clipContent": false,
+              "children": [
+                {
+                  "type": "path",
+                  "id": "atom-status-dot-lock-icon",
+                  "name": "icon",
+                  "d": "M6 0.5C6.7956 0.5 7.5585 0.8163 8.1211 1.3789C8.6837 1.9415 9 2.7044 9 3.5V4.5H9.5C10.3284 4.5 11 5.1716 11 6V10C11 10.8284 10.3284 11.5 9.5 11.5H2.5C1.6716 11.5 1 10.8284 1 10V6C1 5.1716 1.6716 4.5 2.5 4.5H3V3.5C3 2.7044 3.3163 1.9415 3.8789 1.3789C4.4415 0.8163 5.2044 0.5 6 0.5ZM2.5 5.5C2.2239 5.5 2 5.7239 2 6V10C2 10.2761 2.2239 10.5 2.5 10.5H9.5C9.7761 10.5 10 10.2761 10 10V6C10 5.7239 9.7761 5.5 9.5 5.5H2.5ZM6 7C6.5523 7 7 7.4477 7 8C7 8.5523 6.5523 9 6 9C5.4477 9 5 8.5523 5 8C5 7.4477 5.4477 7 6 7ZM6 1.5C5.4696 1.5 4.961 1.7109 4.5859 2.0859C4.2109 2.461 4 2.9696 4 3.5V4.5H8V3.5C8 2.9696 7.7891 2.461 7.4141 2.0859C7.039 1.7109 6.5304 1.5 6 1.5Z",
+                  "x": 1.0,
+                  "y": 0.5,
+                  "width": 10.0,
+                  "height": 11.0,
+                  "fillRule": "evenodd",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$cool-gray/700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-status-dot-danger",
+      "name": "Status/Danger",
+      "reusable": true,
+      "x": 0,
+      "y": 92.0,
+      "width": 40.0,
+      "height": 40.0,
+      "layout": "none",
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-status-dot-danger-dot",
+          "name": "dot",
+          "x": 10.0,
+          "y": 10.0,
+          "width": 20.0,
+          "height": 20.0,
+          "cornerRadius": 10.0,
+          "layout": "none",
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/status/indicator/danger"
+            }
+          ],
+          "children": []
+        }
+      ]
+    }
+  ]
+}

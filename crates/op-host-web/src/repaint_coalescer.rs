@@ -93,7 +93,43 @@ fn schedule_frame() {
         if let Some(paint) = paint {
             paint();
         }
+        // Mark the frame delivered so the fallback tick knows rAF ran.
+        COALESCER.with(|c| {
+            if let Some(co) = c.borrow_mut().as_mut() {
+                co.frame = None;
+            }
+        });
     }) as Box<dyn FnMut()>);
+
+    // Fallback tick. A background or occluded tab throttles — and can stop —
+    // `requestAnimationFrame`, so a state change that arrived from the daemon
+    // (an AI turn finishing, a peer's edit) would sit unpainted until the user
+    // reloads the page. That is exactly the "empty canvas until refresh"
+    // report. `setTimeout` keeps running at ~1 Hz when throttled, so it paints
+    // the frame rAF owes us.
+    let fallback = Closure::wrap(Box::new(move || {
+        // `frame` is still armed exactly when rAF never fired — the throttled
+        // case this tick exists for. When rAF did paint, it cleared `frame`
+        // and this is a no-op instead of a second whole-chrome frame.
+        let paint = COALESCER.with(|c| {
+            let mut slot = c.borrow_mut();
+            slot.as_mut().and_then(|co| {
+                if co.frame.is_none() {
+                    return None;
+                }
+                co.frame = None;
+                co.scheduled = false;
+                Some(co.paint.clone())
+            })
+        });
+        if let Some(paint) = paint {
+            paint();
+        }
+    }) as Box<dyn FnMut()>);
+    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        fallback.as_ref().unchecked_ref(),
+        250,
+    );
 
     match window.request_animation_frame(cb.as_ref().unchecked_ref()) {
         Ok(_) => {

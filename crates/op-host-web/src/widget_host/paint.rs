@@ -12,8 +12,8 @@ use super::WidgetHost;
 use op_editor_ui::widgets::host_canvas_geometry as canvas_geometry;
 use op_editor_ui::widgets::variables_panel::VariablesPanel;
 use op_editor_ui::widgets::{
-    AIChatPlaceholder, CanvasViewport, LayerPanel, LayoutCx, LocalePicker, PaintCx, PropertyPanel,
-    ShapePicker, StatusBar, Toolbar, Widget, TOOLBAR_WIDTH, TOP_BAR_HEIGHT,
+    AIChatPlaceholder, AssetsPanel, CanvasViewport, LayerPanel, LayoutCx, LocalePicker, PaintCx,
+    PropertyPanel, ShapePicker, StatusBar, Toolbar, Widget, TOOLBAR_WIDTH, TOP_BAR_HEIGHT,
 };
 use op_editor_ui::{Point2D, Rect, RenderBackend};
 
@@ -194,66 +194,77 @@ impl WidgetHost {
         }
         if rail_open && slides_panel.is_none() {
             let layer_panel_rect = self.layer_panel_rect(viewport_height);
-            // While a drag is active, paint against a panel with the
-            // source's subtree excluded — see native paint.rs. The
-            // panel walks the canonical `PenNode` tree off
-            // `EditorState`; the drag source id is shell-core's
-            // `NodeId` from the input path, losslessly accepted.
-            let active_drag = self.layer_drag.clone().filter(|d| {
-                d.active
-                    && self
-                        .layout_scene
-                        .active_page()
-                        .map(|p| p.find(d.source.as_str()).is_some())
-                        .unwrap_or(false)
-            });
-            let mut layer_panel = if let Some(d) = &active_drag {
-                LayerPanel::from_editor_with_drag_source(&self.editor_state, &d.source)
+            if op_editor_ui::widgets::slides_panel_flow::assets_tab_active(&self.editor_state) {
+                let mut panel = AssetsPanel::from_editor(&self.editor_state);
+                panel.now_ms = self.now_ms;
+                {
+                    let mut cx = PaintCx {
+                        backend: &mut *backend,
+                    };
+                    panel.paint(&mut cx, layer_panel_rect, &self.editor_state);
+                }
             } else {
-                // Per-frame paint: resolve the row model through the
-                // owner-scoped cache so idle / streaming / hover repaints
-                // that don't touch the layer tree skip the walk + measure.
-                self.layer_panel()
-            };
-
-            // Auto-reveal selected node: if the selection changed and differs
-            // from the last-revealed anchor, expand ancestors and reveal.
-            // This covers MCP set_selection, undo/redo, and programmatic
-            // selection changes (not just canvas clicks).
-            if active_drag.is_none() {
-                // Only auto-reveal when not dragging; explicit drag interactions
-                // take precedence and manual collapse should be respected.
-                let should_reveal = match (
-                    &self.editor_state.selection.anchor,
-                    &self.editor_state.editor_ui.last_revealed_layer_anchor,
-                ) {
-                    (anchor, last) if anchor.is_real() => Some(anchor) != last.as_ref(),
-                    _ => false,
+                // While a drag is active, paint against a panel with the
+                // source's subtree excluded — see native paint.rs. The
+                // panel walks the canonical `PenNode` tree off
+                // `EditorState`; the drag source id is shell-core's
+                // `NodeId` from the input path, losslessly accepted.
+                let active_drag = self.layer_drag.clone().filter(|d| {
+                    d.active
+                        && self
+                            .layout_scene
+                            .active_page()
+                            .map(|p| p.find(d.source.as_str()).is_some())
+                            .unwrap_or(false)
+                });
+                let mut layer_panel = if let Some(d) = &active_drag {
+                    LayerPanel::from_editor_with_drag_source(&self.editor_state, &d.source)
+                } else {
+                    // Per-frame paint: resolve the row model through the
+                    // owner-scoped cache so idle / streaming / hover repaints
+                    // that don't touch the layer tree skip the walk + measure.
+                    self.layer_panel()
                 };
-                if should_reveal {
-                    op_editor_ui::widgets::scroll_flow::reveal_layer_panel_selection(
-                        &mut self.editor_state,
-                        &layer_panel,
-                        layer_panel_rect,
-                    );
-                    // Rebuild the panel after reveal to reflect any expanded ancestors.
-                    layer_panel = self.layer_panel();
-                }
-            }
 
-            if let Some(d) = &active_drag {
-                layer_panel.drop_target = layer_panel
-                    .drop_target_at(layer_panel_rect, Point2D::new(d.current_x, d.current_y));
-                if let Some(item) = LayerPanel::ghost_item_for(&self.editor_state, &d.source) {
-                    layer_panel.drag_ghost = Some((item, d.current_y));
+                // Auto-reveal selected node: if the selection changed and differs
+                // from the last-revealed anchor, expand ancestors and reveal.
+                // This covers MCP set_selection, undo/redo, and programmatic
+                // selection changes (not just canvas clicks).
+                if active_drag.is_none() {
+                    // Only auto-reveal when not dragging; explicit drag interactions
+                    // take precedence and manual collapse should be respected.
+                    let should_reveal = match (
+                        &self.editor_state.selection.anchor,
+                        &self.editor_state.editor_ui.last_revealed_layer_anchor,
+                    ) {
+                        (anchor, last) if anchor.is_real() => Some(anchor) != last.as_ref(),
+                        _ => false,
+                    };
+                    if should_reveal {
+                        op_editor_ui::widgets::scroll_flow::reveal_layer_panel_selection(
+                            &mut self.editor_state,
+                            &layer_panel,
+                            layer_panel_rect,
+                        );
+                        // Rebuild the panel after reveal to reflect any expanded ancestors.
+                        layer_panel = self.layer_panel();
+                    }
                 }
-            }
-            layer_panel.now_ms = self.now_ms;
-            {
-                let mut cx = PaintCx {
-                    backend: &mut *backend,
-                };
-                layer_panel.paint(&mut cx, layer_panel_rect);
+
+                if let Some(d) = &active_drag {
+                    layer_panel.drop_target = layer_panel
+                        .drop_target_at(layer_panel_rect, Point2D::new(d.current_x, d.current_y));
+                    if let Some(item) = LayerPanel::ghost_item_for(&self.editor_state, &d.source) {
+                        layer_panel.drag_ghost = Some((item, d.current_y));
+                    }
+                }
+                layer_panel.now_ms = self.now_ms;
+                {
+                    let mut cx = PaintCx {
+                        backend: &mut *backend,
+                    };
+                    layer_panel.paint(&mut cx, layer_panel_rect);
+                }
             }
             // The tab row heads the rail in BOTH tabs — it is how the
             // user gets back to the slides.

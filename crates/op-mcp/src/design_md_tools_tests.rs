@@ -3,8 +3,9 @@
 use std::collections::BTreeMap;
 
 use super::{
-    export_design_md_snapshot, get_design_md_snapshot, set_design_md_snapshot, EditorCommand,
-    McpTool, ToolOutcome,
+    export_design_md_snapshot, get_design_md_snapshot, get_design_rule_snapshot,
+    get_effective_design_rules_snapshot, list_design_rules_snapshot, set_design_md_snapshot,
+    EditorCommand, McpTool, ToolOutcome,
 };
 
 #[test]
@@ -65,5 +66,64 @@ fn export_design_md_extracts_from_document_when_absent() {
             assert!(markdown.contains("#3366FF"));
         }
         other => panic!("expected export ok, got {other:?}"),
+    }
+}
+
+#[test]
+fn list_design_rules_exposes_library_rules_and_filters_component_type() {
+    let state = op_editor_core::EditorState::new();
+    let mut args = BTreeMap::new();
+    args.insert("typeId".into(), "button".into());
+    match list_design_rules_snapshot(&state).call(&args) {
+        ToolOutcome::OkJson(json) => {
+            let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+            assert!(value["count"].as_u64().unwrap() >= 2);
+            assert!(value["rules"].as_array().unwrap().iter().all(|entry| {
+                entry["value"]["scope"]["typeId"] == "button"
+                    && entry["source"]["type"] == "library"
+            }));
+        }
+        other => panic!("expected rules json, got {other:?}"),
+    }
+}
+
+#[test]
+fn get_design_rule_reads_stable_library_rule_id() {
+    let state = op_editor_core::EditorState::new();
+    let mut args = BTreeMap::new();
+    args.insert("id".into(), "kit:skala-spectrum:button:do:0".into());
+    match get_design_rule_snapshot(&state).call(&args) {
+        ToolOutcome::OkJson(json) => {
+            let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+            assert_eq!(value["rule"]["value"]["title"], "Button");
+        }
+        other => panic!("expected rule json, got {other:?}"),
+    }
+}
+
+#[test]
+fn effective_design_rules_are_priority_ordered() {
+    let mut state = op_editor_core::EditorState::new();
+    let spec = state
+        .doc
+        .design_md
+        .get_or_insert_with(|| op_editor_core::parse_design_md(""));
+    spec.rules.push(jian_ops_schema::DesignRule {
+        id: "local:highest".into(),
+        title: "Highest".into(),
+        instruction: "Apply first".into(),
+        kind: jian_ops_schema::DesignRuleKind::Require,
+        scope: jian_ops_schema::DesignRuleScope::Global,
+        condition: None,
+        priority: 10_000,
+        enabled: true,
+        overrides: None,
+    });
+    match get_effective_design_rules_snapshot(&state).call(&BTreeMap::new()) {
+        ToolOutcome::OkJson(json) => {
+            let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+            assert_eq!(value["rules"][0]["value"]["id"], "local:highest");
+        }
+        other => panic!("expected effective rules json, got {other:?}"),
     }
 }

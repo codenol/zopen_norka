@@ -1,0 +1,99 @@
+{
+  "id": "page-template-layout",
+  "name": "Templates · Layout",
+  "children": [
+    {
+      "type": "frame",
+      "id": "tpl-layout-default",
+      "name": "Layout/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0,
+      "width": 1440.0,
+      "height": 850.0,
+      "layout": "none",
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$layout/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "ref",
+          "id": "tpl-layout-sidebar",
+          "ref": "org-sidebar-default",
+          "x": 20.0,
+          "y": 20.0,
+          "width": 251.0,
+          "height": 814.0
+        },
+        {
+          "type": "frame",
+          "id": "tpl-layout-content",
+          "name": "Content",
+          "width": 1137.0,
+          "height": 814.0,
+          "layout": "vertical",
+          "gap": 16.0,
+          "alignItems": "start",
+          "children": [
+            {
+              "type": "ref",
+              "id": "tpl-layout-breadcrumbs",
+              "ref": "molecule-breadcrumbs-3"
+            },
+            {
+              "type": "frame",
+              "id": "tpl-layout-main",
+              "name": "Main container",
+              "width": "fill_container",
+              "height": 750.0,
+              "layout": "horizontal",
+              "justifyContent": "center",
+              "alignItems": "center",
+              "cornerRadius": 16.0,
+              "clipContent": true,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$container/background/default"
+                }
+              ],
+              "stroke": {
+                "thickness": 1,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "$container/border/default"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tpl-layout-main-label",
+                  "name": "label",
+                  "content": "Main container",
+                  "fontFamily": "Roboto",
+                  "fontSize": 14,
+                  "fontWeight": 500,
+                  "lineHeight": 1.2857,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "$breadcrumbs/text/secondary"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "x": 287.0,
+          "y": 20.0
+        }
+      ]
+    }
+  ]
+}

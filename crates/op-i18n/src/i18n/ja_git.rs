@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "以下のカードで各コンフリクトを解決してから、マージを適用してください。",
         "git.conflict.abort" => "マージを中止",
         "git.conflict.nonOp.title" => ".op 以外のファイルによりマージが一時停止しました",
-        "git.conflict.nonOp.description" => ".op ファイルのマージは完了しましたが、このリポジトリ内の他のファイルがまだ未解決です。OpenPencil の外で解決してから続行してください。",
+        "git.conflict.nonOp.description" => ".op ファイルのマージは完了しましたが、このリポジトリ内の他のファイルがまだ未解決です。Norka の外で解決してから続行してください。",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 個のファイルに対応が必要",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} 個のファイルに対応が必要",
         "git.conflict.nonOp.continue" => "マージを続行",

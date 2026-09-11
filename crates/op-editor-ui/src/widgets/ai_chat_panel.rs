@@ -327,6 +327,14 @@ impl<'a> AIChatPlaceholder<'a> {
     /// The receipt's label, already formatted for the active locale.
     pub(crate) fn style_receipt_label(&self) -> Option<String> {
         let receipt = self.style_receipt.as_ref()?;
+        if receipt.is_rules {
+            // "Rules · 26" — the rules are always in force, so the chip names
+            // them instead of offering to switch them off.
+            return Some(
+                op_i18n::translate(self.locale, "ai.rulesActive")
+                    .replace("{{count}}", &receipt.name),
+            );
+        }
         Some(op_i18n::translate(self.locale, "ai.pinnedStyle").replace("{{name}}", &receipt.name))
     }
 

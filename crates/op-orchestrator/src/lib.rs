@@ -70,6 +70,7 @@ pub mod loop_finalize;
 pub mod nav_issues;
 pub mod prompt;
 pub mod radial_repair;
+pub mod reference_brief;
 pub mod repair_record;
 pub mod repair_scope;
 pub mod repair_summary;

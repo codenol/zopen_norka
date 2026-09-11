@@ -95,19 +95,19 @@ fn the_row_is_no_taller_than_one_chip_plus_its_padding() {
     );
 }
 
+/// The rules chip is always present — the session's rules are in force with
+/// nothing pinned — so the row always reserves its band above the textarea.
 #[test]
-fn no_chip_means_the_row_takes_no_height_and_no_rects() {
+fn the_rules_chip_keeps_its_band_above_the_text() {
     let state = EditorState::new();
     let panel = AIChatPlaceholder::from_editor(&state);
     let input_rect = panel.input_rect(PANEL);
 
-    assert_eq!(panel.chip_row_h(), 0.0);
-    assert_eq!(panel.chip_row(input_rect), ChipRowLayout::default());
-    // The input text starts at the very top of the block — no empty band.
-    assert_eq!(
-        panel.input_text_rect(PANEL).origin.y,
-        input_rect.origin.y,
-        "an absent row must not leave whitespace above the textarea"
+    assert!(panel.chip_row_h() > 0.0);
+    assert!(panel.chip_row(input_rect).style.is_some());
+    assert!(
+        panel.input_text_rect(PANEL).origin.y > input_rect.origin.y,
+        "the text starts below the chip band"
     );
 }
 
@@ -120,9 +120,9 @@ fn one_live_chip_still_starts_at_the_left_edge() {
 
     let row = panel.chip_row(input_rect);
 
-    assert!(row.style.is_none());
+    assert!(row.style.is_some(), "the rules chip is always present");
     let chip = row.selection.expect("a selection shows its chip");
-    assert_eq!(chip.origin.x, input_rect.origin.x);
+    assert!(chip.origin.x >= input_rect.origin.x);
 }
 
 #[test]
@@ -132,9 +132,10 @@ fn each_clear_target_clears_its_own_chip() {
     let panel = AIChatPlaceholder::from_editor(&state);
     let input_rect = panel.input_rect(PANEL);
 
-    let style_clear = panel
-        .style_receipt_clear_rect(input_rect)
-        .expect("a clearable pin has a target");
+    assert!(
+        panel.style_receipt_clear_rect(input_rect).is_none(),
+        "the rules row has nothing to clear"
+    );
     let selection_clear = panel
         .selection_chip_clear_rect(input_rect)
         .expect("a selection is always clearable");
@@ -145,10 +146,6 @@ fn each_clear_target_clears_its_own_chip() {
             rect.origin.y + rect.size.y / 2.0,
         )
     };
-    assert_eq!(
-        panel.hit_test(PANEL, centre(style_clear)),
-        Some(AIChatHit::ClearPinnedStyle)
-    );
     assert_eq!(
         panel.hit_test(PANEL, centre(selection_clear)),
         Some(AIChatHit::ClearSelection)
@@ -162,12 +159,11 @@ fn a_clear_target_is_never_smaller_than_the_sixteen_pixel_floor() {
     let panel = AIChatPlaceholder::from_editor(&state);
     let input_rect = panel.input_rect(PANEL);
 
-    for clear in [
-        panel.style_receipt_clear_rect(input_rect).expect("style ✕"),
-        panel
-            .selection_chip_clear_rect(input_rect)
-            .expect("selection ✕"),
-    ] {
+    // Only the selection chip carries a ✕ now: the rules row cannot be
+    // switched off, so it has no target to floor.
+    for clear in [panel
+        .selection_chip_clear_rect(input_rect)
+        .expect("selection ✕")] {
         assert!(
             clear.size.x >= 16.0 && clear.size.y >= 16.0,
             "the ✕ must stay hittable, got {}×{}",

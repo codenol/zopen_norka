@@ -1,0 +1,24 @@
+<svg width="240" height="344" viewBox="0 0 240 344" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Input atom set: seven 236�32 fields, 20px gap. Text is live in .op, not outlined here. -->
+  <path d="M10 0.5H230C234.142 0.5 237.5 3.85786 237.5 8V24C237.5 28.1421 234.142 31.5 230 31.5H10C5.85786 31.5 2.5 28.1421 2.5 24V8C2.5 3.85786 5.85786 0.5 10 0.5Z" fill="white" stroke="#DFE2E6"/>
+  <path d="M10 52.5H230C234.142 52.5 237.5 55.8579 237.5 60V76C237.5 80.1421 234.142 83.5 230 83.5H10C5.85786 83.5 2.5 80.1421 2.5 76V60C2.5 55.8579 5.85786 52.5 10 52.5Z" fill="white" stroke="#2D98B4"/>
+  <g filter="url(#focusGlow)">
+    <path d="M2 112C2 107.582 5.58172 104 10 104H230C234.418 104 238 107.582 238 112V128C238 132.418 234.418 136 230 136H10C5.58172 136 2 132.418 2 128V112Z" fill="white"/>
+    <path d="M10 104.5H230C234.142 104.5 237.5 107.858 237.5 112V128C237.5 132.142 234.142 135.5 230 135.5H10C5.85786 135.5 2.5 132.142 2.5 128V112C2.5 107.858 5.85786 104.5 10 104.5Z" stroke="#60C4DD"/>
+  </g>
+  <path d="M10 156.5H230C234.142 156.5 237.5 159.858 237.5 164V180C237.5 184.142 234.142 187.5 230 187.5H10C5.85786 187.5 2.5 184.142 2.5 180V164C2.5 159.858 5.85786 156.5 10 156.5Z" fill="white" stroke="#DFE2E6"/>
+  <path d="M10 208.5H230C234.142 208.5 237.5 211.858 237.5 216V232C237.5 236.142 234.142 239.5 230 239.5H10C5.85786 239.5 2.5 236.142 2.5 232V216C2.5 211.858 5.85786 208.5 10 208.5Z" fill="white" stroke="#E19109"/>
+  <path d="M10 260.5H230C234.142 260.5 237.5 263.858 237.5 268V284C237.5 288.142 234.142 291.5 230 291.5H10C5.85786 291.5 2.5 288.142 2.5 284V268C2.5 263.858 5.85786 260.5 10 260.5Z" fill="white" stroke="#E53334"/>
+  <path d="M10 312.5H230C234.142 312.5 237.5 315.858 237.5 320V336C237.5 340.142 234.142 343.5 230 343.5H10C5.85786 343.5 2.5 336V320C2.5 315.858 5.85786 312.5 10 312.5Z" fill="#EEF1F5" stroke="#DFE2E6"/>
+  <defs>
+    <filter id="focusGlow" x="0" y="102" width="240" height="36" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feMorphology radius="2" operator="dilate" in="SourceAlpha" result="effect1_dropShadow"/>
+      <feOffset/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.376471 0 0 0 0 0.768627 0 0 0 0 0.866667 0 0 0 0.3 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+</svg>

@@ -283,14 +283,24 @@ pub fn list_pages_snapshot(state: &EditorState) -> ListPages {
     let pages = match state.doc.pages.as_ref() {
         Some(pages) => pages
             .iter()
+            .filter(|p| !op_editor_core::is_component_store_page(&p.name))
             .map(|p| (p.id.clone(), p.name.clone()))
             .collect(),
-        // Single-page fallback: one implicit "Page 1".
         None => vec![("0".to_string(), "Page 1".to_string())],
     };
+    let on_store = state
+        .doc
+        .pages
+        .as_ref()
+        .and_then(|pages| pages.get(state.ui.active_page_index))
+        .is_some_and(|page| op_editor_core::is_component_store_page(&page.name));
     ListPages {
-        page_count: state.page_count(),
-        active_page_index: state.ui.active_page_index,
+        page_count: pages.len().max(1),
+        active_page_index: if on_store {
+            0
+        } else {
+            state.ui.active_page_index
+        },
         pages,
     }
 }

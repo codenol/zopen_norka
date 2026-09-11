@@ -109,6 +109,16 @@ pub enum TopBarHit {
     Account,
 }
 
+/// Version + build time, stamped by `build.rs`.
+mod build_info {
+    include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
+}
+
+/// The top bar's build label — "v0.8.5 · 2026-09-11 06:20".
+pub fn build_label() -> String {
+    format!("v{} · {}", build_info::VERSION, build_info::BUILD_TIME)
+}
+
 pub struct TopBar {
     pub id: WidgetId,
     /// Centred file name. `String` rather than `&'static str` so an
@@ -129,6 +139,10 @@ pub struct TopBar {
     pub theme: Theme,
     pub label_edited: &'static str,
     pub label_agents_and_mcp: &'static str,
+    /// Version + build time, painted left of the agents chip.
+    pub build_label: String,
+    /// Wall clock, for how old the build is.
+    pub now_unix_ms: f64,
     pub label_agent_singular: &'static str,
     pub label_agent_plural: &'static str,
     /// Cursor is over the window-control cluster — the 3 dots paint
@@ -192,6 +206,8 @@ impl TopBar {
             theme: Theme::dark(),
             label_edited: "",
             label_agents_and_mcp: "Agents & MCP",
+            build_label: build_label(),
+            now_unix_ms: 0.0,
             label_agent_singular: "agent",
             label_agent_plural: "agents",
             traffic_hover: false,
@@ -250,6 +266,8 @@ impl TopBar {
             } else {
                 translate(ui, "topbar.agentsAndMcp")
             },
+            build_label: build_label(),
+            now_unix_ms: ui.now_unix_ms,
             label_agent_singular: translate(ui, "topbar.agentSingular"),
             label_agent_plural: translate(ui, "topbar.agentPlural"),
             traffic_hover: ui.topbar_traffic_hover,

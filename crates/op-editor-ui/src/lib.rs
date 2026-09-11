@@ -1,4 +1,4 @@
-//! OpenPencil editor UI — platform-agnostic widget facade.
+//! Norka editor UI — platform-agnostic widget facade.
 //!
 //! Extracted out of `openpencil-shell-core` in the Phase 7 strangler
 //! reorg. This crate must compile on wasm32-unknown-unknown — winit /
@@ -30,7 +30,7 @@ pub use op_i18n as i18n;
 
 /// User-visible product name — window titles, the accessibility root
 /// label, and the desktop file-dialog filter all read this one const.
-pub const PRODUCT_NAME: &str = "OpenPencil";
+pub const PRODUCT_NAME: &str = "Norka";
 
 // The wasm-clean RenderBackend trait + facade types live in
 // op-editor-core; re-exported as `render_backend` and at the crate root.

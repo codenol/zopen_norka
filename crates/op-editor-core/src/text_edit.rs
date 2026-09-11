@@ -40,16 +40,15 @@ const TEXT_COALESCE_MS: u64 = 500;
 
 impl EditorState {
     /// Enter inline text-edit mode on `id`. `false` when the node
-    /// isn't a `Text` node or doesn't exist. The caret seeds at the
-    /// end of the content; history opens lazily on the first edit.
+    /// isn't a `Text` node or doesn't exist. Accepts an authored Text
+    /// id or a canvas-only instance-child id (`refId__childId`); the
+    /// latter writes through instance overrides, not the master.
+    /// The caret seeds at the end of the content; history opens lazily
+    /// on the first edit.
     pub fn start_text_edit(&mut self, id: NodeId) -> bool {
-        let Some(node) = crate::walkers::find_node(self.active_children(), &id) else {
+        let Some(content) = plain_text_content(self, &id) else {
             return false;
         };
-        if !matches!(node, PenNode::Text(_)) {
-            return false;
-        }
-        let content = text_content(node).unwrap_or("").to_owned();
         self.ui.text_editing = Some(id);
         self.ui.text_edit_input = TextInputState::with_text(content);
         self.ui.text_edit_last_ms = 0;
@@ -61,8 +60,7 @@ impl EditorState {
     /// active / the node vanished / the content is `Styled`.
     pub fn text_edit_content(&self) -> Option<&str> {
         let id = self.ui.text_editing.as_ref()?;
-        let node = crate::walkers::find_node(self.active_children(), id)?;
-        text_content(node)?;
+        plain_text_content(self, id)?;
         Some(self.ui.text_edit_input.text())
     }
 
@@ -360,13 +358,24 @@ impl EditorState {
 
     fn text_edit_plain_node_id(&self) -> Option<NodeId> {
         let id = self.ui.text_editing.as_ref()?;
-        let node = crate::walkers::find_node(self.active_children(), id)?;
-        text_content(node)?;
+        plain_text_content(self, id)?;
         Some(id.clone())
     }
 
     fn text_edit_sync_input_to_node(&mut self, id: &NodeId) -> bool {
         let text = self.ui.text_edit_input.text().to_owned();
+        if self.write_plain_text_content(id, text.clone()) {
+            return true;
+        }
+        let Some(scope) = self.begin_instance_write(id) else {
+            return false;
+        };
+        let wrote = self.write_plain_text_content(id, text);
+        self.finish_instance_write(scope);
+        wrote
+    }
+
+    fn write_plain_text_content(&mut self, id: &NodeId, text: String) -> bool {
         let Some(content) = self.text_edit_content_mut(id) else {
             return false;
         };
@@ -394,6 +403,16 @@ impl EditorState {
 }
 
 // --- Free helpers ----------------------------------------------------
+
+/// Authored Text node, or the effective instance-child display node.
+fn plain_text_content(state: &EditorState, id: &NodeId) -> Option<String> {
+    if let Some(node) = crate::walkers::find_node(state.active_children(), id) {
+        return text_content(node).map(str::to_owned);
+    }
+    let display =
+        crate::instance_override::resolve_instance_display_node_for_anchor(&state.doc, id)?;
+    text_content(&display).map(str::to_owned)
+}
 
 /// Read-only handle to a `Text` node's plain content. `None` for a
 /// non-Text node or a `Styled` content variant (the inline editor

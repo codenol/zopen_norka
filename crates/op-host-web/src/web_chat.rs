@@ -261,6 +261,10 @@ fn start_pump<C: RepaintContext + 'static>(
             // a replacing send's binding isn't clobbered.
             if was_active {
                 RUNNING_TAB.with(|t| t.set(None));
+                // Don't wait for the 400ms live-sync poll: pull the daemon
+                // document now so the post-AI canvas (and viewport fit in
+                // `apply_document_response`) lands on this frame cycle.
+                crate::live_sync_glue::request_document_pull(&inner);
             }
             return false;
         }

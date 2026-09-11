@@ -37,6 +37,12 @@ impl WidgetHostNative {
             self.mark_dirty();
             return true;
         }
+        // The guidelines panel's rule form is one layer above the panel:
+        // Escape discards the form before it dismisses the panel.
+        if self.editor_state.editor_ui.escape_design_md_rules_form() {
+            self.mark_dirty();
+            return true;
+        }
         if self.editor_state.color_picker_hex_focused() {
             self.collab_blur_color_picker_inputs();
             self.mark_dirty();
@@ -66,6 +72,10 @@ impl WidgetHostNative {
         }
         // Escape blurs the variables search box, keeping the filter.
         if self.editor_state.editor_ui.blur_variables_search() {
+            self.mark_dirty();
+            return true;
+        }
+        if self.editor_state.editor_ui.blur_assets_search() {
             self.mark_dirty();
             return true;
         }

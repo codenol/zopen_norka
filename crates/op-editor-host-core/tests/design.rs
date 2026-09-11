@@ -84,11 +84,13 @@ fn design_session_drains_progress_and_command_requests() {
             subtasks: vec![SubtaskOutcome {
                 id: "s1".into(),
                 node_count: 2,
+                paintable_nodes: 2,
                 error: None,
                 inserted_root_ids: Vec::new(),
                 subtask: None,
             }],
             total_nodes: 2,
+            paintable_nodes: 2,
             unfilled_screens: Vec::new(),
         })))
         .expect("done");
@@ -125,6 +127,7 @@ fn design_session_drains_progress_queued_after_done_before_finishing() {
             root_frame_id: "root".into(),
             subtasks: Vec::new(),
             total_nodes: 0,
+            paintable_nodes: 0,
             unfilled_screens: Vec::new(),
         })))
         .expect("done");
@@ -222,6 +225,7 @@ fn dropping_naturally_finished_design_session_does_not_abort_worker() {
             root_frame_id: "root".into(),
             subtasks: Vec::new(),
             total_nodes: 0,
+            paintable_nodes: 0,
             unfilled_screens: Vec::new(),
         })))
         .expect("done");

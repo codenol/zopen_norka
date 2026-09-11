@@ -34,6 +34,14 @@ impl WidgetHostNative {
             }
             return true;
         }
+        // Rules-form fields are the panel's own inputs — they own the
+        // keystroke while the form is open.
+        if let Some(changed) = shared::design_rule_backspace(&mut self.editor_state, self.now_ms) {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // Preview mode: Backspace edits the focused runtime widget, not
         // the editor selection.
         if self.preview.is_some() {
@@ -154,6 +162,13 @@ impl WidgetHostNative {
         // Variables-panel search filter — pop one char.
         if let Some(changed) =
             shared::variables_search_backspace(&mut self.editor_state, self.now_ms)
+        {
+            if changed {
+                self.mark_dirty();
+            }
+            return changed;
+        }
+        if let Some(changed) = shared::assets_search_backspace(&mut self.editor_state, self.now_ms)
         {
             if changed {
                 self.mark_dirty();
@@ -286,6 +301,14 @@ impl WidgetHostNative {
         }
         if let Some(changed) =
             shared::scene_template_delete_forward(&mut self.editor_state, self.now_ms)
+        {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
+        if let Some(changed) =
+            shared::design_rule_delete_forward(&mut self.editor_state, self.now_ms)
         {
             if changed {
                 self.mark_dirty();

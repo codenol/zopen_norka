@@ -42,6 +42,24 @@ impl WidgetHostNative {
             self.editor_state.editor_ui.pressed_button =
                 Some(op_editor_core::ButtonPressTarget::DesignMd(button));
         }
+        // Rule hits (filters, row switches, the markdown editor) go through
+        // the shared flow, which owns the `EditorCommand` writes and the
+        // undo snapshot; it returns `false` for close / drag / blank press.
+        // The gate is resolved first — the flow needs `&mut editor_state`.
+        let allow_rule_mutation = self.collab_allows_document_mutation(
+            op_editor_core::CollabDocumentMutation::Unsupported(
+                op_editor_core::CollabUnsupportedFeature::RootMetadata,
+            ),
+        );
+        if op_editor_ui::widgets::apply_design_rules_hit(
+            &mut self.editor_state,
+            hit,
+            allow_rule_mutation,
+            self.now_ms,
+        ) {
+            self.mark_dirty();
+            return true;
+        }
         match hit {
             DesignMdHit::Close => {
                 self.editor_state.editor_ui.design_md_panel.open = false;
@@ -53,55 +71,12 @@ impl WidgetHostNative {
                     grab_dy: y - panel_rect.origin.y,
                 });
             }
-            DesignMdHit::ToggleSection(index) => {
-                self.editor_state.editor_ui.design_md_panel.expanded ^= 1u8 << index;
-            }
-            DesignMdHit::Import => {
-                if self.collab_allows_document_mutation_from(
-                    op_editor_core::CollabDocumentMutation::Unsupported(
-                        op_editor_core::CollabUnsupportedFeature::RootMetadata,
-                    ),
-                    op_editor_core::CollabEditSource::Import,
-                ) {
-                    self.editor_state.editor_ui.design_md_panel.request =
-                        Some(op_editor_core::DesignMdRequest::Import);
-                }
-            }
-            DesignMdHit::AutoGenerate => {
-                if self.collab_allows_document_mutation_from(
-                    op_editor_core::CollabDocumentMutation::Unsupported(
-                        op_editor_core::CollabUnsupportedFeature::RootMetadata,
-                    ),
-                    op_editor_core::CollabEditSource::Ai,
-                ) {
-                    self.editor_state.editor_ui.design_md_panel.request =
-                        Some(op_editor_core::DesignMdRequest::AutoGenerate);
-                }
-            }
-            DesignMdHit::Export => {
-                self.editor_state.editor_ui.design_md_panel.request =
-                    Some(op_editor_core::DesignMdRequest::Export);
-            }
-            DesignMdHit::Remove => {
-                if !self.collab_allows_document_mutation(
-                    op_editor_core::CollabDocumentMutation::Unsupported(
-                        op_editor_core::CollabUnsupportedFeature::RootMetadata,
-                    ),
-                ) {
-                    self.mark_dirty();
-                    return true;
-                }
-                // Clearing the brief mutates the document — snapshot
-                // first so a stray remove is undoable.
-                let snap = self.editor_state.snapshot_for_history();
-                self.editor_state.doc.design_md = None;
-                self.editor_state.editor_ui.design_md_panel.scroll.offset = 0.0;
-                self.editor_state.history_push_past(snap);
-            }
             DesignMdHit::Inside => {
                 // Blank press on panel chrome — blur chrome inputs.
                 self.blur_text_inputs_on_blank_press();
             }
+            // Rule variants were consumed by the shared flow above.
+            _ => {}
         }
         self.mark_dirty();
         true

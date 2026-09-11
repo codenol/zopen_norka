@@ -30,6 +30,9 @@ pub struct SlidesPanelTabs {
     pub row: Rect,
     pub layers: Rect,
     pub slides: Rect,
+    /// Zero-width when the Assets tab is not part of this row (legacy
+    /// two-tab `new`). Production rails always give it a real rect.
+    pub assets: Rect,
     /// True when the labels did not fit and the row fell back to
     /// icons. The ACTIVE tab keeps its label either way.
     pub compact: bool,
@@ -78,6 +81,143 @@ impl SlidesPanelTabs {
         )
     }
 
+    /// Production left-rail row: Layers | Assets, plus Slides when the
+    /// page has boards. `slides_label` is `None` to hide that tab.
+    pub fn new_rail(
+        panel: Rect,
+        active: LeftPanelTab,
+        layers_label: &str,
+        slides_label: Option<&str>,
+        assets_label: &str,
+    ) -> Self {
+        Self::rail_with_row_height(
+            panel,
+            active,
+            layers_label,
+            slides_label,
+            assets_label,
+            TAB_ROW_HEIGHT,
+        )
+    }
+
+    pub fn new_rail_touch(
+        panel: Rect,
+        active: LeftPanelTab,
+        layers_label: &str,
+        slides_label: Option<&str>,
+        assets_label: &str,
+    ) -> Self {
+        Self::rail_with_row_height(
+            panel,
+            active,
+            layers_label,
+            slides_label,
+            assets_label,
+            TOUCH_SLIDES_TAB_ROW_HEIGHT,
+        )
+    }
+
+    fn rail_with_row_height(
+        panel: Rect,
+        active: LeftPanelTab,
+        layers_label: &str,
+        slides_label: Option<&str>,
+        assets_label: &str,
+        row_height: f32,
+    ) -> Self {
+        let row = Rect {
+            origin: panel.origin,
+            size: Point2D::new(panel.size.x, row_height),
+        };
+        let inner_w = (row.size.x - TAB_INSET_X * 2.0).max(0.0);
+        let x = row.origin.x + TAB_INSET_X;
+        let inset_y = if row_height > TAB_ROW_HEIGHT {
+            4.0
+        } else {
+            TAB_INSET_Y
+        };
+        let y = row.origin.y + inset_y;
+        let h = (row_height - inset_y * 2.0).max(0.0);
+        let empty = Rect {
+            origin: Point2D::new(x, y),
+            size: Point2D::new(0.0, h),
+        };
+
+        let mut items: Vec<(LeftPanelTab, &str)> = vec![(LeftPanelTab::Layers, layers_label)];
+        if let Some(slides) = slides_label {
+            items.push((LeftPanelTab::Slides, slides));
+        }
+        items.push((LeftPanelTab::Assets, assets_label));
+        let count = items.len();
+        let widest = items
+            .iter()
+            .map(|(_, label)| estimated_text_width(label, TAB_FONT))
+            .fold(0.0_f32, f32::max);
+
+        let mut rects = [empty; 3];
+        let compact;
+        if text_tabs_fit(inner_w, count, widest) {
+            let share = inner_w / count as f32;
+            compact = false;
+            for (i, (tab, _)) in items.iter().enumerate() {
+                let r = Rect {
+                    origin: Point2D::new(x + share * i as f32, y),
+                    size: Point2D::new(share, h),
+                };
+                match tab {
+                    LeftPanelTab::Layers => rects[0] = r,
+                    LeftPanelTab::Slides => rects[1] = r,
+                    LeftPanelTab::Assets => rects[2] = r,
+                }
+            }
+        } else {
+            compact = true;
+            let touch = row_height > TAB_ROW_HEIGHT;
+            let icon_only_w = if touch {
+                TOUCH_SLIDES_TAB_TARGET
+            } else {
+                TAB_ICON_SIZE + TAB_PAD_X * 2.0
+            };
+            let labelled_w = |label: &str| {
+                (TAB_ICON_SIZE
+                    + TAB_ICON_GAP
+                    + estimated_text_width(label, TAB_FONT)
+                    + TAB_PAD_X * 2.0)
+                    .max(if touch { TOUCH_SLIDES_TAB_TARGET } else { 0.0 })
+            };
+            let mut cursor = x;
+            let mut remaining = inner_w;
+            for (tab, label) in &items {
+                let wanted = if *tab == active {
+                    labelled_w(label)
+                } else {
+                    icon_only_w
+                };
+                let w = wanted.min(remaining);
+                let r = Rect {
+                    origin: Point2D::new(cursor, y),
+                    size: Point2D::new(w, h),
+                };
+                match tab {
+                    LeftPanelTab::Layers => rects[0] = r,
+                    LeftPanelTab::Slides => rects[1] = r,
+                    LeftPanelTab::Assets => rects[2] = r,
+                }
+                cursor += w;
+                remaining = (remaining - w).max(0.0);
+            }
+        }
+
+        Self {
+            row,
+            layers: rects[0],
+            slides: rects[1],
+            assets: rects[2],
+            compact,
+            active,
+        }
+    }
+
     fn with_row_height(
         panel: Rect,
         active: LeftPanelTab,
@@ -113,6 +253,10 @@ impl SlidesPanelTabs {
                     origin: Point2D::new(x + half, y),
                     size: Point2D::new(half, h),
                 },
+                assets: Rect {
+                    origin: Point2D::new(x + inner_w, y),
+                    size: Point2D::new(0.0, h),
+                },
                 compact: false,
                 active,
             };
@@ -135,6 +279,7 @@ impl SlidesPanelTabs {
         let (wanted_layers_w, wanted_slides_w) = match active {
             LeftPanelTab::Layers => (labelled_w(layers_label), icon_only_w),
             LeftPanelTab::Slides => (icon_only_w, labelled_w(slides_label)),
+            LeftPanelTab::Assets => (icon_only_w, icon_only_w),
         };
         // Even one pill can overrun a very narrow rail, so each tab is
         // capped at what its predecessors left rather than being
@@ -156,6 +301,10 @@ impl SlidesPanelTabs {
                 origin: Point2D::new(x + layers_w, y),
                 size: Point2D::new(slides_w, h),
             },
+            assets: Rect {
+                origin: Point2D::new(x + layers_w + slides_w, y),
+                size: Point2D::new(0.0, h),
+            },
             compact: true,
             active,
         }
@@ -169,7 +318,11 @@ impl SlidesPanelTabs {
         if contains(self.layers, point) {
             return Some(SlidesPanelTarget::LayersTab);
         }
-        contains(self.slides, point).then_some(SlidesPanelTarget::SlidesTab)
+        if self.slides.size.x > 0.0 && contains(self.slides, point) {
+            return Some(SlidesPanelTarget::SlidesTab);
+        }
+        (self.assets.size.x > 0.0 && contains(self.assets, point))
+            .then_some(SlidesPanelTarget::AssetsTab)
     }
 
     /// The rail below the tab row — what the Layers tree gets when it
@@ -195,17 +348,19 @@ impl SlidesPanelTabs {
         hover: Option<SlidesPanelTarget>,
         layers_label: &str,
         slides_label: &str,
+        assets_label: &str,
     ) {
         cx.backend.fill_rect(self.row, theme.card);
         if !self.compact {
-            // The segmented track, so the two tabs read as one control
-            // rather than two loose buttons. Icon mode has no track:
+            // The segmented track, so the tabs read as one control
+            // rather than loose buttons. Icon mode has no track:
             // there the unselected tabs are bare glyphs, and a rail
             // behind them would read as a button they are inside of.
+            let track_w = self.layers.size.x + self.slides.size.x + self.assets.size.x;
             cx.backend.fill_round_rect(
                 Rect {
                     origin: self.layers.origin,
-                    size: Point2D::new(self.layers.size.x + self.slides.size.x, self.layers.size.y),
+                    size: Point2D::new(track_w, self.layers.size.y),
                 },
                 TAB_RADIUS,
                 theme.muted,
@@ -224,6 +379,12 @@ impl SlidesPanelTabs {
                 slides_label,
                 Icon::PresentationScreen,
             ),
+            (
+                self.assets,
+                LeftPanelTab::Assets,
+                assets_label,
+                Icon::Package,
+            ),
         ] {
             if rect.size.x <= 0.0 {
                 continue;
@@ -231,6 +392,7 @@ impl SlidesPanelTabs {
             let target = match tab {
                 LeftPanelTab::Layers => SlidesPanelTarget::LayersTab,
                 LeftPanelTab::Slides => SlidesPanelTarget::SlidesTab,
+                LeftPanelTab::Assets => SlidesPanelTarget::AssetsTab,
             };
             let selected = self.active == tab;
             if selected {

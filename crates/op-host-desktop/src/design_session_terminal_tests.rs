@@ -29,13 +29,15 @@ fn design_request_json() -> String {
         prompt: "design a weather app".into(),
         model: Some("gemini-3.6-flash".into()),
         provider: Some("antigravity".into()),
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     })
     .unwrap()
 }
@@ -47,6 +49,7 @@ fn failed_run_summary() -> RunSummary {
             SubtaskOutcome {
                 id: "hero".into(),
                 node_count: 12,
+                paintable_nodes: 12,
                 error: None,
                 inserted_root_ids: vec!["hero-root".into()],
                 subtask: None,
@@ -54,12 +57,14 @@ fn failed_run_summary() -> RunSummary {
             SubtaskOutcome {
                 id: "sun_arc".into(),
                 node_count: 0,
+                paintable_nodes: 0,
                 error: Some("self-check failed".into()),
                 inserted_root_ids: Vec::new(),
                 subtask: Some(failed_subtask("sun_arc", "Sunrise & Sunset Arc")),
             },
         ],
         total_nodes: 12,
+        paintable_nodes: 12,
         unfilled_screens: Vec::new(),
     }
 }

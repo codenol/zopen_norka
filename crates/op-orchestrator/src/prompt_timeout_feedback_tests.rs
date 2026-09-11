@@ -53,7 +53,7 @@ fn orchestrator_prompt_long_prompt_has_larger_timeout_than_short() {
         prompt: "short".into(), // < 2200 chars
         model: Some("claude-sonnet".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -61,13 +61,15 @@ fn orchestrator_prompt_long_prompt_has_larger_timeout_than_short() {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let long_prompt = "x".repeat(5000); // >= 4200 chars
     let long_req = DesignRequest {
         prompt: long_prompt,
         model: Some("claude-sonnet".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -75,6 +77,8 @@ fn orchestrator_prompt_long_prompt_has_larger_timeout_than_short() {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let short_pp = build_orchestrator_prompt(&short_req, PlanningMode::Rich, AbortFlag::new());
     let long_pp = build_orchestrator_prompt(&long_req, PlanningMode::Rich, AbortFlag::new());
@@ -92,7 +96,7 @@ fn orchestrator_prompt_multiplier_applied() {
         prompt: "a page".into(), // short bucket
         model: Some("deepseek-v4-pro".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -100,6 +104,8 @@ fn orchestrator_prompt_multiplier_applied() {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let pp = build_orchestrator_prompt(&ds_req, PlanningMode::Rich, AbortFlag::new());
     // Short bucket base: 300_000ms × 2.0 = 600_000ms
@@ -137,7 +143,7 @@ fn subagent_prompt_long_prompt_has_larger_timeout() {
         prompt: "design a page".into(),
         model: Some("claude-sonnet".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -145,12 +151,14 @@ fn subagent_prompt_long_prompt_has_larger_timeout() {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let long_req = DesignRequest {
         prompt: "x".repeat(5000),
         model: Some("claude-sonnet".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -158,6 +166,8 @@ fn subagent_prompt_long_prompt_has_larger_timeout() {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let (short_cr, _) = bsp(
         &subtask(),
@@ -188,7 +198,7 @@ fn subagent_prompt_basic_tier_clamps_soft_timeouts() {
         prompt: "a page".into(), // short bucket
         model: Some("claude-haiku".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -196,6 +206,8 @@ fn subagent_prompt_basic_tier_clamps_soft_timeouts() {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let (cr, _) = bsp(
         &subtask(),
@@ -424,13 +436,15 @@ fn subtask_intent_includes_prompt_label_and_hints() {
         prompt: "design a polished mobile-app food landing page".into(),
         model: Some("claude".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let mut sub = crate::plan::Subtask {
         id: "header".into(),

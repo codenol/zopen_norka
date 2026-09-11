@@ -39,13 +39,15 @@ fn request() -> DesignRequest {
         prompt: "weather now screen".into(),
         model: Some("gemini-3.6-flash".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: false,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 

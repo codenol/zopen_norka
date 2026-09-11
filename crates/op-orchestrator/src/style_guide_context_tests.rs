@@ -3,19 +3,21 @@
 use super::*;
 
 #[test]
-fn catalog_context_lists_all_guides() {
+fn catalog_context_lists_session_kit() {
     let ctx = build_planning_style_guide_context(
         "a fintech dashboard",
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         None,
     );
-    assert_eq!(ctx.metadata_count, style_guide_registry().len());
-    assert!(ctx.snippet_count > 0); // Rich + full tier → 有 snippet
+    assert_eq!(ctx.metadata_count, 0);
+    let kit = op_editor_core::session_kit();
+    assert_eq!(ctx.top_guide_names, vec![kit.id.clone()]);
+    assert!(ctx.available_style_guides.contains(&kit.sentinel_master_id));
     assert!(ctx
         .available_style_guides
-        .contains("Available style guides"));
+        .contains("DO NOT pick a catalog style guide"));
 }
 
 /// The prompt this pair of tests leans on: proven by
@@ -31,27 +33,18 @@ fn a_pin_beats_the_prompt_ranking() {
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         Some(AGAINST_THE_GRAIN),
     );
 
-    assert_eq!(ctx.top_guide_names, vec![AGAINST_THE_GRAIN.to_string()]);
     assert_eq!(
-        ctx.metadata_count, 1,
-        "the menu shrinks to the pinned entry"
+        ctx.top_guide_names,
+        vec![op_editor_core::session_kit().id.clone()]
     );
-    assert!(
-        ctx.available_style_guides
-            .contains(&format!("\"styleGuideName\": \"{AGAINST_THE_GRAIN}\"")),
-        "the pin must be stated as an output directive:\n{}",
-        ctx.available_style_guides
-    );
-    assert!(
-        !ctx.available_style_guides
-            .contains("warm-food-mobile-light"),
-        "a listed alternative is a choice the model can still make:\n{}",
-        ctx.available_style_guides
-    );
+    assert_eq!(ctx.metadata_count, 0);
+    assert!(ctx
+        .available_style_guides
+        .contains("DO NOT pick a catalog style guide"));
 }
 
 #[test]
@@ -60,14 +53,14 @@ fn a_stale_pin_falls_back_to_the_ranking_unchanged() {
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         None,
     );
     let stale = build_planning_style_guide_context(
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         Some("a-guide-that-was-retired"),
     );
 
@@ -87,56 +80,62 @@ fn a_blank_pin_is_no_pin() {
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         None,
     );
     let blank = build_planning_style_guide_context(
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         Some("  "),
     );
     assert_eq!(blank.available_style_guides, auto.available_style_guides);
 }
 
+/// A catalog pin never becomes the design system: the session kit does, and
+/// the rules ride along with it.
 #[test]
-fn design_md_outranks_a_pin() {
-    let spec = jian_ops_schema::DesignMdSpec {
-        raw: String::new(),
-        project_name: None,
-        visual_theme: Some("calm".into()),
-        color_palette: None,
-        typography: None,
-        component_styles: None,
-        layout_principles: None,
-        generation_notes: None,
-    };
+fn a_catalog_pin_does_not_replace_the_session_rules() {
+    // The rules a real turn carries come from the resolver, which is where
+    // the shipped working agreement and the component rules enter.
+    let rules: Vec<jian_ops_schema::DesignRule> =
+        op_editor_core::effective_design_rules(None)
+            .into_iter()
+            .map(|entry| entry.rule)
+            .collect();
     let ctx = build_planning_style_guide_context(
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        Some(&spec),
+        &rules,
         Some(AGAINST_THE_GRAIN),
     );
 
-    assert_eq!(ctx.top_guide_names, vec!["design-md-custom".to_string()]);
+    assert_eq!(ctx.top_guide_names, vec![op_editor_core::session_kit().id.clone()]);
+    assert!(ctx.available_style_guides.contains("SESSION RULES"));
+    assert!(ctx.available_style_guides.contains("WORKING AGREEMENT"));
+    assert!(
+        !ctx.available_style_guides.contains("design-md-custom"),
+        "the markdown brief is gone; nothing may pin it"
+    );
 }
+
 
 #[test]
 fn a_pin_also_short_circuits_compact_planning() {
     let cp = crate::compact_prompt::build_compact_planning_prompt(
         FOOD_PROMPT,
-        None,
+        &[],
         Some(AGAINST_THE_GRAIN),
     );
-    assert_eq!(cp.selected_style_guide_name, AGAINST_THE_GRAIN);
+    assert_eq!(cp.selected_style_guide_name, "");
 
-    let auto = crate::compact_prompt::build_compact_planning_prompt(FOOD_PROMPT, None, None);
-    assert_ne!(auto.selected_style_guide_name, AGAINST_THE_GRAIN);
+    let auto = crate::compact_prompt::build_compact_planning_prompt(FOOD_PROMPT, &[], None);
+    assert_eq!(auto.selected_style_guide_name, "");
 
     let stale =
-        crate::compact_prompt::build_compact_planning_prompt(FOOD_PROMPT, None, Some("gone"));
+        crate::compact_prompt::build_compact_planning_prompt(FOOD_PROMPT, &[], Some("gone"));
     assert_eq!(
         stale.selected_style_guide_name,
         auto.selected_style_guide_name
@@ -149,7 +148,7 @@ fn minimal_mode_has_no_snippets() {
         "a fintech dashboard",
         Some("claude-opus"),
         PlanningMode::Minimal,
-        None,
+        &[],
         None,
     );
     assert_eq!(ctx.snippet_count, 0);
@@ -166,17 +165,17 @@ fn design_md_branch_skips_catalog() {
         component_styles: None,
         layout_principles: None,
         generation_notes: None,
+        rules: Vec::new(),
     };
     let ctx = build_planning_style_guide_context(
         "a page",
         Some("claude-opus"),
         PlanningMode::Rich,
-        Some(&spec),
+        &[],
         None,
     );
     assert_eq!(ctx.metadata_count, 0);
-    assert_eq!(ctx.top_guide_names, vec!["design-md-custom".to_string()]);
-    assert!(ctx.available_style_guides.contains("custom design system"));
+    assert!(ctx.available_style_guides.contains("SESSION DESIGN SYSTEM"));
 }
 
 #[test]
@@ -317,25 +316,15 @@ fn a_pinned_import_shrinks_the_menu_to_itself() {
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         Some(&imported.id),
     );
 
-    assert_eq!(ctx.top_guide_names, vec![imported.id.clone()]);
-    assert_eq!(ctx.metadata_count, 1);
-    assert!(
-        ctx.available_style_guides
-            .contains(&format!("\"styleGuideName\": \"{}\"", imported.id)),
-        "the import must be named by id, not by display name:\n{}",
-        ctx.available_style_guides
+    assert_eq!(
+        ctx.top_guide_names,
+        vec![op_editor_core::session_kit().id.clone()]
     );
-    // A corpus guide's snippet is font direction only; an import has no
-    // corpus-shaped sections to extract, so its prose is what carries it.
-    assert!(
-        ctx.available_style_guides.contains("Warm ochre surfaces"),
-        "an imported guide's own prose must reach the planner:\n{}",
-        ctx.available_style_guides
-    );
+    assert_eq!(ctx.metadata_count, 0);
 }
 
 #[test]
@@ -351,14 +340,13 @@ fn a_long_import_is_truncated_rather_than_dropped() {
         "a dashboard",
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         Some(&imported.id),
     );
-    assert!(ctx.available_style_guides.contains("truncated"));
-    assert!(
-        !ctx.available_style_guides.contains("TAIL-MARKER"),
-        "the planning slot is capped, so the tail must be the part that goes"
-    );
+    assert!(ctx.available_style_guides.contains("SESSION DESIGN SYSTEM"));
+    assert!(ctx
+        .available_style_guides
+        .contains(&op_editor_core::session_kit().sentinel_master_id),);
 }
 
 /// A pin whose import was deleted behaves like any other stale pin.
@@ -369,14 +357,14 @@ fn a_deleted_import_falls_back_to_the_ranking() {
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         None,
     );
     let stale = build_planning_style_guide_context(
         FOOD_PROMPT,
         Some("claude-opus"),
         PlanningMode::Rich,
-        None,
+        &[],
         Some("user:deleted-yesterday"),
     );
     assert_eq!(stale.available_style_guides, auto.available_style_guides);

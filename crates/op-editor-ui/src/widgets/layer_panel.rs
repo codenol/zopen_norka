@@ -8,13 +8,13 @@ use crate::widgets::editor_state_ext::theme_for;
 use crate::widgets::icons::{draw_icon, Icon};
 use crate::widgets::layer_panel_cache::{self, CachedLayerRows};
 use crate::widgets::layer_panel_metrics::{
-    add_page_target, collapse_target, delete_page_target, glyph_rect_in, layer_action_targets,
-    layer_drag_target, layer_node_icon_x, LayerPanelMetrics,
+    add_page_target, collapse_target, glyph_rect_in, layer_action_targets, layer_drag_target,
+    layer_node_icon_x, LayerPanelMetrics,
 };
 use crate::widgets::layer_panel_walkers::{
-    apply_layer_rename, icon_for_node, kind_label, layer_regions, layers_content_width,
-    pages_content_width, pages_from_state, visible_row_range, walk, walk_excluding,
-    LayerRegionInput, LayerRegions, LayerScrollSnapshot, RenameView, WalkCx,
+    apply_layer_rename, components_from_state, icon_for_node, kind_label, layer_regions,
+    layers_content_width, pages_content_width, pages_from_state, visible_row_range, walk,
+    walk_excluding, LayerRegionInput, LayerRegions, LayerScrollSnapshot, RenameView, WalkCx,
 };
 use crate::widgets::{LayoutBox, LayoutCx, PaintCx, Widget, WidgetId};
 use crate::{Color, Point2D, Rect, TextLayout};
@@ -38,9 +38,8 @@ fn t(ui: &EditorUiState, key: &'static str) -> &'static str {
 pub(crate) const ROW_PAD_X: f32 = 12.0;
 use crate::widgets::layer_panel_paint::{
     layer_content_clip_rect_with_metrics, layer_label_available_width_with_metrics,
-    paint_drag_ghost, paint_layer_action_backing, paint_layer_drag_handle,
-    paint_rename_input_with_metrics, paint_section_header_with_metrics, truncate_to_fit,
-    truncate_to_fit_measured,
+    paint_drag_ghost, paint_layer_action_backing, paint_layer_drag_handle, paint_page_rows,
+    paint_rename_input_with_metrics, paint_section_header_with_metrics, truncate_to_fit_measured,
 };
 
 /// One row in the layers tree — flat depth-walked view.
@@ -80,10 +79,15 @@ pub struct LayerPanel {
     /// Cached, styling-neutral row models (shared via `Rc`; a cache hit
     /// is a refcount bump, not a per-row re-allocation).
     pub pages: Rc<Vec<PageItem>>,
+    pub components: Rc<Vec<PageItem>>,
+    /// Shipped recipes — one row per ready-made composition document.
+    pub recipes: Rc<Vec<PageItem>>,
     pub items: Rc<Vec<LayerItem>>,
     pub theme: Theme,
     pub(crate) metrics: LayerPanelMetrics,
     pub pages_label: &'static str,
+    pub components_label: &'static str,
+    pub recipes_label: &'static str,
     pub layers_label: &'static str,
     pub drop_target: Option<DropTarget>,
     pub drag_ghost: Option<(LayerItem, f32)>,
@@ -96,6 +100,8 @@ pub struct LayerPanel {
     pub hovered_page: Option<usize>,
     /// Scroll state for the bounded Pages / Layers regions.
     pub pages_scroll: LayerScrollSnapshot,
+    pub recipes_scroll: LayerScrollSnapshot,
+    pub components_scroll: LayerScrollSnapshot,
     pub layers_scroll: LayerScrollSnapshot,
 }
 
@@ -130,12 +136,18 @@ impl LayerPanel {
         let metrics = LayerPanelMetrics::for_ui(&state.editor_ui);
         let rows =
             layer_panel_cache::resolve_owned(owner, state, || build_layer_rows(state, metrics));
+        // Recipes come from the session kit, not from the document: they are
+        // shipped compositions, so a brand-new empty file lists them too.
+        let recipes = Self::recipes_from_kit();
         Self::assemble(
             state,
             metrics,
             rows.pages.clone(),
+            rows.components.clone(),
+            recipes,
             rows.items.clone(),
             rows.pages_content_width,
+            rows.components_content_width,
             rows.layers_content_width,
         )
     }
@@ -163,17 +175,24 @@ impl LayerPanel {
         state: &EditorState,
         metrics: LayerPanelMetrics,
         pages: Rc<Vec<PageItem>>,
+        components: Rc<Vec<PageItem>>,
+        recipes: Rc<Vec<PageItem>>,
         items: Rc<Vec<LayerItem>>,
         pages_content_width: f32,
+        components_content_width: f32,
         layers_content_width: f32,
     ) -> Self {
         Self {
             id: WidgetId::new(1000),
             pages,
+            components,
+            recipes,
             items,
             theme: theme_for(&state.editor_ui),
             metrics,
             pages_label: t(&state.editor_ui, "pages.title"),
+            components_label: t(&state.editor_ui, "components.title"),
+            recipes_label: t(&state.editor_ui, "recipes.title"),
             layers_label: t(&state.editor_ui, "layers.title"),
             drop_target: None,
             drag_ghost: None,
@@ -187,6 +206,16 @@ impl LayerPanel {
                 state.editor_ui.layer_pages_h_scroll,
                 pages_content_width,
             ),
+            components_scroll: LayerScrollSnapshot::new(
+                state.editor_ui.layer_components_scroll,
+                state.editor_ui.layer_components_h_scroll,
+                components_content_width,
+            ),
+            recipes_scroll: LayerScrollSnapshot::new(
+                state.editor_ui.layer_components_scroll,
+                state.editor_ui.layer_components_h_scroll,
+                components_content_width,
+            ),
             layers_scroll: LayerScrollSnapshot::new(
                 state.editor_ui.layer_layers_scroll,
                 state.editor_ui.layer_layers_h_scroll,
@@ -194,6 +223,27 @@ impl LayerPanel {
             ),
         }
     }
+
+
+/// The session kit's recipes as panel rows.
+///
+/// They come from the kit rather than the document, so an empty new file
+/// lists them exactly like an opened one.
+fn recipes_from_kit() -> Rc<Vec<PageItem>> {
+    Rc::new(
+        op_editor_core::session_kit()
+            .recipes
+            .iter()
+            .enumerate()
+            .map(|(index, recipe)| PageItem {
+                page_index: index,
+                label: recipe.name.clone(),
+                active: false,
+                renaming: false,
+            })
+            .collect(),
+    )
+}
 
     /// Floating ghost row for the dragged source — host paints it
     /// at the cursor's y. None when the source isn't on the
@@ -237,6 +287,7 @@ impl LayerPanel {
         // is excluded; selection and hover still overlay via `assemble`.
         let rename = RenameView::from_state(state);
         let pages = pages_from_state(state, &rename);
+        let components = components_from_state(state);
         let cx = WalkCx::from_state(state);
         let mut items = Vec::new();
         for child in state.active_children() {
@@ -244,15 +295,19 @@ impl LayerPanel {
         }
         apply_layer_rename(&mut items, &rename);
         let metrics = LayerPanelMetrics::for_ui(&state.editor_ui);
-        let pages_content_width = pages_content_width(&pages, LAYER_PANEL_WIDTH, metrics);
-        let layers_content_width = layers_content_width(&items, LAYER_PANEL_WIDTH, metrics);
+        let pages_w = pages_content_width(&pages, LAYER_PANEL_WIDTH, metrics);
+        let components_w = pages_content_width(&components, LAYER_PANEL_WIDTH, metrics);
+        let layers_w = layers_content_width(&items, LAYER_PANEL_WIDTH, metrics);
         Self::assemble(
             state,
             metrics,
             Rc::new(pages),
+            Rc::new(components),
+            Self::recipes_from_kit(),
             Rc::new(items),
-            pages_content_width,
-            layers_content_width,
+            pages_w,
+            components_w,
+            layers_w,
         )
     }
 
@@ -260,6 +315,8 @@ impl LayerPanel {
         Self {
             id: WidgetId::new(1000),
             pages: Rc::new(Vec::new()),
+            components: Rc::new(Vec::new()),
+            recipes: Rc::new(Vec::new()),
             items: Rc::new(Vec::new()),
             theme: Theme::dark(),
             metrics: LayerPanelMetrics::DESKTOP,
@@ -267,6 +324,8 @@ impl LayerPanel {
             // the empty skeleton — route through the canonical English
             // table instead of hardcoding literals.
             pages_label: op_i18n::translate(op_editor_core::Locale::EnUs, "pages.title"),
+            components_label: op_i18n::translate(op_editor_core::Locale::EnUs, "components.title"),
+            recipes_label: op_i18n::translate(op_editor_core::Locale::EnUs, "recipes.title"),
             layers_label: op_i18n::translate(op_editor_core::Locale::EnUs, "layers.title"),
             drop_target: None,
             drag_ghost: None,
@@ -276,6 +335,8 @@ impl LayerPanel {
             hovered_layer: None,
             hovered_page: None,
             pages_scroll: LayerScrollSnapshot::default(),
+            components_scroll: LayerScrollSnapshot::default(),
+            recipes_scroll: LayerScrollSnapshot::default(),
             layers_scroll: LayerScrollSnapshot::default(),
         }
     }
@@ -283,9 +344,23 @@ impl LayerPanel {
     pub(crate) fn intrinsic_height(&self) -> f32 {
         let pages_h = self.metrics.section_header_height
             + self.pages.len() as f32 * self.metrics.page_row_height;
+        let components_h = if self.components.is_empty() {
+            0.0
+        } else {
+            self.metrics.section_gap
+                + self.metrics.section_header_height
+                + self.components.len() as f32 * self.metrics.page_row_height
+        };
+        let recipes_h = if self.recipes.is_empty() {
+            0.0
+        } else {
+            self.metrics.section_gap
+                + self.metrics.section_header_height
+                + self.recipes.len() as f32 * self.metrics.page_row_height
+        };
         let layers_h = self.metrics.section_header_height
             + self.items.len().max(1) as f32 * self.metrics.layer_row_height;
-        pages_h + self.metrics.section_gap + layers_h + 16.0
+        pages_h + components_h + recipes_h + self.metrics.section_gap + layers_h + 16.0
     }
 
     /// Bounded Pages / Layers scroll-region geometry for `rect` —
@@ -296,8 +371,12 @@ impl LayerPanel {
         layer_regions(LayerRegionInput {
             rect,
             pages_len: self.pages.len(),
+            components_len: self.components.len(),
+            recipes_len: self.recipes.len(),
             items_len: self.items.len(),
             pages: self.pages_scroll,
+            components: self.components_scroll,
+            recipes: self.recipes_scroll,
             layers: self.layers_scroll,
             metrics: self.metrics,
         })
@@ -336,25 +415,31 @@ impl LayerPanel {
 fn build_layer_rows(state: &EditorState, metrics: LayerPanelMetrics) -> CachedLayerRows {
     let rename = RenameView::from_state(state);
     let pages = pages_from_state(state, &rename);
+    let components = components_from_state(state);
     let cx = WalkCx::from_state(state);
     let mut items = Vec::new();
     for child in state.active_children() {
         walk(child, &cx, 0, &mut items);
     }
     apply_layer_rename(&mut items, &rename);
-    let pages_content_width = pages_content_width(&pages, LAYER_PANEL_WIDTH, metrics);
-    let layers_content_width = layers_content_width(&items, LAYER_PANEL_WIDTH, metrics);
+    let pages_w = pages_content_width(&pages, LAYER_PANEL_WIDTH, metrics);
+    let components_w = pages_content_width(&components, LAYER_PANEL_WIDTH, metrics);
+    let layers_w = layers_content_width(&items, LAYER_PANEL_WIDTH, metrics);
     CachedLayerRows {
         pages: Rc::new(pages),
+        components: Rc::new(components),
         items: Rc::new(items),
-        pages_content_width,
-        layers_content_width,
+        pages_content_width: pages_w,
+        components_content_width: components_w,
+        layers_content_width: layers_w,
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LayerPanelHit {
     Page(usize),
+    /// A shipped recipe row — index into the kit's recipe list.
+    Recipe(usize),
     Layer(NodeId),
     ToggleHidden(NodeId),
     ToggleLocked(NodeId),
@@ -406,21 +491,20 @@ impl Widget for LayerPanel {
         );
 
         let r = self.regions(rect);
-        let mut y = r.pages_header_y;
 
         // Pages section header.
         paint_section_header_with_metrics(
             cx,
             &self.theme,
             rect.origin.x,
-            y,
+            r.pages_header_y,
             rect.size.x,
             self.pages_label,
             self.metrics,
         );
         // "+" add-page affordance, top-right of header row.
         let plus = glyph_rect_in(
-            add_page_target(rect, y, self.metrics),
+            add_page_target(rect, r.pages_header_y, self.metrics),
             self.metrics.glyph_size,
         );
         draw_icon(
@@ -431,91 +515,115 @@ impl Widget for LayerPanel {
             self.theme.muted_foreground,
             1.4,
         );
-        // Page rows — clipped + scrolled inside the bounded viewport.
-        cx.backend.save();
-        cx.backend.clip_rect(Rect {
-            origin: Point2D::new(rect.origin.x, r.pages_rows_top),
-            size: Point2D::new(rect.size.x, r.pages_view_h),
-        });
-        for index in visible_row_range(
-            self.pages.len(),
-            r.pages.offset,
+        paint_page_rows(
+            cx,
+            &self.theme,
+            rect,
+            &self.pages,
+            r.pages_rows_top,
             r.pages_view_h,
-            self.metrics.page_row_height,
-        ) {
-            let page = &self.pages[index];
-            y = r.pages_rows_top - r.pages.offset + index as f32 * self.metrics.page_row_height;
-            let row = Rect {
-                origin: Point2D::new(rect.origin.x + 6.0, y + 2.0),
-                size: Point2D::new(rect.size.x - 12.0, self.metrics.page_row_height - 4.0),
-            };
-            let page_hovered = self.is_page_hovered(index);
-            if page.active {
-                cx.backend
-                    .fill_round_rect(row, 6.0, self.theme.row_selected);
-            } else if page_hovered {
-                cx.backend
-                    .fill_round_rect(row, 6.0, self.theme.button_hover);
-            }
-            let label_x = row.origin.x + 12.0;
-            let delete_target = delete_page_target(rect, y, self.metrics);
-            let label_max_x = if self.metrics.touch {
-                delete_target.origin.x - 4.0
-            } else {
-                rect.origin.x + rect.size.x - self.metrics.row_pad_x - 18.0
-            };
-            let available_w = (label_max_x - label_x).max(0.0);
-            if page.renaming {
-                paint_rename_input_with_metrics(
-                    cx,
-                    &self.theme,
-                    self.rename_input.as_ref().expect("renaming row has input"),
-                    label_x,
-                    y + 2.0,
-                    available_w.max(40.0),
-                    self.now_ms,
-                    self.metrics,
-                );
-            } else {
-                let display = truncate_to_fit(&page.label, self.metrics.row_font, available_w);
-                let label = TextLayout::single_run(
-                    &display,
-                    "system-ui",
-                    self.metrics.row_font,
-                    (if page.active {
-                        self.theme.foreground
-                    } else {
-                        self.theme.muted_foreground
-                    })
-                    .to_jian(),
-                    Point2D::new(0.0, 0.0),
-                );
-                let baseline = if self.metrics.touch {
-                    jian_widgets::centered_text_baseline_y(row, self.metrics.row_font)
-                } else {
-                    row.origin.y + 19.0
-                };
-                cx.backend
-                    .draw_text(&label, Point2D::new(label_x, baseline));
-            }
-            // Hover-reveal × delete button on the trailing edge —
-            // matches TS page-row hover affordance. Hit-test geometry
-            // mirrors the paint exactly.
-            if page_hovered || self.metrics.touch {
-                let close = glyph_rect_in(delete_target, self.metrics.glyph_size);
-                draw_icon(
-                    cx.backend,
-                    Icon::Close,
-                    close.origin,
-                    self.metrics.glyph_size,
-                    self.theme.muted_foreground,
-                    1.4,
-                );
-            }
-        }
-        cx.backend.restore();
+            r.pages.offset,
+            self.hovered_page,
+            self.rename_input.as_ref(),
+            self.now_ms,
+            self.metrics,
+            true,
+        );
 
-        y = r.layers_header_y;
+        if !self.components.is_empty() {
+            cx.backend.fill_rect(
+                Rect {
+                    origin: Point2D::new(
+                        rect.origin.x + self.metrics.row_pad_x,
+                        r.components_header_y - self.metrics.section_gap / 2.0,
+                    ),
+                    size: Point2D::new(rect.size.x - self.metrics.row_pad_x * 2.0, 1.0),
+                },
+                self.theme.border,
+            );
+            paint_section_header_with_metrics(
+                cx,
+                &self.theme,
+                rect.origin.x,
+                r.components_header_y,
+                rect.size.x,
+                self.components_label,
+                self.metrics,
+            );
+            paint_page_rows(
+                cx,
+                &self.theme,
+                rect,
+                &self.components,
+                r.components_rows_top,
+                r.components_view_h,
+                r.components.offset,
+                self.hovered_page,
+                None,
+                self.now_ms,
+                self.metrics,
+                false,
+            );
+        }
+
+        if !self.recipes.is_empty() {
+            cx.backend.fill_rect(
+                Rect {
+                    origin: Point2D::new(
+                        rect.origin.x + self.metrics.row_pad_x,
+                        r.recipes_header_y - self.metrics.section_gap / 2.0,
+                    ),
+                    size: Point2D::new(rect.size.x - self.metrics.row_pad_x * 2.0, 1.0),
+                },
+                self.theme.border,
+            );
+            paint_section_header_with_metrics(
+                cx,
+                &self.theme,
+                rect.origin.x,
+                r.recipes_header_y,
+                rect.size.x,
+                self.recipes_label,
+                self.metrics,
+            );
+            // Recipe names are longer than page names, so they are clipped
+            // by measurement here rather than by the row painter's estimate —
+            // an estimated fit let a 26-character name run past the rail.
+            let label_x = rect.origin.x + 6.0 + 12.0;
+            let label_max_x = rect.origin.x + rect.size.x - self.metrics.row_pad_x - 18.0;
+            let available_w = (label_max_x - label_x).max(0.0);
+            let recipe_rows: Vec<PageItem> = self
+                .recipes
+                .iter()
+                .map(|recipe| PageItem {
+                    page_index: recipe.page_index,
+                    label: truncate_to_fit_measured(
+                        cx.backend,
+                        &recipe.label,
+                        self.metrics.row_font,
+                        available_w,
+                    ),
+                    active: false,
+                    renaming: false,
+                })
+                .collect();
+            paint_page_rows(
+                cx,
+                &self.theme,
+                rect,
+                &recipe_rows,
+                r.recipes_rows_top,
+                r.recipes_view_h,
+                r.recipes.offset,
+                self.hovered_page,
+                None,
+                self.now_ms,
+                self.metrics,
+                false,
+            );
+        }
+
+        let mut y = r.layers_header_y;
         // Hairline between Pages and Layers sections — mirrors
         // the TS LayerPanel's `border-t border-border`.
         cx.backend.fill_rect(

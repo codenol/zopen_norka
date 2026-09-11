@@ -175,6 +175,16 @@ impl WidgetHost {
     /// `(dx, dy)` document px. Shift-arrow callers pass 10 px;
     /// plain arrows pass 1 px.
     pub fn apply_nudge(&mut self, dx: f32, dy: f32) -> bool {
+        // The guidelines rule editor is a multi-line field: an arrow there
+        // moves its caret and never nudges the node behind the panel.
+        if let Some(changed) =
+            shared::design_rule_caret_step(&mut self.editor_state, dx, dy, false, self.now_ms)
+        {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         if self.input_active() {
             return false;
         }

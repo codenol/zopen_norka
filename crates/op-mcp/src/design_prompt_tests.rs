@@ -14,9 +14,17 @@ fn get_design_prompt_defaults_to_all_and_lists_sections() {
             assert!(out
                 .get("availableSections")
                 .is_some_and(|sections| sections.contains("\"layout\"")));
-            assert!(out
-                .get("designPrompt")
-                .is_some_and(|prompt| prompt.contains("OpenPencil")));
+            let prompt = out.get("designPrompt").expect("prompt");
+            assert!(
+                prompt.contains("WORKING AGREEMENT"),
+                "the section's rules lead every prompt; got: {}",
+                &prompt[..prompt.len().min(300)]
+            );
+            assert!(
+                prompt.contains("COMPONENT RULES"),
+                "the kit's component rules ride along"
+            );
+            assert!(prompt.len() > 1000, "the full prompt is still the full prompt");
         }
         other => panic!("expected prompt ok, got {other:?}"),
     }
@@ -90,13 +98,29 @@ fn get_design_prompt_elements_section_is_script_first_and_edits_with_operations(
 }
 
 #[test]
-fn get_design_prompt_uses_document_design_md_for_style_section() {
+fn get_design_prompt_style_section_carries_the_rules_first() {
     let mut state = op_editor_core::EditorState::new();
-    state.doc.design_md = Some(op_editor_core::parse_design_md(
-        "# Design System: Aurora\n\n\
-         ## Visual Theme\nCalm minimal.\n\n\
-         ## Color Palette\n- **Primary** (#3366FF) - accent buttons",
-    ));
+    state.doc.design_md = Some(jian_ops_schema::DesignMdSpec {
+        raw: String::new(),
+        project_name: None,
+        visual_theme: None,
+        color_palette: None,
+        typography: None,
+        component_styles: None,
+        layout_principles: None,
+        generation_notes: None,
+        rules: vec![jian_ops_schema::DesignRule {
+            id: op_editor_core::AI_INSTRUCTION_RULE_ID.into(),
+            title: "AI instructions".into(),
+            instruction: "Name every artboard in the user's language.".into(),
+            kind: jian_ops_schema::DesignRuleKind::Do,
+            scope: jian_ops_schema::DesignRuleScope::Global,
+            condition: None,
+            priority: 0,
+            enabled: true,
+            overrides: None,
+        }],
+    });
     let mut args = BTreeMap::new();
     args.insert("section".into(), "style".into());
 
@@ -104,9 +128,14 @@ fn get_design_prompt_uses_document_design_md_for_style_section() {
         ToolOutcome::Ok(out) => {
             assert_eq!(out.get("section"), Some(&"style".to_string()));
             let prompt = out.get("designPrompt").expect("prompt");
-            assert!(prompt.contains("DESIGN SYSTEM (from design.md):"));
-            assert!(prompt.contains("VISUAL THEME: Calm minimal."));
-            assert!(prompt.contains("Primary (#3366FF)"));
+            assert!(
+                prompt.starts_with("WORKING AGREEMENT"),
+                "the rules come first, before the section's own guidance"
+            );
+            assert!(
+                prompt.contains("Name every artboard in the user's language."),
+                "the user's own instruction reaches the agent"
+            );
         }
         other => panic!("expected prompt ok, got {other:?}"),
     }

@@ -1,0 +1,6235 @@
+{
+  "accordion-status/background/default": {
+    "Dark": "nile-blue/900-t",
+    "Light": "white/950"
+  },
+  "accordion-status/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "accordion-status/background/error": {
+    "Dark": "red/650-t-5",
+    "Light": "red/650-t-5"
+  },
+  "accordion-status/background/hover": {
+    "Dark": "nile-blue/900-t",
+    "Light": "white/950"
+  },
+  "accordion-status/background/success": {
+    "Dark": "green/600-t-5",
+    "Light": "green/600-t-5"
+  },
+  "accordion-status/background/unavailable": {
+    "Dark": "cool-gray/600-t-5",
+    "Light": "cool-gray/600-t-5"
+  },
+  "accordion-status/background/warning": {
+    "Dark": "orange/600-t-5",
+    "Light": "orange/600-t-5"
+  },
+  "accordion-status/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "accordion-status/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "accordion-status/border/error": {
+    "Dark": "red/650-t",
+    "Light": "red/650-t"
+  },
+  "accordion-status/border/hover": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "accordion-status/border/success": {
+    "Dark": "green/600-t",
+    "Light": "green/600-t"
+  },
+  "accordion-status/border/unavailable": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/600"
+  },
+  "accordion-status/border/warning": {
+    "Dark": "orange/600-t",
+    "Light": "orange/600-t"
+  },
+  "accordion-status/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "accordion-status/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "accordion-status/icon/error": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "accordion-status/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "accordion-status/icon/success": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "accordion-status/icon/unavailable": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "accordion-status/icon/unstyled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "accordion-status/icon/warning": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "badge-basic/base/background/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "badge-basic/base/stroke/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "badge-basic/base/text/default": {
+    "Dark": "cool-gray/800",
+    "Light": "white/950"
+  },
+  "badge-basic/massAction/background/default": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "badge-basic/massAction/stroke/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "badge-basic/massAction/text/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "badge/bondi-blue/filled/background/default": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/300"
+  },
+  "badge/bondi-blue/icon/default": {
+    "Dark": "bondi-blue/100",
+    "Light": "bondi-blue/750"
+  },
+  "badge/bondi-blue/outline/background/default": {
+    "Dark": "bondi-blue/850",
+    "Light": "bondi-blue/100"
+  },
+  "badge/bondi-blue/outline/border/default": {
+    "Dark": "bondi-blue/700",
+    "Light": "bondi-blue/400"
+  },
+  "badge/bondi-blue/text/default": {
+    "Dark": "bondi-blue/100",
+    "Light": "bondi-blue/750"
+  },
+  "badge/cornflower-blue/filled/background/default": {
+    "Dark": "cornflower-blue/700",
+    "Light": "cornflower-blue/300"
+  },
+  "badge/cornflower-blue/icon/default": {
+    "Dark": "cornflower-blue/100",
+    "Light": "cornflower-blue/800"
+  },
+  "badge/cornflower-blue/outline/background/default": {
+    "Dark": "cornflower-blue/850",
+    "Light": "cornflower-blue/100"
+  },
+  "badge/cornflower-blue/outline/border/default": {
+    "Dark": "cornflower-blue/700",
+    "Light": "cornflower-blue/400"
+  },
+  "badge/cornflower-blue/text/default": {
+    "Dark": "cornflower-blue/100",
+    "Light": "cornflower-blue/800"
+  },
+  "badge/gray-strong/filled/background/default": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/400"
+  },
+  "badge/gray-strong/icon/default": {
+    "Dark": "cool-gray/100",
+    "Light": "cool-gray/800"
+  },
+  "badge/gray-strong/outline/background/default": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/100"
+  },
+  "badge/gray-strong/outline/border/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/800"
+  },
+  "badge/gray-strong/text/default": {
+    "Dark": "cool-gray/100",
+    "Light": "cool-gray/800"
+  },
+  "badge/gray-warm/filled/background/default": {
+    "Dark": "warm-gray/750",
+    "Light": "warm-gray/300"
+  },
+  "badge/gray-warm/icon/default": {
+    "Dark": "warm-gray/100",
+    "Light": "warm-gray/800"
+  },
+  "badge/gray-warm/outline/background/default": {
+    "Dark": "warm-gray/850",
+    "Light": "warm-gray/100"
+  },
+  "badge/gray-warm/outline/border/default": {
+    "Dark": "warm-gray/700",
+    "Light": "warm-gray/400"
+  },
+  "badge/gray-warm/text/default": {
+    "Dark": "warm-gray/100",
+    "Light": "warm-gray/800"
+  },
+  "badge/gray/filled/background/default": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/300"
+  },
+  "badge/gray/icon/default": {
+    "Dark": "cool-gray/100",
+    "Light": "cool-gray/800"
+  },
+  "badge/gray/outline/background/default": {
+    "Dark": "cool-gray/850",
+    "Light": "cool-gray/100"
+  },
+  "badge/gray/outline/border/default": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/400"
+  },
+  "badge/gray/text/default": {
+    "Dark": "cool-gray/100",
+    "Light": "cool-gray/800"
+  },
+  "badge/green/filled/background/default": {
+    "Dark": "green/850",
+    "Light": "green/300"
+  },
+  "badge/green/icon/default": {
+    "Dark": "green/100",
+    "Light": "green/800"
+  },
+  "badge/green/outline/background/default": {
+    "Dark": "green/850",
+    "Light": "green/100"
+  },
+  "badge/green/outline/border/default": {
+    "Dark": "green/700",
+    "Light": "green/400"
+  },
+  "badge/green/text/default": {
+    "Dark": "green/100",
+    "Light": "green/800"
+  },
+  "badge/java/filled/background/default": {
+    "Dark": "java/700",
+    "Light": "java/200"
+  },
+  "badge/java/icon/default": {
+    "Dark": "java/50",
+    "Light": "java/750"
+  },
+  "badge/java/outline/background/default": {
+    "Dark": "java/850",
+    "Light": "java/100"
+  },
+  "badge/java/outline/border/default": {
+    "Dark": "java/700",
+    "Light": "java/400"
+  },
+  "badge/java/text/default": {
+    "Dark": "java/50",
+    "Light": "java/750"
+  },
+  "badge/nile-blue/filled/background/default": {
+    "Dark": "nile-blue/750",
+    "Light": "nile-blue/300"
+  },
+  "badge/nile-blue/icon/default": {
+    "Dark": "nile-blue/100",
+    "Light": "nile-blue/800"
+  },
+  "badge/nile-blue/outline/background/default": {
+    "Dark": "nile-blue/850",
+    "Light": "nile-blue/100"
+  },
+  "badge/nile-blue/outline/border/default": {
+    "Dark": "nile-blue/700",
+    "Light": "nile-blue/400"
+  },
+  "badge/nile-blue/text/default": {
+    "Dark": "nile-blue/100",
+    "Light": "nile-blue/800"
+  },
+  "badge/orange/filled/background/default": {
+    "Dark": "orange/750",
+    "Light": "orange/400"
+  },
+  "badge/orange/icon/default": {
+    "Dark": "orange/100",
+    "Light": "orange/900"
+  },
+  "badge/orange/outline/background/default": {
+    "Dark": "orange/850",
+    "Light": "orange/100"
+  },
+  "badge/orange/outline/border/default": {
+    "Dark": "orange/700",
+    "Light": "orange/400"
+  },
+  "badge/orange/text/default": {
+    "Dark": "orange/100",
+    "Light": "orange/900"
+  },
+  "badge/red/filled/background/default": {
+    "Dark": "red/800",
+    "Light": "red/200"
+  },
+  "badge/red/icon/default": {
+    "Dark": "red/100",
+    "Light": "red/900"
+  },
+  "badge/red/outline/background/default": {
+    "Dark": "red/850",
+    "Light": "red/100"
+  },
+  "badge/red/outline/border/default": {
+    "Dark": "red/700",
+    "Light": "red/400"
+  },
+  "badge/red/text/default": {
+    "Dark": "red/100",
+    "Light": "red/900"
+  },
+  "badge/rose/filled/background/default": {
+    "Dark": "rose/800",
+    "Light": "rose/300"
+  },
+  "badge/rose/icon/default": {
+    "Dark": "rose/100",
+    "Light": "rose/900"
+  },
+  "badge/rose/outline/background/default": {
+    "Dark": "rose/850",
+    "Light": "rose/100"
+  },
+  "badge/rose/outline/border/default": {
+    "Dark": "rose/700",
+    "Light": "rose/400"
+  },
+  "badge/rose/text/default": {
+    "Dark": "rose/100",
+    "Light": "rose/900"
+  },
+  "badge/shamrock/filled/background/default": {
+    "Dark": "shamrock/750",
+    "Light": "shamrock/300"
+  },
+  "badge/shamrock/icon/default": {
+    "Dark": "shamrock/100",
+    "Light": "shamrock/850"
+  },
+  "badge/shamrock/outline/background/default": {
+    "Dark": "shamrock/850",
+    "Light": "shamrock/100"
+  },
+  "badge/shamrock/outline/border/default": {
+    "Dark": "shamrock/700",
+    "Light": "shamrock/400"
+  },
+  "badge/shamrock/text/default": {
+    "Dark": "shamrock/100",
+    "Light": "shamrock/850"
+  },
+  "badge/tory-blue/filled/background/default": {
+    "Dark": "tory-blue/700",
+    "Light": "tory-blue/300"
+  },
+  "badge/tory-blue/icon/default": {
+    "Dark": "tory-blue/100",
+    "Light": "tory-blue/800"
+  },
+  "badge/tory-blue/outline/background/default": {
+    "Dark": "tory-blue/850",
+    "Light": "tory-blue/100"
+  },
+  "badge/tory-blue/outline/border/default": {
+    "Dark": "tory-blue/700",
+    "Light": "tory-blue/400"
+  },
+  "badge/tory-blue/text/default": {
+    "Dark": "tory-blue/100",
+    "Light": "tory-blue/800"
+  },
+  "badge/violet/filled/background/default": {
+    "Dark": "violet/700",
+    "Light": "violet/200"
+  },
+  "badge/violet/icon/default": {
+    "Dark": "violet/100",
+    "Light": "violet/800"
+  },
+  "badge/violet/outline/background/default": {
+    "Dark": "violet/850",
+    "Light": "violet/100"
+  },
+  "badge/violet/outline/border/default": {
+    "Dark": "violet/700",
+    "Light": "violet/400"
+  },
+  "badge/violet/text/default": {
+    "Dark": "violet/100",
+    "Light": "violet/800"
+  },
+  "badge/yellow/filled/background/default": {
+    "Dark": "yellow/750",
+    "Light": "yellow/300"
+  },
+  "badge/yellow/icon/default": {
+    "Dark": "yellow/200",
+    "Light": "yellow/900"
+  },
+  "badge/yellow/outline/background/default": {
+    "Dark": "yellow/850",
+    "Light": "yellow/100"
+  },
+  "badge/yellow/outline/border/default": {
+    "Dark": "yellow/700",
+    "Light": "yellow/400"
+  },
+  "badge/yellow/text/default": {
+    "Dark": "yellow/200",
+    "Light": "yellow/900"
+  },
+  "breadcrumbs/background/default": {
+    "Dark": "nile-blue/900-t",
+    "Light": "white/550-t"
+  },
+  "breadcrumbs/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "breadcrumbs/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "breadcrumbs/icon/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "breadcrumbs/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "breadcrumbs/text/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "breadcrumbs/text/secondary": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "button/filled/accent/background/active": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/650"
+  },
+  "button/filled/accent/background/default": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/600"
+  },
+  "button/filled/accent/background/disabled": {
+    "Dark": "bondi-blue/800",
+    "Light": "bondi-blue/200"
+  },
+  "button/filled/accent/background/focus": {
+    "Dark": "bondi-blue/700",
+    "Light": "bondi-blue/600"
+  },
+  "button/filled/accent/background/hover": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/500"
+  },
+  "button/filled/accent/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/accent/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/accent/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/accent/border/focus": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/500"
+  },
+  "button/filled/accent/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/accent/text/active": {
+    "Dark": "white/700-t",
+    "Light": "white/950"
+  },
+  "button/filled/accent/text/default": {
+    "Dark": "white/700-t",
+    "Light": "white/950"
+  },
+  "button/filled/accent/text/disabled": {
+    "Dark": "white/400-t",
+    "Light": "white/950"
+  },
+  "button/filled/accent/text/focus": {
+    "Dark": "white/700-t",
+    "Light": "white/950"
+  },
+  "button/filled/accent/text/hover": {
+    "Dark": "white/700-t",
+    "Light": "white/950"
+  },
+  "button/filled/danger/background/active": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/filled/danger/background/default": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "button/filled/danger/background/disabled": {
+    "Dark": "red/600-t",
+    "Light": "red/200"
+  },
+  "button/filled/danger/background/focus": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "button/filled/danger/background/hover": {
+    "Dark": "red/500",
+    "Light": "red/550"
+  },
+  "button/filled/danger/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/danger/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/danger/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/danger/border/focus": {
+    "Dark": "red/400",
+    "Light": "red/300"
+  },
+  "button/filled/danger/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/danger/text/active": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/danger/text/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/danger/text/disabled": {
+    "Dark": "white/400-t",
+    "Light": "white/950"
+  },
+  "button/filled/danger/text/focus": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/danger/text/hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/info/background/active": {
+    "Dark": "cornflower-blue/700",
+    "Light": "cornflower-blue/600"
+  },
+  "button/filled/info/background/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/550"
+  },
+  "button/filled/info/background/disabled": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/200"
+  },
+  "button/filled/info/background/focus": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "button/filled/info/background/hover": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/500"
+  },
+  "button/filled/info/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/info/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/info/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/info/border/focus": {
+    "Dark": "cornflower-blue/300",
+    "Light": "cornflower-blue/300"
+  },
+  "button/filled/info/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/info/text/active": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/info/text/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/info/text/disabled": {
+    "Dark": "white/400-t",
+    "Light": "white/950"
+  },
+  "button/filled/info/text/focus": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/info/text/hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/secondary/background/active": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/550"
+  },
+  "button/filled/secondary/background/default": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "button/filled/secondary/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "button/filled/secondary/background/focus": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "button/filled/secondary/background/hover": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/300"
+  },
+  "button/filled/secondary/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/secondary/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/secondary/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/secondary/border/focus": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/500"
+  },
+  "button/filled/secondary/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/secondary/text/active": {
+    "Dark": "white/950",
+    "Light": "cool-gray/800"
+  },
+  "button/filled/secondary/text/default": {
+    "Dark": "white/950",
+    "Light": "cool-gray/800"
+  },
+  "button/filled/secondary/text/disabled": {
+    "Dark": "white/400-t",
+    "Light": "cool-gray/500"
+  },
+  "button/filled/secondary/text/focus": {
+    "Dark": "white/950",
+    "Light": "cool-gray/800"
+  },
+  "button/filled/secondary/text/hover": {
+    "Dark": "white/950",
+    "Light": "cool-gray/800"
+  },
+  "button/filled/success/background/active": {
+    "Dark": "green/650",
+    "Light": "green/650"
+  },
+  "button/filled/success/background/default": {
+    "Dark": "green/650",
+    "Light": "green/600"
+  },
+  "button/filled/success/background/disabled": {
+    "Dark": "green/550-t",
+    "Light": "green/200"
+  },
+  "button/filled/success/background/focus": {
+    "Dark": "green/600",
+    "Light": "green/600"
+  },
+  "button/filled/success/background/hover": {
+    "Dark": "green/500",
+    "Light": "green/500"
+  },
+  "button/filled/success/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/success/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/success/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/success/border/focus": {
+    "Dark": "green/400",
+    "Light": "green/400"
+  },
+  "button/filled/success/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/success/text/active": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/success/text/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/success/text/disabled": {
+    "Dark": "white/400-t",
+    "Light": "white/950"
+  },
+  "button/filled/success/text/focus": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/success/text/hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/warning/background/active": {
+    "Dark": "orange/600",
+    "Light": "orange/600"
+  },
+  "button/filled/warning/background/default": {
+    "Dark": "orange/600",
+    "Light": "orange/550"
+  },
+  "button/filled/warning/background/disabled": {
+    "Dark": "orange/550-t",
+    "Light": "orange/200"
+  },
+  "button/filled/warning/background/focus": {
+    "Dark": "orange/550",
+    "Light": "orange/550"
+  },
+  "button/filled/warning/background/hover": {
+    "Dark": "orange/400",
+    "Light": "orange/400"
+  },
+  "button/filled/warning/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/warning/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/warning/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/warning/border/focus": {
+    "Dark": "orange/300",
+    "Light": "orange/300"
+  },
+  "button/filled/warning/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/filled/warning/text/active": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/warning/text/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/warning/text/disabled": {
+    "Dark": "white/400-t",
+    "Light": "white/950"
+  },
+  "button/filled/warning/text/focus": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/filled/warning/text/hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "button/ghost/accent/background/active": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/200"
+  },
+  "button/ghost/accent/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/accent/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/accent/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/accent/background/hover": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/100"
+  },
+  "button/ghost/accent/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/accent/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/accent/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/accent/border/focus": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/500"
+  },
+  "button/ghost/accent/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/accent/text/active": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/600"
+  },
+  "button/ghost/accent/text/default": {
+    "Dark": "bondi-blue/400",
+    "Light": "bondi-blue/600"
+  },
+  "button/ghost/accent/text/disabled": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/400"
+  },
+  "button/ghost/accent/text/focus": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/600"
+  },
+  "button/ghost/accent/text/hover": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/600"
+  },
+  "button/ghost/danger/background/active": {
+    "Dark": "red/900",
+    "Light": "red/200"
+  },
+  "button/ghost/danger/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/danger/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/danger/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/danger/background/hover": {
+    "Dark": "red/850",
+    "Light": "red/100"
+  },
+  "button/ghost/danger/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/danger/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/danger/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/danger/border/focus": {
+    "Dark": "red/500",
+    "Light": "red/500"
+  },
+  "button/ghost/danger/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/danger/text/active": {
+    "Dark": "red/200",
+    "Light": "red/650"
+  },
+  "button/ghost/danger/text/default": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/ghost/danger/text/disabled": {
+    "Dark": "red/600-t",
+    "Light": "red/300"
+  },
+  "button/ghost/danger/text/focus": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/ghost/danger/text/hover": {
+    "Dark": "red/200",
+    "Light": "red/650"
+  },
+  "button/ghost/info/background/active": {
+    "Dark": "cornflower-blue/850",
+    "Light": "cornflower-blue/200"
+  },
+  "button/ghost/info/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/info/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/info/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/info/background/hover": {
+    "Dark": "cornflower-blue/800",
+    "Light": "cornflower-blue/100"
+  },
+  "button/ghost/info/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/info/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/info/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/info/border/focus": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/500"
+  },
+  "button/ghost/info/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/info/text/active": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/600"
+  },
+  "button/ghost/info/text/default": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/600"
+  },
+  "button/ghost/info/text/disabled": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/400"
+  },
+  "button/ghost/info/text/focus": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/600"
+  },
+  "button/ghost/info/text/hover": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/600"
+  },
+  "button/ghost/secondary/background/active": {
+    "Dark": "cool-gray/850",
+    "Light": "cool-gray/200"
+  },
+  "button/ghost/secondary/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/secondary/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/secondary/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/secondary/background/hover": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/100"
+  },
+  "button/ghost/secondary/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/secondary/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/secondary/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/secondary/border/focus": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/500"
+  },
+  "button/ghost/secondary/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/secondary/text/active": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/ghost/secondary/text/default": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/ghost/secondary/text/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/400"
+  },
+  "button/ghost/secondary/text/focus": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/ghost/secondary/text/hover": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/ghost/success/background/active": {
+    "Dark": "green/850",
+    "Light": "green/200"
+  },
+  "button/ghost/success/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/success/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/success/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/success/background/hover": {
+    "Dark": "green/800",
+    "Light": "green/100"
+  },
+  "button/ghost/success/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/success/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/success/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/success/border/focus": {
+    "Dark": "green/300",
+    "Light": "green/300"
+  },
+  "button/ghost/success/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/success/text/active": {
+    "Dark": "green/200",
+    "Light": "green/750"
+  },
+  "button/ghost/success/text/default": {
+    "Dark": "green/500",
+    "Light": "green/750"
+  },
+  "button/ghost/success/text/disabled": {
+    "Dark": "green/550-t",
+    "Light": "green/400"
+  },
+  "button/ghost/success/text/focus": {
+    "Dark": "green/500",
+    "Light": "green/750"
+  },
+  "button/ghost/success/text/hover": {
+    "Dark": "green/200",
+    "Light": "green/750"
+  },
+  "button/ghost/warning/background/active": {
+    "Dark": "orange/850",
+    "Light": "orange/200"
+  },
+  "button/ghost/warning/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/warning/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/warning/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/warning/background/hover": {
+    "Dark": "orange/800",
+    "Light": "orange/100"
+  },
+  "button/ghost/warning/border/active": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/warning/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/warning/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/warning/border/focus": {
+    "Dark": "orange/500",
+    "Light": "orange/500"
+  },
+  "button/ghost/warning/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/ghost/warning/text/active": {
+    "Dark": "orange/200",
+    "Light": "orange/700"
+  },
+  "button/ghost/warning/text/default": {
+    "Dark": "orange/500",
+    "Light": "orange/700"
+  },
+  "button/ghost/warning/text/disabled": {
+    "Dark": "orange/550-t",
+    "Light": "orange/400"
+  },
+  "button/ghost/warning/text/focus": {
+    "Dark": "orange/500",
+    "Light": "orange/700"
+  },
+  "button/ghost/warning/text/hover": {
+    "Dark": "orange/200",
+    "Light": "orange/700"
+  },
+  "button/icon-action/accent/icon/active": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/650"
+  },
+  "button/icon-action/accent/icon/default": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/600"
+  },
+  "button/icon-action/accent/icon/disabled": {
+    "Dark": "bondi-blue/800",
+    "Light": "bondi-blue/200"
+  },
+  "button/icon-action/accent/icon/focus": {
+    "Dark": "bondi-blue/700",
+    "Light": "bondi-blue/600"
+  },
+  "button/icon-action/accent/icon/hover": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/500"
+  },
+  "button/icon-action/danger/icon/active": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/icon-action/danger/icon/default": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "button/icon-action/danger/icon/disabled": {
+    "Dark": "red/600-t",
+    "Light": "red/200"
+  },
+  "button/icon-action/danger/icon/focus": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "button/icon-action/danger/icon/hover": {
+    "Dark": "red/500",
+    "Light": "red/550"
+  },
+  "button/icon-action/info/icon/active": {
+    "Dark": "cornflower-blue/700",
+    "Light": "cornflower-blue/600"
+  },
+  "button/icon-action/info/icon/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/550"
+  },
+  "button/icon-action/info/icon/disabled": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/200"
+  },
+  "button/icon-action/info/icon/focus": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "button/icon-action/info/icon/hover": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/500"
+  },
+  "button/icon-action/secondary/icon/active": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/600"
+  },
+  "button/icon-action/secondary/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "button/icon-action/secondary/icon/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "button/icon-action/secondary/icon/focus": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "button/icon-action/secondary/icon/hover": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/400"
+  },
+  "button/icon-action/success/icon/active": {
+    "Dark": "green/650",
+    "Light": "green/650"
+  },
+  "button/icon-action/success/icon/default": {
+    "Dark": "green/650",
+    "Light": "green/600"
+  },
+  "button/icon-action/success/icon/disabled": {
+    "Dark": "green/550-t",
+    "Light": "green/200"
+  },
+  "button/icon-action/success/icon/focus": {
+    "Dark": "green/600",
+    "Light": "green/600"
+  },
+  "button/icon-action/success/icon/hover": {
+    "Dark": "green/500",
+    "Light": "green/500"
+  },
+  "button/icon-action/warning/icon/active": {
+    "Dark": "orange/600",
+    "Light": "orange/600"
+  },
+  "button/icon-action/warning/icon/default": {
+    "Dark": "orange/600",
+    "Light": "orange/550"
+  },
+  "button/icon-action/warning/icon/disabled": {
+    "Dark": "orange/550-t",
+    "Light": "orange/200"
+  },
+  "button/icon-action/warning/icon/focus": {
+    "Dark": "orange/550",
+    "Light": "orange/550"
+  },
+  "button/icon-action/warning/icon/hover": {
+    "Dark": "orange/400",
+    "Light": "orange/400"
+  },
+  "button/outline/accent/background/active": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/200"
+  },
+  "button/outline/accent/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/accent/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/accent/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/accent/background/hover": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/100"
+  },
+  "button/outline/accent/border/active": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/600"
+  },
+  "button/outline/accent/border/default": {
+    "Dark": "bondi-blue/400",
+    "Light": "bondi-blue/600"
+  },
+  "button/outline/accent/border/disabled": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/400"
+  },
+  "button/outline/accent/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "button/outline/accent/border/hover": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/600"
+  },
+  "button/outline/accent/text/active": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/600"
+  },
+  "button/outline/accent/text/default": {
+    "Dark": "bondi-blue/100",
+    "Light": "bondi-blue/600"
+  },
+  "button/outline/accent/text/disabled": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/400"
+  },
+  "button/outline/accent/text/focus": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/600"
+  },
+  "button/outline/accent/text/hover": {
+    "Dark": "bondi-blue/100",
+    "Light": "bondi-blue/600"
+  },
+  "button/outline/danger/background/active": {
+    "Dark": "red/900",
+    "Light": "red/200"
+  },
+  "button/outline/danger/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/danger/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/danger/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/danger/background/hover": {
+    "Dark": "red/800-t",
+    "Light": "red/100"
+  },
+  "button/outline/danger/border/active": {
+    "Dark": "red/550",
+    "Light": "red/650"
+  },
+  "button/outline/danger/border/default": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/outline/danger/border/disabled": {
+    "Dark": "red/600-t",
+    "Light": "red/300"
+  },
+  "button/outline/danger/border/focus": {
+    "Dark": "red/500",
+    "Light": "red/500"
+  },
+  "button/outline/danger/border/hover": {
+    "Dark": "red/550",
+    "Light": "red/650"
+  },
+  "button/outline/danger/text/active": {
+    "Dark": "red/200",
+    "Light": "red/650"
+  },
+  "button/outline/danger/text/default": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/outline/danger/text/disabled": {
+    "Dark": "red/600-t",
+    "Light": "red/300"
+  },
+  "button/outline/danger/text/focus": {
+    "Dark": "red/550",
+    "Light": "red/650"
+  },
+  "button/outline/danger/text/hover": {
+    "Dark": "red/200",
+    "Light": "red/650"
+  },
+  "button/outline/info/background/active": {
+    "Dark": "cornflower-blue/850",
+    "Light": "cornflower-blue/200"
+  },
+  "button/outline/info/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/info/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/info/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/info/background/hover": {
+    "Dark": "cornflower-blue/800",
+    "Light": "cornflower-blue/100"
+  },
+  "button/outline/info/border/active": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/600"
+  },
+  "button/outline/info/border/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/600"
+  },
+  "button/outline/info/border/disabled": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/400"
+  },
+  "button/outline/info/border/focus": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/500"
+  },
+  "button/outline/info/border/hover": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/600"
+  },
+  "button/outline/info/text/active": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/600"
+  },
+  "button/outline/info/text/default": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/600"
+  },
+  "button/outline/info/text/disabled": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/400"
+  },
+  "button/outline/info/text/focus": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/600"
+  },
+  "button/outline/info/text/hover": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/600"
+  },
+  "button/outline/secondary/background/active": {
+    "Dark": "cool-gray/850",
+    "Light": "cool-gray/200"
+  },
+  "button/outline/secondary/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/secondary/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/secondary/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/secondary/background/hover": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/100"
+  },
+  "button/outline/secondary/border/active": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/outline/secondary/border/default": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/outline/secondary/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/400"
+  },
+  "button/outline/secondary/border/focus": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/500"
+  },
+  "button/outline/secondary/border/hover": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/outline/secondary/text/active": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/650"
+  },
+  "button/outline/secondary/text/default": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/outline/secondary/text/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/400"
+  },
+  "button/outline/secondary/text/focus": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/650"
+  },
+  "button/outline/secondary/text/hover": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/650"
+  },
+  "button/outline/success/background/active": {
+    "Dark": "green/850",
+    "Light": "green/200"
+  },
+  "button/outline/success/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/success/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/success/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/success/background/hover": {
+    "Dark": "green/800",
+    "Light": "green/100"
+  },
+  "button/outline/success/border/active": {
+    "Dark": "green/500",
+    "Light": "green/650"
+  },
+  "button/outline/success/border/default": {
+    "Dark": "green/600",
+    "Light": "green/650"
+  },
+  "button/outline/success/border/disabled": {
+    "Dark": "green/550-t",
+    "Light": "green/400"
+  },
+  "button/outline/success/border/focus": {
+    "Dark": "green/500",
+    "Light": "green/500"
+  },
+  "button/outline/success/border/hover": {
+    "Dark": "green/500",
+    "Light": "green/650"
+  },
+  "button/outline/success/text/active": {
+    "Dark": "green/200",
+    "Light": "green/750"
+  },
+  "button/outline/success/text/default": {
+    "Dark": "green/650",
+    "Light": "green/750"
+  },
+  "button/outline/success/text/disabled": {
+    "Dark": "green/550-t",
+    "Light": "green/400"
+  },
+  "button/outline/success/text/focus": {
+    "Dark": "green/400",
+    "Light": "green/750"
+  },
+  "button/outline/success/text/hover": {
+    "Dark": "green/200",
+    "Light": "green/750"
+  },
+  "button/outline/warning/background/active": {
+    "Dark": "orange/850",
+    "Light": "orange/200"
+  },
+  "button/outline/warning/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/warning/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/warning/background/focus": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "button/outline/warning/background/hover": {
+    "Dark": "orange/800",
+    "Light": "orange/100"
+  },
+  "button/outline/warning/border/active": {
+    "Dark": "orange/500",
+    "Light": "orange/700"
+  },
+  "button/outline/warning/border/default": {
+    "Dark": "orange/600",
+    "Light": "orange/700"
+  },
+  "button/outline/warning/border/disabled": {
+    "Dark": "orange/550-t",
+    "Light": "orange/400"
+  },
+  "button/outline/warning/border/focus": {
+    "Dark": "orange/500",
+    "Light": "orange/500"
+  },
+  "button/outline/warning/border/hover": {
+    "Dark": "orange/500",
+    "Light": "orange/700"
+  },
+  "button/outline/warning/text/active": {
+    "Dark": "orange/200",
+    "Light": "orange/700"
+  },
+  "button/outline/warning/text/default": {
+    "Dark": "orange/650",
+    "Light": "orange/700"
+  },
+  "button/outline/warning/text/disabled": {
+    "Dark": "orange/550-t",
+    "Light": "orange/400"
+  },
+  "button/outline/warning/text/focus": {
+    "Dark": "orange/550",
+    "Light": "orange/700"
+  },
+  "button/outline/warning/text/hover": {
+    "Dark": "orange/200",
+    "Light": "orange/700"
+  },
+  "button/text/accent/icon/active": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/650"
+  },
+  "button/text/accent/icon/default": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/600"
+  },
+  "button/text/accent/icon/disabled": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/200"
+  },
+  "button/text/accent/icon/focus": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "button/text/accent/icon/hover": {
+    "Dark": "bondi-blue/400",
+    "Light": "bondi-blue/500"
+  },
+  "button/text/accent/text/active": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/650"
+  },
+  "button/text/accent/text/default": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/600"
+  },
+  "button/text/accent/text/disabled": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/200"
+  },
+  "button/text/accent/text/focus": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "button/text/accent/text/hover": {
+    "Dark": "bondi-blue/400",
+    "Light": "bondi-blue/500"
+  },
+  "button/text/danger/icon/active": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/text/danger/icon/default": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "button/text/danger/icon/disabled": {
+    "Dark": "red/600-t",
+    "Light": "red/200"
+  },
+  "button/text/danger/icon/focus": {
+    "Dark": "red/550",
+    "Light": "red/600"
+  },
+  "button/text/danger/icon/hover": {
+    "Dark": "red/500",
+    "Light": "red/550"
+  },
+  "button/text/danger/text/active": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "button/text/danger/text/default": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "button/text/danger/text/disabled": {
+    "Dark": "red/600-t",
+    "Light": "red/200"
+  },
+  "button/text/danger/text/focus": {
+    "Dark": "red/550",
+    "Light": "red/600"
+  },
+  "button/text/danger/text/hover": {
+    "Dark": "red/500",
+    "Light": "red/550"
+  },
+  "button/text/info/icon/active": {
+    "Dark": "cornflower-blue/700",
+    "Light": "cornflower-blue/600"
+  },
+  "button/text/info/icon/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/550"
+  },
+  "button/text/info/icon/disabled": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/200"
+  },
+  "button/text/info/icon/focus": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "button/text/info/icon/hover": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/500"
+  },
+  "button/text/info/text/active": {
+    "Dark": "cornflower-blue/700",
+    "Light": "cornflower-blue/600"
+  },
+  "button/text/info/text/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/550"
+  },
+  "button/text/info/text/disabled": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/200"
+  },
+  "button/text/info/text/focus": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "button/text/info/text/hover": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/500"
+  },
+  "button/text/secondary/icon/active": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/600"
+  },
+  "button/text/secondary/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "button/text/secondary/icon/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "button/text/secondary/icon/focus": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "button/text/secondary/icon/hover": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/400"
+  },
+  "button/text/secondary/text/active": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/600"
+  },
+  "button/text/secondary/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "button/text/secondary/text/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "button/text/secondary/text/focus": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "button/text/secondary/text/hover": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/400"
+  },
+  "button/text/success/icon/active": {
+    "Dark": "green/650",
+    "Light": "green/650"
+  },
+  "button/text/success/icon/default": {
+    "Dark": "green/650",
+    "Light": "green/600"
+  },
+  "button/text/success/icon/disabled": {
+    "Dark": "green/550-t",
+    "Light": "green/200"
+  },
+  "button/text/success/icon/focus": {
+    "Dark": "green/600",
+    "Light": "green/600"
+  },
+  "button/text/success/icon/hover": {
+    "Dark": "green/500",
+    "Light": "green/500"
+  },
+  "button/text/success/text/active": {
+    "Dark": "green/650",
+    "Light": "green/650"
+  },
+  "button/text/success/text/default": {
+    "Dark": "green/650",
+    "Light": "green/600"
+  },
+  "button/text/success/text/disabled": {
+    "Dark": "green/550-t",
+    "Light": "green/200"
+  },
+  "button/text/success/text/focus": {
+    "Dark": "green/600",
+    "Light": "green/600"
+  },
+  "button/text/success/text/hover": {
+    "Dark": "green/500",
+    "Light": "green/500"
+  },
+  "button/text/warning/icon/active": {
+    "Dark": "orange/600",
+    "Light": "orange/600"
+  },
+  "button/text/warning/icon/default": {
+    "Dark": "orange/600",
+    "Light": "orange/550"
+  },
+  "button/text/warning/icon/disabled": {
+    "Dark": "orange/550-t",
+    "Light": "orange/200"
+  },
+  "button/text/warning/icon/focus": {
+    "Dark": "orange/550",
+    "Light": "orange/550"
+  },
+  "button/text/warning/icon/hover": {
+    "Dark": "orange/400",
+    "Light": "orange/400"
+  },
+  "button/text/warning/text/active": {
+    "Dark": "orange/600",
+    "Light": "orange/600"
+  },
+  "button/text/warning/text/default": {
+    "Dark": "orange/600",
+    "Light": "orange/550"
+  },
+  "button/text/warning/text/disabled": {
+    "Dark": "orange/550-t",
+    "Light": "orange/200"
+  },
+  "button/text/warning/text/focus": {
+    "Dark": "orange/550",
+    "Light": "orange/550"
+  },
+  "button/text/warning/text/hover": {
+    "Dark": "orange/400",
+    "Light": "orange/400"
+  },
+  "calendar/background/default": {
+    "Dark": "nile-blue/800",
+    "Light": "white/950"
+  },
+  "calendar/day-item/current/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "calendar/day-item/current/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "cool-gray/50"
+  },
+  "calendar/day-item/current/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/75"
+  },
+  "calendar/day-item/current/border/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "calendar/day-item/current/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "calendar/day-item/current/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "calendar/day-item/current/text/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "calendar/day-item/current/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "calendar/day-item/current/text/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "calendar/day-item/default/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "calendar/day-item/default/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "calendar/day-item/default/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "calendar/day-item/default/background/selected": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "calendar/day-item/default/background/selected focus": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "calendar/day-item/default/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "calendar/day-item/default/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "calendar/day-item/default/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "calendar/day-item/default/text/selected": {
+    "Dark": "cool-gray/200",
+    "Light": "white/950"
+  },
+  "calendar/day-item/default/text/selected focus": {
+    "Dark": "cool-gray/200",
+    "Light": "white/950"
+  },
+  "calendar/label/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "calendar/month-year-item/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "calendar/month-year-item/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "calendar/month-year-item/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "calendar/month-year-item/background/selected": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "calendar/month-year-item/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "calendar/month-year-item/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "calendar/month-year-item/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "calendar/month-year-item/text/selected": {
+    "Dark": "cool-gray/200",
+    "Light": "white/950"
+  },
+  "card/background/critical": {
+    "Dark": "red/650-t-5",
+    "Light": "red/650-t-5"
+  },
+  "card/background/primary": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "card/background/secondary": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/75"
+  },
+  "card/background/success": {
+    "Dark": "green/600-t-5",
+    "Light": "green/600-t-5"
+  },
+  "card/background/unavailable": {
+    "Dark": "cool-gray/600-t-5",
+    "Light": "cool-gray/600-t-5"
+  },
+  "card/background/warning": {
+    "Dark": "orange/600-t-5",
+    "Light": "orange/600-t-5"
+  },
+  "card/border/critical": {
+    "Dark": "red/650-t-5",
+    "Light": "red/650-t-5"
+  },
+  "card/border/hover": {
+    "Dark": "nile-blue/600",
+    "Light": "cool-gray/400"
+  },
+  "card/border/primary": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "card/border/selected": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/600"
+  },
+  "card/border/success": {
+    "Dark": "green/600-t-5",
+    "Light": "green/600-t-5"
+  },
+  "card/border/unavailable": {
+    "Dark": "cool-gray/600-t-5",
+    "Light": "cool-gray/600-t"
+  },
+  "card/border/warning": {
+    "Dark": "orange/600-t-5",
+    "Light": "orange/600-t-5"
+  },
+  "card/icon/primary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "card/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "card/text/secondary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "card/text/tertairy": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/550"
+  },
+  "checkbox/checked/background/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "checkbox/checked/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "bondi-blue/200"
+  },
+  "checkbox/checked/background/focus": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/650"
+  },
+  "checkbox/checked/background/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/checked/background/warning": {
+    "Dark": "orange/600",
+    "Light": "orange/500"
+  },
+  "checkbox/checked/border/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "checkbox/checked/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "bondi-blue/200"
+  },
+  "checkbox/checked/border/focus": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/checked/border/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/checked/border/warning": {
+    "Dark": "orange/600",
+    "Light": "orange/500"
+  },
+  "checkbox/checked/icon/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/checked/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "white/950"
+  },
+  "checkbox/checked/icon/focus": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/checked/icon/hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/checked/icon/warning": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/checked/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/checked/text/disabled": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/400"
+  },
+  "checkbox/checked/text/focus": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/checked/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/checked/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/indeterminate/background/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "checkbox/indeterminate/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "bondi-blue/200"
+  },
+  "checkbox/indeterminate/background/focus": {
+    "Dark": "bondi-blue/650",
+    "Light": "bondi-blue/650"
+  },
+  "checkbox/indeterminate/background/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/indeterminate/background/warning": {
+    "Dark": "orange/600",
+    "Light": "orange/500"
+  },
+  "checkbox/indeterminate/border/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "checkbox/indeterminate/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "bondi-blue/200"
+  },
+  "checkbox/indeterminate/border/focus": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/indeterminate/border/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/indeterminate/border/warning": {
+    "Dark": "orange/600-t",
+    "Light": "orange/600"
+  },
+  "checkbox/indeterminate/icon/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/indeterminate/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "white/950"
+  },
+  "checkbox/indeterminate/icon/focus": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/indeterminate/icon/hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/indeterminate/icon/warning": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "checkbox/indeterminate/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/indeterminate/text/disabled": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/400"
+  },
+  "checkbox/indeterminate/text/focus": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/indeterminate/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/indeterminate/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/unchecked/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "checkbox/unchecked/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "checkbox/unchecked/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "checkbox/unchecked/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "checkbox/unchecked/background/warning": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "checkbox/unchecked/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/300"
+  },
+  "checkbox/unchecked/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "checkbox/unchecked/border/focus": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/unchecked/border/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "checkbox/unchecked/border/warning": {
+    "Dark": "orange/600-t",
+    "Light": "orange/550"
+  },
+  "checkbox/unchecked/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/unchecked/text/disabled": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/400"
+  },
+  "checkbox/unchecked/text/focus": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/unchecked/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "checkbox/unchecked/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "chip/background/default": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/100"
+  },
+  "chip/background/disabled": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/50"
+  },
+  "chip/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "chip/icon/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/200"
+  },
+  "chip/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/850"
+  },
+  "chip/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "container/background/default": {
+    "Dark": "nile-blue/900-t",
+    "Light": "white/550-t"
+  },
+  "container/border/default": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/200"
+  },
+  "container/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "content/background/default": {
+    "Dark": "nile-blue/850-t",
+    "Light": "white/550-t"
+  },
+  "content/background/secondary": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/100"
+  },
+  "content/background/tritiary": {
+    "Dark": "nile-blue/900",
+    "Light": "cool-gray/50"
+  },
+  "content/border/critical": {
+    "Dark": "red/650-t",
+    "Light": "red/650-t"
+  },
+  "content/border/default": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/300"
+  },
+  "content/border/sucsess": {
+    "Dark": "green/600-t",
+    "Light": "green/600-t"
+  },
+  "content/border/unavailable": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/600"
+  },
+  "content/border/warning": {
+    "Dark": "orange/600-t",
+    "Light": "orange/600-t"
+  },
+  "content/chart/bondi-blue-300": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/300"
+  },
+  "content/chart/bondi-blue-550": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/550"
+  },
+  "content/chart/bondi-blue-700": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/700"
+  },
+  "content/chart/cool-gray-300": {
+    "Dark": "cool-gray/300",
+    "Light": "cool-gray/300"
+  },
+  "content/chart/cool-gray-500": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/500"
+  },
+  "content/chart/cool-gray-700": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/700"
+  },
+  "content/chart/cornflower-blue-300": {
+    "Dark": "cornflower-blue/300",
+    "Light": "cornflower-blue/300"
+  },
+  "content/chart/cornflower-blue-550": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "content/chart/cornflower-blue-700": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/700"
+  },
+  "content/chart/green-300": {
+    "Dark": "green/300",
+    "Light": "green/300"
+  },
+  "content/chart/green-550": {
+    "Dark": "green/550",
+    "Light": "green/550"
+  },
+  "content/chart/green-700": {
+    "Dark": "green/750",
+    "Light": "green/700"
+  },
+  "content/chart/nile-blue-300": {
+    "Dark": "nile-blue/300",
+    "Light": "nile-blue/300"
+  },
+  "content/chart/nile-blue-500": {
+    "Dark": "nile-blue/550",
+    "Light": "nile-blue/500"
+  },
+  "content/chart/nile-blue-700": {
+    "Dark": "nile-blue/750",
+    "Light": "nile-blue/700"
+  },
+  "content/chart/orange-300": {
+    "Dark": "orange/300",
+    "Light": "orange/300"
+  },
+  "content/chart/orange-500": {
+    "Dark": "orange/550",
+    "Light": "orange/550"
+  },
+  "content/chart/orange-700": {
+    "Dark": "orange/750",
+    "Light": "orange/700"
+  },
+  "content/chart/red-300": {
+    "Dark": "red/300",
+    "Light": "red/300"
+  },
+  "content/chart/red-600": {
+    "Dark": "red/550",
+    "Light": "red/600"
+  },
+  "content/chart/red-700": {
+    "Dark": "red/750",
+    "Light": "red/700"
+  },
+  "content/chart/rose-300": {
+    "Dark": "rose/300",
+    "Light": "rose/300"
+  },
+  "content/chart/rose-550": {
+    "Dark": "rose/550",
+    "Light": "rose/550"
+  },
+  "content/chart/rose-700": {
+    "Dark": "rose/750",
+    "Light": "rose/700"
+  },
+  "content/chart/shamrock-300": {
+    "Dark": "shamrock/300",
+    "Light": "shamrock/300"
+  },
+  "content/chart/shamrock-550": {
+    "Dark": "shamrock/550",
+    "Light": "shamrock/550"
+  },
+  "content/chart/shamrock-700": {
+    "Dark": "shamrock/750",
+    "Light": "shamrock/700"
+  },
+  "content/chart/tory-blue-300": {
+    "Dark": "tory-blue/300",
+    "Light": "tory-blue/300"
+  },
+  "content/chart/tory-blue-550": {
+    "Dark": "tory-blue/550",
+    "Light": "tory-blue/550"
+  },
+  "content/chart/tory-blue-700": {
+    "Dark": "tory-blue/750",
+    "Light": "tory-blue/700"
+  },
+  "content/chart/violet-300": {
+    "Dark": "violet/300",
+    "Light": "violet/300"
+  },
+  "content/chart/violet-550": {
+    "Dark": "violet/500",
+    "Light": "violet/550"
+  },
+  "content/chart/violet-700": {
+    "Dark": "violet/750",
+    "Light": "violet/700"
+  },
+  "content/chart/yellow-300": {
+    "Dark": "yellow/300",
+    "Light": "yellow/300"
+  },
+  "content/chart/yellow-500": {
+    "Dark": "yellow/500",
+    "Light": "yellow/500"
+  },
+  "content/chart/yellow-700": {
+    "Dark": "yellow/750",
+    "Light": "yellow/700"
+  },
+  "content/connector/default": {
+    "Dark": "nile-blue/400",
+    "Light": "cool-gray/400"
+  },
+  "content/icon/brand": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "content/icon/critical": {
+    "Dark": "red/550",
+    "Light": "red/650"
+  },
+  "content/icon/info": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/550"
+  },
+  "content/icon/primary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "content/icon/secondary": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/550"
+  },
+  "content/icon/success": {
+    "Dark": "green/500",
+    "Light": "green/600"
+  },
+  "content/icon/warning": {
+    "Dark": "orange/500",
+    "Light": "orange/600"
+  },
+  "content/surfase/default": {
+    "Dark": "nile-blue/700",
+    "Light": "cool-gray/100"
+  },
+  "content/text/hover": {
+    "Dark": "bondi-blue/400",
+    "Light": "bondi-blue/600"
+  },
+  "content/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "content/text/secondary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "content/text/tertairy": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/550"
+  },
+  "context-menu/background/default": {
+    "Dark": "nile-blue/800",
+    "Light": "white/950"
+  },
+  "context-menu/menu-item/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "context-menu/menu-item/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "context-menu/menu-item/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "context-menu/menu-item/background/selected": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "context-menu/menu-item/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "context-menu/menu-item/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "context-menu/menu-item/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "context-menu/menu-item/border/selected": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "context-menu/menu-item/icon/danger": {
+    "Dark": "red/550",
+    "Light": "red/650"
+  },
+  "context-menu/menu-item/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "context-menu/menu-item/icon/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "context-menu/menu-item/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "context-menu/menu-item/icon/info": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/550"
+  },
+  "context-menu/menu-item/icon/selected": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "context-menu/menu-item/icon/success": {
+    "Dark": "green/500",
+    "Light": "green/550"
+  },
+  "context-menu/menu-item/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "context-menu/menu-item/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "context-menu/menu-item/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "context-menu/menu-item/text/selected": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/75"
+  },
+  "dialog/background/primary": {
+    "Dark": "nile-blue/850",
+    "Light": "white/950"
+  },
+  "dialog/background/secondary": {
+    "Dark": "nile-blue/950",
+    "Light": "cool-gray/50"
+  },
+  "dialog/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "dialog/icon/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "dialog/icon/secondary": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dialog/icon/tertiary": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/550"
+  },
+  "dialog/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "dialog/text/secondary": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dialog/text/tertiary": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/550"
+  },
+  "divider/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "drawer/background/primary": {
+    "Dark": "nile-blue/850",
+    "Light": "white/950"
+  },
+  "drawer/background/primary-alternate": {
+    "Dark": "nile-blue/950",
+    "Light": "white/950"
+  },
+  "drawer/background/secondary": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/50"
+  },
+  "drawer/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "drawer/icon/info": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/550"
+  },
+  "drawer/icon/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "drawer/icon/secondary": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "drawer/icon/tertiary": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/550"
+  },
+  "drawer/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "drawer/text/secondary": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "drawer/text/tertiary": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/550"
+  },
+  "dropdown/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "dropdown/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "dropdown/background/error": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "dropdown/background/filled": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "dropdown/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "dropdown/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "dropdown/background/warning": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "dropdown/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "dropdown/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "dropdown/border/error": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "dropdown/border/filled": {
+    "Dark": "nile-blue/650",
+    "Light": "cool-gray/200"
+  },
+  "dropdown/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "dropdown/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "dropdown/border/warning": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "dropdown/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dropdown/icon/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "dropdown/icon/error": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dropdown/icon/filled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dropdown/icon/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dropdown/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dropdown/icon/warning": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "dropdown/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "dropdown/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "dropdown/text/error": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "dropdown/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "dropdown/text/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "dropdown/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "dropdown/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "effects/status/focus/default": {
+    "Dark": "bondi-blue/500-t-30",
+    "Light": "bondi-blue/500-t-30"
+  },
+  "effects/status/focus/error": {
+    "Dark": "red/600-t-30",
+    "Light": "red/600-t-30"
+  },
+  "effects/status/focus/succes": {
+    "Dark": "green/600-t-30",
+    "Light": "green/600-t-30"
+  },
+  "effects/status/focus/unavailable": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/600-t-30"
+  },
+  "effects/status/focus/warning": {
+    "Dark": "orange/600-t-30",
+    "Light": "orange/600-t-30"
+  },
+  "effects/status/hover/background/default": {
+    "Dark": "nile-blue/550-t-10",
+    "Light": "cool-gray/600-t-10"
+  },
+  "effects/status/hover/background/error": {
+    "Dark": "red/650-t-10",
+    "Light": "red/650-t-10"
+  },
+  "effects/status/hover/background/succes": {
+    "Dark": "green/600-t-10",
+    "Light": "green/600-t-10"
+  },
+  "effects/status/hover/background/unavailable": {
+    "Dark": "cool-gray/600-t-10",
+    "Light": "cool-gray/600-t-10"
+  },
+  "effects/status/hover/background/warning": {
+    "Dark": "orange/600-t-10",
+    "Light": "orange/600-t-10"
+  },
+  "heat-map/cube/default": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/300"
+  },
+  "heat-map/cube/level 1": {
+    "Dark": "red/300-t",
+    "Light": "red/300"
+  },
+  "heat-map/cube/level 2": {
+    "Dark": "red/400-t",
+    "Light": "red/400"
+  },
+  "heat-map/cube/level 3": {
+    "Dark": "red/600-t",
+    "Light": "red/600"
+  },
+  "heat-map/cube/level 4": {
+    "Dark": "red/750-t",
+    "Light": "red/750"
+  },
+  "heat-map/cube/level 5": {
+    "Dark": "red/800-t",
+    "Light": "red/800"
+  },
+  "heat-map/cube/level 6": {
+    "Dark": "red/900-t",
+    "Light": "red/950"
+  },
+  "heat-map/icon/border": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/400"
+  },
+  "heat-map/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "heat-map/text/history": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/400"
+  },
+  "highlight/background/default": {
+    "Dark": "yellow/300",
+    "Light": "yellow/550"
+  },
+  "highlight/text/default": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/800"
+  },
+  "hint-message/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "hint-message/text/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "hint-message/text/error": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "hint-message/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "hint-message/text/focused": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "hint-message/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "hint-message/text/warning": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "icon-action/icon/danger": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "icon-action/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/700"
+  },
+  "icon-action/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "icon-action/icon/focus": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "icon-action/icon/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "icon-action/icon/info": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "icon-action/icon/success": {
+    "Dark": "green/500",
+    "Light": "green/550"
+  },
+  "indicator/additional/background/default": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/400"
+  },
+  "indicator/brand/background/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "indicator/critical/background/default": {
+    "Dark": "red/650-t",
+    "Light": "red/650-t"
+  },
+  "indicator/critical/background/shadow": {
+    "Dark": "red/600-t",
+    "Light": "red/600-t"
+  },
+  "indicator/degradation/background/default": {
+    "Dark": "yellow/550-t",
+    "Light": "yellow/550"
+  },
+  "indicator/info/background/default": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/500"
+  },
+  "indicator/info/background/shadow": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/600-t"
+  },
+  "indicator/load/background/default": {
+    "Dark": "tory-blue/550-t",
+    "Light": "tory-blue/400"
+  },
+  "indicator/maitenance/background/default": {
+    "Dark": "warm-gray/600-t",
+    "Light": "warm-gray/400"
+  },
+  "indicator/new/background/default": {
+    "Dark": "java/550-t",
+    "Light": "java/400"
+  },
+  "indicator/success/background/default": {
+    "Dark": "green/600-t",
+    "Light": "green/600-t"
+  },
+  "indicator/success/background/shadow": {
+    "Dark": "green/550-t",
+    "Light": "green/550-t"
+  },
+  "indicator/unavailable/background/default": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/600"
+  },
+  "indicator/warning/background/default": {
+    "Dark": "orange/600-t",
+    "Light": "orange/600-t"
+  },
+  "indicator/warning/background/shadow": {
+    "Dark": "orange/550-t",
+    "Light": "orange/550-t"
+  },
+  "input-datepicker/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-datepicker/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "input-datepicker/background/error": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-datepicker/background/filled": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-datepicker/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-datepicker/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-datepicker/background/warning": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-datepicker/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "input-datepicker/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "input-datepicker/border/error": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "input-datepicker/border/filled": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "input-datepicker/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "input-datepicker/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "input-datepicker/border/warning": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "input-datepicker/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-datepicker/icon/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input-datepicker/icon/error": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-datepicker/icon/filled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-datepicker/icon/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-datepicker/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-datepicker/icon/warning": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-datepicker/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-datepicker/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input-datepicker/text/error": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-datepicker/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-datepicker/text/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-datepicker/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-datepicker/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-number/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-number/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "input-number/background/error": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-number/background/filled": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-number/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-number/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-number/background/warning": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-number/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "input-number/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "input-number/border/error": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "input-number/border/filled": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "input-number/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "input-number/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "input-number/border/warning": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "input-number/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-number/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input-number/text/error": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-number/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-number/text/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-number/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-number/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-password/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-password/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "input-password/background/error": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-password/background/filled": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-password/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-password/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-password/background/warning": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-password/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "input-password/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "input-password/border/error": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "input-password/border/filled": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "input-password/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "input-password/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "input-password/border/warning": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "input-password/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-password/icon/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input-password/icon/error": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-password/icon/filled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-password/icon/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-password/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-password/icon/warning": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-password/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-password/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input-password/text/error": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-password/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-password/text/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-password/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-password/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-search/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-search/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "input-search/background/filled": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-search/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-search/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input-search/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "input-search/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "input-search/border/filled": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "input-search/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "input-search/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "input-search/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-search/icon/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input-search/icon/filled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-search/icon/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-search/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input-search/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-search/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input-search/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input-search/text/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input-search/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "input/background/error": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input/background/filled": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input/background/focused": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input/background/warning": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "input/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "input/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "input/border/error": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "input/border/filled": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "input/border/focused": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "input/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "input/border/warning": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "input/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input/icon/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input/icon/error": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input/icon/filled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input/icon/focused": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input/icon/warning": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "input/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "input/text/error": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "input/text/focused": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "input/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "label/icon/info": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/550"
+  },
+  "label/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "layout/background/default": {
+    "Dark": "nile-blue/950",
+    "Light": "cool-gray/100"
+  },
+  "layout/overlay/background/default": {
+    "Dark": "black/500-t",
+    "Light": "black/200-t"
+  },
+  "list/background/active": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/75"
+  },
+  "list/background/critical": {
+    "Dark": "red/650-t-5",
+    "Light": "red/650-t-5"
+  },
+  "list/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "list/background/hover": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/100"
+  },
+  "list/background/success": {
+    "Dark": "green/600-t-5",
+    "Light": "green/600-t-5"
+  },
+  "list/background/unavailable": {
+    "Dark": "cool-gray/600-t-5",
+    "Light": "cool-gray/600-t-5"
+  },
+  "list/background/warning": {
+    "Dark": "orange/600-t-5",
+    "Light": "orange/600-t-5"
+  },
+  "list/border/critical": {
+    "Dark": "red/600-t",
+    "Light": "red/650-t"
+  },
+  "list/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "list/border/success": {
+    "Dark": "green/600-t",
+    "Light": "green/600-t"
+  },
+  "list/border/unavailable": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/600-t"
+  },
+  "list/border/warning": {
+    "Dark": "orange/550-t",
+    "Light": "orange/600-t"
+  },
+  "message/critical/background/default": {
+    "Dark": "red/200-t-90",
+    "Light": "red/100"
+  },
+  "message/critical/details/background/default": {
+    "Dark": "red/100",
+    "Light": "red/75"
+  },
+  "message/critical/details/border/default": {
+    "Dark": "red/750",
+    "Light": "red/750"
+  },
+  "message/critical/icon/default": {
+    "Dark": "red/800",
+    "Light": "red/800"
+  },
+  "message/critical/indicator/border/default": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "message/critical/text/default": {
+    "Dark": "red/800",
+    "Light": "red/800"
+  },
+  "message/info/background/default": {
+    "Dark": "cornflower-blue/200-t",
+    "Light": "cornflower-blue/100"
+  },
+  "message/info/details/background/default": {
+    "Dark": "cornflower-blue/100",
+    "Light": "cornflower-blue/75"
+  },
+  "message/info/details/border/default": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/750"
+  },
+  "message/info/icon/default": {
+    "Dark": "cornflower-blue/800",
+    "Light": "cornflower-blue/800"
+  },
+  "message/info/indicator/border/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/600"
+  },
+  "message/info/text/default": {
+    "Dark": "cornflower-blue/800",
+    "Light": "cornflower-blue/800"
+  },
+  "message/success/background/default": {
+    "Dark": "green/300-t",
+    "Light": "green/100"
+  },
+  "message/success/details/background/default": {
+    "Dark": "green/200",
+    "Light": "green/75"
+  },
+  "message/success/details/border/default": {
+    "Dark": "green/750",
+    "Light": "green/750"
+  },
+  "message/success/icon/default": {
+    "Dark": "green/850",
+    "Light": "green/850"
+  },
+  "message/success/indicator/border/default": {
+    "Dark": "green/750",
+    "Light": "green/750"
+  },
+  "message/success/text/default": {
+    "Dark": "green/850",
+    "Light": "green/850"
+  },
+  "message/warning/background/default": {
+    "Dark": "orange/200-t",
+    "Light": "orange/100"
+  },
+  "message/warning/details/background/default": {
+    "Dark": "orange/100",
+    "Light": "orange/75"
+  },
+  "message/warning/details/border/default": {
+    "Dark": "orange/750",
+    "Light": "orange/750"
+  },
+  "message/warning/icon/default": {
+    "Dark": "orange/800",
+    "Light": "orange/800"
+  },
+  "message/warning/indicator/border/default": {
+    "Dark": "orange/550",
+    "Light": "orange/550"
+  },
+  "message/warning/text/default": {
+    "Dark": "orange/800",
+    "Light": "orange/800"
+  },
+  "modal/background/primary": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "modal/background/secondary": {
+    "Dark": "nile-blue/950",
+    "Light": "cool-gray/50"
+  },
+  "modal/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "modal/icon/info": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/550"
+  },
+  "modal/icon/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "modal/icon/secondary": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "modal/icon/tertiary": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/550"
+  },
+  "modal/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "modal/text/secondary": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "modal/text/tertiary": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/550"
+  },
+  "multiselect-option/background/default": {
+    "Dark": "nile-blue/800",
+    "Light": "white/950"
+  },
+  "multiselect-option/option-item/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "multiselect-option/option-item/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "multiselect-option/option-item/background/focus": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "multiselect-option/option-item/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "multiselect-option/option-item/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "multiselect-option/option-item/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "multiselect-option/option-item/text/focus": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "multiselect-option/option-item/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "multiselect-option/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "option-switcher/background/default": {
+    "Dark": "nile-blue/800-t",
+    "Light": "cool-gray/100"
+  },
+  "option-switcher/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "option-switcher/option/background/active": {
+    "Dark": "nile-blue/850",
+    "Light": "white/950"
+  },
+  "option-switcher/option/background/active-disabled": {
+    "Dark": "cool-gray/600-t-10",
+    "Light": "cool-gray/50"
+  },
+  "option-switcher/option/background/active-hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "option-switcher/option/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "option-switcher/option/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "option-switcher/option/background/hover": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/50"
+  },
+  "option-switcher/option/border/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "option-switcher/option/border/active-disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "option-switcher/option/border/active-hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "option-switcher/option/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "option-switcher/option/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "option-switcher/option/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "option-switcher/option/icon/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "option-switcher/option/icon/active-disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "option-switcher/option/icon/active-hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "option-switcher/option/icon/default": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/700"
+  },
+  "option-switcher/option/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "option-switcher/option/icon/hover": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/700"
+  },
+  "option-switcher/option/text/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "option-switcher/option/text/active-disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "option-switcher/option/text/active-hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "option-switcher/option/text/default": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/700"
+  },
+  "option-switcher/option/text/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "option-switcher/option/text/hover": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/700"
+  },
+  "pagination/item/arrow/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "pagination/item/arrow/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "pagination/item/arrow/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "pagination/item/arrow/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "pagination/item/arrow/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "pagination/item/arrow/icon/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "pagination/item/ellipsis/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "pagination/item/ellipsis/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "pagination/item/number/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "pagination/item/number/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "pagination/item/number/background/selected": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "pagination/item/number/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "pagination/item/number/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "pagination/item/number/text/selected": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "pagination/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "progress-kit/border/default": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "progress-kit/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "progress-kit/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "progress-kit/text/secondary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "progress/fill/background/default": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/500"
+  },
+  "progress/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "progress/track/background/default": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/75"
+  },
+  "radiobutton/checked/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "radiobutton/checked/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "radiobutton/checked/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "radiobutton/checked/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "radiobutton/checked/border/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "radiobutton/checked/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "bondi-blue/200"
+  },
+  "radiobutton/checked/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/600"
+  },
+  "radiobutton/checked/border/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "radiobutton/checked/circle/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "radiobutton/checked/circle/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "bondi-blue/200"
+  },
+  "radiobutton/checked/circle/focus": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "radiobutton/checked/circle/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "radiobutton/checked/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "radiobutton/checked/text/disabled": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/400"
+  },
+  "radiobutton/checked/text/focus": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "radiobutton/checked/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "radiobutton/icon/info": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/550"
+  },
+  "radiobutton/unchecked/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "radiobutton/unchecked/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "radiobutton/unchecked/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "radiobutton/unchecked/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "radiobutton/unchecked/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/300"
+  },
+  "radiobutton/unchecked/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "radiobutton/unchecked/border/focus": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/600"
+  },
+  "radiobutton/unchecked/border/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "radiobutton/unchecked/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "radiobutton/unchecked/text/disabled": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/400"
+  },
+  "radiobutton/unchecked/text/focus": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "radiobutton/unchecked/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "scrollbar/thumb/background/default": {
+    "Dark": "nile-blue/600",
+    "Light": "cool-gray/500"
+  },
+  "scrollbar/thumb/background/hover": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/700"
+  },
+  "secret/details/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "secret/indicator/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "secret/indicator/border/generated": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/500"
+  },
+  "secret/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "secret/text/secondary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "shadow/components/base": {
+    "Dark": "cool-gray/1000-t-10",
+    "Light": "cool-gray/1000-t-10"
+  },
+  "sidebar/avatar/background/default": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "sidebar/avatar/text/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "sidebar/background/default": {
+    "Dark": "nile-blue/900-t",
+    "Light": "white/550-t"
+  },
+  "sidebar/border/default": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/200"
+  },
+  "sidebar/divider-horizontal/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/800"
+  },
+  "sidebar/logo/accent/default": {
+    "Dark": "java/550",
+    "Light": "java/550"
+  },
+  "sidebar/logo/text/default": {
+    "Dark": "white/950",
+    "Light": "tory-blue/850"
+  },
+  "sidebar/menubutton/background/active": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/100"
+  },
+  "sidebar/menubutton/background/active_hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "sidebar/menubutton/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menubutton/background/hover": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/100"
+  },
+  "sidebar/menubutton/border/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "sidebar/menubutton/border/active_hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menubutton/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menubutton/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menubutton/icon/active": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "sidebar/menubutton/icon/active_hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "sidebar/menubutton/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "sidebar/menubutton/icon/hover": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "sidebar/menuitem/background/active": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/100"
+  },
+  "sidebar/menuitem/background/active_hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "sidebar/menuitem/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menuitem/background/hover": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/100"
+  },
+  "sidebar/menuitem/border/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "sidebar/menuitem/border/active_hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menuitem/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menuitem/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "sidebar/menuitem/icon/active": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "sidebar/menuitem/icon/active_hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "sidebar/menuitem/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "sidebar/menuitem/icon/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "sidebar/menuitem/text/active": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "sidebar/menuitem/text/active_hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "sidebar/menuitem/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "sidebar/menuitem/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "sidebar/status/indicator/danger": {
+    "Dark": "red/600",
+    "Light": "red/650"
+  },
+  "sidebar/status/indicator/default": {
+    "Dark": "green/600",
+    "Light": "green/600"
+  },
+  "sidebar/status/indicator/lock": {
+    "Dark": "nile-blue/600",
+    "Light": "cool-gray/300"
+  },
+  "sidebar/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "slider-field/item/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "slider-field/item/background/disabled": {
+    "Dark": "nile-blue/800",
+    "Light": "white/950"
+  },
+  "slider-field/item/background/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "slider-field/item/border/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "slider-field/item/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/500"
+  },
+  "slider-field/item/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "slider-field/slider/fill/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "slider-field/slider/fill/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/500"
+  },
+  "slider-field/slider/track/default": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/75"
+  },
+  "slider-field/slider/track/disabled": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/75"
+  },
+  "slider-field/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "status/filled/additional/background/default": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/200"
+  },
+  "status/filled/additional/icon/default": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/900"
+  },
+  "status/filled/additional/text/default": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/900"
+  },
+  "status/filled/critical/background/default": {
+    "Dark": "red/750",
+    "Light": "red/300"
+  },
+  "status/filled/critical/icon/default": {
+    "Dark": "red/200",
+    "Light": "red/1000"
+  },
+  "status/filled/critical/text/default": {
+    "Dark": "red/100",
+    "Light": "red/1000"
+  },
+  "status/filled/degradation/background/default": {
+    "Dark": "yellow/550-t",
+    "Light": "yellow/200"
+  },
+  "status/filled/degradation/icon/default": {
+    "Dark": "yellow/200",
+    "Light": "yellow/900"
+  },
+  "status/filled/degradation/text/default": {
+    "Dark": "yellow/200",
+    "Light": "yellow/900"
+  },
+  "status/filled/info/background/default": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/200"
+  },
+  "status/filled/info/icon/default": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/900"
+  },
+  "status/filled/info/text/default": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/900"
+  },
+  "status/filled/load/background/default": {
+    "Dark": "tory-blue/550-t",
+    "Light": "tory-blue/200"
+  },
+  "status/filled/load/icon/default": {
+    "Dark": "tory-blue/200",
+    "Light": "tory-blue/900"
+  },
+  "status/filled/load/stroke/default": {
+    "Dark": "tory-blue/500",
+    "Light": "tory-blue/650"
+  },
+  "status/filled/load/text/default": {
+    "Dark": "tory-blue/200",
+    "Light": "tory-blue/900"
+  },
+  "status/filled/maintenance/background/default": {
+    "Dark": "warm-gray/600-t",
+    "Light": "warm-gray/200"
+  },
+  "status/filled/maintenance/icon/default": {
+    "Dark": "warm-gray/200",
+    "Light": "warm-gray/900"
+  },
+  "status/filled/maintenance/text/default": {
+    "Dark": "warm-gray/200",
+    "Light": "warm-gray/900"
+  },
+  "status/filled/new/background/default": {
+    "Dark": "java/550-t",
+    "Light": "java/200"
+  },
+  "status/filled/new/icon/default": {
+    "Dark": "java/200",
+    "Light": "java/900"
+  },
+  "status/filled/new/text/default": {
+    "Dark": "java/200",
+    "Light": "java/900"
+  },
+  "status/filled/success/background/default": {
+    "Dark": "green/550-t",
+    "Light": "green/200"
+  },
+  "status/filled/success/icon/default": {
+    "Dark": "shamrock/200",
+    "Light": "shamrock/900"
+  },
+  "status/filled/success/text/default": {
+    "Dark": "green/200",
+    "Light": "green/900"
+  },
+  "status/filled/unavailable/background/default": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/600"
+  },
+  "status/filled/unavailable/icon/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "status/filled/unavailable/text/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "status/filled/warning/background/default": {
+    "Dark": "orange/550-t",
+    "Light": "orange/200"
+  },
+  "status/filled/warning/icon/default": {
+    "Dark": "orange/200",
+    "Light": "orange/900"
+  },
+  "status/filled/warning/text/default": {
+    "Dark": "orange/200",
+    "Light": "orange/900"
+  },
+  "status/outline/additional/background/default": {
+    "Dark": "bondi-blue/400-t",
+    "Light": "bondi-blue/400-t"
+  },
+  "status/outline/additional/border/default": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "bondi-blue/550-t"
+  },
+  "status/outline/additional/text/default": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/700"
+  },
+  "status/outline/critical/background/default": {
+    "Dark": "red/400-t-20",
+    "Light": "red/400-t-20"
+  },
+  "status/outline/critical/border/default": {
+    "Dark": "red/600-t",
+    "Light": "red/600-t"
+  },
+  "status/outline/critical/text/default": {
+    "Dark": "red/500",
+    "Light": "red/650"
+  },
+  "status/outline/degradation/background/default": {
+    "Dark": "yellow/400-t",
+    "Light": "yellow/400-t"
+  },
+  "status/outline/degradation/border/default": {
+    "Dark": "yellow/550-t",
+    "Light": "yellow/550-t"
+  },
+  "status/outline/degradation/text/default": {
+    "Dark": "yellow/500",
+    "Light": "yellow/650"
+  },
+  "status/outline/info/background/default": {
+    "Dark": "cornflower-blue/400-t",
+    "Light": "cornflower-blue/400-t"
+  },
+  "status/outline/info/border/default": {
+    "Dark": "cornflower-blue/550-t",
+    "Light": "cornflower-blue/550-t"
+  },
+  "status/outline/info/text/default": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/750"
+  },
+  "status/outline/load/background/default": {
+    "Dark": "nile-blue/400-t",
+    "Light": "nile-blue/400-t"
+  },
+  "status/outline/load/border/default": {
+    "Dark": "nile-blue/550-t",
+    "Light": "nile-blue/550-t"
+  },
+  "status/outline/load/text/default": {
+    "Dark": "nile-blue/500",
+    "Light": "nile-blue/650"
+  },
+  "status/outline/maintenance/background/default": {
+    "Dark": "cool-gray/400-t",
+    "Light": "cool-gray/400-t"
+  },
+  "status/outline/maintenance/border/default": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/600-t"
+  },
+  "status/outline/maintenance/text/default": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/700"
+  },
+  "status/outline/new/background/default": {
+    "Dark": "java/400-t",
+    "Light": "java/400-t"
+  },
+  "status/outline/new/border/default": {
+    "Dark": "bondi-blue/550-t",
+    "Light": "java/550-t"
+  },
+  "status/outline/new/text/default": {
+    "Dark": "java/500",
+    "Light": "java/700"
+  },
+  "status/outline/success/background/default": {
+    "Dark": "green/400-t",
+    "Light": "green/400-t"
+  },
+  "status/outline/success/border/default": {
+    "Dark": "green/550-t",
+    "Light": "green/550-t"
+  },
+  "status/outline/success/text/default": {
+    "Dark": "green/400",
+    "Light": "green/700"
+  },
+  "status/outline/unavailable/background/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/600-t-30"
+  },
+  "status/outline/unavailable/border/default": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/600-t"
+  },
+  "status/outline/unavailable/text/default": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/750"
+  },
+  "status/outline/warning/background/default": {
+    "Dark": "orange/400-t",
+    "Light": "orange/400-t"
+  },
+  "status/outline/warning/border/default": {
+    "Dark": "orange/550-t",
+    "Light": "orange/550-t"
+  },
+  "status/outline/warning/text/default": {
+    "Dark": "orange/400",
+    "Light": "orange/650"
+  },
+  "step-wizard/background/default": {
+    "Dark": "nile-blue/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/border/default": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "step-wizard/indicator/error/background/default": {
+    "Dark": "red/550",
+    "Light": "red/550"
+  },
+  "step-wizard/indicator/error/icon/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "step-wizard/indicator/inactive/track/background/default": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "step-wizard/indicator/process/progress/background/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "step-wizard/indicator/process/track/background/default": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "step-wizard/indicator/success/background/default": {
+    "Dark": "shamrock/550",
+    "Light": "shamrock/550"
+  },
+  "step-wizard/indicator/success/icon/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "step-wizard/indicator/warning/background/default": {
+    "Dark": "orange/550",
+    "Light": "orange/550"
+  },
+  "step-wizard/indicator/warning/icon/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "step-wizard/menuibutton/inactive/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/inactive/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuibutton/inactive/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuibutton/inactive/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/inactive/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/inactive/border/open": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "step-wizard/menuibutton/process/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/process/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuibutton/process/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuibutton/process/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/process/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/process/border/open": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "step-wizard/menuibutton/success/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/success/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuibutton/success/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuibutton/success/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/success/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuibutton/success/border/open": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "step-wizard/menuitem/inactive/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/inactive/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuitem/inactive/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuitem/inactive/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/inactive/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/inactive/border/open": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "step-wizard/menuitem/inactive/text/default": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/500"
+  },
+  "step-wizard/menuitem/inactive/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "step-wizard/menuitem/inactive/text/open": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "step-wizard/menuitem/process/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/process/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuitem/process/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuitem/process/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/process/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/process/border/open": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "step-wizard/menuitem/process/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "step-wizard/menuitem/process/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "step-wizard/menuitem/process/text/open": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "step-wizard/menuitem/success/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/success/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuitem/success/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "step-wizard/menuitem/success/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/success/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "step-wizard/menuitem/success/border/open": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "step-wizard/menuitem/success/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "step-wizard/menuitem/success/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "step-wizard/menuitem/success/text/open": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "submenu/background/default": {
+    "Dark": "nile-blue/800",
+    "Light": "white/950"
+  },
+  "submenu/submenu-item/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "submenu/submenu-item/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "submenu/submenu-item/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "submenu/submenu-item/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "submenu/submenu-item/icon/danger": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "submenu/submenu-item/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "submenu/submenu-item/icon/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "submenu/submenu-item/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "submenu/submenu-item/icon/info": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/500"
+  },
+  "submenu/submenu-item/icon/open": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "submenu/submenu-item/icon/success": {
+    "Dark": "green/500",
+    "Light": "green/400"
+  },
+  "submenu/submenu-item/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "submenu/submenu-item/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "submenu/submenu-item/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "submenu/submenu-item/text/open": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "switch-card/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "cool-gray/75"
+  },
+  "switch-card/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "switch/thumb/default": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "switch/track/off/background/default": {
+    "Dark": "warm-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "switch/track/off/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "switch/track/off/background/hover": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/300"
+  },
+  "switch/track/off/icon/default": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/200"
+  },
+  "switch/track/off/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/100"
+  },
+  "switch/track/off/icon/hover": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/300"
+  },
+  "switch/track/on/background/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "switch/track/on/background/disabled": {
+    "Dark": "bondi-blue/800",
+    "Light": "bondi-blue/200"
+  },
+  "switch/track/on/background/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "switch/track/on/icon/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "switch/track/on/icon/disabled": {
+    "Dark": "bondi-blue/800",
+    "Light": "bondi-blue/200"
+  },
+  "switch/track/on/icon/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "table/header/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "cool-gray/75"
+  },
+  "table/header/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "table/icon/brand": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "table/icon/danger": {
+    "Dark": "red/550",
+    "Light": "red/650"
+  },
+  "table/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/700"
+  },
+  "table/icon/info": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/550"
+  },
+  "table/row/background/alternative": {
+    "Dark": "nile-blue/900",
+    "Light": "cool-gray/50"
+  },
+  "table/row/background/default": {
+    "Dark": "nile-blue/850",
+    "Light": "white/950"
+  },
+  "table/row/background/hover": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/100"
+  },
+  "table/row/background/press": {
+    "Dark": "nile-blue/800",
+    "Light": "cornflower-blue/50"
+  },
+  "table/row/background/warning": {
+    "Dark": "orange/850",
+    "Light": "orange/100"
+  },
+  "table/row/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "table/text/link": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/550"
+  },
+  "table/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "table/text/secondary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "table/text/tertiary": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/550"
+  },
+  "table/text/warning": {
+    "Dark": "orange/500",
+    "Light": "orange/750"
+  },
+  "tabs/background/default": {
+    "Dark": "nile-blue/800-t",
+    "Light": "cool-gray/100"
+  },
+  "tabs/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "tabs/tab/background/active": {
+    "Dark": "nile-blue/850",
+    "Light": "white/950"
+  },
+  "tabs/tab/background/active-hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "tabs/tab/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tabs/tab/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tabs/tab/background/hover": {
+    "Dark": "nile-blue/800",
+    "Light": "cool-gray/50"
+  },
+  "tabs/tab/border/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "tabs/tab/border/active-hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tabs/tab/border/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tabs/tab/border/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tabs/tab/border/hover": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tabs/tab/text/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "tabs/tab/text/active-hover": {
+    "Dark": "white/950",
+    "Light": "white/950"
+  },
+  "tabs/tab/text/default": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/700"
+  },
+  "tabs/tab/text/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "tabs/tab/text/hover": {
+    "Dark": "cool-gray/400",
+    "Light": "cool-gray/700"
+  },
+  "textarea/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "textarea/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/100"
+  },
+  "textarea/background/error": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "textarea/background/filled": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "textarea/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "textarea/background/hover": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "textarea/background/warning": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "textarea/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/200"
+  },
+  "textarea/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "textarea/border/error": {
+    "Dark": "red/650",
+    "Light": "red/600"
+  },
+  "textarea/border/filled": {
+    "Dark": "nile-blue/750-t",
+    "Light": "cool-gray/200"
+  },
+  "textarea/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "textarea/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "textarea/border/warning": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "textarea/icon/copy/default": {
+    "Dark": "cool-gray/700",
+    "Light": "cool-gray/400"
+  },
+  "textarea/icon/copy/disabled": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/200"
+  },
+  "textarea/icon/copy/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "textarea/icon/copy/success": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "textarea/icon/resize/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "textarea/text/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "textarea/text/disabled": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "textarea/text/error": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "textarea/text/filled": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "textarea/text/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "textarea/text/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/600"
+  },
+  "textarea/text/warning": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/base/background/default": {
+    "Dark": "nile-blue/750",
+    "Light": "white/950"
+  },
+  "toast/base/details/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "toast/base/details/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/base/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/base/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/danger/background/default": {
+    "Dark": "nile-blue/750",
+    "Light": "white/950"
+  },
+  "toast/danger/details/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "toast/danger/details/text/default": {
+    "Dark": "red/400",
+    "Light": "red/700"
+  },
+  "toast/danger/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/danger/indicator/border/default": {
+    "Dark": "red/600",
+    "Light": "red/700"
+  },
+  "toast/danger/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/info/background/default": {
+    "Dark": "nile-blue/750",
+    "Light": "white/950"
+  },
+  "toast/info/details/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "toast/info/details/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/info/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/info/indicator/border/default": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/650"
+  },
+  "toast/info/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/success/background/default": {
+    "Dark": "nile-blue/750",
+    "Light": "white/950"
+  },
+  "toast/success/details/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "toast/success/details/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/success/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/success/indicator/border/default": {
+    "Dark": "green/650",
+    "Light": "green/750"
+  },
+  "toast/success/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/warning/background/default": {
+    "Dark": "nile-blue/750",
+    "Light": "white/950"
+  },
+  "toast/warning/details/border/default": {
+    "Dark": "cool-gray/600-t-30",
+    "Light": "cool-gray/200"
+  },
+  "toast/warning/details/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/warning/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toast/warning/indicator/border/default": {
+    "Dark": "orange/500",
+    "Light": "orange/600"
+  },
+  "toast/warning/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toggle-button/accent/background/active": {
+    "Dark": "bondi-blue/800",
+    "Light": "bondi-blue/50"
+  },
+  "toggle-button/accent/background/active hover": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/200"
+  },
+  "toggle-button/accent/background/active pressed": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/200"
+  },
+  "toggle-button/accent/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/accent/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/accent/background/hover": {
+    "Dark": "bondi-blue/800",
+    "Light": "bondi-blue/50"
+  },
+  "toggle-button/accent/background/pressed": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/75"
+  },
+  "toggle-button/accent/border/active": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/600"
+  },
+  "toggle-button/accent/border/active hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/600"
+  },
+  "toggle-button/accent/border/active pressed": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/700"
+  },
+  "toggle-button/accent/border/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/500"
+  },
+  "toggle-button/accent/border/disabled": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/300"
+  },
+  "toggle-button/accent/border/hover": {
+    "Dark": "bondi-blue/550",
+    "Light": "bondi-blue/550"
+  },
+  "toggle-button/accent/border/pressed": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/600"
+  },
+  "toggle-button/accent/icon/active": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/600"
+  },
+  "toggle-button/accent/icon/active hover": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/700"
+  },
+  "toggle-button/accent/icon/active pressed": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/700"
+  },
+  "toggle-button/accent/icon/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/500"
+  },
+  "toggle-button/accent/icon/disabled": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/300"
+  },
+  "toggle-button/accent/icon/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/550"
+  },
+  "toggle-button/accent/icon/pressed": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/600"
+  },
+  "toggle-button/accent/text/active": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/600"
+  },
+  "toggle-button/accent/text/active hover": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/700"
+  },
+  "toggle-button/accent/text/active pressed": {
+    "Dark": "bondi-blue/200",
+    "Light": "bondi-blue/700"
+  },
+  "toggle-button/accent/text/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/500"
+  },
+  "toggle-button/accent/text/disabled": {
+    "Dark": "bondi-blue/750",
+    "Light": "bondi-blue/300"
+  },
+  "toggle-button/accent/text/hover": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/550"
+  },
+  "toggle-button/accent/text/pressed": {
+    "Dark": "bondi-blue/300",
+    "Light": "bondi-blue/600"
+  },
+  "toggle-button/danger/background/active": {
+    "Dark": "red/800-t",
+    "Light": "red/50"
+  },
+  "toggle-button/danger/background/active hover": {
+    "Dark": "red/800",
+    "Light": "red/200"
+  },
+  "toggle-button/danger/background/active pressed": {
+    "Dark": "red/800",
+    "Light": "red/200"
+  },
+  "toggle-button/danger/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/danger/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/danger/background/hover": {
+    "Dark": "red/900-t",
+    "Light": "red/50"
+  },
+  "toggle-button/danger/background/pressed": {
+    "Dark": "red/900",
+    "Light": "red/100"
+  },
+  "toggle-button/danger/border/active": {
+    "Dark": "red/300",
+    "Light": "red/600"
+  },
+  "toggle-button/danger/border/active hover": {
+    "Dark": "red/500",
+    "Light": "red/600"
+  },
+  "toggle-button/danger/border/active pressed": {
+    "Dark": "red/300",
+    "Light": "red/750"
+  },
+  "toggle-button/danger/border/default": {
+    "Dark": "red/600",
+    "Light": "red/500"
+  },
+  "toggle-button/danger/border/disabled": {
+    "Dark": "red/750",
+    "Light": "red/300"
+  },
+  "toggle-button/danger/border/hover": {
+    "Dark": "red/550",
+    "Light": "red/550"
+  },
+  "toggle-button/danger/border/pressed": {
+    "Dark": "red/500",
+    "Light": "red/650"
+  },
+  "toggle-button/danger/icon/active": {
+    "Dark": "red/200",
+    "Light": "red/600"
+  },
+  "toggle-button/danger/icon/active hover": {
+    "Dark": "red/200",
+    "Light": "red/700"
+  },
+  "toggle-button/danger/icon/active pressed": {
+    "Dark": "red/200",
+    "Light": "red/700"
+  },
+  "toggle-button/danger/icon/default": {
+    "Dark": "red/600",
+    "Light": "red/500"
+  },
+  "toggle-button/danger/icon/disabled": {
+    "Dark": "red/750",
+    "Light": "red/300"
+  },
+  "toggle-button/danger/icon/hover": {
+    "Dark": "red/550",
+    "Light": "red/550"
+  },
+  "toggle-button/danger/icon/pressed": {
+    "Dark": "red/300",
+    "Light": "red/600"
+  },
+  "toggle-button/danger/text/active": {
+    "Dark": "red/200",
+    "Light": "red/600"
+  },
+  "toggle-button/danger/text/active hover": {
+    "Dark": "red/200",
+    "Light": "red/700"
+  },
+  "toggle-button/danger/text/active pressed": {
+    "Dark": "red/200",
+    "Light": "red/700"
+  },
+  "toggle-button/danger/text/default": {
+    "Dark": "red/600",
+    "Light": "red/500"
+  },
+  "toggle-button/danger/text/disabled": {
+    "Dark": "red/750",
+    "Light": "red/300"
+  },
+  "toggle-button/danger/text/hover": {
+    "Dark": "red/500",
+    "Light": "red/550"
+  },
+  "toggle-button/danger/text/pressed": {
+    "Dark": "red/300",
+    "Light": "red/600"
+  },
+  "toggle-button/info/background/active": {
+    "Dark": "cornflower-blue/800",
+    "Light": "cornflower-blue/50"
+  },
+  "toggle-button/info/background/active hover": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/200"
+  },
+  "toggle-button/info/background/active pressed": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/200"
+  },
+  "toggle-button/info/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/info/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/info/background/hover": {
+    "Dark": "cornflower-blue/800",
+    "Light": "cornflower-blue/50"
+  },
+  "toggle-button/info/background/pressed": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/75"
+  },
+  "toggle-button/info/border/active": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/600"
+  },
+  "toggle-button/info/border/active hover": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/600"
+  },
+  "toggle-button/info/border/active pressed": {
+    "Dark": "cornflower-blue/300",
+    "Light": "cornflower-blue/700"
+  },
+  "toggle-button/info/border/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/500"
+  },
+  "toggle-button/info/border/disabled": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/300"
+  },
+  "toggle-button/info/border/hover": {
+    "Dark": "cornflower-blue/550",
+    "Light": "cornflower-blue/550"
+  },
+  "toggle-button/info/border/pressed": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/600"
+  },
+  "toggle-button/info/icon/active": {
+    "Dark": "cornflower-blue/300",
+    "Light": "cornflower-blue/600"
+  },
+  "toggle-button/info/icon/active hover": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/700"
+  },
+  "toggle-button/info/icon/active pressed": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/700"
+  },
+  "toggle-button/info/icon/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/500"
+  },
+  "toggle-button/info/icon/disabled": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/300"
+  },
+  "toggle-button/info/icon/hover": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/550"
+  },
+  "toggle-button/info/icon/pressed": {
+    "Dark": "cornflower-blue/300",
+    "Light": "cornflower-blue/600"
+  },
+  "toggle-button/info/text/active": {
+    "Dark": "cornflower-blue/300",
+    "Light": "cornflower-blue/600"
+  },
+  "toggle-button/info/text/active hover": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/700"
+  },
+  "toggle-button/info/text/active pressed": {
+    "Dark": "cornflower-blue/200",
+    "Light": "cornflower-blue/700"
+  },
+  "toggle-button/info/text/default": {
+    "Dark": "cornflower-blue/600",
+    "Light": "cornflower-blue/500"
+  },
+  "toggle-button/info/text/disabled": {
+    "Dark": "cornflower-blue/750",
+    "Light": "cornflower-blue/300"
+  },
+  "toggle-button/info/text/hover": {
+    "Dark": "cornflower-blue/500",
+    "Light": "cornflower-blue/550"
+  },
+  "toggle-button/info/text/pressed": {
+    "Dark": "cornflower-blue/300",
+    "Light": "cornflower-blue/600"
+  },
+  "toggle-button/neutral/background/active": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/50"
+  },
+  "toggle-button/neutral/background/active hover": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/200"
+  },
+  "toggle-button/neutral/background/active pressed": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/200"
+  },
+  "toggle-button/neutral/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/neutral/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/neutral/background/hover": {
+    "Dark": "cool-gray/800",
+    "Light": "cool-gray/50"
+  },
+  "toggle-button/neutral/background/pressed": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/75"
+  },
+  "toggle-button/neutral/border/active": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/600"
+  },
+  "toggle-button/neutral/border/active hover": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/600"
+  },
+  "toggle-button/neutral/border/active pressed": {
+    "Dark": "cool-gray/300",
+    "Light": "cool-gray/700"
+  },
+  "toggle-button/neutral/border/default": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/500"
+  },
+  "toggle-button/neutral/border/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/300"
+  },
+  "toggle-button/neutral/border/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/550"
+  },
+  "toggle-button/neutral/border/pressed": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/600"
+  },
+  "toggle-button/neutral/icon/active": {
+    "Dark": "cool-gray/300",
+    "Light": "cool-gray/600"
+  },
+  "toggle-button/neutral/icon/active hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/700"
+  },
+  "toggle-button/neutral/icon/active pressed": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/700"
+  },
+  "toggle-button/neutral/icon/default": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/500"
+  },
+  "toggle-button/neutral/icon/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/300"
+  },
+  "toggle-button/neutral/icon/hover": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/550"
+  },
+  "toggle-button/neutral/icon/pressed": {
+    "Dark": "cool-gray/300",
+    "Light": "cool-gray/600"
+  },
+  "toggle-button/neutral/text/active": {
+    "Dark": "cool-gray/300",
+    "Light": "cool-gray/600"
+  },
+  "toggle-button/neutral/text/active hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/700"
+  },
+  "toggle-button/neutral/text/active pressed": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/700"
+  },
+  "toggle-button/neutral/text/default": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/500"
+  },
+  "toggle-button/neutral/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/300"
+  },
+  "toggle-button/neutral/text/hover": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/550"
+  },
+  "toggle-button/neutral/text/pressed": {
+    "Dark": "cool-gray/300",
+    "Light": "cool-gray/600"
+  },
+  "toggle-button/success/background/active": {
+    "Dark": "green/800",
+    "Light": "green/50"
+  },
+  "toggle-button/success/background/active hover": {
+    "Dark": "green/750",
+    "Light": "green/200"
+  },
+  "toggle-button/success/background/active pressed": {
+    "Dark": "green/750",
+    "Light": "green/200"
+  },
+  "toggle-button/success/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/success/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/success/background/hover": {
+    "Dark": "green/800",
+    "Light": "green/50"
+  },
+  "toggle-button/success/background/pressed": {
+    "Dark": "green/750",
+    "Light": "green/75"
+  },
+  "toggle-button/success/border/active": {
+    "Dark": "green/500",
+    "Light": "green/600"
+  },
+  "toggle-button/success/border/active hover": {
+    "Dark": "green/500",
+    "Light": "green/600"
+  },
+  "toggle-button/success/border/active pressed": {
+    "Dark": "green/300",
+    "Light": "green/700"
+  },
+  "toggle-button/success/border/default": {
+    "Dark": "green/600",
+    "Light": "green/500"
+  },
+  "toggle-button/success/border/disabled": {
+    "Dark": "green/750",
+    "Light": "green/300"
+  },
+  "toggle-button/success/border/hover": {
+    "Dark": "green/550",
+    "Light": "green/550"
+  },
+  "toggle-button/success/border/pressed": {
+    "Dark": "green/500",
+    "Light": "green/600"
+  },
+  "toggle-button/success/icon/active": {
+    "Dark": "green/300",
+    "Light": "green/600"
+  },
+  "toggle-button/success/icon/active hover": {
+    "Dark": "green/200",
+    "Light": "green/700"
+  },
+  "toggle-button/success/icon/active pressed": {
+    "Dark": "green/200",
+    "Light": "green/700"
+  },
+  "toggle-button/success/icon/default": {
+    "Dark": "green/600",
+    "Light": "green/500"
+  },
+  "toggle-button/success/icon/disabled": {
+    "Dark": "green/750",
+    "Light": "green/300"
+  },
+  "toggle-button/success/icon/hover": {
+    "Dark": "green/500",
+    "Light": "green/550"
+  },
+  "toggle-button/success/icon/pressed": {
+    "Dark": "green/300",
+    "Light": "green/600"
+  },
+  "toggle-button/success/text/active": {
+    "Dark": "green/300",
+    "Light": "green/600"
+  },
+  "toggle-button/success/text/active hover": {
+    "Dark": "green/200",
+    "Light": "green/700"
+  },
+  "toggle-button/success/text/active pressed": {
+    "Dark": "green/200",
+    "Light": "green/700"
+  },
+  "toggle-button/success/text/default": {
+    "Dark": "green/600",
+    "Light": "green/500"
+  },
+  "toggle-button/success/text/disabled": {
+    "Dark": "green/750",
+    "Light": "green/300"
+  },
+  "toggle-button/success/text/hover": {
+    "Dark": "green/500",
+    "Light": "green/550"
+  },
+  "toggle-button/success/text/pressed": {
+    "Dark": "green/300",
+    "Light": "green/600"
+  },
+  "toggle-button/warning/background/active": {
+    "Dark": "orange/900",
+    "Light": "orange/50"
+  },
+  "toggle-button/warning/background/active hover": {
+    "Dark": "orange/800",
+    "Light": "orange/200"
+  },
+  "toggle-button/warning/background/active pressed": {
+    "Dark": "orange/800",
+    "Light": "orange/200"
+  },
+  "toggle-button/warning/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/warning/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "toggle-button/warning/background/hover": {
+    "Dark": "orange/900",
+    "Light": "orange/50"
+  },
+  "toggle-button/warning/background/pressed": {
+    "Dark": "orange/850",
+    "Light": "orange/100"
+  },
+  "toggle-button/warning/border/active": {
+    "Dark": "orange/300",
+    "Light": "orange/800"
+  },
+  "toggle-button/warning/border/active hover": {
+    "Dark": "orange/500",
+    "Light": "orange/800"
+  },
+  "toggle-button/warning/border/active pressed": {
+    "Dark": "orange/300",
+    "Light": "orange/900"
+  },
+  "toggle-button/warning/border/default": {
+    "Dark": "orange/600",
+    "Light": "orange/600"
+  },
+  "toggle-button/warning/border/disabled": {
+    "Dark": "orange/750",
+    "Light": "orange/300"
+  },
+  "toggle-button/warning/border/hover": {
+    "Dark": "orange/550",
+    "Light": "orange/650"
+  },
+  "toggle-button/warning/border/pressed": {
+    "Dark": "orange/500",
+    "Light": "orange/800"
+  },
+  "toggle-button/warning/icon/active": {
+    "Dark": "orange/200",
+    "Light": "orange/800"
+  },
+  "toggle-button/warning/icon/active hover": {
+    "Dark": "orange/200",
+    "Light": "orange/850"
+  },
+  "toggle-button/warning/icon/active pressed": {
+    "Dark": "orange/200",
+    "Light": "orange/850"
+  },
+  "toggle-button/warning/icon/default": {
+    "Dark": "orange/600",
+    "Light": "orange/600"
+  },
+  "toggle-button/warning/icon/disabled": {
+    "Dark": "orange/750",
+    "Light": "orange/300"
+  },
+  "toggle-button/warning/icon/hover": {
+    "Dark": "orange/550",
+    "Light": "orange/650"
+  },
+  "toggle-button/warning/icon/pressed": {
+    "Dark": "orange/300",
+    "Light": "orange/800"
+  },
+  "toggle-button/warning/text/active": {
+    "Dark": "orange/200",
+    "Light": "orange/800"
+  },
+  "toggle-button/warning/text/active hover": {
+    "Dark": "orange/200",
+    "Light": "orange/850"
+  },
+  "toggle-button/warning/text/active pressed": {
+    "Dark": "orange/200",
+    "Light": "orange/850"
+  },
+  "toggle-button/warning/text/default": {
+    "Dark": "orange/600",
+    "Light": "orange/600"
+  },
+  "toggle-button/warning/text/disabled": {
+    "Dark": "orange/750",
+    "Light": "orange/300"
+  },
+  "toggle-button/warning/text/hover": {
+    "Dark": "orange/500",
+    "Light": "orange/650"
+  },
+  "toggle-button/warning/text/pressed": {
+    "Dark": "orange/300",
+    "Light": "orange/800"
+  },
+  "toggletip/background/default": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/800"
+  },
+  "toggletip/icon/close/default": {
+    "Dark": "white/400-t",
+    "Light": "white/400-t"
+  },
+  "toggletip/icon/close/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "white/950"
+  },
+  "toggletip/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "white/950"
+  },
+  "toolbar/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "toolbar/header/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "cool-gray/50"
+  },
+  "toolbar/icon/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/700"
+  },
+  "toolbar/icon/info": {
+    "Dark": "cornflower-blue/400",
+    "Light": "cornflower-blue/550"
+  },
+  "toolbar/tab-menu/border/active": {
+    "Light": "bondi-blue/600"
+  },
+  "toolbar/tab-menu/border/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/200"
+  },
+  "toolbar/tab-menu/border/disabled": {
+    "Light": "cool-gray/200"
+  },
+  "toolbar/tab-menu/border/hover": {
+    "Light": "bondi-blue/500"
+  },
+  "toolbar/tab-menu/text/active": {
+    "Light": "bondi-blue/600"
+  },
+  "toolbar/tab-menu/text/default": {
+    "Light": "cool-gray/550"
+  },
+  "toolbar/tab-menu/text/disabled": {
+    "Light": "cool-gray/200"
+  },
+  "toolbar/tab-menu/text/hover": {
+    "Light": "bondi-blue/500"
+  },
+  "toolbar/text/primery": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "toolbar/text/secondary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "toolbar/text/tertiary": {
+    "Dark": "cool-gray/650",
+    "Light": "cool-gray/550"
+  },
+  "tooltip/background/default": {
+    "Dark": "nile-blue/750",
+    "Light": "cool-gray/800"
+  },
+  "tooltip/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "white/950"
+  },
+  "tree-checkbox/background/default": {
+    "Dark": "nile-blue/800",
+    "Light": "white/950"
+  },
+  "tree-checkbox/item/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tree-checkbox/item/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tree-checkbox/item/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "tree-checkbox/item/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-checkbox/item/icon/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "tree-checkbox/item/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-checkbox/item/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "tree-checkbox/item/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "tree-checkbox/item/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "tree-menu/item/background/default": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tree-menu/item/background/disabled": {
+    "Dark": "white/0-t",
+    "Light": "white/0-t"
+  },
+  "tree-menu/item/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "tree-menu/item/background/open": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "tree-menu/item/border/open": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "tree-menu/item/icon/chevron/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-menu/item/icon/chevron/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "tree-menu/item/icon/chevron/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-menu/item/icon/chevron/open": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-menu/item/icon/level/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-menu/item/icon/level/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "tree-menu/item/icon/level/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-menu/item/icon/level/open": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "tree-menu/item/text/default": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "tree-menu/item/text/disabled": {
+    "Dark": "cool-gray/750",
+    "Light": "cool-gray/400"
+  },
+  "tree-menu/item/text/hover": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "tree-menu/item/text/open": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "uploading-files/background/default": {
+    "Dark": "nile-blue/0-t",
+    "Light": "white/0-t"
+  },
+  "uploading-files/background/hover": {
+    "Dark": "nile-blue/800-t",
+    "Light": "bondi-blue/50"
+  },
+  "uploading-files/border/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "uploading-files/icon/default": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "uploading-files/text/primary": {
+    "Dark": "cool-gray/200",
+    "Light": "cool-gray/800"
+  },
+  "uploading-files/text/secondary": {
+    "Dark": "cool-gray/500",
+    "Light": "cool-gray/700"
+  },
+  "validation-tooltip/error/arrow/default": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "validation-tooltip/error/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "validation-tooltip/error/border/default": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "validation-tooltip/error/text/default": {
+    "Dark": "red/600",
+    "Light": "red/600"
+  },
+  "validation-tooltip/warning/arrow/default": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "validation-tooltip/warning/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "validation-tooltip/warning/border/default": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "validation-tooltip/warning/text/default": {
+    "Dark": "orange/550",
+    "Light": "orange/600"
+  },
+  "zoom-controls/icon-control-button/background/active": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "zoom-controls/icon-control-button/background/default": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "zoom-controls/icon-control-button/background/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "white/950"
+  },
+  "zoom-controls/icon-control-button/background/focus": {
+    "Dark": "nile-blue/900",
+    "Light": "white/950"
+  },
+  "zoom-controls/icon-control-button/background/hover": {
+    "Dark": "nile-blue/850",
+    "Light": "cool-gray/100"
+  },
+  "zoom-controls/icon-control-button/border/active": {
+    "Dark": "bondi-blue/600",
+    "Light": "bondi-blue/600"
+  },
+  "zoom-controls/icon-control-button/border/default": {
+    "Dark": "nile-blue/550",
+    "Light": "cool-gray/500"
+  },
+  "zoom-controls/icon-control-button/border/disabled": {
+    "Dark": "cool-gray/600-t",
+    "Light": "cool-gray/200"
+  },
+  "zoom-controls/icon-control-button/border/focus": {
+    "Dark": "bondi-blue/500",
+    "Light": "bondi-blue/500"
+  },
+  "zoom-controls/icon-control-button/border/hover": {
+    "Dark": "bondi-blue/600",
+    "Light": "cool-gray/500"
+  },
+  "zoom-controls/icon-control-button/icon/active": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "zoom-controls/icon-control-button/icon/default": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "zoom-controls/icon-control-button/icon/disabled": {
+    "Dark": "cool-gray/600",
+    "Light": "cool-gray/400"
+  },
+  "zoom-controls/icon-control-button/icon/focus": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  },
+  "zoom-controls/icon-control-button/icon/hover": {
+    "Dark": "cool-gray/550",
+    "Light": "cool-gray/700"
+  }
+}

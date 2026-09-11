@@ -24,6 +24,7 @@ impl DesktopApp {
             || self
                 .host
                 .apply_chat_input_vertical_caret(down, self.shift_modifier)
+            || self.host.apply_design_rule_vertical(down)
             || self.host.apply_property_step(-sign * step)
             || self.host.apply_nudge(0.0, sign * step)
     }
@@ -37,6 +38,9 @@ impl DesktopApp {
                 .host
                 .apply_chat_input_caret(forward, self.shift_modifier)
             || self.host.apply_rename_caret(forward)
+            || self
+                .host
+                .apply_design_rule_caret(forward, self.shift_modifier)
             || self.host.apply_text_edit_caret(forward)
             || self.host.apply_property_caret(forward)
             || self.host.apply_nudge(sign * step, 0.0)

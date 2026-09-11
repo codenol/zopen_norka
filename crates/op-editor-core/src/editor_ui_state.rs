@@ -40,6 +40,12 @@ use std::collections::HashSet;
 /// and is not duplicated here.
 #[derive(Debug, Clone)]
 pub struct EditorUiState {
+    /// Wall clock in Unix milliseconds, refreshed by the host each frame.
+    ///
+    /// The chrome needs real time for exactly one thing: telling how old the
+    /// running build is. `now_ms` (monotonic, since launch) cannot answer
+    /// that.
+    pub now_unix_ms: f64,
     // --- Sidebar + panel metrics -----------------------------------
     pub sidebar_open: bool,
     pub layer_panel_width: f32,
@@ -162,12 +168,16 @@ pub struct EditorUiState {
     /// Vertical scroll offset (px, ≥ 0) of the LayerPanel's 图层
     /// (Layers) section row viewport.
     pub layer_layers_scroll: jian_core::scroll::ScrollState,
+    /// Vertical scroll offset of the LayerPanel's Components section.
+    pub layer_components_scroll: jian_core::scroll::ScrollState,
     /// Horizontal scroll offset (px, ≥ 0) of the LayerPanel's 页面
     /// row content. The row chrome stays fixed; only tree content shifts.
     pub layer_pages_h_scroll: jian_core::scroll::ScrollState,
     /// Horizontal scroll offset (px, ≥ 0) of the LayerPanel's 图层
     /// tree content. Needed for deeply nested layer trees.
     pub layer_layers_h_scroll: jian_core::scroll::ScrollState,
+    /// Horizontal scroll of the Components section rows.
+    pub layer_components_h_scroll: jian_core::scroll::ScrollState,
     /// Top-bar import dropdown (`从 Figma 导入` / `从 HTML 导入`).
     pub import_menu_open: bool,
     /// Shared `Select` scroll / hover state for that dropdown.
@@ -224,9 +234,10 @@ pub struct EditorUiState {
     /// Preview (Play) mode flag + device / screen switcher state.
     pub preview: PreviewState,
     /// Left-rail tab selection plus the slides tab's hover / press /
-    /// drag bookkeeping. The tab row itself only appears for scenario
-    /// documents that have a page navigator to offer.
+    /// drag bookkeeping. The tab row is always shown (except Preview).
     pub slides_panel: SlidesPanelState,
+    /// Assets tab: search, scroll, and insert/details presses.
+    pub assets_panel: crate::editor_ui_state::AssetsPanelState,
     /// Floating `Cmd+,` agent-settings modal open.
     pub agent_settings_open: bool,
     pub agent_settings: crate::agent_settings::AgentSettings,
@@ -763,4 +774,7 @@ pub struct EditorUiState {
     /// A queued component-instantiate request — `(kit_id, comp_id)`, set by a card click,
     /// drained by the desktop host so it can run the instantiate against the viewport's centre.
     pub component_browser_pending_insert: Option<(String, String)>,
+    /// Queued Skala master id from the left-rail Assets tab. Hosts drain
+    /// this with `InstantiateComponent` at the viewport centre.
+    pub pending_skala_insert: Option<String>,
 }

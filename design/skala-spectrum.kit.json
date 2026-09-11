@@ -1,0 +1,619 @@
+{
+  "id": "skala-spectrum",
+  "name": "Skala Spectrum",
+  "library": "design/skala-spectrum.lib.op",
+  "sentinelMasterId": "tpl-layout-default",
+  "canvas": {
+    "width": 1440,
+    "height": 850,
+    "fill": "#EEF1F5"
+  },
+  "mainSlotName": "Main container",
+  "mainSlotId": "tpl-layout-main",
+  "variableIndex": [
+    "$button/{filled,outline,ghost}/{accent,neutral,danger,warning,success,info}/{background,text,border}/{default,hover,active,focus,disabled}",
+    "$sidebar/{background,border,menubutton,menuitem,logo,status,avatar}/…",
+    "$breadcrumbs/{background,border,text}/{default,secondary}",
+    "$layout/background/default",
+    "$container/{background,border}/default",
+    "$input/{background,border,text,icon}/{default,hover,focused,filled,warning,error,disabled}",
+    "$pagination/item/{number,arrow,ellipsis}/… + $pagination/text/default",
+    "$context-menu/{background,menu-item}/{default,hover,selected,disabled} + icon/{danger,info,success}",
+    "$chip/{background,text,icon}/{default,disabled}",
+    "$badge-basic/{base,massAction}/{background,stroke,text}/default",
+    "$badge/{color}/{filled,outline,text,icon}/…",
+    "$table/{header,row,text,icon}/…",
+    "$checkbox/{unchecked,checked,indeterminate}/{background,border,icon,text}/…",
+    "$dropdown/{background,border,text,icon}/{default,…}",
+    "$indicator/{success,warning,info,critical,unavailable}/background/default",
+    "$spacing/spacer-{200,400,600,800,1000,1200}",
+    "$border-radius/{S,M,XXL}"
+  ],
+  "types": [
+    {
+      "id": "button",
+      "name": "Button",
+      "layer": "atom",
+      "defaultMasterId": "atom-button-filled-large-accent-default-text",
+      "namePattern": "Button/{Type}/{Size}/{Sentiment}/{State}",
+      "variantCount": 720,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "Instantiate with type:ref. Prefer Large (32) Filled Accent.",
+        "Ghost has no chrome. Outline uses a 1px centre stroke, never align inside."
+      ],
+      "dont": [
+        "Not Java #00BEC8; primary is Bondi #2D98B4."
+      ]
+    },
+    {
+      "id": "input",
+      "name": "Input",
+      "layer": "atom",
+      "defaultMasterId": "atom-input-default",
+      "namePattern": "Input/{State}",
+      "variantCount": 7,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        }
+      ],
+      "do": [
+        "236×32, radius 8, 1px centre stroke. Override -label."
+      ],
+      "dont": [
+        "Not a 38px field. No icon; use Input/Icon. Search waits."
+      ]
+    },
+    {
+      "id": "input-icon",
+      "name": "InputIcon",
+      "layer": "atom",
+      "defaultMasterId": "atom-input-icon-trailing-default",
+      "namePattern": "Input/Icon/{Placement}/{State}",
+      "variantCount": 14,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "236×32 with 16×16 lucide. Trailing after text, Leading before."
+      ],
+      "dont": [
+        "Not Input/{State}. Sample is map-pin."
+      ]
+    },
+    {
+      "id": "menu-button",
+      "name": "MenuButton",
+      "layer": "atom",
+      "defaultMasterId": "atom-menu-button-default",
+      "namePattern": "MenuButton/{State}",
+      "variantCount": 4,
+      "slots": [
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "Sidebar 40×40 rx 8. Override -icon."
+      ],
+      "dont": [
+        "Do not use MenuButton as a page CTA; that is Button."
+      ]
+    },
+    {
+      "id": "menu-item",
+      "name": "MenuItem",
+      "layer": "atom",
+      "defaultMasterId": "atom-menu-item-default",
+      "namePattern": "MenuItem/{State}",
+      "variantCount": 4,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "Sidebar 168 wide, hug. Override -label/-icon."
+      ],
+      "dont": [
+        "No nested pad. No stroke.align inside."
+      ]
+    },
+    {
+      "id": "logo",
+      "name": "Logo",
+      "layer": "atom",
+      "defaultMasterId": "atom-logo-spectrum",
+      "namePattern": "Logo/{Product}",
+      "variantCount": 7,
+      "slots": [],
+      "do": [
+        "Product wordmark. Java caret; navy wordmark."
+      ],
+      "dont": [
+        "Not a Chip or Button."
+      ]
+    },
+    {
+      "id": "status-indicator",
+      "name": "StatusIndicator",
+      "layer": "atom",
+      "defaultMasterId": "atom-status-success-16",
+      "namePattern": "StatusIndicator/{Status} {Size}",
+      "variantCount": 10,
+      "slots": [],
+      "do": [
+        "Use the ring glyphs for table/status cells. Sizes 16 and 20 only."
+      ],
+      "dont": [
+        "Do not confuse with Status (sidebar presence dots)."
+      ]
+    },
+    {
+      "id": "status",
+      "name": "Status",
+      "layer": "atom",
+      "defaultMasterId": "atom-status-dot-default",
+      "namePattern": "Status/{State}",
+      "variantCount": 3,
+      "slots": [],
+      "do": [
+        "Sidebar presence: Default, Lock, Danger. 40×40 tile with a 20×20 dot."
+      ],
+      "dont": [
+        "Do not use Status as a table badge; that is StatusIndicator."
+      ]
+    },
+    {
+      "id": "avatar",
+      "name": "Avatar",
+      "layer": "atom",
+      "defaultMasterId": "atom-avatar-default",
+      "namePattern": "Avatar/Default",
+      "variantCount": 1,
+      "slots": [
+        {
+          "suffix": "-initials",
+          "field": "content"
+        }
+      ],
+      "do": [
+        "Override atom-avatar-default-initials content (two letters)."
+      ],
+      "dont": [
+        "Do not swap the disc for an ellipse sibling."
+      ]
+    },
+    {
+      "id": "divider",
+      "name": "Divider",
+      "layer": "atom",
+      "defaultMasterId": "atom-divider-default",
+      "namePattern": "Divider/Default",
+      "variantCount": 1,
+      "slots": [],
+      "do": [
+        "Hairline fill $sidebar/border/default, not a stroke."
+      ],
+      "dont": [
+        "Do not use $sidebar/divider-horizontal/default (that alias is ink-gray in Light)."
+      ]
+    },
+    {
+      "id": "breadcrumbs",
+      "name": "Breadcrumbs",
+      "layer": "molecule",
+      "defaultMasterId": "molecule-breadcrumbs-3",
+      "namePattern": "Breadcrumbs/{Lots}",
+      "variantCount": 5,
+      "slots": [
+        {
+          "suffix": "-label-{i}",
+          "field": "content"
+        }
+      ],
+      "do": [
+        "Trail in the Layout content column. Override molecule-breadcrumbs-{lots}-label-{i}."
+      ],
+      "dont": [
+        "Do not invent a second breadcrumb atom or replace crumbs with Buttons."
+      ]
+    },
+    {
+      "id": "pagination-item",
+      "name": "PaginationItem",
+      "layer": "atom",
+      "defaultMasterId": "atom-pagination-item-number-default",
+      "namePattern": "Pagination/Item/{Number,Ellipsis,Arrow}/{State}",
+      "variantCount": 10,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "32×32 radius 8. Number Default/Hover/Selected; Arrow Prev/Next × Default/Hover/Disabled; Ellipsis."
+      ],
+      "dont": [
+        "Not Button/Icon. Live text for digits; Lucide chevrons, not paths."
+      ]
+    },
+    {
+      "id": "pagination-pagesize",
+      "name": "PaginationPageSize",
+      "layer": "atom",
+      "defaultMasterId": "atom-pagination-pagesize-default",
+      "namePattern": "Pagination/PageSize/Default",
+      "variantCount": 1,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "Closed trigger. Menu is ContextMenu/PageSize, 4px below."
+      ],
+      "dont": [
+        "Do not scratch-build the open list."
+      ]
+    },
+    {
+      "id": "pagination",
+      "name": "Pagination",
+      "layer": "molecule",
+      "defaultMasterId": "molecule-pagination-default",
+      "namePattern": "Pagination/{Default,PageSize/Open}",
+      "variantCount": 2,
+      "slots": [],
+      "do": [
+        "Place under a table. Open PageSize is Pagination/PageSize/Open."
+      ],
+      "dont": [
+        "Do not rebuild from Button/Icon."
+      ]
+    },
+    {
+      "id": "context-menu-item",
+      "name": "ContextMenuItem",
+      "layer": "atom",
+      "defaultMasterId": "atom-context-menu-item-text-default",
+      "namePattern": "ContextMenuItem/{Text,WithIcon,WithChip}/{State}",
+      "variantCount": 15,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "30px row, pad 8. Selected = fill + Bondi stroke. Sentiment on the icon only."
+      ],
+      "dont": [
+        "Do not recolor the label."
+      ]
+    },
+    {
+      "id": "context-menu",
+      "name": "ContextMenu",
+      "layer": "molecule",
+      "defaultMasterId": "molecule-context-menu-base",
+      "namePattern": "ContextMenu/{Base,WithIcon,Badges,Search,SearchIcon,SearchBadges,Semantic,PageSize}",
+      "variantCount": 8,
+      "slots": [],
+      "do": [
+        "320 rx8 pad 8, shadow 6/8. Place 4px below the trigger."
+      ],
+      "dont": [
+        "Do not overlay a scrollbar on items."
+      ]
+    },
+    {
+      "id": "chip",
+      "name": "Chip",
+      "layer": "atom",
+      "defaultMasterId": "atom-chip-default",
+      "namePattern": "Chip/{Default,Disabled}",
+      "variantCount": 2,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "Hug x 20, pad 4/8, x-circle. Override -label."
+      ],
+      "dont": [
+        "Not a filter; not color VALUE tags (Badge)."
+      ]
+    },
+    {
+      "id": "badge-basic",
+      "name": "BadgeBasic",
+      "layer": "atom",
+      "defaultMasterId": "atom-badge-basic-base",
+      "namePattern": "Badge/Basic/{Base,MassAction}",
+      "variantCount": 2,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        }
+      ],
+      "do": [
+        "16 circle, 1px white stroke. Override -label."
+      ],
+      "dont": [
+        "Do not nest inside a clipping Button; overlay at top-right."
+      ]
+    },
+    {
+      "id": "badge",
+      "name": "Badge",
+      "layer": "atom",
+      "defaultMasterId": "atom-badge-gray-strong-filled-text",
+      "namePattern": "Badge/{Color}/{Filled,Outline}/{Text,TextIcon,Icon}",
+      "variantCount": 90,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "Hug×17 pill, rx 8.5. Tokens $badge/{color}/…"
+      ],
+      "dont": [
+        "Not Chip (x-circle). Not Badge/Basic."
+      ]
+    },
+    {
+      "id": "table",
+      "name": "Table",
+      "layer": "atom",
+      "defaultMasterId": "organism-table-base",
+      "namePattern": "Table/Default",
+      "variantCount": 3,
+      "slots": [
+        {
+          "suffix": "-header",
+          "field": "children"
+        },
+        {
+          "suffix": "-rows",
+          "field": "children"
+        }
+      ],
+      "do": [
+        "Header 52, body 44 zebra. Checkbox col 56."
+      ],
+      "dont": [
+        "Not a 28px sort button."
+      ]
+    },
+    {
+      "id": "checkbox",
+      "name": "Checkbox",
+      "layer": "atom",
+      "defaultMasterId": "atom-checkbox-unchecked-default-text",
+      "namePattern": "Checkbox/{Selection}/{State}/{Layout}",
+      "variantCount": 45,
+      "slots": [
+        {
+          "suffix": "-label",
+          "field": "content"
+        },
+        {
+          "suffix": "-icon",
+          "field": "iconFontName"
+        }
+      ],
+      "do": [
+        "20×20 rx 6. Override -label."
+      ],
+      "dont": [
+        "Not circular."
+      ]
+    },
+    {
+      "id": "button-with-badge",
+      "name": "ButtonWithBadge",
+      "layer": "molecule",
+      "defaultMasterId": "molecule-button-with-badge",
+      "namePattern": "Button/WithBadge",
+      "variantCount": 1,
+      "slots": [],
+      "do": [
+        "Large Accent Text + Badge/Basic/Base overlay. clipContent false."
+      ],
+      "dont": [
+        "Do not put the badge inside the Button frame."
+      ]
+    },
+    {
+      "id": "sidebar",
+      "name": "Sidebar",
+      "layer": "organism",
+      "defaultMasterId": "org-sidebar-default",
+      "namePattern": "Sidebar/Default",
+      "variantCount": 1,
+      "slots": [],
+      "do": [
+        "Left rail of Layout/Default. Width 251, radius 16, white."
+      ],
+      "dont": [
+        "Do not draw a 240–280 full-bleed dark sidebar."
+      ]
+    },
+    {
+      "id": "layout",
+      "name": "Layout",
+      "layer": "template",
+      "defaultMasterId": "tpl-layout-default",
+      "namePattern": "Layout/Default",
+      "variantCount": 1,
+      "slots": [
+        {
+          "suffix": "-main",
+          "field": "children"
+        }
+      ],
+      "do": [
+        "Every desktop screen uses Layout/Default. Put the body only in Main container (tpl-layout-main)."
+      ],
+      "dont": [
+        "Do not draw a second Layout/Sidebar/topbar or use fill_container through the root padding."
+      ]
+    }
+  ],
+  "recipes": [
+    {
+      "id": "ops-shell",
+      "name": "Ops console shell",
+      "template": "tpl-layout-default",
+      "notes": "Clone Layout/Default as the page. Sidebar and breadcrumbs are already inside — retitle them for this product. Put the screen only in the content area (Main container / tpl-layout-main); do not emit another shell."
+    },
+    {
+      "id": "ops-servers-screen",
+      "name": "Ops equipment table screen",
+      "template": "tpl-recipe-ops-servers",
+      "notes": "Operator screen listing equipment: the shell (sidebar, breadcrumbs), a search field, a filter chip, a sortable table and a pagination strip are already composed. Take this recipe whenever the request is an admin/ops list — servers, switches, devices, inventory. Swap the column headers and the row data, retitle the shell for this product, and DELETE or hide the optional blocks the request does not ask for (the filter strip, the pagination strip, the column-settings button): removing an optional block is not rebuilding. What must never be rebuilt from scratch is the shell, the table chrome and the columns that stay.",
+      "matches": [
+        "account",
+        "audit",
+        "device",
+        "equipment",
+        "inventory",
+        "list",
+        "log",
+        "rack",
+        "registry",
+        "report",
+        "role",
+        "server",
+        "session",
+        "switch",
+        "switcher",
+        "table",
+        "task",
+        "token",
+        "user",
+        "аккаунт",
+        "аудит",
+        "журнал",
+        "задач",
+        "инвентар",
+        "коммутатор",
+        "лог",
+        "маршрутизатор",
+        "оборудован",
+        "отчёт",
+        "пак",
+        "пользовател",
+        "реестр",
+        "роль",
+        "сервер",
+        "сесси",
+        "список",
+        "стойк",
+        "таблиц",
+        "токен",
+        "устройств"
+      ],
+      "optional": [
+        {
+          "block": "Toolbar",
+          "subjects": [
+            "фильтр",
+            "поиск",
+            "filter",
+            "search"
+          ],
+          "negations": [
+            "не нуж",
+            "ненуж",
+            "без ",
+            "убери",
+            "убрать",
+            "скрой",
+            "спрячь",
+            "no ",
+            "without",
+            "remove",
+            "hide",
+            "drop"
+          ]
+        },
+        {
+          "block": "Footer",
+          "subjects": [
+            "пагинац",
+            "постранич",
+            "pagination",
+            "paging"
+          ],
+          "negations": [
+            "не нуж",
+            "ненуж",
+            "без ",
+            "убери",
+            "убрать",
+            "скрой",
+            "спрячь",
+            "no ",
+            "without",
+            "remove",
+            "hide",
+            "drop"
+          ]
+        }
+      ]
+    }
+  ]
+}

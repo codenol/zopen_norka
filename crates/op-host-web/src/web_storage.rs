@@ -32,7 +32,7 @@ pub(crate) fn report_storage_failure() {
     STORAGE_FAILURE_REPORTED.with(|reported| {
         if !reported.replace(true) {
             web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
-                "OpenPencil could not persist browser settings to localStorage",
+                "Norka could not persist browser settings to localStorage",
             ));
         }
     });
@@ -41,7 +41,7 @@ pub(crate) fn report_storage_failure() {
 pub(crate) fn report_unsupported_credential_version() {
     #[cfg(target_arch = "wasm32")]
     web_sys::console::warn_1(&wasm_bindgen::JsValue::from_str(
-        "OpenPencil found newer or incompatible browser settings; they were left unchanged",
+        "Norka found newer or incompatible browser settings; they were left unchanged",
     ));
 }
 

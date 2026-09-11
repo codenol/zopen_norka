@@ -38,7 +38,21 @@ fn compact_planning_prompt_matches_ts_golden() {
         });
         let golden: CompactGolden = serde_json::from_str(&raw)
             .unwrap_or_else(|e| panic!("malformed golden {}.json: {e}", c.name));
-        let got = build_compact_planning_prompt(&c.prompt, None, None);
+        let got = build_compact_planning_prompt(&c.prompt, &[], None);
+        if std::env::var("UPDATE_PLANNER_GOLDEN").as_deref() == Ok("1") {
+            let json = serde_json::json!({
+                "system": got.system,
+                "userPrompt": got.user_prompt,
+                "selectedStyleGuideName": got.selected_style_guide_name,
+            });
+            fs::write(
+                dir.join(format!("{}.json", c.name)),
+                format!("{}\n", serde_json::to_string_pretty(&json).unwrap()),
+            )
+            .unwrap();
+            checked += 1;
+            continue;
+        }
         assert_eq!(got.system, golden.system, "case {}: system drift", c.name);
         assert_eq!(
             got.user_prompt, golden.user_prompt,

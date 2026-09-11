@@ -131,7 +131,7 @@ fn wheel_prefers_design_and_icon_panels_painted_above_prompt_center() {
         .expect("Design panel rect");
     let design = op_editor_ui::widgets::DesignMdPanel::for_editor(&host.editor_state)
         .expect("Design panel view model");
-    assert!(design.max_scroll(design_rect) > 0.0);
+    assert!(design.max_rules_scroll(design_rect) > 0.0);
     let point = Point2D::new(
         design_rect.origin.x + design_rect.size.x / 2.0,
         design_rect.origin.y + design_rect.size.y / 2.0,
@@ -139,7 +139,9 @@ fn wheel_prefers_design_and_icon_panels_painted_above_prompt_center() {
     assert!(panel_rect(&host).contains(point));
 
     assert!(host.apply_wheel(point.x, point.y, -120.0, VIEWPORT_W, VIEWPORT_H));
-    assert!(host.editor_state.editor_ui.design_md_panel.scroll.offset > 0.0);
+    // The panel scrolls its rules list — the markdown brief it used to
+    // scroll is no longer part of the UI.
+    assert!(host.editor_state.editor_ui.design_md_panel.rules_scroll.offset > 0.0);
     assert_eq!(
         host.editor_state.editor_ui.prompt_center.scroll.offset, 0.0,
         "the covered Prompt Center must not consume Design-MD wheel input"

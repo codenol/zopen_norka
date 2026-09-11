@@ -1,0 +1,126 @@
+{
+  "id": "page-atom-chip",
+  "name": "Atoms · Chip",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-chip-default",
+      "name": "Chip/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 20.0,
+      "layout": "horizontal",
+      "gap": 8.0,
+      "padding": [
+        4.0,
+        8.0
+      ],
+      "justifyContent": "start",
+      "alignItems": "center",
+      "cornerRadius": 10.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$chip/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-chip-default-icon",
+          "name": "icon",
+          "iconFontName": "x-circle",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$chip/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-chip-default-label",
+          "name": "label",
+          "content": "Text",
+          "fontFamily": "Roboto",
+          "fontSize": 12,
+          "fontWeight": 400,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$chip/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-chip-disabled",
+      "name": "Chip/Disabled",
+      "reusable": true,
+      "x": 0,
+      "y": 40.0,
+      "width": "fit_content",
+      "height": 20.0,
+      "layout": "horizontal",
+      "gap": 8.0,
+      "padding": [
+        4.0,
+        8.0
+      ],
+      "justifyContent": "start",
+      "alignItems": "center",
+      "cornerRadius": 10.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$chip/background/disabled"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-chip-disabled-icon",
+          "name": "icon",
+          "iconFontName": "x-circle",
+          "iconFontFamily": "lucide",
+          "width": 12.0,
+          "height": 12.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$chip/icon/disabled"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-chip-disabled-label",
+          "name": "label",
+          "content": "Text",
+          "fontFamily": "Roboto",
+          "fontSize": 12,
+          "fontWeight": 400,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$chip/text/disabled"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

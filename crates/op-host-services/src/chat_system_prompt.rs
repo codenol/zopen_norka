@@ -3,8 +3,8 @@
 //! Ports the TS chat context plumbing:
 //! - `buildChatSystemPrompt` (`apps/web/src/services/ai/ai-prompts.ts`)
 //!   — `CHAT_CORE_PROMPT` + generation-phase skills resolved with the
-//!   `hasDesignMd` / `hasVariables` flags and the condensed design.md
-//!   style policy as `{{designMdContent}}` dynamic content.
+//!   `hasDesignMd` / `hasVariables` flags plus the session's design rules
+//!   block (the `design.md` prose policy is gone — rules are the source).
 //! - `AGENT_TOOL_INSTRUCTIONS_CRUD` + `buildContextString`
 //!   (`apps/web/src/components/panels/ai-chat-handlers.ts` +
 //!   `ai-chat-context-builder.ts`) — the system prompt for the
@@ -15,10 +15,9 @@
 use op_ai::chat_provider::ChatHistoryRole;
 use op_editor_core::pen_node_ext::PenNodeExt;
 use op_editor_core::{ChatMessage, EditorState};
-use op_orchestrator::build_design_md_style_policy;
 
 /// TS `CHAT_CORE_PROMPT` — verbatim port (BLOCK = ``` expanded).
-const CHAT_CORE_PROMPT: &str = r#"You are a design assistant for OpenPencil, a vector design tool that renders PenNode JSON on a canvas.
+const CHAT_CORE_PROMPT: &str = r#"You are a design assistant for Norka, a vector design tool that renders PenNode JSON on a canvas.
 
 ABSOLUTE REQUIREMENT — When a user asks to create/generate/design/make ANY visual element or UI:
 You MUST output a ```json code block containing a valid PenNode JSON array. This is NON-NEGOTIABLE.
@@ -26,7 +25,7 @@ Add a 1-2 sentence description AFTER the JSON block, not before.
 NEVER describe what you "would" create — ALWAYS output the actual JSON immediately.
 NEVER output HTML, CSS, or React code — ONLY PenNode JSON.
 NEVER say "I will create..." — START DIRECTLY WITH <step>.
-NEVER use "OpenPencil", "Pencil", or the tool name as brand/app name in designs. Use generic placeholders like "AppName", "Acme", or contextually relevant names.
+NEVER use "Norka", "Pencil", or the tool name as brand/app name in designs. Use generic placeholders like "AppName", "Acme", or contextually relevant names.
 
 You may include 1-2 brief <step> tags before the JSON (optional, keep them SHORT).
 When a user asks non-design questions (explain, suggest colors, give advice), respond in text."#;
@@ -86,12 +85,12 @@ pub fn build_chat_system_prompt(state: &EditorState, user_message: &str) -> Stri
     options
         .flags
         .insert("hasVariables".to_string(), has_variables);
-    if let Some(spec) = design_md {
-        options.dynamic_content.insert(
-            "designMdContent".to_string(),
-            build_design_md_style_policy(spec),
-        );
-    }
+    // The session's structured rules feed the prompt directly; the
+    // `{{designMdContent}}` template the design-md skill owns is left to
+    // that skill, which is inactive without a markdown brief.
+    let rules_policy = op_editor_core::build_effective_rules_policy(
+        &op_editor_core::effective_design_rules(state.doc.design_md.as_ref()),
+    );
     let ctx = op_ai_skills::resolve_skills(op_ai_skills::Phase::Generation, user_message, &options);
     let knowledge = ctx
         .skills
@@ -99,7 +98,13 @@ pub fn build_chat_system_prompt(state: &EditorState, user_message: &str) -> Stri
         .map(|s| s.content.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
-    format!("{CHAT_CORE_PROMPT}\n\n{AI_CHAT_DESIGN_QUALITY}\n\n{knowledge}")
+    let mut prompt = format!("{CHAT_CORE_PROMPT}\n\n{AI_CHAT_DESIGN_QUALITY}\n\n{knowledge}");
+    if !rules_policy.is_empty() {
+        prompt.push_str("\n\nSESSION RULES (follow these EXACTLY; they override any default):\n");
+        prompt.push_str(&rules_policy);
+    }
+    op_util::prompt_dump::dump_prompt("chat-system", &prompt);
+    prompt
 }
 
 /// Build the agent-mode system prompt for a tool-executing builtin
@@ -245,7 +250,7 @@ mod tests {
     fn chat_system_prompt_carries_core_prompt_and_skills() {
         let state = EditorState::new();
         let prompt = build_chat_system_prompt(&state, "design a login form");
-        assert!(prompt.starts_with("You are a design assistant for OpenPencil"));
+        assert!(prompt.starts_with("You are a design assistant for Norka"));
         // Generation-phase skills resolve for a design message, so the
         // prompt must be longer than the bare core prompt.
         assert!(prompt.len() > CHAT_CORE_PROMPT.len() + 100);
@@ -262,23 +267,51 @@ mod tests {
         assert!(prompt.contains("signature moment"));
     }
 
+    /// The AI reads the session's design rules — the markdown brief is no
+    /// longer part of the product, and a rule the user wrote must reach the
+    /// model verbatim.
     #[test]
-    fn chat_system_prompt_includes_design_md_policy_when_present() {
+    fn chat_system_prompt_carries_the_session_rules() {
         let mut state = EditorState::new();
         state.doc.design_md = Some(jian_ops_schema::DesignMdSpec {
-            raw: "# Acme".into(),
-            project_name: Some("Acme".into()),
-            visual_theme: Some("Calm minimal twilight".into()),
+            raw: String::new(),
+            project_name: None,
+            visual_theme: None,
             color_palette: None,
             typography: None,
             component_styles: None,
             layout_principles: None,
             generation_notes: None,
+            rules: vec![jian_ops_schema::DesignRule {
+                id: op_editor_core::AI_INSTRUCTION_RULE_ID.into(),
+                title: "AI instructions".into(),
+                instruction: "Always answer in the user's language.".into(),
+                kind: jian_ops_schema::DesignRuleKind::Do,
+                scope: jian_ops_schema::DesignRuleScope::Global,
+                condition: None,
+                priority: 0,
+                enabled: true,
+                overrides: None,
+            }],
         });
+
         let prompt = build_chat_system_prompt(&state, "design a login form");
+
         assert!(
-            prompt.contains("Calm minimal twilight"),
-            "design.md style policy must flow into the system prompt"
+            prompt.contains("SESSION RULES"),
+            "the chat prompt must announce the rules block"
+        );
+        assert!(
+            prompt.contains("Always answer in the user's language."),
+            "the user's own instruction must reach the model: {prompt}"
+        );
+        assert!(
+            prompt.contains("WORKING AGREEMENT"),
+            "the top instruction opens the block"
+        );
+        assert!(
+            prompt.contains("COMPONENT RULES"),
+            "the kit's component rules ride along"
         );
     }
 

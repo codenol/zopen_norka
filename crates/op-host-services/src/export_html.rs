@@ -6,7 +6,7 @@
 //! positioned elements by [`crate::export_html_structured`], anything
 //! that tree cannot express is embedded as a base64 `data:` PNG, and
 //! the player's CSS + JS are inlined. A presenter can carry the file to
-//! a machine with no network, no fonts and no OpenPencil installed and
+//! a machine with no network, no fonts and no Norka installed and
 //! still present — and, because the text is real text, still select and
 //! copy a quote off a slide.
 //!
@@ -26,7 +26,7 @@ use crate::export_html_template::{render_slideshow_page, SlideAsset};
 
 /// Fallback browser-tab title for a deck whose document and first board
 /// are both unnamed.
-const DEFAULT_TITLE: &str = "OpenPencil";
+const DEFAULT_TITLE: &str = "Norka";
 
 /// What one export produced.
 ///

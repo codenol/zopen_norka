@@ -81,32 +81,24 @@ pub fn slides_tab_label_key(state: &EditorState) -> &'static str {
 
 /// Whether the left rail shows its tab row for this document.
 ///
-/// **Having boards is the whole test.** The tab used to be gated on the
-/// recorded scenario as well, which meant the navigator — the only place
-/// a page's order is visible, let alone reorderable — was missing from
-/// every document not tagged a deck, including every multi-frame design
-/// a user laid out by hand. A page with frames on it has an order, so it
-/// gets the tab; a page with none has nothing to list, so the rail stays
-/// the Layers tree it has always been. A pristine starter document has
-/// no top-level frame, so a new file still opens without one.
-///
-/// Presenting hides it along with the whole rail, so this answers
-/// `false` there too and no host can paint a navigator over a
-/// presentation.
+/// Always, except while presenting: Layers and Assets are always on
+/// offer, and Slides joins them when the page has boards to list.
 pub fn tab_row_visible(state: &EditorState) -> bool {
-    !state.editor_ui.preview.mode && !board_chips(state).is_empty()
+    !state.editor_ui.preview.mode
 }
 
-/// Both tab labels for this document, already translated.
-///
-/// The single place either host or the layout reads them from: the tab
-/// row's rects are sized from the labels, so a caller resolving its own
-/// copy could paint a pill that does not match the one it hit-tests.
-pub fn tab_labels(state: &EditorState) -> (&'static str, &'static str) {
+/// Whether the page has boards the Slides tab can list.
+pub fn slides_tab_available(state: &EditorState) -> bool {
+    !board_chips(state).is_empty()
+}
+
+/// Layers, optional Slides, and Assets labels for this document.
+pub fn tab_labels(state: &EditorState) -> (&'static str, &'static str, &'static str) {
     let ui = &state.editor_ui;
     (
         crate::widgets::editor_state_ext::translate(ui, "layers.title"),
         crate::widgets::editor_state_ext::translate(ui, slides_tab_label_key(state)),
+        crate::widgets::editor_state_ext::translate(ui, "slidesPanel.tabAssets"),
     )
 }
 
@@ -114,16 +106,27 @@ pub fn tab_labels(state: &EditorState) -> (&'static str, &'static str) {
 /// this document shows no tab row.
 pub fn tab_row(state: &EditorState, panel: Rect) -> Option<SlidesPanelTabs> {
     tab_row_visible(state).then(|| {
-        let (layers, slides) = tab_labels(state);
-        tabs_for_state(state, panel, layers, slides)
+        let (layers, slides, assets) = tab_labels(state);
+        tabs_for_state(state, panel, layers, slides, assets)
     })
 }
 
-fn tabs_for_state(state: &EditorState, panel: Rect, layers: &str, slides: &str) -> SlidesPanelTabs {
+fn tabs_for_state(
+    state: &EditorState,
+    panel: Rect,
+    layers: &str,
+    slides: &str,
+    assets: &str,
+) -> SlidesPanelTabs {
+    let slides_label = slides_tab_available(state).then_some(slides);
+    let active = match state.editor_ui.slides_panel.tab {
+        LeftPanelTab::Slides if !slides_tab_available(state) => LeftPanelTab::Layers,
+        other => other,
+    };
     if state.editor_ui.touch_chrome() {
-        SlidesPanelTabs::new_touch(panel, state.editor_ui.slides_panel.tab, layers, slides)
+        SlidesPanelTabs::new_rail_touch(panel, active, layers, slides_label, assets)
     } else {
-        SlidesPanelTabs::new(panel, state.editor_ui.slides_panel.tab, layers, slides)
+        SlidesPanelTabs::new_rail(panel, active, layers, slides_label, assets)
     }
 }
 
@@ -144,7 +147,14 @@ pub fn layers_content_rect(state: &EditorState, panel: Rect) -> Rect {
 /// row is hidden, so a stale tab selection cannot strand a document
 /// that stopped being a deck on a navigator it no longer has.
 pub fn slides_tab_active(state: &EditorState) -> bool {
-    tab_row_visible(state) && state.editor_ui.slides_panel.tab == LeftPanelTab::Slides
+    tab_row_visible(state)
+        && slides_tab_available(state)
+        && state.editor_ui.slides_panel.tab == LeftPanelTab::Slides
+}
+
+/// Whether the Assets tab owns the rail.
+pub fn assets_tab_active(state: &EditorState) -> bool {
+    tab_row_visible(state) && state.editor_ui.slides_panel.tab == LeftPanelTab::Assets
 }
 
 /// The slides listed in the panel, in page order.
@@ -211,10 +221,10 @@ pub fn layout(
     if !slides_tab_active(state) {
         return None;
     }
-    let (layers, slides) = tab_labels(state);
+    let (layers, slides, assets) = tab_labels(state);
     SlidesPanelLayout::new(
         panel,
-        tabs_for_state(state, panel, layers, slides),
+        tabs_for_state(state, panel, layers, slides, assets),
         &board_aspects(chips, scene),
         state.editor_ui.slides_panel.scroll.offset,
         action_state(state, chips),
@@ -269,21 +279,19 @@ pub fn widget<'a>(
     state: &EditorState,
     layers_label: &'a str,
     slides_label: &'a str,
+    assets_label: &'a str,
     actions: SlidesActionLabels<'a>,
 ) -> SlidesPanel<'a> {
     let panel = state.editor_ui.slides_panel;
     let dragging = panel.drag.is_some_and(|drag| drag_is_live(&drag));
     SlidesPanel {
         active,
-        // A hover wash under the drop bar reads as a second answer to
-        // "where does this land", so the carried row owns the list
-        // alone. Hover is still TRACKED during the drag — the release
-        // checks it to tell a drop from a click.
         hover: panel.hover.filter(|_| !dragging),
         drag: panel.drag,
         thumbnails_supported: state.editor_ui.slide_thumbnails_supported,
         layers_label,
         slides_label,
+        assets_label,
         actions,
     }
 }
@@ -392,6 +400,7 @@ pub fn release(state: &mut EditorState, layout: &SlidesPanelLayout) -> SlidesRel
     match pressed {
         SlidesPanelTarget::LayersTab => SlidesRelease::SelectTab(LeftPanelTab::Layers),
         SlidesPanelTarget::SlidesTab => SlidesRelease::SelectTab(LeftPanelTab::Slides),
+        SlidesPanelTarget::AssetsTab => SlidesRelease::SelectTab(LeftPanelTab::Assets),
         SlidesPanelTarget::Slide(index) => SlidesRelease::Activate(index),
         SlidesPanelTarget::Present => SlidesRelease::Present,
         SlidesPanelTarget::ExportMenu => {
@@ -460,6 +469,7 @@ pub fn tab_release(state: &mut EditorState) -> SlidesRelease {
     match pressed {
         SlidesPanelTarget::LayersTab => SlidesRelease::SelectTab(LeftPanelTab::Layers),
         SlidesPanelTarget::SlidesTab => SlidesRelease::SelectTab(LeftPanelTab::Slides),
+        SlidesPanelTarget::AssetsTab => SlidesRelease::SelectTab(LeftPanelTab::Assets),
         // Nothing else on the panel exists while the Layers tab owns the
         // rail — the action bar is the slides tab's, and so is its menu.
         _ => SlidesRelease::Cancelled,

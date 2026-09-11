@@ -1,0 +1,1926 @@
+{
+ "pages": [
+  {
+   "name": "Page 1",
+   "children": [
+    {
+     "type": "frame",
+     "id": "ops-layout",
+     "name": "Layout/Default",
+     "x": 0,
+     "y": 0,
+     "width": 1440.0,
+     "height": 850.0,
+     "layout": "none",
+     "clipContent": true,
+     "fill": [
+      {
+       "type": "solid",
+       "color": "$layout/background/default"
+      }
+     ],
+     "children": [
+      {
+       "type": "ref",
+       "id": "ops-sidebar",
+       "ref": "org-sidebar-default",
+       "x": 20.0,
+       "y": 20.0,
+       "width": 251.0,
+       "height": 814.0
+      },
+      {
+       "type": "frame",
+       "id": "ops-content",
+       "name": "Content",
+       "x": 287.0,
+       "y": 20.0,
+       "width": 1137.0,
+       "height": 814.0,
+       "layout": "vertical",
+       "gap": 16.0,
+       "alignItems": "start",
+       "children": [
+        {
+         "type": "ref",
+         "id": "ops-breadcrumbs",
+         "ref": "molecule-breadcrumbs-2",
+         "descendants": {
+          "molecule-breadcrumbs-2-label-0": {
+           "content": "Геном"
+          },
+          "molecule-breadcrumbs-2-label-1": {
+           "content": "Коммутаторы"
+          }
+         }
+        },
+        {
+         "type": "frame",
+         "id": "ops-main",
+         "name": "Main container",
+         "width": "fill_container",
+         "height": 750.0,
+         "layout": "vertical",
+         "gap": 16.0,
+         "padding": 24.0,
+         "alignItems": "start",
+         "cornerRadius": 16.0,
+         "clipContent": true,
+         "fill": [
+          {
+           "type": "solid",
+           "color": "$container/background/default"
+          }
+         ],
+         "stroke": {
+          "thickness": 1,
+          "fill": [
+           {
+            "type": "solid",
+            "color": "$container/border/default"
+           }
+          ]
+         },
+         "children": [
+          {
+           "type": "frame",
+           "id": "ops-toolbar",
+           "name": "Toolbar",
+           "width": "fill_container",
+           "height": 32.0,
+           "layout": "horizontal",
+           "gap": 12.0,
+           "alignItems": "center",
+           "children": [
+            {
+             "type": "ref",
+             "id": "ops-search",
+             "ref": "atom-input-icon-leading-default",
+             "width": 236.0,
+             "height": 32.0,
+             "descendants": {
+              "atom-input-icon-leading-default-label": {
+               "content": "Поиск"
+              },
+              "atom-input-icon-leading-default-icon": {
+               "iconFontName": "search"
+              }
+             }
+            },
+            {
+             "type": "ref",
+             "id": "ops-pak-select",
+             "ref": "atom-input-icon-trailing-default",
+             "width": 120.0,
+             "height": 32.0,
+             "descendants": {
+              "atom-input-icon-trailing-default-label": {
+               "content": "ПАК"
+              },
+              "atom-input-icon-trailing-default-icon": {
+               "iconFontName": "chevron-down"
+              }
+             }
+            },
+            {
+             "type": "ref",
+             "id": "ops-filter",
+             "ref": "atom-button-outline-large-secondary-default-icon",
+             "width": 32.0,
+             "height": 32.0,
+             "descendants": {
+              "atom-button-outline-large-secondary-default-icon-icon": {
+               "iconFontName": "funnel"
+              }
+             }
+            },
+            {
+             "type": "frame",
+             "id": "ops-toolbar-spacer",
+             "name": "spacer",
+             "width": "fill_container",
+             "height": 1.0
+            },
+            {
+             "type": "ref",
+             "id": "ops-export",
+             "ref": "atom-button-outline-large-secondary-default-icon",
+             "width": 32.0,
+             "height": 32.0,
+             "descendants": {
+              "atom-button-outline-large-secondary-default-icon-icon": {
+               "iconFontName": "download"
+              }
+             }
+            }
+           ]
+          },
+          {
+           "type": "ref",
+           "id": "ops-table",
+           "ref": "organism-table-base",
+           "width": "fill_container",
+           "descendants": {
+            "organism-table-header": {
+             "children": [
+              {
+               "type": "ref",
+               "id": "ops-header-row",
+               "ref": "organism-table-header-row",
+               "height": 52.0,
+               "descendants": {
+                "organism-table-header-row-cells": {
+                 "children": [
+                  {
+                   "type": "ref",
+                   "id": "ops-th-name",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 115,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 115,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 115
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "Имя",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-serial",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 125,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 125,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 125
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "Серийный номер",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-pak",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 100,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 100,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 100
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "ПАК",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-vendor",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 115,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 115,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 115
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "Производитель",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-model",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 115,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 115,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 115
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "Модель",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-cpu",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 130,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 130,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 130
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "CPU",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-ram",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 70,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 70,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 70
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "RAM",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-disks",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 150,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 150,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 150
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "Диски",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-bmc",
+                   "ref": "atom-table-header-text-sort-filter",
+                   "width": 115,
+                   "height": 52.0,
+                   "descendants": {
+                    "atom-table-header-text-sort-filter-content": {
+                     "width": 115,
+                     "height": 52.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-header-text-sort-filter-rule": {
+                     "width": 115
+                    },
+                    "atom-table-header-text-sort-filter-label": {
+                     "content": "BMC IP",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-th-actions",
+                   "ref": "atom-table-header-columns",
+                   "width": 56.0,
+                   "height": 52.0
+                  }
+                 ]
+                }
+               }
+              }
+             ]
+            },
+            "organism-table-rows": {
+             "children": [
+              {
+               "type": "ref",
+               "id": "ops-row-0",
+               "ref": "organism-table-row",
+               "height": 44.0,
+               "descendants": {
+                "organism-table-row-cells": {
+                 "children": [
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-name",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "s3m-03b02-mak44",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-serial",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 125,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 125,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 125
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "0103230BA0",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-pak",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 100,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 100,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 100
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "S3-PRD-2m0002",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-vendor",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "Yadro",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-model",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "YADRO X3-205",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-cpu",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 130,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 130,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 130
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x Intel Xeon 5317",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-ram",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 70,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 70,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 70
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x 32Gb",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-disks",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 150,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 150,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 150
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x 0.48TB SSD, 1x\n0.48TB SSD, 4x\n1.92TB SSD",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-bmc",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "192.168.191.151",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r0-kebab",
+                   "ref": "atom-table-cell-kebab-default",
+                   "width": 44.0,
+                   "height": 44.0
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "type": "ref",
+               "id": "ops-row-1",
+               "ref": "organism-table-row",
+               "height": 44.0,
+               "fill": [
+                {
+                 "type": "solid",
+                 "color": "$table/row/background/alternative"
+                }
+               ],
+               "descendants": {
+                "organism-table-row-cells": {
+                 "children": [
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-name",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "s3m-03b02-mak44",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-serial",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 125,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 125,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 125
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "0103230BA0",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-pak",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 100,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 100,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 100
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "S3-PRD-2m0002",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-vendor",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "Yadro",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-model",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "YADRO X3-205",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-cpu",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 130,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 130,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 130
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x Intel Xeon 5317",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-ram",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 70,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 70,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 70
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x 32Gb",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-disks",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 150,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 150,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 150
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x 0.48TB SSD, 1x\n0.48TB SSD, 4x\n1.92TB SSD",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-bmc",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "192.168.191.151",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r1-kebab",
+                   "ref": "atom-table-cell-kebab-alternative",
+                   "width": 44.0,
+                   "height": 44.0
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "type": "ref",
+               "id": "ops-row-2",
+               "ref": "organism-table-row",
+               "height": 44.0,
+               "descendants": {
+                "organism-table-row-cells": {
+                 "children": [
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-name",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "s3m-03b02-mak44",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-serial",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 125,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 125,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 125
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "0103230BA0",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-pak",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 100,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 100,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 100
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "S3-PRD-2m0002",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-vendor",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "Yadro",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-model",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "YADRO X3-205",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-cpu",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 130,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 130,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 130
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x Intel Xeon 5317",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-ram",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 70,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 70,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 70
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x 32Gb",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-disks",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 150,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 150,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 150
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x 0.48TB SSD, 1x\n0.48TB SSD, 4x\n1.92TB SSD",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-bmc",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "192.168.191.151",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r2-kebab",
+                   "ref": "atom-table-cell-kebab-default",
+                   "width": 44.0,
+                   "height": 44.0
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "type": "ref",
+               "id": "ops-row-3",
+               "ref": "organism-table-row",
+               "height": 44.0,
+               "fill": [
+                {
+                 "type": "solid",
+                 "color": "$table/row/background/alternative"
+                }
+               ],
+               "descendants": {
+                "organism-table-row-cells": {
+                 "children": [
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-name",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "s3m-03b02-mak44",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-serial",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 125,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 125,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 125
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "0103230BA0",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-pak",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 100,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 100,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 100
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "S3-PRD-2m0002",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-vendor",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "Yadro",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-model",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "YADRO X3-205",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-cpu",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 130,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 130,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 130
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x Intel Xeon 5317",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-ram",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 70,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 70,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 70
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x 32Gb",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-disks",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 150,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 150,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 150
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x 0.48TB SSD, 1x\n0.48TB SSD, 4x\n1.92TB SSD",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-bmc",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "192.168.191.151",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r3-kebab",
+                   "ref": "atom-table-cell-kebab-alternative",
+                   "width": 44.0,
+                   "height": 44.0
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "type": "ref",
+               "id": "ops-row-4",
+               "ref": "organism-table-row",
+               "height": 44.0,
+               "descendants": {
+                "organism-table-row-cells": {
+                 "children": [
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-name",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "s3m-03b02-mak44",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-serial",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 125,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 125,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 125
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "0103230BA0",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-pak",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 100,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 100,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 100
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "S3-PRD-2m0002",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-vendor",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "Yadro",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-model",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "YADRO X3-205",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-cpu",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 130,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 130,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 130
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x Intel Xeon 5317",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-ram",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 70,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 70,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 70
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x 32Gb",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-disks",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 150,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 150,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 150
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "2x 0.48TB SSD, 1x\n0.48TB SSD, 4x\n1.92TB SSD",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-bmc",
+                   "ref": "atom-table-cell-text-default",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-default-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-default-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-default-label": {
+                     "content": "192.168.191.151",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r4-kebab",
+                   "ref": "atom-table-cell-kebab-default",
+                   "width": 44.0,
+                   "height": 44.0
+                  }
+                 ]
+                }
+               }
+              },
+              {
+               "type": "ref",
+               "id": "ops-row-5",
+               "ref": "organism-table-row",
+               "height": 44.0,
+               "fill": [
+                {
+                 "type": "solid",
+                 "color": "$table/row/background/alternative"
+                }
+               ],
+               "descendants": {
+                "organism-table-row-cells": {
+                 "children": [
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-name",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "s3m-03b02-mak44",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-serial",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 125,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 125,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 125
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "0103230BA0",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-pak",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 100,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 100,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 100
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "S3-PRD-2m0002",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-vendor",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "Yadro",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-model",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "YADRO X3-205",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-cpu",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 130,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 130,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 130
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x Intel Xeon 5317",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-ram",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 70,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 70,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 70
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x 32Gb",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-disks",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 150,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 150,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 150
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "2x 0.48TB SSD, 1x\n0.48TB SSD, 4x\n1.92TB SSD",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-bmc",
+                   "ref": "atom-table-cell-text-alternative",
+                   "width": 115,
+                   "height": 44.0,
+                   "descendants": {
+                    "atom-table-cell-text-alternative-content": {
+                     "width": 115,
+                     "height": 44.0,
+                     "padding": [
+                      0,
+                      8.0
+                     ],
+                     "clipContent": true
+                    },
+                    "atom-table-cell-text-alternative-rule": {
+                     "width": 115
+                    },
+                    "atom-table-cell-text-alternative-label": {
+                     "content": "192.168.191.151",
+                     "fontSize": 13.0
+                    }
+                   }
+                  },
+                  {
+                   "type": "ref",
+                   "id": "ops-r5-kebab",
+                   "ref": "atom-table-cell-kebab-alternative",
+                   "width": 44.0,
+                   "height": 44.0
+                  }
+                 ]
+                }
+               }
+              }
+             ]
+            }
+           }
+          },
+          {
+           "type": "frame",
+           "id": "ops-footer",
+           "name": "Footer",
+           "width": "fill_container",
+           "height": 32.0,
+           "layout": "horizontal",
+           "justifyContent": "end",
+           "alignItems": "center",
+           "children": [
+            {
+             "type": "ref",
+             "id": "ops-pagination",
+             "ref": "molecule-pagination-default"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

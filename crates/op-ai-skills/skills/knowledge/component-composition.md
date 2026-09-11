@@ -69,3 +69,10 @@ const btnB = I(row, {"type":"ref","ref":"shadcn-btn-secondary","descendants":{"s
 - Repeating UI (button rows, card grids, list rows, nav items) is the
   strongest signal to reuse one component as several `ref` instances with
   per-instance `descendants`, rather than authoring each copy by hand.
+
+## Kit chassis (desktop)
+
+Layout/Default is already the page. Do not `I(...)` another Layout or Sidebar.
+Your section is inserted into the content area (`Main container`). Put the
+product body there with kit atoms. Retitle existing logo / nav / breadcrumbs
+via `descendants` on those instances — do not rebuild the shell.

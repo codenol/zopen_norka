@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use op_editor_core::{DesignMdSpec, EditorState};
+use op_editor_core::EditorState;
 
 use super::{McpTool, ToolErrorCode, ToolOutcome};
 
@@ -91,10 +91,11 @@ Light/dark handling:
 - Use variable refs such as `$color-bg`, `$color-text`, and `$color-surface` when the document provides them.
 - If the user explicitly asks for a one-off dark or light design and no variables exist, use concrete high-contrast fills and text colors directly."##;
 
-const DEFAULT_DESIGN_MD: &str = "No design.md loaded in the current document.";
+const DEFAULT_DESIGN_MD: &str = "No design rules are loaded in the current document.";
 
 pub struct GetDesignPrompt {
-    design_md_policy: Option<String>,
+    /// The session's resolved design rules, rendered for the prompt.
+    rules_policy: Option<String>,
 }
 
 impl McpTool for GetDesignPrompt {
@@ -118,7 +119,7 @@ impl McpTool for GetDesignPrompt {
         out.insert("availableSections".into(), available);
         out.insert(
             "designPrompt".into(),
-            build_design_prompt(Some(section), self.design_md_policy.as_deref()),
+            build_design_prompt(Some(section), self.rules_policy.as_deref()),
         );
         ToolOutcome::Ok(out)
     }
@@ -126,30 +127,38 @@ impl McpTool for GetDesignPrompt {
 
 pub fn get_design_prompt_snapshot(state: &EditorState) -> GetDesignPrompt {
     GetDesignPrompt {
-        design_md_policy: state
-            .doc
-            .design_md
-            .as_ref()
-            .map(build_design_md_style_policy)
-            .filter(|policy| !policy.is_empty()),
+        // The AI reads the session's structured rules — never a markdown
+        // brief, which the editor no longer maintains.
+        rules_policy: {
+            let rules = op_editor_core::design_rules_ui::visible_rules(
+                op_editor_core::session_kit(),
+                state.doc.design_md.as_ref(),
+                op_editor_core::DesignRulesFilter::All,
+            );
+            let policy = op_editor_core::build_effective_rules_policy(&rules);
+            (!policy.is_empty()).then_some(policy)
+        },
     }
 }
 
-fn build_design_prompt(section: Option<&str>, design_md_policy: Option<&str>) -> String {
-    if let Some(section) = section {
-        if let Some(policy) = design_md_policy {
-            if section == "style" {
-                return format!("DESIGN SYSTEM (from design.md):\n{policy}");
-            }
-            if section == "design-md" {
-                return policy.to_string();
-            }
-        }
-        if let Some(content) = section_content(section) {
-            return content;
-        }
+/// The section's text with the session's rules in front of it.
+///
+/// The rules are always in force — the editor offers no way to switch them
+/// off — so every section carries them, not only the two that used to be
+/// special-cased. An agent that asks for the full prompt (the common case)
+/// used to receive none of them.
+fn build_design_prompt(section: Option<&str>, rules_policy: Option<&str>) -> String {
+    let body = match section {
+        Some("design-md") => rules_policy
+            .map(str::to_string)
+            .unwrap_or_else(|| DEFAULT_DESIGN_MD.to_string()),
+        Some(section) => section_content(section).unwrap_or_else(build_full_prompt),
+        None => build_full_prompt(),
+    };
+    match rules_policy {
+        Some(policy) if !policy.is_empty() => format!("{policy}\n\n{body}"),
+        _ => body,
     }
-    build_full_prompt()
 }
 
 fn section_content(section: &str) -> Option<String> {
@@ -215,80 +224,6 @@ fn skill_content(name: &str) -> String {
     op_ai_skills::get_skill_by_name(name)
         .map(|skill| skill.content.clone())
         .unwrap_or_default()
-}
-
-fn build_design_md_style_policy(spec: &DesignMdSpec) -> String {
-    let mut parts = Vec::new();
-
-    if let Some(theme) = spec.visual_theme.as_ref().filter(|s| !s.is_empty()) {
-        parts.push(format!("VISUAL THEME: {}", truncate_chars(theme, 200)));
-    }
-
-    if let Some(palette) = spec
-        .color_palette
-        .as_ref()
-        .filter(|colors| !colors.is_empty())
-    {
-        let colors = palette
-            .iter()
-            .take(10)
-            .map(|c| format!("{} ({}) — {}", c.name, c.hex, c.role))
-            .collect::<Vec<_>>()
-            .join("\n- ");
-        parts.push(format!("COLOR PALETTE:\n- {colors}"));
-
-        let surfaces = palette
-            .iter()
-            .filter(|c| {
-                let role = c.role.to_lowercase();
-                ["surface", "card", "panel", "sidebar", "tile", "chip"]
-                    .iter()
-                    .any(|needle| role.contains(needle))
-            })
-            .take(6)
-            .map(|c| format!("{} ({}) — {}", c.name, c.hex, c.role))
-            .collect::<Vec<_>>();
-        if !surfaces.is_empty() {
-            parts.push(format!(
-                "SURFACE COLORS (use ONLY as `fill` on visually distinct components placed on top \
-                 of the page background — cards, sidebars, floating panels, chips, badges. DO NOT \
-                 fill section root frames or generic wrapper frames with these; section containers \
-                 must stay transparent and inherit the page background. NEVER use these as the \
-                 page/rootFrame fill):\n- {}",
-                surfaces.join("\n- ")
-            ));
-        }
-    }
-
-    if let Some(typography) = &spec.typography {
-        if let Some(font) = typography.font_family.as_ref().filter(|s| !s.is_empty()) {
-            parts.push(format!("FONT: {font}"));
-        }
-        if let Some(headings) = typography.headings.as_ref().filter(|s| !s.is_empty()) {
-            parts.push(format!("Headings: {headings}"));
-        }
-        if let Some(body) = typography.body.as_ref().filter(|s| !s.is_empty()) {
-            parts.push(format!("Body: {body}"));
-        }
-    }
-
-    if let Some(styles) = spec.component_styles.as_ref().filter(|s| !s.is_empty()) {
-        parts.push(format!(
-            "COMPONENT STYLES:\n{}",
-            truncate_chars(styles, 300)
-        ));
-    }
-    if let Some(layout) = spec.layout_principles.as_ref().filter(|s| !s.is_empty()) {
-        parts.push(format!(
-            "LAYOUT PRINCIPLES:\n{}",
-            truncate_chars(layout, 400)
-        ));
-    }
-    if let Some(notes) = spec.generation_notes.as_ref().filter(|s| !s.is_empty()) {
-        parts.push(format!("GENERATION NOTES:\n{}", truncate_chars(notes, 400)));
-    }
-
-    parts.join("\n\n")
 }
 
 fn truncate_chars(s: &str, max: usize) -> String {

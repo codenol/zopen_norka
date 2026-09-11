@@ -186,7 +186,9 @@ impl WidgetHostNative {
                         op_editor_core::CollabUnsupportedFeature::PageStructure,
                     ))
                 }
+                // A recipe row only opens its rules document — no mutation.
                 op_editor_ui::widgets::LayerPanelHit::Page(_)
+                | op_editor_ui::widgets::LayerPanelHit::Recipe(_)
                 | op_editor_ui::widgets::LayerPanelHit::Layer(_)
                 | op_editor_ui::widgets::LayerPanelHit::ToggleCollapsed(_) => None,
             };

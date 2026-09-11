@@ -20,6 +20,7 @@ impl WidgetHost {
             || eui.collab.panel.join_address_focused
             || eui.preset_name_input_active()
             || self.variables_search_active()
+            || self.editor_state.editor_ui.assets_search_input_active()
             || eui.agent_settings.focus.is_some()
             || eui.chat_model_picker.open
             || self.editor_state.chat.focused
@@ -62,6 +63,7 @@ impl WidgetHost {
         // cells), mirroring the native blur helper; the search box
         // just defocuses, keeping its typed filter.
         self.editor_state.editor_ui.variables_search_focus = false;
+        self.editor_state.editor_ui.assets_panel.search_focused = false;
         // Settings-modal inputs (MCP port, agent / image-gen fields).
         self.commit_settings_focus();
         // Collaboration Join field has no committed draft; another surface

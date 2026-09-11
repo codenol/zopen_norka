@@ -25,6 +25,7 @@ impl WidgetHostNative {
             // #20: preset dropdown's save-as-name input.
             || eui.preset_name_input_active()
             || self.variables_search_active()
+            || self.editor_state.editor_ui.assets_search_input_active()
             || eui.agent_settings.focus.is_some()
             || eui.chat_model_picker.open
             || self.editor_state.chat.focused
@@ -65,6 +66,7 @@ impl WidgetHostNative {
         // Variables-panel search box defocuses; its typed filter
         // persists (TS keeps the input value on blur).
         eui.variables_search_focus = false;
+        eui.assets_panel.search_focused = false;
         eui.close_chat_model_picker();
         self.editor_state.chat.blur_input(self.now_ms);
         if was_focused {

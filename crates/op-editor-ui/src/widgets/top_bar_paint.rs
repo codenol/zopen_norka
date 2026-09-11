@@ -389,6 +389,40 @@ impl TopBar {
         let icons_span = self.agent_icons_span();
         let text_w = text_metrics::measure_chrome(cx.backend, chip_text, 11.0);
         let chip_rect = self.agent_chip_rect(rect, text_w);
+        // Build stamp, right-aligned to the chip's left edge: the first thing
+        // to check when a change "does not show up" — the kit manifest is
+        // compiled in, so an unchanged stamp means an unchanged binary.
+        if !self.build_label.is_empty() {
+            // Colour by how old this build is: green while it is minutes
+            // fresh, amber as it ages, red once it predates the work you are
+            // looking at. An ageing stamp also blinks, so "you are looking at
+            // a stale binary" is visible without reading the timestamp.
+            let age = crate::widgets::build_stamp::build_age_secs(self.now_unix_ms);
+            let freshness = crate::widgets::build_stamp::freshness(age);
+            let period = crate::widgets::build_stamp::blink_period_ms(freshness);
+            if crate::widgets::build_stamp::blink_visible(self.now_unix_ms as u64, period) {
+                let color = match freshness {
+                    crate::widgets::build_stamp::BuildFreshness::Fresh => self.theme.status_success,
+                    crate::widgets::build_stamp::BuildFreshness::Ageing => self.theme.status_warning,
+                    crate::widgets::build_stamp::BuildFreshness::Stale => self.theme.destructive,
+                };
+                let stamp_w = text_metrics::measure_chrome(cx.backend, &self.build_label, 10.0);
+                let stamp_x = chip_rect.origin.x - 10.0 - stamp_w;
+                if stamp_x > rect.origin.x {
+                    let center_y = chip_rect.origin.y + chip_rect.size.y / 2.0;
+                    let layout = TextLayout::single_run(
+                        &self.build_label,
+                        "system-ui",
+                        10.0,
+                        color.to_jian(),
+                        Point2D::new(0.0, 0.0),
+                    );
+                    cx.backend
+                        .draw_text(&layout, Point2D::new(stamp_x, center_y + 3.5));
+                }
+            }
+        }
+
         // Hover wash behind the whole chip (TS `hover:bg-accent`).
         let _ = crate::widgets::button::paint_ghost_button_feedback(
             cx.backend,

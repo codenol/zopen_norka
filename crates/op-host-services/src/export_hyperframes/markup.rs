@@ -164,7 +164,7 @@ pub fn render_notes(title: &str, total_ticks: u32, scenes: usize) -> String {
          npx hyperframes preview .\n\
          ```\n\
          \n\
-         Needs Node 22 or newer. Edit the deck in OpenPencil and export again — the\n\
+         Needs Node 22 or newer. Edit the deck in Norka and export again — the\n\
          composition is generated, not authored, so edits made to `index.html` are\n\
          lost on the next export.\n",
         total = seconds(total_ticks),

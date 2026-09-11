@@ -69,6 +69,7 @@ pub mod codegen_tools;
 #[cfg(test)]
 mod codegen_tools_tests;
 pub mod component_tools;
+pub mod recipe_tools;
 #[cfg(test)]
 mod component_tools_tests;
 pub mod conversion_status;
@@ -199,6 +200,7 @@ pub use component_tools::{
     rename_component_snapshot, set_node_collapsed_snapshot, CreateComponent, DeleteComponent,
     InstantiateComponent, RenameComponent, SetNodeCollapsed,
 };
+pub use recipe_tools::{list_recipes_snapshot, use_recipe_snapshot, ListRecipes, UseRecipe};
 pub use conversion_status::{conversion_status_snapshot, ConversionStatus};
 pub use conversion_tools::{
     upsert_component_snapshot, upsert_screen_snapshot, upsert_variables_snapshot,
@@ -216,8 +218,10 @@ pub fn debug_tools_enabled() -> bool {
 }
 pub use design_agent_prompt_tool::{get_design_agent_prompt_snapshot, GetDesignAgentPrompt};
 pub use design_md_tools::{
-    export_design_md_snapshot, get_design_md_snapshot, set_design_md_snapshot, ExportDesignMd,
-    GetDesignMd, SetDesignMd,
+    export_design_md_snapshot, get_design_md_snapshot, get_design_rule_snapshot,
+    get_effective_design_rules_snapshot, list_design_rules_snapshot, set_design_md_snapshot,
+    ExportDesignMd, GetDesignMd, GetDesignRule, GetEffectiveDesignRules, ListDesignRules,
+    SetDesignMd,
 };
 pub use design_prompt::{get_design_prompt_snapshot, GetDesignPrompt};
 pub use design_refine_result::{design_refine_snapshot, DesignRefine};

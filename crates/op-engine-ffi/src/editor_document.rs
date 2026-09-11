@@ -177,7 +177,7 @@ pub(crate) fn drain_document_actions(session: &mut Session) -> FfiResult<i32> {
 
 /// File ▸ New: atomically install the starter document.
 fn install_new_document(session: &mut Session) -> FfiResult<()> {
-    let starter_document = op_editor_core::EditorState::starter().doc;
+    let starter_document = op_pen_loader::new_skala_editor_state().doc;
     {
         let host = session.editor_mut()?;
         // Consume the one-shot request even when collaboration starts between

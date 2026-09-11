@@ -441,6 +441,7 @@ fn panel_of(active: Option<usize>, hover: Option<SlidesPanelTarget>) -> SlidesPa
         thumbnails_supported: true,
         layers_label: "Layers",
         slides_label: "Slides",
+        assets_label: "Assets",
         actions: SlidesActionLabels {
             present: "Present",
             export: "Export PDF",

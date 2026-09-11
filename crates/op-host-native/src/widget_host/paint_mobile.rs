@@ -79,13 +79,7 @@ impl WidgetHostNative {
                 );
             }
             // Page navigation never paints inside or above a modal surface.
-            let page_count = self
-                .editor_state
-                .doc
-                .pages
-                .as_ref()
-                .map(|pages| pages.len())
-                .unwrap_or(1);
+            let page_count = self.editor_state.design_page_count();
             if page_count > 1
                 && !self.mobile_sheet_is_modal()
                 && !self.editor_state.editor_ui.variables_panel_open
@@ -96,12 +90,25 @@ impl WidgetHostNative {
                     viewport_width,
                     viewport_height,
                 );
+                let active = self
+                    .editor_state
+                    .doc
+                    .pages
+                    .as_ref()
+                    .map(|pages| {
+                        pages
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, page)| {
+                                !op_editor_core::is_component_store_page(&page.name)
+                            })
+                            .map(|(index, _)| index)
+                            .position(|index| index == self.editor_state.ui.active_page_index)
+                            .unwrap_or(0)
+                    })
+                    .unwrap_or(0);
                 op_editor_ui::widgets::mobile_chrome::paint_page_pill(
-                    &mut cx,
-                    &theme,
-                    pill,
-                    page_count,
-                    self.editor_state.ui.active_page_index,
+                    &mut cx, &theme, pill, page_count, active,
                 );
             }
         }

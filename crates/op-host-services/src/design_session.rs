@@ -17,13 +17,12 @@ use std::sync::Arc;
 use std::thread;
 
 use op_ai::chat_provider::ChatProvider;
-use op_editor_core::{DocRect, EditorCommand, EditorState, Viewport};
+use op_editor_core::{DocRect, EditorState, Viewport};
 pub use op_editor_host_core::design::{DesignCmdReq, DesignDelta, DesignSession, RemoteDocSink};
 use op_editor_ui::widgets::TOP_BAR_HEIGHT;
 use op_orchestrator::{
-    AbortFlag, DesignRequest, DocSink, LlmClient, Orchestrator, Progress,
-    SkippedScreenshotProvider, SkippedVisionLlmClient, SpawnAgentResult, SpawnAgentSpec,
-    ValidationProviders,
+    AbortFlag, DesignRequest, LlmClient, Orchestrator, Progress, SkippedScreenshotProvider,
+    SkippedVisionLlmClient, SpawnAgentResult, SpawnAgentSpec, ValidationProviders,
 };
 
 use crate::chat_runtime::block_on_anywhere;
@@ -89,7 +88,7 @@ pub fn start<L: LlmClient + Send + 'static>(
 #[allow(clippy::too_many_arguments)]
 pub fn run_design_worker<L: LlmClient + Send>(
     llm: L,
-    request: DesignRequest,
+    mut request: DesignRequest,
     initial_state: EditorState,
     delta_tx: Sender<DesignDelta>,
     cmd_tx: Sender<DesignCmdReq>,
@@ -99,6 +98,23 @@ pub fn run_design_worker<L: LlmClient + Send>(
 ) {
     let mut sink = RemoteDocSink::new(cmd_tx, initial_state);
     let pre_validator = LintPreValidator;
+
+    // Reference brief uses the live chat provider whenever attachments are
+    // present — independent of OPENPENCIL_VISION_VALIDATION (post-gen only).
+    if !request.reference_attachments.is_empty() {
+        if let Some(p) = vision_provider.clone() {
+            let brief_vision = ChatVisionLlmClient::new(p).with_model(request.model.clone());
+            op_orchestrator::reference_brief::enrich_request_with_reference_brief(
+                &mut request,
+                &brief_vision,
+            );
+        } else {
+            op_orchestrator::reference_brief::enrich_request_with_reference_brief(
+                &mut request,
+                &SkippedVisionLlmClient,
+            );
+        }
+    }
 
     // ── Class-C vision-validation provider selection (Track-1 Step 3) ──────────
     // REAL providers only when a vision `ChatProvider` was supplied AND
@@ -137,9 +153,7 @@ pub fn run_design_worker<L: LlmClient + Send>(
             let _ = delta_tx.send(DesignDelta::Progress(p));
         };
         block_on_anywhere(async {
-            let mut request = request;
-            maybe_generate_design_md_for_follow_on_screen(&llm, &mut request, &mut sink, &abort)
-                .await;
+            let request = request;
             Orchestrator::new()
                 .with_indicator_epoch(indicator_epoch)
                 .run(
@@ -300,43 +314,6 @@ pub fn run_spawned_agents_worker<L: LlmClient + Send>(
         )
         .await
     })
-}
-
-async fn maybe_generate_design_md_for_follow_on_screen<L: LlmClient + Send>(
-    llm: &L,
-    request: &mut DesignRequest,
-    sink: &mut RemoteDocSink,
-    abort: &AbortFlag,
-) {
-    let state = sink.state().clone();
-    if !crate::chat_intent::should_auto_generate_design_md(
-        &state,
-        &request.prompt,
-        request.append_context.as_ref(),
-    ) {
-        return;
-    }
-
-    match crate::design_md_llm::generate_design_md_spec(
-        llm,
-        &state,
-        &request.prompt,
-        request.model.clone(),
-        request.provider.clone(),
-        abort,
-    )
-    .await
-    {
-        Ok(spec) => {
-            request.design_md = Some(spec.clone());
-            let _ = sink.apply(EditorCommand::SetDesignMd {
-                spec: Box::new(spec),
-            });
-        }
-        Err(message) => {
-            let _ = message;
-        }
-    }
 }
 
 const DESIGN_FIT_PADDING: f32 = 48.0;

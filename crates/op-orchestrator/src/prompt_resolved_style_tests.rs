@@ -3,6 +3,16 @@ use crate::prompt::{build_resolved_style_instruction, build_subagent_prompt};
 use crate::types::{AbortFlag, DesignRequest};
 use op_ai_skills::resolve_style::{resolve_style, Fonts, ResolveOutcome, StyleParams};
 use op_editor_core::ComponentLibrary;
+/// The rules a real turn carries: resolved, so the shipped working agreement
+/// and the kit's component rules are part of the prompt under test.
+fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
+    op_editor_core::effective_design_rules(None)
+        .into_iter()
+        .map(|entry| entry.rule)
+        .collect()
+}
+
+
 
 fn atlas_params() -> StyleParams {
     StyleParams {
@@ -24,13 +34,15 @@ fn req() -> DesignRequest {
         prompt: "a dense analytics workspace".into(),
         model: Some("claude".into()),
         provider: None,
-        design_md: None,
+        rules: resolved_rules(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -120,9 +132,14 @@ fn subagent_resolved_style_emits_no_variable_commands() {
         &ComponentLibrary::default(),
     );
     assert!(
-        call.system_prompt
+        !call
+            .system_prompt
             .contains("RESOLVED STYLE REFERENCE (Atlas Grid / Alloy Blue)"),
-        "live subagent prompt should append the resolved-style block"
+        "session kit owns style; catalog resolved-style must not append"
+    );
+    assert!(
+        call.system_prompt.contains("COMPONENT RULES") || call.user_prompt.contains("COMPONENT RULES"),
+        "the session's rules should reach the subagent prompt"
     );
 
     for text in [&block, &call.system_prompt] {

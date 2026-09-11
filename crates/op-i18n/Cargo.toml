@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "OpenPencil i18n — Locale enum + 15-locale string tables"
+description = "Norka i18n — Locale enum + 15-locale string tables"
 
 [dependencies]
 

@@ -166,16 +166,39 @@ pub(super) fn open_recent_document<C: RepaintContext + 'static>(inner: &InnerRc<
 
 /// File → New: fresh starter document, app preferences carried over,
 /// viewport fit to the blank starter frame (desktop `FileAction::New`).
+/// The daemon is the kit authority: `/api/file/new` merges Skala and
+/// unbinds the previous path so Save cannot overwrite the last file.
 pub(super) fn new_document<C: RepaintContext + 'static>(inner: &InnerRc<C>) {
     begin_document_replacement(inner);
     let mut b = inner.borrow_mut();
     let mut state = op_editor_core::EditorState::starter();
     file_actions::preserve_app_preferences(b.host().editor_state(), &mut state);
+    op_pen_loader::ensure_skala_session(&mut state);
     state.editor_ui.file_name_display = None;
     b.host_mut().replace_editor_state(state);
     let (w, h) = b.viewport_size();
     b.host_mut().fit_content_to_viewport(w, h);
+    let generation = b.host().editor_state().document_generation();
+    let revision = b.host().editor_state().document_revision();
+    crate::live_sync_glue::acknowledge_current_pair(generation, revision);
     let _ = b.repaint();
+    drop(b);
+
+    let base = crate::daemon_base::daemon_base();
+    let inner_for_response = inner.clone();
+    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
+        let ok = serde_json::from_str::<serde_json::Value>(&response)
+            .ok()
+            .and_then(|value| value.get("ok").and_then(|flag| flag.as_bool()))
+            .unwrap_or(false);
+        if !ok {
+            return;
+        }
+        crate::live_sync_glue::request_document_pull(&inner_for_response);
+    });
+    if !crate::live_sync::post_json(&format!("{base}/api/file/new"), "{}", Some(on_response)) {
+        console_warn("[new] daemon File → New request could not start");
+    }
 }
 
 /// File → Save / Save As. Pick the destination before serializing so the

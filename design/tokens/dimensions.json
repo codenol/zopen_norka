@@ -1,0 +1,112 @@
+{
+  "border-radius": {
+    "none": {
+      "$type": "number",
+      "$value": 0
+    },
+    "XXS": {
+      "$type": "number",
+      "$value": 2
+    },
+    "XS": {
+      "$type": "number",
+      "$value": 4
+    },
+    "S": {
+      "$type": "number",
+      "$value": 6
+    },
+    "M": {
+      "$type": "number",
+      "$value": 8
+    },
+    "L": {
+      "$type": "number",
+      "$value": 10
+    },
+    "XL": {
+      "$type": "number",
+      "$value": 12
+    },
+    "XXL": {
+      "$type": "number",
+      "$value": 16
+    },
+    "XXXXL": {
+      "$type": "number",
+      "$value": 4000
+    }
+  },
+  "spacing": {
+    "spacer-0": {
+      "$type": "number",
+      "$value": 0
+    },
+    "spacer-50": {
+      "$type": "number",
+      "$value": 1
+    },
+    "spacer-100": {
+      "$type": "number",
+      "$value": 2
+    },
+    "spacer-150": {
+      "$type": "number",
+      "$value": 3
+    },
+    "spacer-200": {
+      "$type": "number",
+      "$value": 4
+    },
+    "spacer-250": {
+      "$type": "number",
+      "$value": 5
+    },
+    "spacer-300": {
+      "$type": "number",
+      "$value": 6
+    },
+    "spacer-350": {
+      "$type": "number",
+      "$value": 7
+    },
+    "spacer-400": {
+      "$type": "number",
+      "$value": 8
+    },
+    "spacer-450": {
+      "$type": "number",
+      "$value": 9
+    },
+    "spacer-500": {
+      "$type": "number",
+      "$value": 10
+    },
+    "spacer-600": {
+      "$type": "number",
+      "$value": 12
+    },
+    "spacer-800": {
+      "$type": "number",
+      "$value": 16
+    },
+    "spacer-1000": {
+      "$type": "number",
+      "$value": 20
+    },
+    "spacer-1200": {
+      "$type": "number",
+      "$value": 24
+    },
+    "spacer-1400": {
+      "$type": "number",
+      "$value": 28
+    }
+  },
+  "blur": {
+    "blur-600": {
+      "$type": "number",
+      "$value": 12
+    }
+  }
+}

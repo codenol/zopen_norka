@@ -15,9 +15,11 @@ pub const AGENT_COLORS: [&str; 6] = [
 ];
 
 /// Name pool — distinct for the first 12 agents (a team never gets
-/// anywhere near that many).
+/// anywhere near that many). Index 0 is the primary single-agent persona:
+/// Norka, a girl. Seeded assignment still rotates *colour* so the badge
+/// is not always the same pill, but the name stays Norka.
 pub const AGENT_NAMES: [&str; 12] = [
-    "Kiki", "Mochi", "Pixel", "Nova", "Zuri", "Cleo", "Boba", "Rune", "Fern", "Echo", "Puck",
+    "Norka", "Kiki", "Mochi", "Pixel", "Nova", "Cleo", "Boba", "Rune", "Fern", "Echo", "Puck",
     "Sage",
 ];
 
@@ -37,19 +39,18 @@ pub fn assign_agent_identities(count: usize) -> Vec<AgentIdentity> {
     assign_agent_identities_seeded(count, 0)
 }
 
-/// Like [`assign_agent_identities`], but rotated by a per-run `seed` so a
-/// fresh run meets a fresh face — index 0 was ALWAYS Kiki-in-coral before.
-/// Names and colours rotate on co-prime strides (pool sizes 12 and 6), so
-/// the same name still shows up in different colours across runs. Teams
-/// stay distinct: identities within one call never collide for counts up
-/// to the pool sizes.
+/// Like [`assign_agent_identities`], but the badge *colour* is rotated by a
+/// per-run `seed`. The primary name is always [`AGENT_NAMES`]`[0]` (Norka) so
+/// the single-agent transcript persona is stable; teammates still walk the
+/// rest of the pool. Colours rotate on the 6-entry palette so the same name
+/// can show up in a different pill across runs. Teams stay distinct:
+/// identities within one call never collide for counts up to the pool sizes.
 pub fn assign_agent_identities_seeded(count: usize, seed: u64) -> Vec<AgentIdentity> {
-    let name_offset = (seed % AGENT_NAMES.len() as u64) as usize;
-    let color_offset = ((seed / AGENT_NAMES.len() as u64) % AGENT_COLORS.len() as u64) as usize;
+    let color_offset = (seed % AGENT_COLORS.len() as u64) as usize;
     (0..count)
         .map(|i| AgentIdentity {
             color: AGENT_COLORS[(color_offset + i) % AGENT_COLORS.len()].to_string(),
-            name: AGENT_NAMES[(name_offset + i) % AGENT_NAMES.len()].to_string(),
+            name: AGENT_NAMES[i % AGENT_NAMES.len()].to_string(),
         })
         .collect()
 }
@@ -112,6 +113,7 @@ mod tests {
         assert_eq!(ids[2].color, "#5B8DEF");
         assert_ne!(ids[0].name, ids[1].name);
         assert_ne!(ids[1].name, ids[2].name);
+        assert_eq!(ids[0].name, "Norka");
     }
 
     #[test]
@@ -183,11 +185,17 @@ mod tests {
     }
 
     #[test]
-    fn seed_rotates_names_and_colors_but_keeps_teams_distinct() {
+    fn seed_rotates_colors_but_keeps_norka_as_the_primary() {
         let a = assign_agent_identities_seeded(3, 0);
         let b = assign_agent_identities_seeded(3, 5);
-        assert_ne!(a[0].name, b[0].name, "a fresh seed meets a fresh face");
+        assert_eq!(a[0].name, "Norka");
+        assert_eq!(b[0].name, "Norka");
+        assert_ne!(
+            a[0].color, b[0].color,
+            "a fresh seed still meets a fresh colour"
+        );
         let c = assign_agent_identities_seeded(4, 17);
+        assert_eq!(c[0].name, "Norka");
         for i in 0..c.len() {
             for j in (i + 1)..c.len() {
                 assert_ne!(c[i].name, c[j].name, "teammates stay distinct");

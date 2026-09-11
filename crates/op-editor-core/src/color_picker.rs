@@ -457,11 +457,11 @@ impl EditorState {
             before != after
         } else if let Some(ref_id) = match self.selected_node() {
             Some(jian_ops_schema::node::PenNode::Ref(_)) => Some(self.selection.anchor.clone()),
-            _ => crate::instance_override::split_instance_child_anchor(
+            _ => crate::instance_override::split_instance_override_path(
                 &self.selection.anchor,
                 &self.doc,
             )
-            .map(|(ref_id, _child_id)| ref_id),
+            .map(|(ref_id, _path)| ref_id),
         } {
             // Instance anchors keep their colours in `descendants`
             // overrides — the per-target colour readers see `None` on

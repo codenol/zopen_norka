@@ -1,18 +1,16 @@
 //! 规划 prompt 的 style-guide 上下文构造 —— port of
 //! `orchestrator-prompt-optimizer.ts` 的 catalog 路径。
 
-use crate::design_md_policy::{
-    build_design_md_style_policy, guess_neutral_background_from_theme, infer_design_md_background,
-};
-use crate::design_type::{contains_word, detect_design_type, DesignType};
-use crate::model_profile::{resolve_model_profile, ModelTier};
+use crate::design_type::contains_word;
+use crate::model_profile::ModelTier;
 use crate::plan::OrchestratorPlan;
 use crate::types::{DesignRequest, PlanningMode};
-use jian_ops_schema::DesignMdSpec;
+use jian_ops_schema::DesignRule;
 use op_ai_skills::style_guide::{
     extract_style_guide_values, find_style_guide, style_guide_registry, ParsedStyleGuide, Platform,
     StyleGuideRef,
 };
+use op_editor_core::session_kit;
 
 /// `lower` 含 `words` 任一(按 `contains_word`:ASCII 词边界 / CJK 子串)。
 fn any(lower: &str, words: &[&str]) -> bool {
@@ -366,27 +364,15 @@ pub(crate) fn resolve_pinned_style_guide(pinned: Option<&str>) -> Option<StyleGu
 /// still degrades to the model's own choice instead of forcing a dead name.
 ///
 /// Returns whether the plan changed.
+///
+/// Catalog pins used to force a builtin style guide when design.md was
+/// absent. A session kit is the design system, so pins no longer rewrite
+/// the plan.
 pub(crate) fn enforce_pinned_style_guide(
-    plan: &mut OrchestratorPlan,
-    request: &DesignRequest,
+    _plan: &mut OrchestratorPlan,
+    _request: &DesignRequest,
 ) -> bool {
-    if request.design_md.is_some() {
-        return false;
-    }
-    let Some(guide) = resolve_pinned_style_guide(request.pinned_style_guide.as_deref()) else {
-        return false;
-    };
-    let id = guide.id();
-    if plan.style_guide_name.as_deref() == Some(id) {
-        return false;
-    }
-    tracing::debug!(
-        pinned = %id,
-        replaced = ?plan.style_guide_name,
-        "forcing the pinned style guide onto the plan"
-    );
-    plan.style_guide_name = Some(id.to_string());
-    true
+    false
 }
 
 /// 对全 catalog 按加权分降序排名(不过滤)—— port of
@@ -448,10 +434,12 @@ pub(crate) fn format_guide_snippet(guide: &ParsedStyleGuide) -> String {
 /// Sub-agents get the full text later through
 /// `prompt_style_skills::build_style_guide_instruction`, so a truncation here
 /// costs planning nuance, not the design's actual style.
+#[allow(dead_code)]
 const USER_GUIDE_PLANNING_CHARS: usize = 2000;
 
 /// A pinned import's snippet: its id, then as much of the document as the
 /// planning budget allows.
+#[allow(dead_code)]
 fn format_user_guide_snippet(label: &str, guide: &ParsedStyleGuide) -> String {
     let body = guide.content.trim();
     let mut out = format!("### {label} [{}]\n", guide.platform.as_str());
@@ -484,6 +472,7 @@ pub(crate) struct PlanningStyleGuideContext {
 }
 
 /// Rich 模式各 tier 的 snippet 上限。
+#[allow(dead_code)]
 fn snippet_limit(tier: ModelTier) -> usize {
     match tier {
         ModelTier::Full => 8,
@@ -498,144 +487,72 @@ pub(crate) fn build_planning_style_guide_context(
     prompt: &str,
     model: Option<&str>,
     mode: PlanningMode,
-    design_md: Option<&DesignMdSpec>,
+    rules: &[DesignRule],
     pinned: Option<&str>,
 ) -> PlanningStyleGuideContext {
-    // —— design.md 分支:不碰 catalog ——
-    //
-    // design.md outranks a pinned guide on purpose: it is a design system the
-    // user wrote down, and this branch's contract (`styleGuideName:
-    // design-md-custom`) is what the rest of the pipeline reads. A pin is a
-    // catalog choice, and there is no catalog here to choose from.
-    if let Some(spec) = design_md {
-        let policy = build_design_md_style_policy(spec);
-        let bg_hint = infer_design_md_background(spec);
-        // When design.md has no palette entry explicitly marked as background/
-        // surface/canvas, do NOT ask the model to "pick" from the palette — it
-        // will happily pick a brand/CTA color and paint the whole page that
-        // color. Give it a neutral default instead, biased by visualTheme
-        // keywords.
-        let neutral_default = guess_neutral_background_from_theme(spec.visual_theme.as_deref());
-        let root_fill_directive = match &bg_hint {
-            Some(hint) => format!(
-                "- Set rootFrame.fill color to \"{hint}\" (the primary background \
-                 color from the design.md palette)."
-            ),
-            None => format!(
-                "- Set rootFrame.fill color to \"{neutral_default}\" (neutral page \
-                 background — design.md has no palette entry tagged as background, \
-                 so DO NOT pick a brand/CTA/accent/text color from the palette for \
-                 the page background)."
-            ),
-        };
-        let lines: Vec<String> = vec![
-            "The user has a custom design system (design.md). DO NOT pick a style \
-             guide from a catalog."
-                .to_string(),
-            "Use the rules below for all style decisions:".to_string(),
-            String::new(),
-            if policy.is_empty() {
-                "(design.md is present but has no extractable policy; use project defaults)"
-                    .to_string()
-            } else {
-                policy
-            },
-            String::new(),
-            "Output directives:".to_string(),
-            "- Set \"styleGuideName\": \"design-md-custom\" (exact string).".to_string(),
-            root_fill_directive,
-        ];
-        return PlanningStyleGuideContext {
-            available_style_guides: lines.join("\n"),
-            metadata_count: 0,
-            snippet_count: 0,
-            top_guide_names: vec!["design-md-custom".to_string()],
-            snippet_guide_names: Vec::new(),
-        };
-    }
+    // Session kit owns style. Catalog ranking and Asset Center pins do not.
+    let kit = session_kit();
+    let fill = kit
+        .canvas
+        .as_ref()
+        .map(|c| c.fill.as_str())
+        .unwrap_or("#F8FAFC");
+    let _ = (prompt, model, mode, pinned);
 
-    // —— pinned 分支:短路排序,恒选钉住的那一份 ——
-    //
-    // The catalog is offered as a menu the model picks from, so a pin cannot
-    // be expressed by re-ordering it — the model would still be free to pick
-    // something else. It is expressed by shrinking the menu to one entry.
-    if let Some(guide) = resolve_pinned_style_guide(pinned) {
-        // The id, not the display name, is the exact string: an imported guide
-        // may legitimately name itself after a corpus one, and the directive
-        // has to name the guide the user actually pinned.
-        let label = guide.id().to_string();
-        let snippet = if guide.is_user() {
-            format_user_guide_snippet(&label, &guide)
-        } else {
-            format_guide_snippet(&guide)
-        };
-        let lines: Vec<String> = vec![
-            "The user pinned a style guide in the Asset Center. Use it — do NOT \
-             pick a different one."
-                .to_string(),
-            format!("- {label} [{}]", guide.platform.as_str()),
-            String::new(),
-            snippet,
-            String::new(),
-            "Output directives:".to_string(),
-            format!("- Set \"styleGuideName\": \"{label}\" (exact string)."),
-        ];
-        return PlanningStyleGuideContext {
-            available_style_guides: lines.join("\n"),
-            metadata_count: 1,
-            snippet_count: 1,
-            top_guide_names: vec![label.clone()],
-            snippet_guide_names: vec![label],
-        };
-    }
-
-    // —— catalog 分支 ——
-    let preset = detect_design_type(prompt);
-    // Same shelf routing as the compact path — the card guides live behind a
-    // hard platform filter, so BOTH planning modes have to ask for them by
-    // name or the rich path silently keeps offering webapp guides.
-    let platform = match preset.type_ {
-        DesignType::MobileScreen => Platform::Mobile,
-        DesignType::Card => Platform::Card,
-        _ => Platform::Webapp,
-    };
-    let tags = infer_tags_from_prompt(prompt);
-    let tier = resolve_model_profile(model.unwrap_or("")).tier;
-    let ranked = rank_style_guides_for_prompt(&tags, platform);
-
-    let metadata_lines: Vec<String> = ranked
-        .iter()
-        .map(|g| format_guide_metadata_line(g, mode))
-        .collect();
-    let limit = if mode == PlanningMode::Rich {
-        snippet_limit(tier)
-    } else {
-        0
-    };
-    let snippet_guides: Vec<&ParsedStyleGuide> = ranked.iter().take(limit).copied().collect();
-
-    let mut parts: Vec<String> = vec![
-        "Available style guides (compact catalog; all candidates are listed below):".to_string(),
+    let mut lines = vec![
+        format!(
+            "SESSION DESIGN SYSTEM: {} (`{}`). DO NOT pick a catalog style guide.",
+            kit.name, kit.id
+        ),
+        kit.content_area_brief(),
+        format!("- Set rootFrame.fill color to \"{fill}\"."),
+        "Do not set a catalog styleGuideName.".to_string(),
     ];
-    parts.extend(metadata_lines.iter().cloned());
-    if !snippet_guides.is_empty() {
-        parts.push(String::new());
-        parts.push(
-            "Detailed references for the best-matching candidates (prefer these before \
-             inventing a styleGuideName):"
+
+    // The session's structured rules are the only design-system guidance the
+    // model gets. The old design.md branch — which replaced this whole block
+    // with a hand-written brief and forced `styleGuideName:
+    // design-md-custom` — is gone with the brief.
+    let policy = op_editor_core::build_design_rules_policy(&op_editor_core::rules_without_recipes_for_reference(rules, prompt));
+    if !policy.is_empty() {
+        lines.push(String::new());
+        lines.push("SESSION RULES (follow these EXACTLY; they override any default):".to_string());
+        lines.push(policy);
+    }
+    // The rules name the recipes; this names them *addressably*. Without the
+    // id and the master behind it the model reads "take this recipe" as
+    // advice and composes from scratch — it has nothing to instantiate.
+    let recipes = op_editor_core::session_kit();
+    // A turn that points at a reference picture must not be nudged toward a
+    // recipe: the picture decides, and offering a recipe here is what made
+    // "сделай как на картинке" come back as the ops screen.
+    if !recipes.recipes.is_empty() && !op_editor_core::refers_to_a_reference(prompt) {
+        lines.push(String::new());
+        lines.push(
+            "AVAILABLE RECIPES — a composed screen already built from this kit. When one \
+             matches the request, your FIRST action is `use_recipe` with its id (it places the \
+             recipe's master through `instantiate_component`); then adapt \
+             what it placed (retitle, swap data, delete or hide what the request does not \
+             need). Do not compose that screen yourself, and do not rebuild its shell, \
+             table chrome or pagination."
                 .to_string(),
         );
-        for g in &snippet_guides {
-            parts.push(format_guide_snippet(g));
+        for recipe in &recipes.recipes {
+            lines.push(format!(
+                "- recipe `{}` → master `{}` ({}). {}",
+                recipe.id, recipe.template, recipe.name, recipe.notes
+            ));
         }
     }
 
+    let available_style_guides = lines.join("\n");
+    op_util::prompt_dump::dump_prompt("style-guide", &available_style_guides);
     PlanningStyleGuideContext {
-        available_style_guides: parts.join("\n"),
-        metadata_count: metadata_lines.len(),
-        snippet_count: snippet_guides.len(),
-        top_guide_names: ranked.iter().take(12).map(|g| g.name.clone()).collect(),
-        snippet_guide_names: snippet_guides.iter().map(|g| g.name.clone()).collect(),
+        available_style_guides,
+        metadata_count: 0,
+        snippet_count: 0,
+        top_guide_names: vec![kit.id.clone()],
+        snippet_guide_names: Vec::new(),
     }
 }
 

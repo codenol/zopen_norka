@@ -108,6 +108,39 @@ pub fn jump_to_deepest_text_edit(state: &mut EditorState, hit_path: &[NodeId]) -
     true
 }
 
+/// Double-click fast path: when the deepest hit is a replaceable icon
+/// (`icon_font` or a path with `iconId`), select it and open the icon
+/// picker in replace mode. Works for authored nodes and canvas-only
+/// instance-child ids. Returns `true` when the picker opened.
+pub fn jump_to_deepest_icon_swap(state: &mut EditorState, hit_path: &[NodeId]) -> bool {
+    let Some(deepest) = hit_path.last().cloned() else {
+        return false;
+    };
+    if !replaceable_icon_at(state, &deepest) {
+        return false;
+    }
+    let parent = crate::walkers::find_parent_and_index(state.active_children(), &deepest)
+        .and_then(|(parent, _)| parent);
+    state.set_single_selection(deepest.clone());
+    state.editor_ui.entered_container = parent;
+    state.editor_ui.canvas_hover_node = Some(deepest);
+    state.editor_ui.open_icon_picker(true);
+    true
+}
+
+fn replaceable_icon_at(state: &EditorState, id: &NodeId) -> bool {
+    let node = crate::walkers::find_node(state.active_children(), id)
+        .cloned()
+        .or_else(|| {
+            crate::instance_override::resolve_instance_display_node_for_anchor(&state.doc, id)
+        });
+    match node.as_ref() {
+        Some(jian_ops_schema::node::PenNode::IconFont(_)) => true,
+        Some(jian_ops_schema::node::PenNode::Path(path)) => path.icon_id.is_some(),
+        _ => false,
+    }
+}
+
 /// Apply the press selection at the resolved level and exit the entered
 /// container when the press landed outside it.
 ///
@@ -272,5 +305,26 @@ mod tests {
         assert_eq!(state.doc, before_doc);
         assert_eq!(state.selection, before_selection);
         assert_eq!(state.editor_ui.last_canvas_click, before_click);
+    }
+
+    #[test]
+    fn icon_double_click_selects_the_glyph_and_opens_replace_picker() {
+        let mut state = crate::EditorState::from_document(
+            jian_ops_schema::load_str(
+                r##"{
+                  "version":"1.0.0",
+                  "children":[
+                    {"type":"icon_font","id":"n1","name":"search",
+                     "iconFontName":"search","width":16,"height":16}
+                  ]
+                }"##,
+            )
+            .expect("fixture")
+            .value,
+        );
+        assert!(jump_to_deepest_icon_swap(&mut state, &[NodeId::new("n1")]));
+        assert_eq!(state.selection.anchor, NodeId::new("n1"));
+        assert!(state.editor_ui.icon_picker.open);
+        assert!(state.editor_ui.icon_picker_replace_selection);
     }
 }

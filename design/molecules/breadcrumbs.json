@@ -1,0 +1,586 @@
+{
+  "id": "page-molecule-breadcrumbs",
+  "name": "Molecules · Breadcrumbs",
+  "children": [
+    {
+      "type": "frame",
+      "id": "molecule-breadcrumbs-1",
+      "name": "Breadcrumbs/1",
+      "reusable": true,
+      "x": 0,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 48.0,
+      "layout": "horizontal",
+      "gap": 16.0,
+      "padding": [
+        0,
+        24.0
+      ],
+      "alignItems": "center",
+      "cornerRadius": 16.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$breadcrumbs/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$breadcrumbs/border/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-1-label-0",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-breadcrumbs-2",
+      "name": "Breadcrumbs/2",
+      "reusable": true,
+      "x": 0,
+      "y": 64.0,
+      "width": "fit_content",
+      "height": 48.0,
+      "layout": "horizontal",
+      "gap": 16.0,
+      "padding": [
+        0,
+        24.0
+      ],
+      "alignItems": "center",
+      "cornerRadius": 16.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$breadcrumbs/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$breadcrumbs/border/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-2-label-0",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-2-sep-1",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-2-label-1",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-breadcrumbs-3",
+      "name": "Breadcrumbs/3",
+      "reusable": true,
+      "x": 0,
+      "y": 128.0,
+      "width": "fit_content",
+      "height": 48.0,
+      "layout": "horizontal",
+      "gap": 16.0,
+      "padding": [
+        0,
+        24.0
+      ],
+      "alignItems": "center",
+      "cornerRadius": 16.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$breadcrumbs/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$breadcrumbs/border/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-3-label-0",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-3-sep-1",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-3-label-1",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-3-sep-2",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-3-label-2",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-breadcrumbs-4",
+      "name": "Breadcrumbs/4",
+      "reusable": true,
+      "x": 0,
+      "y": 192.0,
+      "width": "fit_content",
+      "height": 48.0,
+      "layout": "horizontal",
+      "gap": 16.0,
+      "padding": [
+        0,
+        24.0
+      ],
+      "alignItems": "center",
+      "cornerRadius": 16.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$breadcrumbs/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$breadcrumbs/border/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-label-0",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-4-sep-1",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-label-1",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-4-sep-2",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-label-2",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-4-sep-3",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-label-3",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "molecule-breadcrumbs-4-plus",
+      "name": "Breadcrumbs/4+",
+      "reusable": true,
+      "x": 0,
+      "y": 256.0,
+      "width": "fit_content",
+      "height": 48.0,
+      "layout": "horizontal",
+      "gap": 16.0,
+      "padding": [
+        0,
+        24.0
+      ],
+      "alignItems": "center",
+      "cornerRadius": 16.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$breadcrumbs/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$breadcrumbs/border/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-plus-label-0",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-4-plus-sep-1",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-plus-label-1",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-4-plus-sep-2",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-plus-label-2",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-4-plus-sep-3",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-plus-label-3",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "molecule-breadcrumbs-4-plus-sep-4",
+          "name": "sep",
+          "width": 4.0,
+          "height": 4.0,
+          "cornerRadius": 2.0,
+          "clipContent": true,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/secondary"
+            }
+          ],
+          "children": []
+        },
+        {
+          "type": "text",
+          "id": "molecule-breadcrumbs-4-plus-label-4",
+          "name": "label",
+          "content": "Label",
+          "fontFamily": "Roboto",
+          "fontSize": 14,
+          "fontWeight": 500,
+          "lineHeight": 1.2857,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$breadcrumbs/text/default"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

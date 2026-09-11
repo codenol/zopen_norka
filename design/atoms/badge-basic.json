@@ -1,0 +1,104 @@
+{
+  "id": "page-atom-badge-basic",
+  "name": "Atoms · BadgeBasic",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-badge-basic-base",
+      "name": "Badge/Basic/Base",
+      "reusable": true,
+      "x": 0.0,
+      "y": 0,
+      "width": 16.0,
+      "height": 16.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge-basic/base/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge-basic/base/stroke/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-basic-base-label",
+          "name": "label",
+          "content": "1",
+          "fontFamily": "Roboto",
+          "fontSize": 10,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge-basic/base/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-basic-mass-action",
+      "name": "Badge/Basic/MassAction",
+      "reusable": true,
+      "x": 29.0,
+      "y": 0,
+      "width": 16.0,
+      "height": 16.0,
+      "layout": "horizontal",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.0,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge-basic/massAction/background/default"
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge-basic/massAction/stroke/default"
+          }
+        ]
+      },
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-basic-mass-action-label",
+          "name": "label",
+          "content": "1",
+          "fontFamily": "Roboto",
+          "fontSize": 10,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge-basic/massAction/text/default"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

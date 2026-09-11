@@ -1,0 +1,16 @@
+{
+  "FontFamily": {
+    "Headlines": {
+      "$type": "string",
+      "$value": "Roboto"
+    },
+    "body": {
+      "$type": "string",
+      "$value": "Roboto"
+    },
+    "Mono": {
+      "$type": "string",
+      "$value": "Roboto Mono"
+    }
+  }
+}

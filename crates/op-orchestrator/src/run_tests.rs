@@ -18,12 +18,21 @@ fn stub_providers() -> ValidationProviders<'static> {
     }
 }
 
+/// The rules a real turn carries: resolved, so the working agreement and the
+/// kit's component rules are part of the prompt under test.
+fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
+    op_editor_core::effective_design_rules(None)
+        .into_iter()
+        .map(|entry| entry.rule)
+        .collect()
+}
+
 fn req() -> DesignRequest {
     DesignRequest {
         prompt: "a landing page".into(),
         model: None,
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -31,6 +40,8 @@ fn req() -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -41,7 +52,7 @@ fn req_standard() -> DesignRequest {
         // "gpt-4o" matches Standard tier in model_profile table
         model: Some("gpt-4o".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -49,6 +60,8 @@ fn req_standard() -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -62,7 +75,7 @@ fn req_basic() -> DesignRequest {
         // "glm-4-plus" matches Basic tier in model_profile table
         model: Some("glm-4-plus".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
@@ -70,6 +83,8 @@ fn req_basic() -> DesignRequest {
 
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 

@@ -5,6 +5,7 @@
 //! 800-line cap.
 
 use super::WidgetHostNative;
+use op_editor_core::host_keyboard_transitions as shared;
 
 impl WidgetHostNative {
     pub fn apply_send(&mut self) -> bool {
@@ -22,6 +23,14 @@ impl WidgetHostNative {
             return true;
         }
         if self.editor_state.editor_ui.prompt_center.open {
+            return true;
+        }
+        // Enter inside the guidelines rule editor inserts a newline: the
+        // panel's markdown field owns the key while its form is open.
+        if let Some(changed) = shared::design_rule_newline(&mut self.editor_state, self.now_ms) {
+            if changed {
+                self.mark_dirty();
+            }
             return true;
         }
         // Enter in the Scene Template Center submits the generate row when
@@ -233,6 +242,10 @@ impl WidgetHostNative {
         // Enter in the variables search box just blurs it (the filter
         // is already live) — the same transition Escape runs.
         if self.editor_state.editor_ui.blur_variables_search() {
+            self.mark_dirty();
+            return true;
+        }
+        if self.editor_state.editor_ui.blur_assets_search() {
             self.mark_dirty();
             return true;
         }

@@ -149,7 +149,9 @@ fn paint_draws_header_divider_and_message_body_background() {
     let s = EditorState::new();
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(10.0, 20.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
-    let input_h = INPUT_BASE_HEIGHT;
+    // The chat's input block carries the chip band, so the transcript's
+    // body band ends at its real top.
+    let input_h = panel.input_height_for_rect(rect);
     let sep_y = rect.origin.y + rect.size.y - input_h;
     let mut backend = PanelPaintBackend::default();
     let mut cx = PaintCx {

@@ -17,5 +17,6 @@ pub(crate) fn load_initial_state(source: &str) -> FfiResult<EditorState> {
         })?;
     let mut state = EditorState::from_document(loaded.loaded.value);
     op_pen_loader::apply_editor_meta_or_legacy_fallback(&mut state, meta);
+    op_pen_loader::ensure_skala_session(&mut state);
     Ok(state)
 }

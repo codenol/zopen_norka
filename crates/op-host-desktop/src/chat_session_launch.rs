@@ -37,7 +37,21 @@ fn prepare_design_request_and_snapshot(
     prompt: String,
     append_context: Option<op_orchestrator::AppendContext>,
 ) -> (op_orchestrator::DesignRequest, EditorState) {
-    let request = build_design_request(prompt, host.editor_state(), append_context);
+    let reference_attachments = std::mem::take(&mut host.editor_state_mut().chat.pending_attachments)
+        .into_iter()
+        .filter(|a| a.is_image())
+        .map(|a| op_orchestrator::ReferenceAttachment {
+            name: a.name,
+            media_type: a.media_type,
+            data: a.data,
+        })
+        .collect();
+    let request = build_design_request(
+        prompt,
+        host.editor_state(),
+        append_context,
+        reference_attachments,
+    );
     let initial_state =
         op_editor_core::request_snapshot::narrowed_snapshot(host.editor_state_mut());
     (request, initial_state)

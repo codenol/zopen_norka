@@ -1,4 +1,4 @@
-//! Canonical hand-maintained OpenPencil locale catalog.
+//! Canonical hand-maintained Norka locale catalog.
 
 pub fn lookup(key: &str) -> Option<&'static str> {
     Some(match key {
@@ -64,6 +64,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "rightPanel.code" => "程式碼",
         "rightPanel.noSelection" => "選擇一個元素",
         "pages.title" => "頁面",
+        "components.title" => "組件",
         "pages.addPage" => "新增頁面",
         "pages.moveUp" => "上移",
         "pages.moveDown" => "下移",
@@ -282,6 +283,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "designMd.export" => "匯出 design.md",
         "designMd.autoGenerate" => "從設計自動產生",
         "designMd.empty" => "未載入設計系統",
+        "designMd.kitAttached" => "已附加元件 kit",
+        "designMd.kitAttachedHint" => "代理使用此 kit 的類型。僅在需要文字簡述時匯入 .md。",
         "designMd.importCta" => "匯入 design.md",
         "designMd.autoGenerateCta" => "自動產生",
         "designMd.visualTheme" => "視覺主題",
@@ -396,7 +399,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "agents.transport" => "傳輸方式",
         "agents.port" => "連接埠",
         "agents.mcpRestart" => "MCP 整合將在重新啟動終端機後生效。",
-        "agents.mcpReinstallHint" => "升級 OpenPencil 版本後，請重新安裝 MCP 整合以確保相容性。",
+        "agents.mcpReinstallHint" => "升級 Norka 版本後，請重新安裝 MCP 整合以確保相容性。",
         "agents.modelCount" => "{{count}} 個模型",
         "agents.connectionFailed" => "連線失敗",
         "agents.serverError" => "伺服器錯誤 {{status}}",
@@ -503,7 +506,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "figma.noPages" => ".fig 檔案中未找到頁面",
         "figma.parseFailed" => "解析 .fig 檔案失敗",
         "figma.convertFailed" => "轉換 Figma 檔案失敗",
-        "figma.overwriteTitle" => "同名 OpenPencil 檔案已存在",
+        "figma.overwriteTitle" => "同名 Norka 檔案已存在",
         "figma.overwriteBody" => {
             "“{{name}}” 已存在。\n\n是 = 覆蓋 · 否 = 保留兩份（產生編號副本） · 取消 = 不匯入。"
         }
@@ -517,7 +520,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "figma.tryAgain" => "重試",
         "figma.layoutMode" => "佈局模式：",
         "figma.preserveLayout" => "保留 Figma 佈局",
-        "figma.autoLayout" => "OpenPencil 自動佈局",
+        "figma.autoLayout" => "Norka 自動佈局",
         "figma.comingSoon" => "即將推出",
         "landing.open" => "Open",
         "landing.pencil" => "Pencil",
@@ -586,7 +589,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "settings.mcp.terminalIntegrations" => "終端機中的 MCP 整合",
         "settings.mcp.terminalSubtitle1" => "MCP 整合將在重新啟動終端機後生效。",
         "settings.mcp.terminalSubtitle2" => {
-            "升級 OpenPencil 版本後，請重新安裝 MCP 整合以確保相容性。"
+            "升級 Norka 版本後，請重新安裝 MCP 整合以確保相容性。"
         }
         "settings.images.search" => "圖片搜尋",
         "settings.images.ready" => "已就緒",
@@ -627,7 +630,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         }
         "dialog.untitledDocument" => "未命名文件",
         "dialog.openErrorTitle" => "無法開啟檔案",
-        "dialog.openErrorLead" => "OpenPencil 無法解析該檔案。",
+        "dialog.openErrorLead" => "Norka 無法解析該檔案。",
         "dialog.saveErrorTitle" => "儲存失敗",
         "dialog.saveErrorLead" => "寫入檔案時發生錯誤。",
         "dialog.exportErrorTitle" => "匯出失敗",
@@ -636,7 +639,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "ai.toolCalls" => "{{count}} 個工具呼叫",
         "figma.importNotWired" => ".fig 檔案匯入尚未接入",
         "dialog.loadErrorInvalidUtf8" => "檔案不是有效的 UTF-8 文字:{{detail}}",
-        "dialog.loadErrorOldVersion" => "該檔案由舊版 OpenPencil 儲存,需要重新儲存後才能開啟。",
+        "dialog.loadErrorOldVersion" => "該檔案由舊版 Norka 儲存,需要重新儲存後才能開啟。",
         "dialog.pickerOpenTitle" => "開啟文件",
         "dialog.pickerSaveTitle" => "儲存文件",
         "dialog.pickerExportTitle" => "匯出圖片",
@@ -647,7 +650,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "dialog.batchExportEmpty" => "目前頁面沒有可匯出的頂層畫框。",
         "dialog.updateTitle" => "有可用更新",
         "dialog.updateBody" => {
-            "OpenPencil {{version}} 已可用(目前版本 {{current}})。\n\n是否開啟發布頁面下載?"
+            "Norka {{version}} 已可用(目前版本 {{current}})。\n\n是否開啟發布頁面下載?"
         }
         "a11y.figmaImport" => "從 Figma 匯入",
         "a11y.import" => "匯入",
@@ -667,7 +670,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "settings.account.notSignedIn" => "你尚未登入。",
         "settings.account.signIn" => "登入",
         "settings.account.signOut" => "登出",
-        "account.signInTitle" => "登入 OpenPencil",
+        "account.signInTitle" => "登入 Norka",
         "account.signInSubtitle" => "使用 Zseven 帳戶繼續",
         "account.signInWithBrowser" => "使用瀏覽器登入",
         "account.signInComingSoon" => "瀏覽器登入即將推出。",
@@ -701,8 +704,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "ai.quickAction.coffeeShopPrompt" => "為布拉格的一間咖啡店設計深色且大膽的網站",
         "ai.quickAction.barbershop" => "管理理髮店顧客的奢華網頁應用程式",
         "ai.quickAction.barbershopPrompt" => "設計一個用於管理理髮店顧客的奢華網頁應用程式",
-        "dialog.upgradeOpTitle" => "要更新這個 OpenPencil 檔案嗎？",
-        "dialog.upgradeOpBody" => "開啟「{{name}}」時已修復其舊版 OpenPencil 格式。\n\n是 = 以目前格式取代 · 否 = 保留原檔並建立編號副本 · 取消 = 不轉換直接開啟。",
+        "dialog.upgradeOpTitle" => "要更新這個 Norka 檔案嗎？",
+        "dialog.upgradeOpBody" => "開啟「{{name}}」時已修復其舊版 Norka 格式。\n\n是 = 以目前格式取代 · 否 = 保留原檔並建立編號副本 · 取消 = 不轉換直接開啟。",
         "ai.designProgress.narration.planning" => "我正在將需求整理成清楚的畫面結構。",
         "ai.designProgress.narration.plannedOne" => "我已將頁面規劃為 1 個區塊。我會先完成它，再完善整個畫面。",
         "ai.designProgress.narration.plannedMany" => "我已將頁面規劃為 {{count}} 個區塊。我會逐一完成，再完善整個畫面。",
@@ -736,7 +739,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "menu.edit" => "編輯",
         "menu.view" => "檢視",
         "menu.help" => "說明",
-        "menu.quit" => "結束 OpenPencil",
+        "menu.quit" => "結束 Norka",
         "menu.new" => "新增",
         "menu.open" => "開啟…",
         "menu.openRecent" => "開啟最近使用",
@@ -753,7 +756,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "menu.gitPanel" => "Git 面板",
         "menu.designMdPanel" => "Design.md 面板",
         "menu.checkForUpdates" => "檢查更新…",
-        "menu.githubLink" => "在 GitHub 上檢視 OpenPencil",
+        "menu.githubLink" => "在 GitHub 上檢視 Norka",
         "providerProbe.cliNotFound" => "找不到 {{name}} CLI",
         "providerProbe.cliNotResponding" => "{{name}} CLI 沒有回應",
         "providerProbe.noModelsClaude" => "找不到模型。Claude Code 未回傳模型清單。請執行「claude login」登入，或在 ~/.claude/settings.json 中設定 ANTHROPIC_API_KEY。",

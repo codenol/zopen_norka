@@ -469,6 +469,7 @@ mod tests {
         op_orchestrator::SubtaskOutcome {
             id: id.to_string(),
             node_count,
+            paintable_nodes: node_count,
             error: None,
             inserted_root_ids: Vec::new(),
             subtask: None,
@@ -479,6 +480,7 @@ mod tests {
         op_orchestrator::SubtaskOutcome {
             id: id.to_string(),
             node_count: 0,
+            paintable_nodes: 0,
             error: Some("all 3 retry-ladder attempts exhausted".to_string()),
             inserted_root_ids: Vec::new(),
             subtask: None,
@@ -489,6 +491,7 @@ mod tests {
         op_orchestrator::RunSummary {
             root_frame_id: "root".to_string(),
             total_nodes: subtasks.iter().map(|s| s.node_count).sum(),
+            paintable_nodes: subtasks.iter().map(|s| s.node_count).sum(),
             subtasks,
             unfilled_screens: Vec::new(),
         }

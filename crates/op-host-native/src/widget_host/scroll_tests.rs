@@ -65,20 +65,15 @@ fn design_md_panel_wheel_scrolls_content_without_zooming_canvas() {
     let mut host = WidgetHostNative::new();
     let viewport_w = 1200.0;
     let viewport_h = 800.0;
-    let mut markdown = String::from("# Design System: Long\n\n## Color Palette\n");
-    for index in 0..40 {
-        markdown.push_str(&format!(
-            "- **color-{index:02}** (#{index:02X}{index:02X}{index:02X}) - role {index}\n"
-        ));
-    }
     host.editor_state_mut().editor_ui.design_md_panel.open = true;
-    host.editor_state_mut().doc.design_md = Some(op_editor_core::parse_design_md(&markdown));
     let panel_rect = host
         .design_md_panel_rect(viewport_w, viewport_h)
-        .expect("design.md panel rect");
-    let panel = op_editor_ui::widgets::DesignMdPanel::for_editor(host.editor_state())
-        .expect("design.md panel");
-    assert!(panel.max_scroll(panel_rect) > 0.0);
+        .expect("rules panel rect");
+    let panel =
+        op_editor_ui::widgets::DesignMdPanel::for_editor(host.editor_state()).expect("rules panel");
+    // The active kit contributes more rules than the panel can show, so
+    // there is something to scroll.
+    assert!(panel.max_rules_scroll(panel_rect) > 0.0);
     let zoom = host.editor_state().viewport.zoom;
 
     assert!(host.apply_wheel(
@@ -89,7 +84,14 @@ fn design_md_panel_wheel_scrolls_content_without_zooming_canvas() {
         viewport_h
     ));
 
-    assert!(host.editor_state().editor_ui.design_md_panel.scroll.offset > 0.0);
+    assert!(
+        host.editor_state()
+            .editor_ui
+            .design_md_panel
+            .rules_scroll
+            .offset
+            > 0.0
+    );
     assert_eq!(host.editor_state().viewport.zoom, zoom);
 }
 

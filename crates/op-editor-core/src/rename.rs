@@ -43,6 +43,9 @@ impl EditorState {
         let Some(page) = pages.get(idx) else {
             return false;
         };
+        if crate::is_component_store_page(&page.name) {
+            return false;
+        }
         let draft = page.name.clone();
         self.ui.layer_rename = Some(LayerRenameState {
             target: LayerContextTarget::Page(idx),

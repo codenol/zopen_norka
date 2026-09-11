@@ -12,6 +12,7 @@
 use super::WidgetHostNative;
 use op_editor_core::size_class::MobileSheetKind;
 use op_editor_core::LeftPanelTab;
+use op_editor_ui::widgets::assets_panel;
 use op_editor_ui::widgets::host_canvas_geometry as canvas_geometry;
 use op_editor_ui::widgets::slides_panel_flow as flow;
 use op_editor_ui::widgets::{BoardChip, SlidesPanelLayout, SlidesPanelTabs};
@@ -128,7 +129,7 @@ impl WidgetHostNative {
         slides: &SlidesFrame,
     ) {
         use op_editor_ui::widgets::PaintCx;
-        let (layers_label, slides_label) = flow::tab_labels(&self.editor_state);
+        let (layers_label, slides_label, assets_label) = flow::tab_labels(&self.editor_state);
         let actions = flow::action_labels(
             &self.editor_state,
             flow::selected_slide_count(&self.editor_state, &slides.chips),
@@ -138,6 +139,7 @@ impl WidgetHostNative {
             &self.editor_state,
             layers_label,
             slides_label,
+            assets_label,
             actions.labels(),
         );
         {
@@ -166,7 +168,7 @@ impl WidgetHostNative {
         tabs: &SlidesPanelTabs,
     ) {
         use op_editor_ui::widgets::PaintCx;
-        let (layers_label, slides_label) = flow::tab_labels(&self.editor_state);
+        let (layers_label, slides_label, assets_label) = flow::tab_labels(&self.editor_state);
         let mut cx = PaintCx { backend: frame };
         tabs.paint(
             &mut cx,
@@ -174,6 +176,7 @@ impl WidgetHostNative {
             self.editor_state.editor_ui.slides_panel.hover,
             layers_label,
             slides_label,
+            assets_label,
         );
     }
 
@@ -279,17 +282,25 @@ impl WidgetHostNative {
                 }
             };
         }
-        // The Layers tab owns the rail: only the tab row itself is ours.
+        // The Layers / Assets tabs own the rail: the tab row first, then
+        // the Assets body when that tab is on show.
         let Some(tabs) = self.slides_tab_row(viewport_w, viewport_h) else {
             return false;
         };
-        let Some(target) = tabs.hit(point) else {
-            return false;
-        };
-        self.editor_state.editor_ui.slides_panel.pressed = Some(target);
-        self.editor_state.editor_ui.slides_panel.hover = Some(target);
-        self.mark_dirty();
-        true
+        if let Some(target) = tabs.hit(point) {
+            self.editor_state.editor_ui.slides_panel.pressed = Some(target);
+            self.editor_state.editor_ui.slides_panel.hover = Some(target);
+            self.mark_dirty();
+            return true;
+        }
+        if flow::assets_tab_active(&self.editor_state) {
+            let content = self.layers_content_rect(viewport_w, viewport_h);
+            if assets_panel::assets_press(&mut self.editor_state, content, point) {
+                self.mark_dirty();
+                return true;
+            }
+        }
+        false
     }
 
     /// Track the cursor over the panel. Returns whether the panel owns
@@ -321,10 +332,29 @@ impl WidgetHostNative {
             return (false, changed);
         };
         let changed = flow::tab_cursor_move(&mut self.editor_state, &tabs, point);
+        let mut assets_changed = false;
+        let mut owns = tabs.hit(point).is_some();
+        if flow::assets_tab_active(&self.editor_state) {
+            let content = self.layers_content_rect(viewport_w, viewport_h);
+            if content.contains(point) {
+                assets_changed = assets_panel::assets_hover(&mut self.editor_state, content, point);
+                owns = true;
+            } else if self
+                .editor_state
+                .editor_ui
+                .assets_panel
+                .hover
+                .take()
+                .is_some()
+            {
+                assets_changed = true;
+            }
+        }
+        let changed = changed || assets_changed;
         if changed {
             self.mark_dirty();
         }
-        (tabs.hit(point).is_some(), changed)
+        (owns, changed)
     }
 
     /// Close a slides-panel gesture. Returns whether one was in flight.
@@ -333,6 +363,12 @@ impl WidgetHostNative {
         viewport_w: f32,
         viewport_h: f32,
     ) -> bool {
+        if self.editor_state.editor_ui.assets_panel.pressed.is_some() {
+            let _ = assets_panel::assets_release(&mut self.editor_state);
+            let _ = self.drain_skala_insert(viewport_w, viewport_h);
+            self.mark_dirty();
+            return true;
+        }
         if self.editor_state.editor_ui.slides_panel.pressed.is_none() {
             return false;
         }
@@ -434,8 +470,20 @@ impl WidgetHostNative {
         viewport_w: f32,
         viewport_h: f32,
     ) -> Option<bool> {
-        let slides = self.slides_panel_frame(viewport_w, viewport_h)?;
-        flow::scroll(&mut self.editor_state, Some(&slides.layout), point, delta_y)
+        if let Some(slides) = self.slides_panel_frame(viewport_w, viewport_h) {
+            return flow::scroll(&mut self.editor_state, Some(&slides.layout), point, delta_y);
+        }
+        if flow::assets_tab_active(&self.editor_state) {
+            let content = self.layers_content_rect(viewport_w, viewport_h);
+            if content.contains(point) {
+                return Some(assets_panel::assets_scroll(
+                    &mut self.editor_state,
+                    content,
+                    delta_y,
+                ));
+            }
+        }
+        None
     }
 }
 

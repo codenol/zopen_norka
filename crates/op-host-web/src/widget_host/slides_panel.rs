@@ -23,6 +23,7 @@
 //! `deck_html_export_supported`.
 
 use super::WidgetHost;
+use op_editor_ui::widgets::assets_panel;
 use op_editor_ui::widgets::host_canvas_geometry as canvas_geometry;
 use op_editor_ui::widgets::slides_panel_flow as flow;
 use op_editor_ui::widgets::{BoardChip, SlidesPanelLayout, SlidesPanelTabs};
@@ -94,7 +95,7 @@ impl WidgetHost {
         slides: &SlidesFrame,
     ) {
         use op_editor_ui::widgets::PaintCx;
-        let (layers_label, slides_label) = flow::tab_labels(&self.editor_state);
+        let (layers_label, slides_label, assets_label) = flow::tab_labels(&self.editor_state);
         let actions = flow::action_labels(
             &self.editor_state,
             flow::selected_slide_count(&self.editor_state, &slides.chips),
@@ -104,6 +105,7 @@ impl WidgetHost {
             &self.editor_state,
             layers_label,
             slides_label,
+            assets_label,
             actions.labels(),
         );
         let mut cx = PaintCx { backend };
@@ -122,7 +124,7 @@ impl WidgetHost {
         tabs: &SlidesPanelTabs,
     ) {
         use op_editor_ui::widgets::PaintCx;
-        let (layers_label, slides_label) = flow::tab_labels(&self.editor_state);
+        let (layers_label, slides_label, assets_label) = flow::tab_labels(&self.editor_state);
         let mut cx = PaintCx { backend };
         tabs.paint(
             &mut cx,
@@ -130,6 +132,7 @@ impl WidgetHost {
             self.editor_state.editor_ui.slides_panel.hover,
             layers_label,
             slides_label,
+            assets_label,
         );
     }
 
@@ -154,13 +157,20 @@ impl WidgetHost {
         let Some(tabs) = self.slides_tab_row(viewport_h) else {
             return false;
         };
-        let Some(target) = tabs.hit(point) else {
-            return false;
-        };
-        self.editor_state.editor_ui.slides_panel.pressed = Some(target);
-        self.editor_state.editor_ui.slides_panel.hover = Some(target);
-        self.mark_dirty();
-        true
+        if let Some(target) = tabs.hit(point) {
+            self.editor_state.editor_ui.slides_panel.pressed = Some(target);
+            self.editor_state.editor_ui.slides_panel.hover = Some(target);
+            self.mark_dirty();
+            return true;
+        }
+        if flow::assets_tab_active(&self.editor_state) {
+            let content = self.layers_content_rect(viewport_h);
+            if assets_panel::assets_press(&mut self.editor_state, content, point) {
+                self.mark_dirty();
+                return true;
+            }
+        }
+        false
     }
 
     /// Track the cursor: `(owns, changed)`, like native's twin.
@@ -189,10 +199,29 @@ impl WidgetHost {
             return (false, changed);
         };
         let changed = flow::tab_cursor_move(&mut self.editor_state, &tabs, point);
+        let mut assets_changed = false;
+        let mut owns = tabs.hit(point).is_some();
+        if flow::assets_tab_active(&self.editor_state) {
+            let content = self.layers_content_rect(viewport_h);
+            if content.contains(point) {
+                assets_changed = assets_panel::assets_hover(&mut self.editor_state, content, point);
+                owns = true;
+            } else if self
+                .editor_state
+                .editor_ui
+                .assets_panel
+                .hover
+                .take()
+                .is_some()
+            {
+                assets_changed = true;
+            }
+        }
+        let changed = changed || assets_changed;
         if changed {
             self.mark_dirty();
         }
-        (tabs.hit(point).is_some(), changed)
+        (owns, changed)
     }
 
     /// Cursor-move tier for the panel. `Some(dirty)` when it claimed the
@@ -229,6 +258,12 @@ impl WidgetHost {
         viewport_w: f32,
         viewport_h: f32,
     ) -> bool {
+        if self.editor_state.editor_ui.assets_panel.pressed.is_some() {
+            let _ = assets_panel::assets_release(&mut self.editor_state);
+            let _ = self.drain_skala_insert(viewport_w, viewport_h);
+            self.mark_dirty();
+            return true;
+        }
         if self.editor_state.editor_ui.slides_panel.pressed.is_none() {
             return false;
         }
@@ -319,8 +354,20 @@ impl WidgetHost {
         viewport_w: f32,
         viewport_h: f32,
     ) -> Option<bool> {
-        let slides = self.slides_panel_frame(viewport_w, viewport_h)?;
-        flow::scroll(&mut self.editor_state, Some(&slides.layout), point, delta_y)
+        if let Some(slides) = self.slides_panel_frame(viewport_w, viewport_h) {
+            return flow::scroll(&mut self.editor_state, Some(&slides.layout), point, delta_y);
+        }
+        if flow::assets_tab_active(&self.editor_state) {
+            let content = self.layers_content_rect(viewport_h);
+            if content.contains(point) {
+                return Some(assets_panel::assets_scroll(
+                    &mut self.editor_state,
+                    content,
+                    delta_y,
+                ));
+            }
+        }
+        None
     }
 }
 

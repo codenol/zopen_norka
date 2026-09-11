@@ -1,4 +1,4 @@
-/// UI locale supported by OpenPencil.
+/// UI locale supported by Norka.
 ///
 /// Every variant has a complete direct translation table. [`Locale::code`]
 /// returns its stable BCP-47 identifier for persistence and transport.

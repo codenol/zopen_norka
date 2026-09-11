@@ -22,7 +22,7 @@ use crate::node_id::NodeId;
 use crate::walkers::ReorderDirection;
 use jian_ops_schema::node::PenNode;
 use jian_ops_schema::variable::VariableDefinition;
-use jian_ops_schema::DesignMdSpec;
+use jian_ops_schema::{DesignMdSpec, DesignRule};
 use std::collections::BTreeMap;
 
 /// Which boolean property [`EditorCommand::SetNodeFlag`] writes. The
@@ -339,6 +339,12 @@ pub enum EditorCommand {
     },
     /// Replace the document's persisted design.md spec.
     SetDesignMd { spec: Box<DesignMdSpec> },
+    /// Create or replace one document-local design rule or override.
+    UpsertDesignRule { rule: Box<DesignRule> },
+    /// Enable or disable a local rule, or create an override for a library rule.
+    SetDesignRuleEnabled { rule_id: String, enabled: bool },
+    /// Delete a local rule, or locally disable a library rule.
+    DeleteDesignRule { rule_id: String },
     /// Create or replace a component master and its conversion ledger entry.
     UpsertComponent {
         key: String,

@@ -1,0 +1,390 @@
+{
+  "id": "page-atom-input",
+  "name": "Atoms · Input",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-input-set",
+      "name": "set",
+      "layout": "vertical",
+      "gap": 20.0,
+      "clipContent": false,
+      "children": [
+        {
+          "type": "frame",
+          "id": "atom-input-default",
+          "name": "Input/Default",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 236.0,
+          "height": 32.0,
+          "layout": "horizontal",
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/default"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/default"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-input-default-label",
+              "name": "label",
+              "content": "Input",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-input-hover",
+          "name": "Input/Hover",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 236.0,
+          "height": 32.0,
+          "layout": "horizontal",
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/hover"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/hover"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-input-hover-label",
+              "name": "label",
+              "content": "Input",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/hover"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-input-focused",
+          "name": "Input/Focused",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 236.0,
+          "height": 32.0,
+          "layout": "horizontal",
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/focused"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/focused"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-input-focused-label",
+              "name": "label",
+              "content": "Input",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/focused"
+                }
+              ]
+            }
+          ],
+          "effects": [
+            {
+              "type": "shadow",
+              "offsetX": 0,
+              "offsetY": 0,
+              "blur": 0,
+              "spread": 2,
+              "color": "$effects/status/focus/default"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-input-filled",
+          "name": "Input/Filled",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 236.0,
+          "height": 32.0,
+          "layout": "horizontal",
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/filled"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/filled"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-input-filled-label",
+              "name": "label",
+              "content": "Input",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/filled"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-input-warning",
+          "name": "Input/Warning",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 236.0,
+          "height": 32.0,
+          "layout": "horizontal",
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/warning"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/warning"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-input-warning-label",
+              "name": "label",
+              "content": "Input",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/warning"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-input-error",
+          "name": "Input/Error",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 236.0,
+          "height": 32.0,
+          "layout": "horizontal",
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/error"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/error"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-input-error-label",
+              "name": "label",
+              "content": "Input",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/error"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "atom-input-disabled",
+          "name": "Input/Disabled",
+          "reusable": true,
+          "x": 0,
+          "y": 0,
+          "width": 236.0,
+          "height": 32.0,
+          "layout": "horizontal",
+          "padding": [
+            8.0,
+            12.0
+          ],
+          "alignItems": "center",
+          "cornerRadius": 8.0,
+          "clipContent": false,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$input/background/disabled"
+            }
+          ],
+          "stroke": {
+            "thickness": 1.0,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$input/border/disabled"
+              }
+            ]
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "atom-input-disabled-label",
+              "name": "label",
+              "content": "Input",
+              "fontFamily": "Roboto",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "lineHeight": 1.1429,
+              "textAlign": "left",
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "$input/text/disabled"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

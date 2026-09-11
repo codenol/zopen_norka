@@ -50,6 +50,10 @@ impl CkInner {
         // the frame after the fetch lands. No-op on every other frame and on
         // native, where the document was already in the binary.
         self.host.retry_pending_scene_template();
+        // Keep the browser's copy of the chat transcript current; a no-op
+        // unless the transcript changed.
+        crate::web_chat_persist::persist_if_changed(self.host.editor_state());
+
         crate::web_chat::reconcile_models(self.host.editor_state_mut());
         // Detect a credential edit and enqueue the daemon sync BEFORE mirroring
         // the sync status below: a corrective edit clears the stale error in

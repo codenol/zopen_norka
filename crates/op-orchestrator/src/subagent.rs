@@ -100,6 +100,7 @@ pub(crate) async fn run_subtask_with_reveal_at(
     let fail = |msg: String| SubtaskOutcome {
         id: subtask.id.clone(),
         node_count: 0,
+        paintable_nodes: 0,
         error: Some(msg),
         inserted_root_ids: Vec::new(),
         // Persist the spec on every zero-node failure so the progress
@@ -188,6 +189,12 @@ pub(crate) async fn run_subtask_with_reveal_at(
     };
     if is_blank_container_forest(&nodes) {
         return fail("blank container root produced no content nodes".into());
+    }
+    if forest_only_unresolved_refs(&nodes, sink.state()) {
+        return fail(
+            "component refs do not resolve against the live library (kit masters missing or wrong ids)"
+                .into(),
+        );
     }
     // Semantic role inference + role-default injection (P2 I1/I2) on the parsed
     // subtree, BEFORE the fallback sizing normalize (semantic-before-fallback,
@@ -312,6 +319,7 @@ pub(crate) async fn run_subtask_with_reveal_at(
         }
     }
     let node_count = nodes.len();
+    let paintable_nodes = count_paintable_nodes(&nodes, sink.state());
 
     // Hoist node-level `state` to one document-root MergeAppState so
     // `$app.*` references resolve globally (events stay on the nodes).
@@ -379,6 +387,7 @@ pub(crate) async fn run_subtask_with_reveal_at(
     SubtaskOutcome {
         id: subtask.id.clone(),
         node_count,
+        paintable_nodes,
         error: None,
         inserted_root_ids,
         subtask: None,
@@ -424,15 +433,18 @@ pub(crate) fn apply_command_with_reveal(
     indicator_epoch: Option<u64>,
     reveal_started_ms: u64,
 ) -> bool {
-    fn inserts_subtree(cmd: &EditorCommand) -> bool {
+    fn inserts_nodes(cmd: &EditorCommand) -> bool {
         match cmd {
-            EditorCommand::InsertSubtree { .. } => true,
-            EditorCommand::Batch { commands } => commands.iter().any(inserts_subtree),
+            EditorCommand::InsertSubtree { .. }
+            | EditorCommand::InstantiateComponent { .. }
+            | EditorCommand::InsertAuthoredSubtree { .. }
+            | EditorCommand::InsertAuthoredSubtreePreservingRoots { .. } => true,
+            EditorCommand::Batch { commands } => commands.iter().any(inserts_nodes),
             _ => false,
         }
     }
 
-    if !inserts_subtree(&cmd) {
+    if !inserts_nodes(&cmd) {
         return sink.apply(cmd);
     }
     let ids_before = indicator_epoch.map(|_| collect_active_node_ids(sink.state()));
@@ -473,6 +485,69 @@ pub(crate) use op_editor_core::agent_reveals::{
 
 fn is_blank_container_forest(nodes: &[PenNode]) -> bool {
     !nodes.iter().any(has_content_node)
+}
+
+/// True when every visual leaf is a `ref` whose master is missing from the
+/// live document library — those paint as nothing (`resolve_refs_for_canvas`
+/// drops them), so treating the forest as success would report Done with an
+/// empty canvas.
+fn forest_only_unresolved_refs(nodes: &[PenNode], state: &op_editor_core::EditorState) -> bool {
+    let mut saw_ref = false;
+    let mut unresolved_only = true;
+    fn walk(
+        node: &PenNode,
+        state: &op_editor_core::EditorState,
+        saw_ref: &mut bool,
+        unresolved_only: &mut bool,
+    ) {
+        match node {
+            PenNode::Ref(r) => {
+                *saw_ref = true;
+                let id = op_editor_core::NodeId::new(r.target.as_str());
+                if state.components.resolved_root(&state.doc, &id).is_some() {
+                    *unresolved_only = false;
+                }
+            }
+            other => {
+                if let Some(children) = other.children() {
+                    if children.is_empty() {
+                        if has_content_node(other) && !matches!(other, PenNode::Ref(_)) {
+                            *unresolved_only = false;
+                        }
+                    } else {
+                        for child in children {
+                            walk(child, state, saw_ref, unresolved_only);
+                        }
+                    }
+                } else if has_content_node(other) {
+                    *unresolved_only = false;
+                }
+            }
+        }
+    }
+    for node in nodes {
+        walk(node, state, &mut saw_ref, &mut unresolved_only);
+    }
+    saw_ref && unresolved_only
+}
+
+/// Count non-blank geometry + resolved refs (honest Done metric).
+fn count_paintable_nodes(nodes: &[PenNode], state: &op_editor_core::EditorState) -> usize {
+    fn walk(node: &PenNode, state: &op_editor_core::EditorState) -> usize {
+        match node {
+            PenNode::Ref(r) => {
+                let id = op_editor_core::NodeId::new(r.target.as_str());
+                usize::from(state.components.resolved_root(&state.doc, &id).is_some())
+            }
+            other => match other.children() {
+                Some(children) if !children.is_empty() => {
+                    children.iter().map(|c| walk(c, state)).sum()
+                }
+                _ => usize::from(has_content_node(other)),
+            },
+        }
+    }
+    nodes.iter().map(|n| walk(n, state)).sum()
 }
 
 fn has_content_node(node: &PenNode) -> bool {

@@ -29,6 +29,16 @@ fi
 export OPENPENCIL_WEB_BUNDLE_DIR="${OPENPENCIL_WEB_BUNDLE_DIR:-$PWD/crates/op-host-web/pkg}"
 export OPENPENCIL_CANVASKIT_DIR="${OPENPENCIL_CANVASKIT_DIR:-$PWD/crates/op-host-web/assets/canvaskit}"
 
+# Cursor's agent terminal injects HTTP(S)_PROXY / SOCKS_PROXY to a loopback
+# CONNECT proxy that 403s provider APIs (DeepSeek, OpenAI, …). The editor
+# must dial those hosts directly. Real user proxies (Clash in a normal
+# shell) do not set these markers and are left in place.
+if [ -n "${CURSOR_WORKSPACE_LABEL:-}${CURSOR_AGENT:-}${AGENT_TRANSCRIPTS:-}" ]; then
+  unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
+  unset SOCKS_PROXY SOCKS5_PROXY socks_proxy socks5_proxy
+  unset GIT_HTTP_PROXY GIT_HTTPS_PROXY
+fi
+
 echo "OpenPencil Rust web editor: http://${HOST}:${PORT}/"
 echo "bundle: ${OPENPENCIL_WEB_BUNDLE_DIR}"
 echo "canvaskit: ${OPENPENCIL_CANVASKIT_DIR}"

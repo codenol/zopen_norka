@@ -189,7 +189,10 @@ impl WidgetHostNative {
         }
         // 3. apply_click — LayerPanel + chat-defocus. Peek the
         //    LayerPanel hit-test for a drag-to-reorder candidate.
-        if self.layers_panel_visible() && !self.editor_state.editor_ui.touch_chrome() {
+        if self.layers_panel_visible()
+            && !self.editor_state.editor_ui.touch_chrome()
+            && !op_editor_ui::widgets::slides_panel_flow::assets_tab_active(&self.editor_state)
+        {
             use op_editor_ui::widgets::LayerPanelHit;
             let layer_rect = self.layers_content_rect(viewport_width, viewport_height);
             let panel = self.layer_panel();

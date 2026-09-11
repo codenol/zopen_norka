@@ -113,6 +113,7 @@ pub async fn retry_subtask(
                     return SubtaskOutcome {
                         id: subtask.id.clone(),
                         node_count: 0,
+                        paintable_nodes: 0,
                         error: Some(format!(
                             "this section's original location (frame \"{parent_id}\") no longer \
                              exists in the document — describe where to add it instead"

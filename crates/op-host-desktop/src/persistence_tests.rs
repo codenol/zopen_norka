@@ -253,6 +253,10 @@ fn new_file_action_resets_to_starter_frame() {
         frame.container.height,
         Some(jian_ops_schema::sizing::SizingBehavior::Number(800.0))
     ));
+    assert!(
+        host.editor_state().doc.design_md.is_some(),
+        "File → New must attach the Skala compact policy"
+    );
     let v = host.editor_state().viewport;
     assert!((v.zoom - 0.8933333).abs() < 1e-3, "zoom {}", v.zoom);
     assert!((v.pan_x - 64.0).abs() < 1e-2, "pan_x {}", v.pan_x);

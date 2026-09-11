@@ -20,8 +20,13 @@ use crate::{Point2D, Rect};
 /// Breathing room between the floating chrome and the canvas edges, so
 /// the pills don't visually touch it (per the 2026-05-10 user note that
 /// asked for a little vertical spacing under the chat pill).
-pub const AICHAT_INSET_BOTTOM: f32 = 12.0;
+/// The panel's bottom gutter. Raised from 12 to 52 so the floating chat
+/// clears the bottom edge on short viewports instead of hanging off it.
+pub const AICHAT_INSET_BOTTOM: f32 = 52.0;
 pub const AICHAT_INSET_LEFT: f32 = 12.0;
+/// Right-edge gutter for the minimized bar, kept separate from the bottom
+/// inset: the bar's width must not change just because the panel sits higher.
+pub const AICHAT_INSET_RIGHT: f32 = 12.0;
 pub const TOOLBAR_INSET_X: f32 = 12.0;
 pub const TOOLBAR_INSET_Y: f32 = 12.0;
 pub const STATUS_INSET: f32 = 16.0;
@@ -54,7 +59,7 @@ pub fn minimized_chat_bar_rect(
     use crate::widgets::{AI_CHAT_MINIMIZED_HEIGHT, AI_CHAT_MINIMIZED_MIN_WIDTH};
     use op_editor_core::ChatAnchor;
 
-    let available_w = cw - AICHAT_INSET_LEFT - AICHAT_INSET_BOTTOM;
+    let available_w = cw - AICHAT_INSET_LEFT - AICHAT_INSET_RIGHT;
     let bar_w = width.min(available_w);
     if bar_w < AI_CHAT_MINIMIZED_MIN_WIDTH || ch <= AI_CHAT_MINIMIZED_HEIGHT + 16.0 {
         return None;

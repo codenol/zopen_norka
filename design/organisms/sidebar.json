@@ -1,0 +1,462 @@
+{
+  "id": "page-organism-sidebar",
+  "name": "Organisms · Sidebar",
+  "children": [
+    {
+      "type": "frame",
+      "id": "org-sidebar-default",
+      "name": "Sidebar/Default",
+      "reusable": true,
+      "x": 0,
+      "y": 0,
+      "width": 251.0,
+      "height": 814.0,
+      "layout": "none",
+      "cornerRadius": 16.0,
+      "clipContent": true,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$sidebar/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "rectangle",
+          "id": "org-sidebar-border",
+          "name": "border",
+          "x": 0.5,
+          "y": 0.5,
+          "width": 250.0,
+          "height": 813.0,
+          "cornerRadius": 15.5,
+          "stroke": {
+            "thickness": 1,
+            "fill": [
+              {
+                "type": "solid",
+                "color": "$sidebar/border/default"
+              }
+            ]
+          }
+        },
+        {
+          "type": "frame",
+          "id": "org-sidebar-minibar",
+          "name": "Minibar",
+          "x": 1.0,
+          "y": 1.0,
+          "width": 48.0,
+          "height": 812.0,
+          "layout": "vertical",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "padding": [
+            8,
+            4
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "org-sidebar-minibar-top",
+              "name": "top-slot",
+              "layout": "vertical",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-status",
+                  "ref": "atom-status-dot-lock"
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-minibar-bell",
+                  "ref": "atom-menu-button-default",
+                  "descendants": {
+                    "atom-menu-button-default-icon": {
+                      "iconFontName": "bell"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-minibar-layout-grid",
+                  "ref": "atom-menu-button-default",
+                  "descendants": {
+                    "atom-menu-button-default-icon": {
+                      "iconFontName": "layout-grid"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-minibar-star",
+                  "ref": "atom-menu-button-default",
+                  "descendants": {
+                    "atom-menu-button-default-icon": {
+                      "iconFontName": "star"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "org-sidebar-minibar-bottom",
+              "name": "bottom-slot",
+              "layout": "vertical",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-minibar-settings",
+                  "ref": "atom-menu-button-default",
+                  "descendants": {
+                    "atom-menu-button-default-icon": {
+                      "iconFontName": "settings"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-minibar-moon",
+                  "ref": "atom-menu-button-default",
+                  "descendants": {
+                    "atom-menu-button-default-icon": {
+                      "iconFontName": "moon"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-minibar-image",
+                  "ref": "atom-menu-button-default",
+                  "descendants": {
+                    "atom-menu-button-default-icon": {
+                      "iconFontName": "image"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-minibar-help-circle",
+                  "ref": "atom-menu-button-default",
+                  "descendants": {
+                    "atom-menu-button-default-icon": {
+                      "iconFontName": "help-circle"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-avatar",
+                  "ref": "atom-avatar-default"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "org-sidebar-menu-rule",
+          "name": "rule",
+          "x": 49.0,
+          "y": 1.0,
+          "width": 1,
+          "height": 812.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$sidebar/border/default"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "org-sidebar-menu",
+          "name": "Menu",
+          "x": 50.0,
+          "y": 1.0,
+          "width": 200.0,
+          "height": 812.0,
+          "layout": "vertical",
+          "gap": 8.0,
+          "children": [
+            {
+              "type": "frame",
+              "id": "org-sidebar-header",
+              "name": "Header",
+              "width": 200.0,
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 0,
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-logo",
+                  "ref": "atom-logo-genome-2"
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-header-divider",
+                  "ref": "atom-divider-default"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "org-sidebar-menu-slot",
+              "name": "Menu slot",
+              "width": 200.0,
+              "height": 704.0,
+              "layout": "vertical",
+              "gap": 0.0,
+              "padding": [
+                0,
+                16.0
+              ],
+              "alignItems": "start",
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-overview",
+                  "ref": "atom-menu-item-active",
+                  "descendants": {
+                    "atom-menu-item-active-label": {
+                      "content": "Обзор"
+                    },
+                    "atom-menu-item-active-icon": {
+                      "iconFontName": "eye"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-objects",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Объекты"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "git-fork"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "org-sidebar-heading-settings",
+                  "name": "Heading/Настройки",
+                  "width": 168.0,
+                  "height": 28.0,
+                  "layout": "horizontal",
+                  "alignItems": "center",
+                  "padding": [
+                    6,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "org-sidebar-heading-settings-label",
+                      "name": "label",
+                      "content": "Настройки",
+                      "fontFamily": "Roboto",
+                      "fontSize": 12,
+                      "fontWeight": 500,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$sidebar/text/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-metrics",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Метрики"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "wrench"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-metrics-diag",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Диагностика метрики"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "info"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-alert-rules",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Правила оповещений"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "bell"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-expr-builder",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Конструктор выражений"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "code"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-recipients",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Список получателей"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "user"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-mail-groups",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Группы рассылки"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "users"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-send-settings",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Настройки отправки"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "mail"
+                    }
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "org-sidebar-heading-security",
+                  "name": "Heading/Безопасность",
+                  "width": 168.0,
+                  "height": 28.0,
+                  "layout": "horizontal",
+                  "alignItems": "center",
+                  "padding": [
+                    6,
+                    12
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "org-sidebar-heading-security-label",
+                      "name": "label",
+                      "content": "Безопасность",
+                      "fontFamily": "Roboto",
+                      "fontSize": 12,
+                      "fontWeight": 500,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "$sidebar/text/default"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-rbac",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Ролевая модель"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "layout-grid"
+                    }
+                  }
+                },
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-tokens",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Токены доступа"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "key"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "ref",
+              "id": "org-sidebar-footer-divider",
+              "ref": "atom-divider-default"
+            },
+            {
+              "type": "frame",
+              "id": "org-sidebar-bottom",
+              "name": "bottom-block",
+              "width": 200.0,
+              "height": "fit_content",
+              "layout": "vertical",
+              "padding": [
+                0,
+                16.0
+              ],
+              "children": [
+                {
+                  "type": "ref",
+                  "id": "org-sidebar-item-collapse",
+                  "ref": "atom-menu-item-default",
+                  "descendants": {
+                    "atom-menu-item-default-label": {
+                      "content": "Свернуть"
+                    },
+                    "atom-menu-item-default-icon": {
+                      "iconFontName": "chevron-left"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

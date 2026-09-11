@@ -58,6 +58,9 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
     // every widget test's fixture — this is the mount-time policy, not
     // the host's resting state.
     host.editor_state_mut().chat.minimize();
+    // The transcript outlives the page: a reload used to come back to an
+    // empty panel.
+    crate::web_chat_persist::restore(host.editor_state_mut());
     // Embed-host flag from the page URL (`?embed=vscode` in the VS Code
     // plugin iframe): parsed before the first paint so embedded chrome
     // never flashes in.
@@ -166,6 +169,10 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 crate::web_fonts::drain_font_requests(&inner_for_paint);
                 crate::bundled_fonts_web::drain_pending_apply(&inner_for_paint);
                 crate::web_fonts::drain_missing_fonts_detection(&inner_for_paint);
+                // Checked after every frame, not only on input: a page that
+                // is never touched still has to start blinking once the
+                // build crosses the three-minute mark.
+                crate::build_stamp_pump::ensure(&inner_for_paint);
             } else {
                 crate::repaint_coalescer::request();
             }
@@ -177,6 +184,8 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
     // Arm the bundled-font gate BEFORE the first drain: the system-font query
     // below routinely completes before the network fetch, and detection is a
     // one-shot modal that would otherwise report every bundled family missing.
+    // A page that is never touched must still start the blink cycle.
+    crate::build_stamp_pump::ensure(&inner);
     if let Ok(mut b) = inner.try_borrow_mut() {
         b.host.begin_bundled_font_loading();
     }
@@ -435,6 +444,10 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // coming to carry it. Arm the rAF pump after the borrow
                 // is released so it can read the host it just updated.
                 crate::tooltip_pump::ensure(&inner);
+                // The build stamp blinks on its own schedule once the build
+                // is older than three minutes; arm its waker here so the
+                // first stale frame starts the cycle.
+                crate::build_stamp_pump::ensure(&inner);
             },
         )?;
     }

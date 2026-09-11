@@ -15,14 +15,14 @@ use jian_core::scroll::ScrollState;
 
 /// Which tab the left rail is showing.
 ///
-/// `Layers` is the default and the only tab a non-scenario document
-/// offers, so a document that never opts into a scenario behaves
-/// exactly as it did before the tab row existed.
+/// `Layers` is the default. `Assets` is always offered. `Slides` is
+/// offered only when the page has boards to navigate.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum LeftPanelTab {
     #[default]
     Layers,
     Slides,
+    Assets,
 }
 
 /// A slides-list reorder gesture in flight.
@@ -51,6 +51,8 @@ pub enum SlidesPanelTarget {
     LayersTab,
     /// The "Slides" / "Cards" tab in the tab row.
     SlidesTab,
+    /// The "Assets" tab in the tab row — Skala kit insert.
+    AssetsTab,
     /// A slide row, by index in page order.
     Slide(usize),
     /// The action bar's present button.
@@ -81,6 +83,40 @@ pub struct SlidesPanelState {
     pub export_menu_open: bool,
     /// Vertical scroll of the slide list.
     pub scroll: ScrollState,
+}
+
+/// What a press on the Assets rail landed on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssetsHit {
+    /// The search field.
+    Search,
+    /// Insert the type's default master, by index into the filtered list.
+    Insert(usize),
+    /// Open the Design-MD panel on this type.
+    Details(usize),
+    /// The rest of the type row (same as Details).
+    Row(usize),
+}
+
+/// Search / scroll / pointer state for the left-rail Assets tab.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct AssetsPanelState {
+    /// Substring filter over kit type names.
+    pub search: String,
+    pub search_input: jian_core::text_input::TextInputState,
+    pub search_focused: bool,
+    pub hover: Option<AssetsHit>,
+    pub pressed: Option<AssetsHit>,
+    pub scroll: jian_core::scroll::ScrollState,
+}
+
+impl AssetsPanelState {
+    pub fn clear_pointer(&mut self) -> bool {
+        let live = self.hover.is_some() || self.pressed.is_some();
+        self.hover = None;
+        self.pressed = None;
+        live
+    }
 }
 
 impl SlidesPanelState {

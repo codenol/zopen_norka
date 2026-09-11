@@ -70,10 +70,28 @@ pub(crate) fn now_unix_secs() -> u64 {
     (js_sys::Date::now() / 1_000.0) as u64
 }
 
+/// Wall clock in Unix milliseconds.
+///
+/// Seconds are too coarse for the build stamp: a one-second blink period
+/// quantized to whole seconds never changes phase, so a stale stamp looked
+/// steady while an ageing one (three-second period) appeared to blink.
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn now_unix_ms() -> f64 {
+    js_sys::Date::now()
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn now_unix_secs() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn now_unix_ms() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or(0.0)
 }

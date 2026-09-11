@@ -179,6 +179,38 @@ impl WidgetHostNative {
     }
 
     /// Left / Right arrow in the Scene Template Center's focused input.
+    /// Left / Right inside the guidelines rule editor.
+    pub fn apply_design_rule_caret(&mut self, forward: bool, extend: bool) -> bool {
+        if shared::design_rule_caret_move(&mut self.editor_state, forward, extend, self.now_ms)
+            .unwrap_or(false)
+        {
+            self.mark_dirty();
+            return true;
+        }
+        // The editor owns the arrow even at a text boundary — falling
+        // through would nudge the selected node behind the panel.
+        self.editor_state
+            .editor_ui
+            .design_md_panel
+            .rule_draft
+            .is_some()
+    }
+
+    /// Up / Down inside the guidelines rule editor.
+    pub fn apply_design_rule_vertical(&mut self, down: bool) -> bool {
+        if shared::design_rule_vertical_caret(&mut self.editor_state, down, self.now_ms)
+            .unwrap_or(false)
+        {
+            self.mark_dirty();
+            return true;
+        }
+        self.editor_state
+            .editor_ui
+            .design_md_panel
+            .rule_draft
+            .is_some()
+    }
+
     pub fn apply_scene_template_caret(&mut self, forward: bool, extend: bool) -> bool {
         if shared::scene_template_caret(&mut self.editor_state, forward, extend, self.now_ms) {
             self.mark_dirty();

@@ -51,6 +51,13 @@ impl EditorUiState {
         self.layer_context_menu.take().is_some()
     }
 
+    /// Close the guidelines panel's rule form without closing the
+    /// panel — one rung above the panel's own Escape rung, so a
+    /// half-typed rule is discarded before the view disappears.
+    pub fn escape_design_md_rules_form(&mut self) -> bool {
+        self.design_md_panel.rule_draft.take().is_some()
+    }
+
     /// Close the agent-settings modal.
     pub fn escape_agent_settings_modal(&mut self) -> bool {
         if !self.agent_settings_open {
@@ -317,6 +324,7 @@ impl EditorUiState {
         self.component_browser_confirm_delete_kit = None;
         self.design_md_panel.open = false;
         self.design_md_panel.hover = None;
+        self.design_md_panel.rule_draft = None;
         self.git_panel.open = false;
         self.git_panel.empty_hovered_card = None;
         self.git_panel.branch_button_hovered = false;

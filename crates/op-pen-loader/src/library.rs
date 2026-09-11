@@ -22,9 +22,9 @@
 //! 3. `state.components` is rebuilt so the runtime registry + the generator's
 //!    available-components manifest see the new masters immediately.
 //!
-//! This is intentionally additive and gated: nothing calls it on the default
-//! path. The smoke runner wires it behind `OPENPENCIL_SMOKE_LIBRARY`, and the
-//! desktop host can call it when a user imports a kit.
+//! [`crate::ensure_skala_session`] is the default New / launch path: it
+//! merges this library onto a hidden Components store so a blank file still
+//! has every Skala master. Direct callers remain for smoke and kit import.
 
 use op_editor_core::{ComponentLibrary, EditorState};
 
@@ -182,20 +182,24 @@ pub fn merge_library_src_into_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use op_editor_core::page_mutators::COMPONENTS_PAGE_NAME;
+    use op_editor_core::page_mutators::{is_component_store_page, COMPONENTS_PAGE_NAME};
     use op_editor_core::pen_node_ext::PenNodeExt;
 
-    /// Children of the hidden `Components` page in `state`, or an empty
-    /// slice when no such page exists. The masters live here after a
-    /// merge — NOT on the active design page.
-    fn components_page_children(state: &EditorState) -> &[jian_ops_schema::node::PenNode] {
+    /// Children of every `Components/{Type}` store page (and a leftover
+    /// legacy `Components` page, if present).
+    fn components_page_children(state: &EditorState) -> Vec<&jian_ops_schema::node::PenNode> {
         state
             .doc
             .pages
             .as_ref()
-            .and_then(|pages| pages.iter().find(|p| p.name == COMPONENTS_PAGE_NAME))
-            .map(|p| p.children.as_slice())
-            .unwrap_or(&[])
+            .map(|pages| {
+                pages
+                    .iter()
+                    .filter(|p| is_component_store_page(&p.name))
+                    .flat_map(|p| p.children.iter())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// One reusable master frame as canonical `.op` JSON (a button-like
@@ -226,7 +230,7 @@ mod tests {
     /// would.
     fn library_src(n: usize) -> String {
         let children: Vec<serde_json::Value> = (0..n)
-            .map(|i| reusable_frame_json(&format!("lib-comp-{i}"), &format!("Component {i}")))
+            .map(|i| reusable_frame_json(&format!("lib-comp-{i}"), &format!("Component/{i}")))
             .collect();
         let doc = serde_json::json!({
             "version": "1.0",
@@ -260,6 +264,30 @@ mod tests {
         // the active page (page 0) stays empty.
         assert_eq!(components_page_children(&state).len(), 120);
         assert!(
+            state
+                .doc
+                .pages
+                .as_ref()
+                .unwrap()
+                .iter()
+                .all(|page| page.name != COMPONENTS_PAGE_NAME),
+            "legacy combined Components page must be split by type"
+        );
+        let origins: std::collections::HashSet<(i64, i64)> = components_page_children(&state)
+            .iter()
+            .map(|node| {
+                (
+                    node.base().x.unwrap_or(0.0).round() as i64,
+                    node.base().y.unwrap_or(0.0).round() as i64,
+                )
+            })
+            .collect();
+        assert_eq!(
+            origins.len(),
+            120,
+            "gallery layout must give every master its own origin"
+        );
+        assert!(
             state.active_children().is_empty(),
             "active design page must stay clean of masters"
         );
@@ -273,11 +301,13 @@ mod tests {
         assert!(state.doc.themes.as_ref().unwrap().contains_key("mode"));
         // The runtime registry sees them too.
         assert_eq!(state.components.len(), 120);
-        assert!(state.components.find_by_name("Component 7").is_some());
+        assert!(state.components.find_by_name("Component/7").is_some());
         let id = op_editor_core::NodeId::new("lib-comp-7");
-        let canonical = components_page_children(&state)
+        let store_children = components_page_children(&state);
+        let canonical = store_children
             .iter()
             .find(|node| node.id_str() == id.as_str())
+            .copied()
             .expect("canonical merged master");
         assert!(std::ptr::eq(
             state
@@ -385,7 +415,7 @@ mod tests {
         //    every page, not just the active one).
         let lib = ComponentLibrary::from_document(&state.doc);
         assert_eq!(lib.len(), 46);
-        assert!(lib.find_by_name("Component 7").is_some());
+        assert!(lib.find_by_name("Component/7").is_some());
 
         // 4. The active-page ref resolves cross-page to its master on
         //    the Components page via resolve_refs_for_canvas.

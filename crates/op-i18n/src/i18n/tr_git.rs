@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "Aşağıdaki kartları kullanarak her çakışmayı çözün, ardından birleştirmeyi uygulayın.",
         "git.conflict.abort" => "Birleştirmeyi iptal et",
         "git.conflict.nonOp.title" => ".op olmayan dosyalar nedeniyle birleştirme duraklatıldı",
-        "git.conflict.nonOp.description" => ".op birleştirmesi tamamlandı, ancak depodaki diğer dosyalar hâlâ çözülmedi. OpenPencil dışında çözün, ardından devam edin.",
+        "git.conflict.nonOp.description" => ".op birleştirmesi tamamlandı, ancak depodaki diğer dosyalar hâlâ çözülmedi. Norka dışında çözün, ardından devam edin.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1 dosya ilgilenmeyi bekliyor",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}} dosya ilgilenmeyi bekliyor",
         "git.conflict.nonOp.continue" => "Birleştirmeye devam et",

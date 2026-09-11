@@ -569,6 +569,12 @@ impl ApplicationHandler<DesktopEvent> for DesktopApp {
         {
             self.request_redraw(true);
         }
+        if self
+            .host
+            .drain_skala_insert(self.viewport_width, self.viewport_height)
+        {
+            self.request_redraw(true);
+        }
         // Component-Browser kit Import / Export + uikits.json flush.
         self.drain_kit_io();
         crate::prompt_center_store::flush_user_prompts_if_dirty(&mut self.host);

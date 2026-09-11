@@ -1,0 +1,4851 @@
+{
+  "id": "page-atom-badge",
+  "name": "Atoms · Badge",
+  "children": [
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-strong-filled-text",
+      "name": "Badge/gray-strong/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-strong/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-strong-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-strong-filled-text-icon",
+      "name": "Badge/gray-strong/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-strong/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-strong-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-strong-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-strong-filled-icon",
+      "name": "Badge/gray-strong/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-strong/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-strong-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-strong-outline-text",
+      "name": "Badge/gray-strong/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-strong/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-strong-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray-strong/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-strong-outline-text-icon",
+      "name": "Badge/gray-strong/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-strong/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-strong-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-gray-strong-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray-strong/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-strong-outline-icon",
+      "name": "Badge/gray-strong/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 0.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-strong/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-strong-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-strong/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray-strong/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-filled-text",
+      "name": "Badge/gray/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 31.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-filled-text-icon",
+      "name": "Badge/gray/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 31.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-filled-icon",
+      "name": "Badge/gray/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 31.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-outline-text",
+      "name": "Badge/gray/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 31.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-outline-text-icon",
+      "name": "Badge/gray/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 31.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-gray-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-outline-icon",
+      "name": "Badge/gray/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 31.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-nile-blue-filled-text",
+      "name": "Badge/nile-blue/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 62.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/nile-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-nile-blue-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-nile-blue-filled-text-icon",
+      "name": "Badge/nile-blue/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 62.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/nile-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-nile-blue-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-nile-blue-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-nile-blue-filled-icon",
+      "name": "Badge/nile-blue/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 62.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/nile-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-nile-blue-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-nile-blue-outline-text",
+      "name": "Badge/nile-blue/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 62.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/nile-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-nile-blue-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/nile-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-nile-blue-outline-text-icon",
+      "name": "Badge/nile-blue/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 62.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/nile-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-nile-blue-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-nile-blue-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/nile-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-nile-blue-outline-icon",
+      "name": "Badge/nile-blue/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 62.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/nile-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-nile-blue-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/nile-blue/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/nile-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-tory-blue-filled-text",
+      "name": "Badge/tory-blue/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 93.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/tory-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-tory-blue-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-tory-blue-filled-text-icon",
+      "name": "Badge/tory-blue/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 93.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/tory-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-tory-blue-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-tory-blue-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-tory-blue-filled-icon",
+      "name": "Badge/tory-blue/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 93.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/tory-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-tory-blue-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-tory-blue-outline-text",
+      "name": "Badge/tory-blue/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 93.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/tory-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-tory-blue-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/tory-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-tory-blue-outline-text-icon",
+      "name": "Badge/tory-blue/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 93.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/tory-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-tory-blue-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-tory-blue-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/tory-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-tory-blue-outline-icon",
+      "name": "Badge/tory-blue/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 93.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/tory-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-tory-blue-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/tory-blue/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/tory-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-cornflower-blue-filled-text",
+      "name": "Badge/cornflower-blue/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 124.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/cornflower-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-cornflower-blue-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-cornflower-blue-filled-text-icon",
+      "name": "Badge/cornflower-blue/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 124.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/cornflower-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-cornflower-blue-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-cornflower-blue-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-cornflower-blue-filled-icon",
+      "name": "Badge/cornflower-blue/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 124.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/cornflower-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-cornflower-blue-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-cornflower-blue-outline-text",
+      "name": "Badge/cornflower-blue/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 124.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/cornflower-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-cornflower-blue-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/cornflower-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-cornflower-blue-outline-text-icon",
+      "name": "Badge/cornflower-blue/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 124.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/cornflower-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-cornflower-blue-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-cornflower-blue-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/cornflower-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-cornflower-blue-outline-icon",
+      "name": "Badge/cornflower-blue/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 124.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/cornflower-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-cornflower-blue-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/cornflower-blue/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/cornflower-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-bondi-blue-filled-text",
+      "name": "Badge/bondi-blue/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 155.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/bondi-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-bondi-blue-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-bondi-blue-filled-text-icon",
+      "name": "Badge/bondi-blue/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 155.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/bondi-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-bondi-blue-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-bondi-blue-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-bondi-blue-filled-icon",
+      "name": "Badge/bondi-blue/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 155.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/bondi-blue/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-bondi-blue-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-bondi-blue-outline-text",
+      "name": "Badge/bondi-blue/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 155.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/bondi-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-bondi-blue-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/bondi-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-bondi-blue-outline-text-icon",
+      "name": "Badge/bondi-blue/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 155.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/bondi-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-bondi-blue-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-bondi-blue-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/bondi-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-bondi-blue-outline-icon",
+      "name": "Badge/bondi-blue/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 155.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/bondi-blue/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-bondi-blue-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/bondi-blue/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/bondi-blue/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-java-filled-text",
+      "name": "Badge/java/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 186.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/java/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-java-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-java-filled-text-icon",
+      "name": "Badge/java/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 186.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/java/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-java-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-java-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-java-filled-icon",
+      "name": "Badge/java/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 186.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/java/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-java-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-java-outline-text",
+      "name": "Badge/java/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 186.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/java/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-java-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/java/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-java-outline-text-icon",
+      "name": "Badge/java/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 186.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/java/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-java-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-java-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/java/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-java-outline-icon",
+      "name": "Badge/java/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 186.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/java/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-java-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/java/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/java/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-green-filled-text",
+      "name": "Badge/green/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 217.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/green/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-green-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-green-filled-text-icon",
+      "name": "Badge/green/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 217.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/green/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-green-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-green-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-green-filled-icon",
+      "name": "Badge/green/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 217.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/green/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-green-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-green-outline-text",
+      "name": "Badge/green/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 217.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/green/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-green-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/green/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-green-outline-text-icon",
+      "name": "Badge/green/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 217.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/green/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-green-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-green-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/green/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-green-outline-icon",
+      "name": "Badge/green/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 217.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/green/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-green-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/green/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/green/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-shamrock-filled-text",
+      "name": "Badge/shamrock/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 248.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/shamrock/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-shamrock-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-shamrock-filled-text-icon",
+      "name": "Badge/shamrock/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 248.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/shamrock/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-shamrock-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-shamrock-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-shamrock-filled-icon",
+      "name": "Badge/shamrock/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 248.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/shamrock/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-shamrock-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-shamrock-outline-text",
+      "name": "Badge/shamrock/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 248.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/shamrock/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-shamrock-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/shamrock/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-shamrock-outline-text-icon",
+      "name": "Badge/shamrock/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 248.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/shamrock/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-shamrock-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-shamrock-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/shamrock/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-shamrock-outline-icon",
+      "name": "Badge/shamrock/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 248.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/shamrock/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-shamrock-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/shamrock/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/shamrock/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-yellow-filled-text",
+      "name": "Badge/yellow/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 279.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/yellow/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-yellow-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-yellow-filled-text-icon",
+      "name": "Badge/yellow/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 279.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/yellow/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-yellow-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-yellow-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-yellow-filled-icon",
+      "name": "Badge/yellow/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 279.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/yellow/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-yellow-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-yellow-outline-text",
+      "name": "Badge/yellow/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 279.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/yellow/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-yellow-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/yellow/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-yellow-outline-text-icon",
+      "name": "Badge/yellow/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 279.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/yellow/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-yellow-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-yellow-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/yellow/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-yellow-outline-icon",
+      "name": "Badge/yellow/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 279.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/yellow/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-yellow-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/yellow/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/yellow/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-orange-filled-text",
+      "name": "Badge/orange/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 310.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/orange/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-orange-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-orange-filled-text-icon",
+      "name": "Badge/orange/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 310.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/orange/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-orange-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-orange-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-orange-filled-icon",
+      "name": "Badge/orange/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 310.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/orange/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-orange-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-orange-outline-text",
+      "name": "Badge/orange/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 310.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/orange/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-orange-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/orange/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-orange-outline-text-icon",
+      "name": "Badge/orange/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 310.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/orange/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-orange-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-orange-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/orange/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-orange-outline-icon",
+      "name": "Badge/orange/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 310.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/orange/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-orange-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/orange/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/orange/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-red-filled-text",
+      "name": "Badge/red/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 341.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/red/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-red-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-red-filled-text-icon",
+      "name": "Badge/red/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 341.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/red/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-red-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-red-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-red-filled-icon",
+      "name": "Badge/red/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 341.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/red/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-red-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-red-outline-text",
+      "name": "Badge/red/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 341.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/red/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-red-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/red/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-red-outline-text-icon",
+      "name": "Badge/red/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 341.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/red/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-red-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-red-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/red/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-red-outline-icon",
+      "name": "Badge/red/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 341.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/red/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-red-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/red/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/red/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-rose-filled-text",
+      "name": "Badge/rose/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 372.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/rose/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-rose-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-rose-filled-text-icon",
+      "name": "Badge/rose/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 372.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/rose/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-rose-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-rose-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-rose-filled-icon",
+      "name": "Badge/rose/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 372.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/rose/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-rose-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-rose-outline-text",
+      "name": "Badge/rose/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 372.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/rose/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-rose-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/rose/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-rose-outline-text-icon",
+      "name": "Badge/rose/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 372.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/rose/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-rose-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-rose-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/rose/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-rose-outline-icon",
+      "name": "Badge/rose/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 372.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/rose/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-rose-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/rose/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/rose/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-violet-filled-text",
+      "name": "Badge/violet/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 403.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/violet/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-violet-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-violet-filled-text-icon",
+      "name": "Badge/violet/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 403.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/violet/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-violet-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-violet-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-violet-filled-icon",
+      "name": "Badge/violet/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 403.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/violet/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-violet-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-violet-outline-text",
+      "name": "Badge/violet/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 403.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/violet/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-violet-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/violet/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-violet-outline-text-icon",
+      "name": "Badge/violet/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 403.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/violet/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-violet-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-violet-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/violet/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-violet-outline-icon",
+      "name": "Badge/violet/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 403.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/violet/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-violet-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/violet/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/violet/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-warm-filled-text",
+      "name": "Badge/gray-warm/Filled/Text",
+      "reusable": true,
+      "x": 0.0,
+      "y": 434.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-warm/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-warm-filled-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/text/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-warm-filled-text-icon",
+      "name": "Badge/gray-warm/Filled/TextIcon",
+      "reusable": true,
+      "x": 58.0,
+      "y": 434.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-warm/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-warm-filled-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/text/default"
+            }
+          ]
+        },
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-warm-filled-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-warm-filled-icon",
+      "name": "Badge/gray-warm/Filled/Icon",
+      "reusable": true,
+      "x": 132.0,
+      "y": 434.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-warm/filled/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-warm-filled-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/icon/default"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-warm-outline-text",
+      "name": "Badge/gray-warm/Outline/Text",
+      "reusable": true,
+      "x": 182.5,
+      "y": 434.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-warm/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "atom-badge-gray-warm-outline-text-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray-warm/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-warm-outline-text-icon",
+      "name": "Badge/gray-warm/Outline/TextIcon",
+      "reusable": true,
+      "x": 240.5,
+      "y": 434.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 4.0,
+      "padding": [
+        3.0,
+        6.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-warm/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-warm-outline-text-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/icon/default"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "atom-badge-gray-warm-outline-text-icon-label",
+          "name": "label",
+          "content": "VALUE",
+          "fontFamily": "Roboto",
+          "fontSize": 11,
+          "fontWeight": 500,
+          "lineHeight": 1.0,
+          "textAlign": "left",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/text/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray-warm/outline/border/default"
+          }
+        ]
+      }
+    },
+    {
+      "type": "frame",
+      "id": "atom-badge-gray-warm-outline-icon",
+      "name": "Badge/gray-warm/Outline/Icon",
+      "reusable": true,
+      "x": 316.5,
+      "y": 434.0,
+      "width": "fit_content",
+      "height": 17.0,
+      "layout": "horizontal",
+      "gap": 0,
+      "padding": [
+        3.0,
+        4.0
+      ],
+      "justifyContent": "center",
+      "alignItems": "center",
+      "cornerRadius": 8.5,
+      "clipContent": false,
+      "fill": [
+        {
+          "type": "solid",
+          "color": "$badge/gray-warm/outline/background/default"
+        }
+      ],
+      "children": [
+        {
+          "type": "icon_font",
+          "id": "atom-badge-gray-warm-outline-icon-icon",
+          "name": "icon",
+          "iconFontName": "map-pin",
+          "iconFontFamily": "lucide",
+          "width": 10.0,
+          "height": 10.0,
+          "fill": [
+            {
+              "type": "solid",
+              "color": "$badge/gray-warm/icon/default"
+            }
+          ]
+        }
+      ],
+      "stroke": {
+        "thickness": 1,
+        "fill": [
+          {
+            "type": "solid",
+            "color": "$badge/gray-warm/outline/border/default"
+          }
+        ]
+      }
+    }
+  ]
+}

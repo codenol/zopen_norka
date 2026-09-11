@@ -16,7 +16,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "git.conflict.description" => "아래 카드로 각 충돌을 해결한 다음 병합을 적용하세요.",
         "git.conflict.abort" => "병합 중단",
         "git.conflict.nonOp.title" => ".op 이외 파일로 병합이 일시 중지됨",
-        "git.conflict.nonOp.description" => ".op 파일 병합은 완료되었지만 저장소의 다른 파일이 아직 해결되지 않았습니다. OpenPencil 외부에서 해결한 후 계속하세요.",
+        "git.conflict.nonOp.description" => ".op 파일 병합은 완료되었지만 저장소의 다른 파일이 아직 해결되지 않았습니다. Norka 외부에서 해결한 후 계속하세요.",
         "git.conflict.nonOp.unresolvedHeading_one" => "1개 파일에 조치가 필요함",
         "git.conflict.nonOp.unresolvedHeading_other" => "{{count}}개 파일에 조치가 필요함",
         "git.conflict.nonOp.continue" => "병합 계속",

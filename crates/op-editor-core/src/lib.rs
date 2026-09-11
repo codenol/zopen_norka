@@ -70,12 +70,17 @@ pub mod compositing;
 pub mod conversion;
 pub mod design_md;
 pub mod design_md_button_state;
+pub mod design_rules;
+pub mod design_rules_policy;
+pub mod design_rules_ui;
 pub mod document_install;
 pub mod drag_mutators;
 pub mod edit_transaction;
 pub mod editor_toast;
+pub mod kit_manifest;
 pub mod size_class;
 // Runtime-fetched product assets for the browser bundle (native embeds them).
+pub mod assets_panel_keyboard;
 pub mod editor_ui_state;
 pub mod export_batch;
 pub mod export_dialog_state;
@@ -337,22 +342,40 @@ pub use components::{Component, ComponentLibrary, ComponentOption};
 pub use compositing::{fill_blend_mode_at, node_blend_mode, node_mask_type};
 pub use design_md::{extract_design_md_from_document, generate_design_md, parse_design_md};
 pub use design_md_button_state::DesignMdButton;
+pub use design_rules::{
+    hide_blocks_in_subtree, recipe_to_place, refers_to_a_reference, requested_hidden_blocks,
+    select_recipe,
+    delete_rule, effective_design_rules, library_design_rules, set_rule_enabled,
+    upsert_document_rule, DesignRuleSource, EffectiveDesignRule,
+};
+pub use design_rules_policy::{
+    rules_without_recipes_for_reference,
+    build_design_rules_policy, build_effective_rules_policy, has_design_rules,
+};
+pub use design_rules_ui::{
+    author_rules, component_document_id, component_documents, default_component_body,
+    recipe_document_id,
+    AI_INSTRUCTION_RULE_ID, DEFAULT_AI_INSTRUCTIONS, panel_rows,
+    parse_rule_markdown, rule_markdown, rule_matches_filter, ComponentDoc, DesignRuleDraft,
+    DesignRuleFocus, DesignRulesFilter, PanelRow,
+};
 pub use document_install::{DocumentInstallError, DocumentInstallReport, PreparedDocument};
 pub use edit_transaction::{
     CompletedLocalEdit, EditOrigin, LocalEditCapture, LocalEditError, LocalEditOutcome,
 };
 pub use editor_ui_state::{
-    AssetCenterTab, BooleanOp, CloneField, CloneFormState, CommitDiffPatch, CommitDiffSummary,
-    CommitDiffView, CompositingPickerTarget, CustomPrompt, DesignMdPanelState, DesignMdRequest,
-    EditorUiState, EmbedHost, ExportFormat, FileAction, FillType, FlexLayout, FontPickerPurpose,
-    GitBranchPickerMode, GitCandidateFile, GitCommitSummary, GitDiffTarget, GitDiffView,
-    GitFileEntry, GitOverflowView, GitPanelAction, GitPanelState, ImageAdjustmentField,
-    ImageFillMode, LayerContextMenuState, LeftPanelTab, Locale, MergeConflictRow, MergeResolveFile,
-    MergeResolveState, MissingFontSurface, PaddingEditMode, PageRenameState, PencilCursorStyle,
-    PreviewDeviceKind, PreviewState, PromptCenterFocus, PromptCenterState, PromptFilter,
-    PropertyTab, RecentFile, SceneFilter, SceneTemplateCenterState, SceneTemplateFocus,
-    SizeToggleState, SlidesDrag, SlidesPanelState, SlidesPanelTarget, StyleImportState, ThemeMode,
-    UpdateStatus, VariableRowFocus, WindowControlRequest,
+    AssetCenterTab, AssetsHit, AssetsPanelState, BooleanOp, CloneField, CloneFormState,
+    CommitDiffPatch, CommitDiffSummary, CommitDiffView, CompositingPickerTarget, CustomPrompt,
+    DesignMdPanelState, DesignMdRequest, EditorUiState, EmbedHost, ExportFormat, FileAction,
+    FillType, FlexLayout, FontPickerPurpose, GitBranchPickerMode, GitCandidateFile,
+    GitCommitSummary, GitDiffTarget, GitDiffView, GitFileEntry, GitOverflowView, GitPanelAction,
+    GitPanelState, ImageAdjustmentField, ImageFillMode, LayerContextMenuState, LeftPanelTab,
+    Locale, MergeConflictRow, MergeResolveFile, MergeResolveState, MissingFontSurface,
+    PaddingEditMode, PageRenameState, PencilCursorStyle, PreviewDeviceKind, PreviewState,
+    PromptCenterFocus, PromptCenterState, PromptFilter, PropertyTab, RecentFile, SceneFilter,
+    SceneTemplateCenterState, SceneTemplateFocus, SizeToggleState, SlidesDrag, SlidesPanelState,
+    SlidesPanelTarget, StyleImportState, ThemeMode, UpdateStatus, VariableRowFocus,
+    WindowControlRequest,
 };
 pub use export_dialog_state::ExportDialogButton;
 pub use export_quick_menu_state::ExportQuickRow;
@@ -386,13 +409,25 @@ pub use instance_override::{
 };
 pub use jian_ops_schema::node::MaskType;
 pub use jian_ops_schema::style::BlendMode;
-pub use jian_ops_schema::{DesignMdColor, DesignMdSpec, DesignMdTypography, PenDocument};
+pub use jian_ops_schema::{
+    DesignMdColor, DesignMdSpec, DesignMdTypography, DesignRule, DesignRuleKind, DesignRuleScope,
+    PenDocument,
+};
+pub use kit_manifest::{
+    apply_skala_kit_policy, document_has_kit_sentinel, document_has_skala_masters, session_kit,
+    skala_compact_design_md, skala_compact_design_md_spec, skala_kit, KitCanvas, KitLayer,
+    KitManifest, KitRecipe, KitSlot, KitType, SKALA_KIT_ID,
+};
 pub use mutators::EditorStateInvariant;
 pub use node_defaults::{
     default_leaf_node_size, widget_default_size, DEFAULT_LEAF_NODE_SIZE, DEFAULT_TEXT_NODE_HEIGHT,
     DEFAULT_TEXT_NODE_WIDTH,
 };
 pub use node_id::NodeId;
+pub use page_mutators::{
+    component_store_page_label, is_component_store_page, COMPONENTS_PAGE_NAME,
+    COMPONENTS_PAGE_PREFIX,
+};
 pub use pen_node_ext::PenNodeExt;
 pub use render_backend::*;
 pub use selection::SelectionState;

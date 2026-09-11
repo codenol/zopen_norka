@@ -275,6 +275,20 @@ fn poll_version<C: RepaintContext + 'static>(
     let _ = live_sync::get_with_status(&format!("{base}/api/mcp/version"), on_version);
 }
 
+/// Pull the daemon document now (File → New after `/api/file/new`).
+pub(crate) fn request_document_pull<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
+    let Some(sync) = ACTIVE_SYNC.with(|slot| slot.borrow().as_ref().and_then(Weak::upgrade)) else {
+        return;
+    };
+    let inner = inner.clone();
+    let last_selection_key = Rc::new(RefCell::new(None));
+    let on_doc: Rc<dyn Fn(String)> = Rc::new(move |doc_body: String| {
+        apply_document_response(&inner, &doc_body, &sync, &last_selection_key);
+    });
+    let url = format!("{}/api/mcp/document", crate::daemon_base::daemon_base());
+    let _ = live_sync::get(&url, on_doc);
+}
+
 /// Auto-resolve a latched push conflict, but only inside a live session.
 ///
 /// A conflict closes both the pull and the push gate and is cleared by exactly
@@ -377,6 +391,9 @@ fn apply_document_response<C: RepaintContext + 'static>(
                      active_page_index,
                      preserve_authored_geometry,
                      wire_scenario| {
+                        // Capture before `host_mut()` — fit needs the shell
+                        // viewport size, not a second host borrow.
+                        let fit_viewport = undoable.then(|| inner_ref.viewport_size());
                         let host = inner_ref.host_mut();
                         host.replace_document_from_sync(doc, undoable);
                         // A daemon new enough to send `scenario` is the
@@ -396,6 +413,17 @@ fn apply_document_response<C: RepaintContext + 'static>(
                                 pinned_style_guide,
                             },
                         );
+                        // `replace_document*` preserves the browser camera by
+                        // design (user pan/zoom must survive sync). The daemon
+                        // already refit its own EditorState after AI applies,
+                        // but viewport is not on the document wire — so an AI
+                        // turn that grew a blank starter into Layout/Default
+                        // left this tab looking at empty space until reload
+                        // reset Viewport::IDENTITY. Mirror File → New / open:
+                        // refit after an undoable external apply (AI / MCP).
+                        if let Some((w, h)) = fit_viewport {
+                            host.fit_content_to_viewport(w, h);
+                        }
                         inner_ref.repaint().is_ok()
                     },
                 )
@@ -743,7 +771,9 @@ thread_local! {
 
 #[path = "live_sync_controller.rs"]
 mod live_sync_controller;
-pub(crate) use live_sync_controller::{acknowledge_daemon_save, SharedSync, SyncController};
+pub(crate) use live_sync_controller::{
+    acknowledge_current_pair, acknowledge_daemon_save, SharedSync, SyncController,
+};
 // Spine-local: the two identity pairs every gating decision here is keyed on.
 use live_sync_controller::{current_oversize_identity, current_pair};
 

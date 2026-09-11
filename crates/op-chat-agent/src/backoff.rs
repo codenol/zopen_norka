@@ -174,7 +174,7 @@ pub async fn send_with_backoff(
                     return Err(BuiltinHttpError::Timeout {
                         label: label.to_string(),
                         url: url.to_string(),
-                        message: e.to_string(),
+                        message: reqwest_error_message(&e),
                     });
                 }
                 if attempt < max_retries {
@@ -184,7 +184,7 @@ pub async fn send_with_backoff(
                 return Err(BuiltinHttpError::Transport {
                     label: label.to_string(),
                     url: url.to_string(),
-                    message: e.to_string(),
+                    message: reqwest_error_message(&e),
                 });
             }
         }
@@ -222,11 +222,90 @@ pub fn builtin_http_client() -> Result<reqwest::Client, crate::provider_dial::Pr
 /// Shared builder so pinned (DNS-screened) clients keep the same redirect
 /// and timeout posture as the default provider client.
 pub fn builtin_http_client_builder() -> reqwest::ClientBuilder {
-    reqwest::Client::builder()
+    let builder = reqwest::Client::builder()
         .use_rustls_tls()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(BUILTIN_HTTP_CONNECT_TIMEOUT)
-        .read_timeout(BUILTIN_HTTP_READ_IDLE_TIMEOUT)
+        .read_timeout(BUILTIN_HTTP_READ_IDLE_TIMEOUT);
+    // Cursor's agent terminal injects HTTP(S)_PROXY to a loopback CONNECT
+    // proxy that 403s provider APIs (measured: `api.deepseek.com` →
+    // `tunnel error: unsuccessful`). Clash-style local proxies are left
+    // alone: those shells do not set the Cursor/agent markers.
+    if inherited_sandbox_proxy() {
+        builder.no_proxy()
+    } else {
+        builder
+    }
+}
+
+fn reqwest_error_message(error: &reqwest::Error) -> String {
+    let mut message = error.to_string();
+    let mut source = std::error::Error::source(error);
+    while let Some(err) = source {
+        let piece = err.to_string();
+        if !piece.is_empty() && !message.contains(&piece) {
+            message.push_str(": ");
+            message.push_str(&piece);
+        }
+        source = err.source();
+    }
+    message
+}
+
+const SANDBOX_PROXY_MARKERS: &[&str] = &[
+    "CURSOR_WORKSPACE_LABEL",
+    "CURSOR_AGENT",
+    "AGENT_TRANSCRIPTS",
+];
+
+const PROXY_ENV_KEYS: &[&str] = &[
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "socks_proxy",
+    "SOCKS_PROXY",
+    "socks5_proxy",
+    "SOCKS5_PROXY",
+];
+
+fn inherited_sandbox_proxy() -> bool {
+    sandbox_proxy_markers_present() && env_proxy_targets_loopback()
+}
+
+fn sandbox_proxy_markers_present() -> bool {
+    SANDBOX_PROXY_MARKERS
+        .iter()
+        .any(|key| std::env::var_os(key).is_some())
+}
+
+fn env_proxy_targets_loopback() -> bool {
+    PROXY_ENV_KEYS
+        .iter()
+        .filter_map(|key| std::env::var(key).ok())
+        .any(|value| proxy_url_targets_loopback(&value))
+}
+
+fn proxy_url_targets_loopback(raw: &str) -> bool {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let parsed = reqwest::Url::parse(trimmed)
+        .ok()
+        .or_else(|| reqwest::Url::parse(&format!("http://{trimmed}")).ok());
+    let Some(url) = parsed else {
+        return false;
+    };
+    match url.host_str() {
+        Some("localhost") => true,
+        Some(host) => host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|addr| addr.is_loopback()),
+        None => false,
+    }
 }
 
 /// Apply the provider-specific low-reasoning control for structured design
@@ -290,5 +369,43 @@ pub fn apply_reasoning_wire_control_anthropic(
         Some(op_orchestrator::ReasoningWireControl::ThinkingDisabled)
     ) {
         obj.insert("thinking".into(), serde_json::json!({ "type": "disabled" }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::proxy_url_targets_loopback;
+
+    #[test]
+    fn loopback_http_and_socks_proxy_urls_are_detected() {
+        for raw in [
+            "http://127.0.0.1:64685",
+            "https://127.0.0.1:64685",
+            "http://localhost:7890",
+            "socks5://127.0.0.1:64684",
+            "socks5h://[::1]:1080",
+            "  http://127.0.0.1:9  ",
+        ] {
+            assert!(
+                proxy_url_targets_loopback(raw),
+                "expected loopback proxy {raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn public_and_empty_proxy_urls_are_not_loopback() {
+        for raw in [
+            "",
+            "   ",
+            "http://proxy.example.com:8080",
+            "http://10.0.0.1:7890",
+            "socks5://192.168.1.1:1080",
+        ] {
+            assert!(
+                !proxy_url_targets_loopback(raw),
+                "did not expect loopback proxy {raw}"
+            );
+        }
     }
 }

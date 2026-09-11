@@ -78,6 +78,56 @@ impl WidgetHostNative {
         }
     }
 
+    /// Drain a queued left-rail Assets insert: clone the Skala master
+    /// onto the active page at the viewport centre.
+    pub fn drain_skala_insert(&mut self, viewport_w: f32, viewport_h: f32) -> bool {
+        let Some(master_id) = self.editor_state.editor_ui.pending_skala_insert.take() else {
+            return false;
+        };
+        if !self.collab_allows_document_mutation(
+            op_editor_core::CollabDocumentMutation::Unsupported(
+                op_editor_core::CollabUnsupportedFeature::Components,
+            ),
+        ) {
+            return true;
+        }
+        let component_id = op_editor_core::NodeId::new(master_id);
+        let result = if let Some(allocator) = self.collab_id_allocator.as_mut() {
+            self.editor_state
+                .instantiate_component_with_allocator(&component_id, allocator)
+        } else {
+            Ok(self.editor_state.instantiate_component(&component_id))
+        };
+        let inserted = match result {
+            Ok(id) => id,
+            Err(error) => {
+                self.show_collab_id_error(error);
+                return true;
+            }
+        };
+        let Some(new_id) = inserted else {
+            return false;
+        };
+        let doc =
+            canvas_geometry::canvas_centre_doc_point(&self.editor_state, viewport_w, viewport_h);
+        if let Some(node) =
+            op_editor_core::walkers::find_node_mut(self.editor_state.active_children_mut(), &new_id)
+        {
+            use op_editor_core::PenNodeExt;
+            let x = node.base().x.unwrap_or(0.0);
+            let y = node.base().y.unwrap_or(0.0);
+            let w = node.width_px().unwrap_or(0.0);
+            let h = node.height_px().unwrap_or(0.0);
+            op_editor_core::walkers::translate_subtree(
+                node,
+                doc.x as f64 - w / 2.0 - x,
+                doc.y as f64 - h / 2.0 - y,
+            );
+        }
+        self.mark_dirty();
+        true
+    }
+
     /// Insert nodes parsed from the Figma clipboard, centred on the
     /// viewport, with fresh ids, batched undo, and the pasted roots
     /// selected — mirrors TS `use-figma-paste.ts:67-100`.
@@ -227,6 +277,13 @@ impl WidgetHostNative {
 
     /// Next millisecond at which the host should wake to repaint
     /// the caret blink phase. `None` = no animation pending.
+    /// Refresh the wall clock the build stamp reads.
+    pub fn refresh_wall_clock(&mut self) {
+        if let Ok(since) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+            self.editor_state.editor_ui.now_unix_ms = since.as_millis() as f64;
+        }
+    }
+
     pub fn next_animation_deadline_ms(&self) -> Option<u64> {
         // Indicators + layout transition + caret blink are shared with the
         // web host; only the clauses below are native-platform concerns.

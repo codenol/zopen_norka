@@ -417,7 +417,7 @@ pub(super) fn finish_design_success(
     messages[primary].completion = Some(ChatCompletion {
         succeeded: count_u32(ok),
         failed: count_u32(failed),
-        nodes: count_u32(summary.total_nodes),
+        nodes: count_u32(summary.paintable_nodes),
     });
     append_completion_narration(&mut messages[primary], ok, failed, locale);
 

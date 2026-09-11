@@ -26,6 +26,7 @@ pub(crate) fn build_design_request(
     prompt: String,
     state: &EditorState,
     append_context: Option<AppendContext>,
+    reference_attachments: Vec<op_orchestrator::ReferenceAttachment>,
 ) -> DesignRequest {
     let continuation_context =
         sibling_continuation_context(state, &prompt, append_context.as_ref());
@@ -33,7 +34,12 @@ pub(crate) fn build_design_request(
         prompt,
         model: selected_orchestrator_model(state),
         provider: None,
-        design_md: state.doc.design_md.clone(),
+        // The AI reads the session's resolved rules, not the document's
+        // markdown brief.
+        rules: op_editor_core::effective_design_rules(state.doc.design_md.as_ref())
+            .into_iter()
+            .map(|entry| entry.rule)
+            .collect(),
         // Detected by `chat_intent::detect_append_intent` when the
         // prompt asks to extend the existing page (GAP #33). TS wires
         // this from the agent tool executor (agent-tool-executor.ts:234);
@@ -46,6 +52,8 @@ pub(crate) fn build_design_request(
         // Policy the user set in the Asset Center: it overrides the
         // style guide the prompt would otherwise infer.
         pinned_style_guide: state.editor_ui.pinned_style_guide.clone(),
+        reference_attachments,
+        reference_brief: None,
     }
 }
 
@@ -91,7 +99,12 @@ mod tests {
         let mut state = EditorState::new();
         state.chat.agent_team_size = 4;
 
-        let req = build_design_request("draw a mobile settings screen".into(), &state, None);
+        let req = build_design_request(
+            "draw a mobile settings screen".into(),
+            &state,
+            None,
+            Vec::new(),
+        );
 
         assert!(req.validation_enabled);
         assert!(!req.visual_ref_enabled);
@@ -107,12 +120,13 @@ mod tests {
         // reach the request, the Asset Center's selected card is decoration.
         let mut state = EditorState::new();
         assert_eq!(
-            build_design_request("draw a dashboard".into(), &state, None).pinned_style_guide,
+            build_design_request("draw a dashboard".into(), &state, None, Vec::new())
+                .pinned_style_guide,
             None
         );
 
         state.editor_ui.pinned_style_guide = Some("nordic-frost-light".into());
-        let req = build_design_request("draw a dashboard".into(), &state, None);
+        let req = build_design_request("draw a dashboard".into(), &state, None, Vec::new());
 
         assert_eq!(
             req.pinned_style_guide.as_deref(),
@@ -130,7 +144,7 @@ mod tests {
             is_mobile: true,
         };
 
-        let req = build_design_request("continue the page".into(), &state, Some(ctx));
+        let req = build_design_request("continue the page".into(), &state, Some(ctx), Vec::new());
 
         let ctx = req.append_context.expect("append context attached");
         assert_eq!(ctx.target_parent_id, "content-root");
@@ -155,7 +169,12 @@ mod tests {
             .expect("existing screen"),
         );
 
-        let req = build_design_request("继续生成 星图、观测计划、我的3个界面".into(), &state, None);
+        let req = build_design_request(
+            "继续生成 星图、观测计划、我的3个界面".into(),
+            &state,
+            None,
+            Vec::new(),
+        );
 
         let context = req.continuation_context.expect("continuation context");
         assert_eq!(
@@ -173,8 +192,26 @@ mod tests {
             "Continue generating the Explore/Profile screens".into(),
             &state,
             None,
+            Vec::new(),
         );
         assert!(req.continuation_context.is_none());
+    }
+
+    #[test]
+    fn reference_attachments_are_carried_on_the_design_request() {
+        let state = EditorState::new();
+        let attachments = vec![op_orchestrator::ReferenceAttachment {
+            name: "genome.png".into(),
+            media_type: "image/png".into(),
+            data: vec![1, 2, 3, 4],
+        }];
+        let req = build_design_request(
+            "Собери макет как на картинке".into(),
+            &state,
+            None,
+            attachments.clone(),
+        );
+        assert_eq!(req.reference_attachments, attachments);
     }
 
     #[test]
@@ -208,7 +245,7 @@ mod tests {
         ] {
             let append_context =
                 op_host_services::chat_intent::detect_append_intent(&state, prompt);
-            let req = build_design_request(prompt.into(), &state, append_context);
+            let req = build_design_request(prompt.into(), &state, append_context, Vec::new());
 
             assert!(
                 req.append_context.is_none(),
@@ -251,7 +288,7 @@ mod tests {
         )];
         state.chat.selected_model = 0;
 
-        let req = build_design_request("draw a dashboard".into(), &state, None);
+        let req = build_design_request("draw a dashboard".into(), &state, None, Vec::new());
 
         // Drives tier-gated prompts, the manifest routing gate, and the
         // M3 thinking policy — must match the agent the session will call.
@@ -264,7 +301,7 @@ mod tests {
         state.chat.available_models = vec![ModelEntry::acp("custom/vendor", "Custom ACP")];
         state.chat.selected_model = 0;
 
-        let req = build_design_request("draw a dashboard".into(), &state, None);
+        let req = build_design_request("draw a dashboard".into(), &state, None, Vec::new());
 
         assert_eq!(req.model.as_deref(), Some("acp:custom/vendor"));
         assert_eq!(

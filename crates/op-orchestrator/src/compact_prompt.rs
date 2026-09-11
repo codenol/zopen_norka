@@ -2,19 +2,11 @@
 //! `orchestrator-prompt-optimizer.ts::buildCompactPlanningPrompt`。
 //! 不走 skill 解析,手写一段紧凑 system prompt。
 
-use crate::design_md_policy::{
-    build_design_md_style_policy, guess_neutral_background_from_theme, infer_design_md_background,
-};
 use crate::design_type::{detect_design_type, DesignType};
 use crate::request_dimensions::requested_root_dimensions;
-use crate::style_guide_context::infer_tags_from_prompt;
-use jian_ops_schema::DesignMdSpec;
-use op_ai_skills::style_guide::{
-    extract_style_guide_values, select_style_guide, style_guide_registry, Platform, SelectOptions,
-    StyleGuideRef,
-};
-
-const DESIGN_MD_STYLE_GUIDE_NAME: &str = "design-md-custom";
+use jian_ops_schema::DesignRule;
+use op_editor_core::build_design_rules_policy;
+use op_editor_core::session_kit;
 
 /// `build_compact_planning_prompt` 的产物。
 pub struct CompactPlanningPrompt {
@@ -35,57 +27,26 @@ Start the response with { and end with }. No prose. No markdown. No tool calls."
 /// 构造 compact 规划 prompt —— port of `buildCompactPlanningPrompt`。
 pub fn build_compact_planning_prompt(
     prompt: &str,
-    design_md: Option<&DesignMdSpec>,
+    rules: &[DesignRule],
     pinned: Option<&str>,
 ) -> CompactPlanningPrompt {
     let preset = detect_design_type(prompt);
-    // The style-guide platform filter is a HARD filter (empty result falls
-    // back to the whole registry), so a card request must ask for the card
-    // shelf by name or it can never reach the card guides — and no other
-    // request can reach them either. `card-system-0808.md` §8.2 P0-3.
-    let platform = match preset.type_ {
-        DesignType::MobileScreen => Platform::Mobile,
-        DesignType::Card => Platform::Card,
-        _ => Platform::Webapp,
-    };
-    let tags = infer_tags_from_prompt(prompt);
+    // Catalog pins used to pick a builtin style guide. A session kit is the
+    // design system, so the pin argument is ignored on this path.
+    let _ = pinned;
+    let kit = session_kit();
 
-    // 选 guide(无 design.md 时)。A pin short-circuits the tag match through
-    // the same resolver the rich path uses, so both planning modes agree on
-    // what "pinned" means and on when a stale pin gets logged.
-    let selected_guide = if design_md.is_some() {
-        None
-    } else {
-        crate::style_guide_context::resolve_pinned_style_guide(pinned).or_else(|| {
-            select_style_guide(
-                style_guide_registry(),
-                &SelectOptions {
-                    tags: tags.clone(),
-                    name: None,
-                    platform: Some(platform),
-                },
-            )
-            .map(StyleGuideRef::Builtin)
-        })
-    };
-    let guide_bg = selected_guide
-        .as_ref()
-        .and_then(|g| extract_style_guide_values(&g.content).colors.background);
-
-    // background_color 优先级。
-    let design_md_bg = design_md.and_then(infer_design_md_background);
-    let background_color = design_md_bg
-        .or_else(|| {
-            design_md.map(|s| guess_neutral_background_from_theme(s.visual_theme.as_deref()))
-        })
-        .or(guide_bg)
-        .unwrap_or_else(|| {
-            if preset.type_ == DesignType::MobileScreen {
-                "#111827".to_string()
-            } else {
-                "#F8FAFC".to_string()
-            }
-        });
+    // Background: the session kit's canvas, else a neutral default. The
+    // rules do not carry colours; a session that needs a specific page
+    // colour states it as a rule and the model follows it.
+    let kit_fill = kit.canvas.as_ref().map(|c| c.fill.clone());
+    let background_color = kit_fill.unwrap_or_else(|| {
+        if preset.type_ == DesignType::MobileScreen {
+            "#111827".to_string()
+        } else {
+            "#F8FAFC".to_string()
+        }
+    });
 
     let default_gap = match preset.type_ {
         DesignType::MobileScreen | DesignType::DesktopScreen => 20,
@@ -97,7 +58,12 @@ pub fn build_compact_planning_prompt(
             "Create 2-4 cohesive subtasks for one mobile app screen. Group related UI together."
         }
         DesignType::DesktopScreen => {
-            "Create 2-5 cohesive workspace sections. Keep related dashboard panels together."
+            "Do not plan a new shell, sidebar, topbar, header, or breadcrumbs as separate \
+             subtasks — they already live in Layout/Default. Plan 1-3 subtasks that only \
+             fill the content area (white card `Main container`). Adapt existing chrome \
+             for this product; do not invent widgets missing from the kit type index. \
+             When a reference brief is present, map subtasks 1:1 to brief regions and \
+             ban kpi/signals/credits/charts unless the brief lists them."
         }
         DesignType::Component => {
             "Create exactly 1 subtask for this single component (no surrounding screen, no chrome)."
@@ -133,6 +99,16 @@ pub fn build_compact_planning_prompt(
             DesignType::Slides => "Use width=1920 and height=1080 on the root frame.".to_string(),
             // XHS 竖版 3:4 — the card system's primary spec.
             DesignType::Card => "Use width=1080 and height=1440 on the root frame.".to_string(),
+            DesignType::DesktopScreen => {
+                if let Some(canvas) = &kit.canvas {
+                    format!(
+                        "Use width={} and height={} on the root frame.",
+                        canvas.width, canvas.height
+                    )
+                } else {
+                    "Use width=1200 and height=0 on the root frame.".to_string()
+                }
+            }
             _ => "Use width=1200 and height=0 on the root frame.".to_string(),
         }
     };
@@ -168,68 +144,75 @@ pub fn build_compact_planning_prompt(
         _ => vec![size_rule],
     };
 
-    let style_rule = if design_md.is_some() {
+    let style_rule = if rules.is_empty() {
         format!(
-            "Use styleGuideName=\"{DESIGN_MD_STYLE_GUIDE_NAME}\" and rootFrame background \
-             {background_color} (from the user's design.md — overrides any catalog default)."
-        )
-    } else if let Some(g) = selected_guide.as_ref() {
-        format!(
-            "Use styleGuideName=\"{}\" and rootFrame background {background_color}.",
-            g.id()
+            "Do not pick a catalog styleGuideName. Session design system is `{}` (`{}`). \
+             Set rootFrame background to {background_color}.",
+            kit.name, kit.id
         )
     } else {
         format!(
-            "Pick a suitable styleGuideName for platform={} and set rootFrame background to \
-             {background_color}.",
-            platform.as_str()
+            "Follow the SESSION RULES below EXACTLY — they override any catalog default. \
+             Set rootFrame background to {background_color}."
         )
     };
 
-    // 组装 system prompt。
-    let mut lines: Vec<String> = vec![
-        FIXED_HEAD.to_string(),
-        subtask_hint.to_string(),
-        "Plan one SIGNATURE MOMENT in the first viewport: a memorable focal module with strong composition, brand personality, and restrained supporting sections."
-            .to_string(),
-        "Plan one WOW FACTOR that is specific to the requested product/domain; avoid generic tinted wrappers, heavy shadows, or repeated rounded boxes as the main visual idea."
-            .to_string(),
-        "Do not plan the same predictable mobile stack of search + categories + orange promo + two cards. Keep mobile top rhythm tight: no huge empty band between header/title and first useful module."
-            .to_string(),
-        style_rule,
-    ];
+    let mut lines: Vec<String> = vec![FIXED_HEAD.to_string(), subtask_hint.to_string()];
+    if preset.type_ != DesignType::DesktopScreen {
+        lines.push("Plan one SIGNATURE MOMENT in the first viewport: a memorable focal module with strong composition, brand personality, and restrained supporting sections."
+            .to_string());
+        lines.push("Plan one WOW FACTOR that is specific to the requested product/domain; avoid generic tinted wrappers, heavy shadows, or repeated rounded boxes as the main visual idea."
+            .to_string());
+    }
+    lines.push("Do not plan the same predictable mobile stack of search + categories + orange promo + two cards. Keep mobile top rhythm tight: no huge empty band between header/title and first useful module."
+        .to_string());
+    lines.push(style_rule);
     for rule in mobile_rules {
         lines.push(rule);
     }
     lines.push(format!(
         "Always set rootFrame layout=\"vertical\" and gap={default_gap}."
     ));
-    if let Some(spec) = design_md {
-        let policy = build_design_md_style_policy(spec);
-        if !policy.is_empty() {
-            lines.push(String::new());
-            lines.push(
-                "USER DESIGN SYSTEM (design.md — follow these EXACTLY; they OVERRIDE any \
-                 default):"
-                    .to_string(),
-            );
-            lines.push(policy);
+    let policy = build_design_rules_policy(&op_editor_core::rules_without_recipes_for_reference(rules, prompt));
+    if !policy.is_empty() {
+        lines.push(String::new());
+        lines.push(
+            "SESSION RULES (structured design rules — follow these EXACTLY; they OVERRIDE \
+             any default):"
+                .to_string(),
+        );
+        lines.push(policy);
+    }
+    lines.push(String::new());
+    lines.push(format!(
+        "SESSION DESIGN SYSTEM: {} (id `{}`). Follow this kit, not a catalog style guide.",
+        kit.name, kit.id
+    ));
+    if preset.type_ == DesignType::DesktopScreen {
+        lines.push(kit.content_area_brief());
+    }
+    if !kit.recipes.is_empty() && !op_editor_core::refers_to_a_reference(prompt) {
+        lines.push(
+            "When a recipe below matches the request, start by calling `use_recipe` with its \
+             id, then adapt what it placed — do not compose that screen from scratch."
+                .to_string(),
+        );
+        for recipe in &kit.recipes {
+            lines.push(format!(
+                "- recipe `{}` → master `{}` ({}). {}",
+                recipe.id, recipe.template, recipe.name, recipe.notes
+            ));
         }
     }
 
-    let selected_style_guide_name = if design_md.is_some() {
-        DESIGN_MD_STYLE_GUIDE_NAME.to_string()
-    } else {
-        // The id, not the display name: it is what the sub-agent prompt later
-        // resolves back to markdown, and an import may share a corpus name.
-        selected_guide
-            .as_ref()
-            .map(|g| g.id().to_string())
-            .unwrap_or_default()
-    };
+    // Rules replace the catalog pin the old design.md path forced; the
+    // caller keeps the empty name and the kit stays the design system.
+    let selected_style_guide_name = String::new();
 
+    let system = lines.join("\n");
+    op_util::prompt_dump::dump_prompt("planning", &system);
     CompactPlanningPrompt {
-        system: lines.join("\n"),
+        system,
         user_prompt: prompt.to_string(),
         selected_style_guide_name,
     }
@@ -241,7 +224,7 @@ mod tests {
 
     #[test]
     fn compact_mobile_prompt_shape() {
-        let cp = build_compact_planning_prompt("a mobile login screen", None, None);
+        let cp = build_compact_planning_prompt("a mobile login screen", &[], None);
         assert!(cp.system.starts_with("You are a UI planning assistant."));
         assert!(cp.system.contains("width=375 and height=812"));
         assert!(cp.system.contains("Create 2-4 cohesive subtasks"));
@@ -254,7 +237,7 @@ mod tests {
 
     #[test]
     fn a_deck_prompt_carries_the_projector_size_and_per_slide_screens() {
-        let cp = build_compact_planning_prompt("做一个季度汇报 PPT", None, None);
+        let cp = build_compact_planning_prompt("做一个季度汇报 PPT", &[], None);
         let text = format!("{}\n{}", cp.system, cp.user_prompt);
         assert!(
             text.contains("width=1920") && text.contains("height=1080"),
@@ -273,18 +256,46 @@ mod tests {
     }
 
     #[test]
-    fn compact_landing_prompt_picks_a_guide() {
-        let cp = build_compact_planning_prompt("a fintech marketing site", None, None);
+    fn compact_landing_prompt_uses_session_kit_not_catalog() {
+        let cp = build_compact_planning_prompt("a fintech marketing site", &[], None);
         assert!(cp.system.contains("width=1200 and height=0"));
-        // 无 design.md → 从 catalog 选了个 guide 名
-        assert!(!cp.selected_style_guide_name.is_empty());
+        assert!(cp.selected_style_guide_name.is_empty());
+        let kit = session_kit();
+        assert!(cp.system.contains(&kit.id));
+        assert!(cp.system.contains(&kit.name));
+        if let Some(recipe) = kit.recipes.first() {
+            assert!(cp.system.contains(&recipe.template));
+        }
+        assert!(!cp.system.contains("2-5 cohesive workspace sections"));
+    }
+
+    #[test]
+    fn compact_dashboard_prompt_uses_kit_chassis() {
+        let cp = build_compact_planning_prompt("собери дашборд", &[], None);
+        let kit = session_kit();
+        assert!(
+            cp.system.contains(&kit.sentinel_master_id),
+            "sentinel must be in the plan prompt"
+        );
+        assert!(cp.system.contains("content area"));
+        assert!(cp.system.contains(&kit.content_slot_name().to_string()));
+        if let Some(recipe) = kit.recipes.first() {
+            assert!(cp.system.contains(&recipe.id));
+            assert!(cp.system.contains(&recipe.template));
+        }
+        assert!(!cp.system.contains("2-5 cohesive workspace sections"));
+        assert!(!cp.system.contains("SIGNATURE MOMENT"));
+        if let Some(canvas) = &kit.canvas {
+            assert!(cp.system.contains(&format!("width={}", canvas.width)));
+            assert!(cp.system.contains(&canvas.fill));
+        }
     }
 
     #[test]
     fn compact_prompt_honors_explicit_dimension_pair() {
         let cp = build_compact_planning_prompt(
             "Design a 1440×900 desktop operations dashboard",
-            None,
+            &[],
             None,
         );
         assert!(cp.system.contains("width=1440 and height=900"));
@@ -295,27 +306,44 @@ mod tests {
     fn compact_prompt_honors_explicit_wide_root() {
         let cp = build_compact_planning_prompt(
             "Design a desktop landing page. Make the root exactly 1440px wide.",
-            None,
+            &[],
             None,
         );
         assert!(cp.system.contains("width=1440 and height=0"));
         assert!(!cp.system.contains("width=1200 and height=0"));
     }
 
+    /// The rules replace the markdown brief on this path: the planning
+    /// prompt carries them, and the kit — not a catalog guide — is the
+    /// design system.
     #[test]
-    fn compact_design_md_forces_custom_name() {
-        let spec = jian_ops_schema::DesignMdSpec {
-            raw: String::new(),
-            project_name: None,
-            visual_theme: Some("dark".into()),
-            color_palette: None,
-            typography: None,
-            component_styles: None,
-            layout_principles: None,
-            generation_notes: None,
-        };
-        let cp = build_compact_planning_prompt("a page", Some(&spec), None);
-        assert_eq!(cp.selected_style_guide_name, "design-md-custom");
-        assert!(cp.system.contains("USER DESIGN SYSTEM"));
+    fn compact_prompt_carries_the_session_rules_and_the_kit() {
+        // The rules a real turn carries come from the resolver, which is
+        // where the shipped working agreement and the recipe rules enter.
+        let rules: Vec<jian_ops_schema::DesignRule> =
+            op_editor_core::effective_design_rules(None)
+                .into_iter()
+                .map(|entry| entry.rule)
+                .collect();
+        let cp = build_compact_planning_prompt("a page", &rules, None);
+        assert!(
+            cp.selected_style_guide_name.is_empty(),
+            "a session kit is the design system — no catalog pin"
+        );
+        assert!(cp.system.contains("SESSION RULES"));
+        assert!(cp.system.contains("COMPONENT RULES"));
+        assert!(
+            cp.system.contains("WORKING AGREEMENT"),
+            "the working agreement leads the rules block"
+        );
+        assert!(
+            cp.system.contains("COMPONENT RULES"),
+            "the kit's component rules ride along"
+        );
+        assert!(
+            cp.system.contains("RECIPE RULES"),
+            "recipes are part of the rules the planner reads"
+        );
     }
+
 }

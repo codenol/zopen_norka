@@ -19,13 +19,15 @@ fn pinned_req(pinned: Option<&str>) -> DesignRequest {
         // Full tier → Rich planning, which is the mode that was broken.
         model: Some("claude-opus".into()),
         provider: None,
-        design_md: None,
+        rules: Vec::new(),
         concurrency: 1,
         continuation_context: None,
         append_context: None,
         validation_enabled: true,
         visual_ref_enabled: false,
         pinned_style_guide: pinned.map(str::to_string),
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     }
 }
 
@@ -60,25 +62,21 @@ fn plan_for(pinned: Option<&str>, model_choice: Option<&str>) -> OrchestratorPla
     plan
 }
 
-/// The reported failure, end to end: Rich mode, model names no guide.
+/// A catalog pin must not replace the session kit.
 #[test]
-fn a_rich_plan_that_names_no_guide_still_gets_the_pin() {
+fn a_rich_plan_does_not_take_a_catalog_pin() {
     let plan = plan_for(Some(PINNED), None);
-    assert_eq!(plan.style_guide_name.as_deref(), Some(PINNED));
+    assert_eq!(plan.style_guide_name, None);
 }
 
-/// A pin is a setting, not a suggestion — the model picking something else
-/// does not overrule the user.
 #[test]
-fn a_pin_overrides_the_guide_the_model_chose() {
+fn a_pin_does_not_override_the_session_kit() {
     let plan = plan_for(Some(PINNED), Some("developer-terminal-dark"));
-    assert_eq!(plan.style_guide_name.as_deref(), Some(PINNED));
+    assert_eq!(plan.style_guide_name, None);
 }
 
-/// Planning failing twice is exactly when the design needs the most
-/// direction, and the heuristic fallback names no guide of its own.
 #[test]
-fn the_fallback_plan_carries_the_pin_too() {
+fn the_fallback_plan_does_not_carry_a_catalog_pin() {
     let llm = ScriptedLlm::new(vec![
         ScriptResponse::Text("not json at all".into()),
         ScriptResponse::Text("still not json".into()),
@@ -89,7 +87,7 @@ fn the_fallback_plan_carries_the_pin_too() {
         &AbortFlag::default(),
     ))
     .expect("the fallback plan is not an error");
-    assert_eq!(plan.style_guide_name.as_deref(), Some(PINNED));
+    assert_eq!(plan.style_guide_name, None);
 }
 
 /// An imported guide is pinned by its `user:` id, and that id is what has to
@@ -107,35 +105,8 @@ fn an_imported_guides_id_survives_to_the_plan() {
     .expect("imports");
 
     let plan = plan_for(Some(&imported.id), None);
-    assert_eq!(plan.style_guide_name.as_deref(), Some(imported.id.as_str()));
+    assert_eq!(plan.style_guide_name, None);
     op_ai_skills::style_guide::set_user_style_guides(Vec::new());
-}
-
-/// design.md is a design system the user wrote down and the rest of the
-/// pipeline keys off its `design-md-custom` contract; a pin is a catalog
-/// choice, and there is no catalog in play once design.md is present.
-#[test]
-fn design_md_still_outranks_a_pin() {
-    let mut request = pinned_req(Some(PINNED));
-    request.design_md = Some(jian_ops_schema::DesignMdSpec {
-        raw: String::new(),
-        project_name: None,
-        visual_theme: Some("warm minimal".into()),
-        color_palette: None,
-        typography: None,
-        component_styles: None,
-        layout_principles: None,
-        generation_notes: None,
-    });
-    let llm = ScriptedLlm::new(vec![ScriptResponse::Text(plan_json(None))]);
-    let (plan, _norm) =
-        futures::executor::block_on(planning_loop(&request, &llm, &AbortFlag::default()))
-            .expect("planning succeeds");
-    assert_ne!(
-        plan.style_guide_name.as_deref(),
-        Some(PINNED),
-        "a pin must not displace design.md"
-    );
 }
 
 /// A pin naming a guide that is in neither half of the catalogue — an import
@@ -147,18 +118,12 @@ fn a_stale_pin_leaves_the_models_choice_alone() {
         Some("user:deleted-last-week"),
         Some("developer-terminal-dark"),
     );
-    assert_eq!(
-        plan.style_guide_name.as_deref(),
-        Some("developer-terminal-dark")
-    );
+    assert_eq!(plan.style_guide_name, None);
 }
 
-/// Without a pin nothing is forced — the model still chooses.
+/// Without a pin the session kit still owns style — catalog names are dropped.
 #[test]
-fn no_pin_changes_nothing() {
+fn no_pin_still_drops_catalog_guide_names() {
     let plan = plan_for(None, Some("developer-terminal-dark"));
-    assert_eq!(
-        plan.style_guide_name.as_deref(),
-        Some("developer-terminal-dark")
-    );
+    assert_eq!(plan.style_guide_name, None);
 }

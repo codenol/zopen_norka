@@ -30,6 +30,12 @@ impl WidgetHost {
             self.mark_dirty();
             return true;
         }
+        // The guidelines panel's rule form is one layer above the panel:
+        // Escape discards the form before it dismisses the panel.
+        if self.editor_state.editor_ui.escape_design_md_rules_form() {
+            self.mark_dirty();
+            return true;
+        }
         // The property-panel image popover owns Escape before any stale input
         // underneath. Keep the image selected; only dismiss the top layer.
         if self.editor_state.editor_ui.image_panel.search_open
@@ -118,6 +124,10 @@ impl WidgetHost {
         }
         // Escape blurs the variables search box, keeping the filter.
         if self.editor_state.editor_ui.blur_variables_search() {
+            self.mark_dirty();
+            return true;
+        }
+        if self.editor_state.editor_ui.blur_assets_search() {
             self.mark_dirty();
             return true;
         }

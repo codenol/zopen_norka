@@ -37,96 +37,73 @@ fn state_with_pin(pin: Option<&str>) -> EditorState {
     state
 }
 
+/// The session's rules are in force whether or not the user pinned a guide,
+/// so the row is always there — that is the point of it.
 #[test]
-fn no_pin_means_no_row() {
+fn the_rules_row_is_present_without_a_pin() {
     let _guard = exclusive_registry_for_tests();
     let state = state_with_pin(None);
-    assert_eq!(StyleReceipt::for_state(&state), None);
+
+    let receipt = StyleReceipt::for_state(&state).expect("rules are always in force");
+    assert!(receipt.is_rules);
+    assert!(!receipt.clearable);
 
     let panel = AIChatPlaceholder::from_editor_at(&state, 0);
-    assert_eq!(panel.chip_row_h(), 0.0);
+    assert!(panel.chip_row_h() > 0.0, "the chip takes room in the block");
 }
 
-/// The reported failure made visible: the name says which style is in force,
-/// and the band says its values could actually be read.
+/// A pinned catalog guide no longer owns the row: the session's rules are
+/// what the model actually reads, so the row keeps reporting them.
 #[test]
-fn a_pinned_import_is_named_and_banded() {
+fn a_pin_does_not_displace_the_rules_row() {
     let _guard = exclusive_registry_for_tests();
     let imported = op_ai_skills::style_guide::import_design_md(IMPORTED, "d.md").expect("imports");
     let state = state_with_pin(Some(&imported.id));
 
-    let receipt = StyleReceipt::for_state(&state).expect("a live pin shows a row");
-    // The author's name, not `user:dimension`.
-    assert_eq!(receipt.name, "Dimension");
-    assert_eq!(receipt.swatches.len(), 4);
-    assert!(receipt.clearable);
+    let receipt = StyleReceipt::for_state(&state).expect("a row");
+    assert!(receipt.is_rules);
+    assert_ne!(receipt.name, "Dimension");
 
     let panel = AIChatPlaceholder::from_editor_at(&state, 0);
     assert!(panel.chip_row_h() > 0.0);
     let label = panel.style_receipt_label().expect("a row has a label");
-    assert!(label.contains("Dimension"), "{label}");
     assert!(
-        !label.contains("{{name}}"),
-        "the placeholder must be substituted: {label}"
+        !label.contains("{{count}}"),
+        "the count placeholder must be substituted: {label}"
     );
+    assert!(label.contains(&receipt.name), "{label}");
 }
 
-/// A pin whose guide was deleted resolves to nothing. Generation has already
-/// fallen back to choosing its own style, so naming the dead guide would
-/// replace one silent failure with a confident false one.
+/// The session's design rules outrank a pin in the pipeline, so they outrank
+/// it here. Showing the pinned name would claim a style that is not in force;
+/// showing nothing would leave the user unable to learn why their pin stopped
+/// mattering. The rules row is never clearable — the AI always reads them.
 #[test]
-fn a_stale_pin_shows_no_row_at_all() {
-    let _guard = exclusive_registry_for_tests();
-    let state = state_with_pin(Some("user:deleted-last-week"));
-    assert_eq!(StyleReceipt::for_state(&state), None);
-    assert_eq!(
-        AIChatPlaceholder::from_editor_at(&state, 0).chip_row_h(),
-        0.0
-    );
-}
-
-/// A guide whose values nothing could read still gets a row — with no band.
-/// That empty band is the point: it is the visible form of "pinned, but this
-/// file yielded no colours", which previously required a probe to detect.
-#[test]
-fn an_unreadable_guide_shows_a_name_with_no_band() {
-    let _guard = exclusive_registry_for_tests();
-    let imported =
-        op_ai_skills::style_guide::import_design_md("# Prose Only\n\nQuiet and plain.\n", "p.md")
-            .expect("imports");
-    let state = state_with_pin(Some(&imported.id));
-
-    let receipt = StyleReceipt::for_state(&state).expect("still a row");
-    assert_eq!(receipt.name, "Prose Only");
-    assert!(receipt.swatches.is_empty());
-}
-
-/// design.md outranks a pin in the pipeline, so it outranks it here. Showing
-/// the pinned name would claim a style that is not in force; showing nothing
-/// would leave the user unable to learn why their pin stopped mattering.
-#[test]
-fn design_md_is_reported_instead_of_the_pin_and_carries_no_clear() {
+fn design_rules_are_reported_instead_of_the_pin_and_carry_no_clear() {
     let _guard = exclusive_registry_for_tests();
     let imported = op_ai_skills::style_guide::import_design_md(IMPORTED, "d.md").expect("imports");
     let mut state = state_with_pin(Some(&imported.id));
     state.doc.design_md = Some(jian_ops_schema::DesignMdSpec {
         raw: String::new(),
         project_name: None,
-        visual_theme: Some("warm minimal".into()),
+        visual_theme: None,
         color_palette: None,
         typography: None,
         component_styles: None,
         layout_principles: None,
         generation_notes: None,
+        rules: Vec::new(),
     });
 
     let receipt = StyleReceipt::for_state(&state).expect("a row");
-    assert_eq!(receipt.name, "design.md");
+    assert!(receipt.is_rules, "the row reports rules, not a catalog guide");
+    assert!(
+        receipt.name.parse::<usize>().is_ok(),
+        "the row carries the rule count, got {:?}",
+        receipt.name
+    );
     assert_ne!(receipt.name, "Dimension");
-    // Nothing on this row is the user's to clear: design.md is bound and
-    // unbound from its own panel, and the pin it displaced is not what the
-    // row is reporting.
-    assert!(!receipt.clearable);
+    assert!(!receipt.clearable, "the rules cannot be switched off");
     assert!(clear_rect(&receipt, Rect::xywh(0.0, 0.0, 120.0, 22.0)).is_none());
 }
 
@@ -142,8 +119,13 @@ fn the_row_reserves_space_above_the_input_text() {
     let pinned_state = state_with_pin(Some(&imported.id));
     let pinned = AIChatPlaceholder::from_editor_at(&pinned_state, 0);
 
-    // The input block grows rather than the text area shrinking into the row.
-    assert!(pinned.input_height_for_rect(PANEL) > bare.input_height_for_rect(PANEL));
+    // Both states carry the rules row, so the block is the same height and
+    // the text area starts below the chip either way.
+    assert_eq!(
+        pinned.input_height_for_rect(PANEL),
+        bare.input_height_for_rect(PANEL),
+        "the rules row is present with or without a pin"
+    );
     let chip = pinned
         .chip_row(pinned.input_rect(PANEL))
         .style
@@ -155,29 +137,27 @@ fn the_row_reserves_space_above_the_input_text() {
 }
 
 #[test]
-fn pressing_the_clear_target_unpins_and_pressing_the_label_does_not() {
+fn the_rules_row_offers_no_clear_target_and_is_not_a_button() {
     let _guard = exclusive_registry_for_tests();
     let imported = op_ai_skills::style_guide::import_design_md(IMPORTED, "d.md").expect("imports");
     let state = state_with_pin(Some(&imported.id));
     let panel = AIChatPlaceholder::from_editor_at(&state, 0);
     let input_rect = panel.input_rect(PANEL);
-    let clear = panel
-        .style_receipt_clear_rect(input_rect)
-        .expect("a clearable row has a target");
-
-    let centre = Point2D::new(
-        clear.origin.x + clear.size.x / 2.0,
-        clear.origin.y + clear.size.y / 2.0,
-    );
-    assert_eq!(
-        panel.hit_test(PANEL, centre),
-        Some(AIChatHit::ClearPinnedStyle)
+    assert!(
+        panel.style_receipt_clear_rect(input_rect).is_none(),
+        "the rules cannot be cleared"
     );
 
-    // The rest of the row is not a button — pressing the name focuses the
-    // input, the same as pressing anywhere else in the block.
-    let on_label = Point2D::new(input_rect.origin.x + 4.0, centre.y);
-    assert_eq!(panel.hit_test(PANEL, on_label), Some(AIChatHit::FocusInput));
+    // The row is not a button anywhere: pressing it focuses the input, the
+    // same as pressing anywhere else in the block.
+    let chip = panel
+        .style_chip_rect(PANEL)
+        .expect("the rules row shows a chip");
+    let on_chip = Point2D::new(
+        chip.origin.x + chip.size.x / 2.0,
+        chip.origin.y + chip.size.y / 2.0,
+    );
+    assert_eq!(panel.hit_test(PANEL, on_chip), Some(AIChatHit::FocusInput));
 }
 
 /// The chip must not overrun its block however long the style is named — a
@@ -188,6 +168,7 @@ fn a_very_long_name_is_clamped_to_the_input_block() {
         name: "N".repeat(400),
         swatches: vec![Color::rgba_u8(1, 2, 3, 1.0); 4],
         clearable: true,
+        is_rules: false,
     };
     let input_rect = Rect {
         origin: Point2D::new(0.0, 0.0),

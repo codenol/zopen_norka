@@ -153,6 +153,36 @@ fn reorder_page_moves_and_tracks_active_index() {
     assert_eq!(s.ui.active_page_index, 0);
 }
 
+#[test]
+fn add_page_inserts_before_component_store_pages() {
+    let mut s = crate::EditorState::new();
+    let master = serde_json::from_value(serde_json::json!({
+        "id": "atom-logo",
+        "type": "frame",
+        "name": "Logo/Default",
+        "reusable": true,
+        "width": 80,
+        "height": 32
+    }))
+    .unwrap();
+    s.append_components_page_masters(vec![master]);
+    let idx = s.add_page().expect("design page");
+    let (new_name, last_is_store, last_idx) = {
+        let pages = s.doc.pages.as_ref().unwrap();
+        (
+            pages[idx].name.clone(),
+            crate::is_component_store_page(&pages.last().unwrap().name),
+            pages.len() - 1,
+        )
+    };
+    assert_eq!(new_name, "Page 2");
+    assert!(last_is_store);
+    assert!(!crate::is_component_store_page(
+        &s.doc.pages.as_ref().unwrap()[idx].name
+    ));
+    assert!(!s.remove_page(last_idx), "store pages are not deletable");
+}
+
 // --- Clipboard -------------------------------------------------------
 
 #[test]

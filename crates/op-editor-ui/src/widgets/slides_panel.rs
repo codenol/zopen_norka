@@ -439,6 +439,7 @@ pub struct SlidesPanel<'a> {
     pub thumbnails_supported: bool,
     pub layers_label: &'a str,
     pub slides_label: &'a str,
+    pub assets_label: &'a str,
     /// Labels for the bottom action bar and its dropdown.
     pub actions: SlidesActionLabels<'a>,
 }
@@ -458,9 +459,14 @@ impl SlidesPanel<'_> {
             },
             theme.border,
         );
-        layout
-            .tabs
-            .paint(cx, theme, self.hover, self.layers_label, self.slides_label);
+        layout.tabs.paint(
+            cx,
+            theme,
+            self.hover,
+            self.layers_label,
+            self.slides_label,
+            self.assets_label,
+        );
 
         cx.backend.save();
         cx.backend.clip_rect(layout.list);

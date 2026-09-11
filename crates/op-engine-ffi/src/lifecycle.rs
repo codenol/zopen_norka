@@ -103,7 +103,7 @@ impl Session {
         // a full-editor build.
         #[cfg(feature = "editor")]
         let state = if options.editor_mode && src.is_empty() {
-            EditorState::starter()
+            op_pen_loader::new_skala_editor_state()
         } else {
             crate::lifecycle_initial_document::load_initial_state(&src)?
         };

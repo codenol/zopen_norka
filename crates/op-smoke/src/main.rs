@@ -481,7 +481,10 @@ async fn main() -> std::process::ExitCode {
         prompt,
         model: Some(model),
         provider: None,
-        design_md: sink.state.doc.design_md.clone(),
+        rules: op_editor_core::effective_design_rules(sink.state.doc.design_md.as_ref())
+                .into_iter()
+                .map(|entry| entry.rule)
+                .collect(),
         continuation_context: None,
         append_context: None,
         concurrency: std::env::var("OPENPENCIL_SMOKE_CONCURRENCY")
@@ -491,6 +494,8 @@ async fn main() -> std::process::ExitCode {
         validation_enabled,
         visual_ref_enabled: false,
         pinned_style_guide: None,
+        reference_attachments: Vec::new(),
+        reference_brief: None,
     };
     let abort = AbortFlag::new();
     // Preserve the historical skipped validator unless the caller explicitly

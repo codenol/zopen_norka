@@ -235,7 +235,8 @@ pub enum PendingAuthAction {
 // chat pill / toolbar / status pill sit.
 #[allow(unused_imports)]
 pub(in crate::widget_host) use op_editor_ui::widgets::host_canvas_geometry::{
-    AICHAT_INSET_BOTTOM, AICHAT_INSET_LEFT, STATUS_INSET, TOOLBAR_INSET_X, TOOLBAR_INSET_Y,
+    AICHAT_INSET_BOTTOM, AICHAT_INSET_LEFT, AICHAT_INSET_RIGHT, STATUS_INSET, TOOLBAR_INSET_X,
+    TOOLBAR_INSET_Y,
 };
 
 pub struct WidgetHost {
@@ -471,9 +472,24 @@ impl WidgetHost {
         self.wall_now_secs = secs;
     }
 
+    /// Frame clock (performance.now).
+    pub fn now_ms(&self) -> u64 {
+        self.now_ms
+    }
+
+    /// Wall clock in Unix seconds.
+    pub fn wall_now_secs(&self) -> u64 {
+        self.wall_now_secs
+    }
+
     pub fn set_clocks(&mut self, now_ms: u64, wall_now_secs: u64) {
         self.now_ms = now_ms;
         self.wall_now_secs = wall_now_secs;
+        // Mirrored into the state because the build stamp — painted by a
+        // platform-free widget — has no other way to know the wall clock.
+        // Milliseconds, not seconds: the blink phase needs the sub-second
+        // part that `wall_now_secs` throws away.
+        self.editor_state.editor_ui.now_unix_ms = crate::listener::now_unix_ms();
     }
 
     // Caret-blink / animation scheduling — tested + ready to wire, but the

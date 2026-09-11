@@ -196,7 +196,11 @@ fn paint_send_button_hover_adds_visible_feedback() {
         panel.paint(&mut cx, rect);
         // Use footer_layout to get the exact rect rather than hardcoding.
         let input = panel.input_rect(rect);
-        let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+        // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
         let footer = panel.footer_layout(rect, input, toolbar_top);
         backend
             .round_rects
@@ -259,7 +263,11 @@ fn paint_footer_neutral_hovers_use_visible_feedback() {
         let panel = AIChatPlaceholder::from_editor(&s);
         let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
         let input = panel.input_rect(rect);
-        let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+        // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
         let footer = panel.footer_layout(rect, input, toolbar_top);
         // old→new: AgentTeam removed (zero-width in #27); Send is always
         // a filled circle so its hover is a bg-alpha change, not a separate wash.
@@ -299,7 +307,11 @@ fn paint_model_picker_hover_stays_inside_model_chip() {
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
     let mut backend = PanelPaintBackend::default();
     let mut cx = PaintCx {
@@ -341,7 +353,11 @@ fn footer_speed_chip_paints_agent_team_size_after_zap_icon() {
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
     let mut backend = PanelPaintBackend::default();
     let mut cx = PaintCx {
@@ -383,7 +399,11 @@ fn footer_agent_team_chip_is_zero_width_in_27_layout() {
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
 
     assert_close(footer.agent_team.size.x, 0.0);
@@ -407,7 +427,11 @@ fn footer_model_dropdown_keeps_short_model_name_readable() {
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let footer = panel.footer_layout(rect, input, toolbar_top);
     let mut backend = PanelPaintBackend::default();
     let mut cx = PaintCx {
@@ -441,7 +465,11 @@ fn footer_toolbar_labels_align_and_model_label_leaves_chevron_room() {
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let input = panel.input_rect(rect);
-    let toolbar_top = input.origin.y + INPUT_AREA_HEIGHT;
+    // The input block carries the chip band, so its real height —
+    // not the bare area constant — places the toolbar.
+    // The toolbar sits below the whole input block bar the toolbar row
+    // itself (chip band + text area + staged attachments).
+    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
     let toolbar_center = toolbar_center_y();
     let footer = panel.footer_layout(rect, input, toolbar_top);
     assert!(
@@ -629,7 +657,9 @@ fn paint_draws_header_divider_and_message_body_background() {
     let s = EditorState::new();
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(10.0, 20.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
-    let input_h = INPUT_BASE_HEIGHT;
+    // The chat's input block carries the chip band, so the transcript's
+    // body band ends at its real top.
+    let input_h = panel.input_height_for_rect(rect);
     let sep_y = rect.origin.y + rect.size.y - input_h;
     let mut backend = PanelPaintBackend::default();
     let mut cx = PaintCx {

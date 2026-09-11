@@ -41,6 +41,19 @@ impl WidgetHost {
             self.editor_state.editor_ui.pressed_button =
                 Some(op_editor_core::ButtonPressTarget::DesignMd(button));
         }
+        // Rule hits (filters, row switches, the markdown editor) go through
+        // the shared flow, which owns the `EditorCommand` writes and the
+        // undo snapshot; it returns `false` for close / drag / blank press.
+        // The browser host has no collaboration gate on document edits.
+        if op_editor_ui::widgets::apply_design_rules_hit(
+            &mut self.editor_state,
+            hit,
+            true,
+            self.now_ms,
+        ) {
+            self.mark_dirty();
+            return true;
+        }
         match hit {
             DesignMdHit::Close => {
                 self.editor_state.editor_ui.design_md_panel.open = false;
@@ -52,35 +65,12 @@ impl WidgetHost {
                     grab_dy: y - panel_rect.origin.y,
                 });
             }
-            DesignMdHit::ToggleSection(index) => {
-                self.editor_state.editor_ui.design_md_panel.expanded ^= 1u8 << index;
-            }
-            DesignMdHit::Import => {
-                // File dialogs are a host-level service web doesn't have
-                // yet — raise the same request flag the native host does.
-                self.editor_state.editor_ui.design_md_panel.request =
-                    Some(op_editor_core::DesignMdRequest::Import);
-            }
-            DesignMdHit::AutoGenerate => {
-                self.editor_state.editor_ui.design_md_panel.request =
-                    Some(op_editor_core::DesignMdRequest::AutoGenerate);
-            }
-            DesignMdHit::Export => {
-                self.editor_state.editor_ui.design_md_panel.request =
-                    Some(op_editor_core::DesignMdRequest::Export);
-            }
-            DesignMdHit::Remove => {
-                // Clearing the brief mutates the document — snapshot
-                // first so a stray remove is undoable.
-                let snap = self.editor_state.snapshot_for_history();
-                self.editor_state.doc.design_md = None;
-                self.editor_state.editor_ui.design_md_panel.scroll.offset = 0.0;
-                self.editor_state.history_push_past(snap);
-            }
             DesignMdHit::Inside => {
                 // Blank press on panel chrome — blur chrome inputs.
                 self.blur_text_inputs_on_blank_press();
             }
+            // Rule variants were consumed by the shared flow above.
+            _ => {}
         }
         self.mark_dirty();
         true

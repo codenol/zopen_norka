@@ -618,6 +618,14 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "assetCenter.style.importNotText" => "這個檔案不是 Markdown 文字。",
         "assetCenter.style.importTooLarge" => "這個檔案超過 512 KB。",
         "slidesPanel.tabSlides" => "投影片",
+        "slidesPanel.tabAssets" => "資源",
+        "assetsPanel.search" => "搜尋",
+        "assetsPanel.insert" => "插入",
+        "assetsPanel.empty" => "無相符",
+        "assetsPanel.layer.atom" => "原子",
+        "assetsPanel.layer.molecule" => "分子",
+        "assetsPanel.layer.organism" => "有機體",
+        "assetsPanel.layer.template" => "模板",
         "slidesPanel.tabCards" => "卡片",
         "slidesPanel.present" => "放映",
         "slidesPanel.exportPdf" => "匯出 PDF",
@@ -626,12 +634,12 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "settings.tab.ai" => "AI",
         "settings.agents.heroTitle" => "連接你的 AI 服務商",
         "settings.agents.heroSubtitle" => {
-            "OpenPencil 直接驅動本機 CLI Agent 與 API 服務商，連接任一個即可開始產生設計。"
+            "Norka 直接驅動本機 CLI Agent 與 API 服務商，連接任一個即可開始產生設計。"
         }
         "settings.agents.statusConnected" => "已連接",
         "settings.agents.statusNotConnected" => "未連接",
         "settings.agents.statusChecking" => "正在檢測…",
-        "settings.mcp.heroTitle" => "從外部透過 MCP 連接 OpenPencil",
+        "settings.mcp.heroTitle" => "從外部透過 MCP 連接 Norka",
         "settings.mcp.heroSubtitle" => {
             "把任何支援 MCP 的 CLI 或編輯器指向這個工作區，即可用內建 Agent 同款工具驅動畫布。"
         }

@@ -373,13 +373,7 @@ impl WidgetHostNative {
             && !self.mobile_sheet_is_modal()
             && !self.editor_state.editor_ui.variables_panel_open
         {
-            let page_count = self
-                .editor_state
-                .doc
-                .pages
-                .as_ref()
-                .map(|pages| pages.len())
-                .unwrap_or(1);
+            let page_count = self.editor_state.design_page_count();
             if page_count > 1 {
                 let pill = op_editor_ui::widgets::mobile_chrome::page_pill_rect_for(
                     &self.editor_state,
@@ -392,14 +386,21 @@ impl WidgetHostNative {
                     let current = self.editor_state.ui.active_page_index;
                     let target = match hit {
                         op_editor_ui::widgets::mobile_chrome::PagePillHit::Prev => {
-                            current.saturating_sub(1)
+                            self.editor_state.adjacent_design_page(current, -1)
                         }
                         op_editor_ui::widgets::mobile_chrome::PagePillHit::Next => {
-                            (current + 1).min(page_count - 1)
+                            self.editor_state.adjacent_design_page(current, 1)
                         }
                     };
-                    if target != current && self.editor_state.set_active_page(target) {
-                        self.fit_active_page_after_switch(ctx.viewport_width, ctx.viewport_height);
+                    if let Some(target) = target {
+                        if target != current && self.editor_state.set_active_page(target) {
+                            self.fit_active_page_after_switch(
+                                ctx.viewport_width,
+                                ctx.viewport_height,
+                            );
+                        }
+                        self.mark_dirty();
+                        return true;
                     }
                     self.mark_dirty();
                     return true;

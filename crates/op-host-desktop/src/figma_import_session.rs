@@ -584,8 +584,8 @@ pub enum PumpOutcome {
 fn refresh_title(current_path: &Option<PathBuf>, window: Option<&winit::window::Window>) {
     let Some(window) = window else { return };
     let title = match current_path.as_ref().and_then(|p| p.file_name()) {
-        Some(name) => format!("{} — OpenPencil", name.to_string_lossy()),
-        None => "OpenPencil".to_string(),
+        Some(name) => format!("{} — {}", name.to_string_lossy(), op_editor_ui::PRODUCT_NAME),
+        None => op_editor_ui::PRODUCT_NAME.to_string(),
     };
     window.set_title(&title);
 }

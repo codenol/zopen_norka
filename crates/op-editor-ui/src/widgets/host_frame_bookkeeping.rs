@@ -123,6 +123,18 @@ pub fn base_animation_deadline_ms(
     if let Some(input) = state.active_text_input() {
         next = earliest(next, input.next_blink_flip_ms(now_ms));
     }
+    // The build stamp blinks while it is stale: without a wake-up the colour
+    // would freeze on whichever frame happened to paint last.
+    if let Some(deadline) = crate::widgets::build_stamp::next_blink_deadline_ms(
+        now_ms,
+        crate::widgets::build_stamp::blink_period_ms(
+            crate::widgets::build_stamp::freshness(
+                crate::widgets::build_stamp::build_age_secs(state.editor_ui.now_unix_ms),
+            ),
+        ),
+    ) {
+        next = earliest(next, deadline);
+    }
     // A dwelling top-bar tooltip becomes due without any further input,
     // so its instant has to reach the scheduler or the tooltip would
     // only ever appear on the user's next mouse jiggle.
