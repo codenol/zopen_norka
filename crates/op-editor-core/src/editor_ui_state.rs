@@ -65,6 +65,13 @@ pub struct EditorUiState {
     pub server_files_error: Option<String>,
     /// Search text on the file screen.
     pub server_files_query: String,
+    /// A file the screen asked to open, waiting for the host to act on it.
+    ///
+    /// The widget layer is platform-free and cannot make requests, so a click
+    /// lands here and the host performs it on the next frame.
+    pub server_files_open_request: Option<String>,
+    /// Whether the screen asked for a new document.
+    pub server_files_create_request: bool,
     /// Wall clock in Unix milliseconds, refreshed by the host each frame.
     ///
     /// The chrome needs real time for exactly one thing: telling how old the

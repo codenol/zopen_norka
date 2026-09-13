@@ -160,6 +160,7 @@ mod pan_tests;
 mod pen_press;
 #[cfg(test)]
 mod pen_press_tests;
+mod files_screen_press;
 mod press;
 mod press_canvas_tiers;
 mod press_chrome_tiers;
