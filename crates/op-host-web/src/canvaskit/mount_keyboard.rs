@@ -218,10 +218,17 @@ pub(super) fn register_keyboard_listeners(
                     // VS Code embed: the workbench cannot observe keystrokes
                     // inside this cross-origin iframe, so Cmd/Ctrl+S must be
                     // forwarded for a host-side save (extension runs the
-                    // regular workbench save → saveCustomDocument). Outside
-                    // the embed the browser default stays suppressed-by-noop.
+                    // regular workbench save → saveCustomDocument).
                     if b.host.editor_state().editor_ui.embed == op_editor_core::EmbedHost::VsCode {
                         crate::web_clipboard::post_save_to_parent();
+                    } else {
+                        // Outside the embed Cmd+S was a no-op: it stopped the
+                        // browser's own save dialog and then did nothing, so
+                        // the one shortcut everybody tries first did not save.
+                        // The queue is drained below, once this borrow is
+                        // released — saving serializes the document.
+                        b.host.editor_state_mut().editor_ui.pending_file_action =
+                            Some(op_editor_core::FileAction::Save);
                     }
                     consumed = true;
                 }
@@ -278,6 +285,8 @@ pub(super) fn register_keyboard_listeners(
             drop(b);
             crate::web_chat::drain_chat_flags(&inner);
             crate::web_image_panel::drain_image_jobs(&inner);
+            // Cmd+S queues its save here; run it now that the borrow is gone.
+            crate::dom_io::drain_pending_file_action(&inner);
             crate::web_builtin_model_discovery::drain_pending_builtin_model_discovery(&inner);
         })?;
     }

@@ -90,7 +90,11 @@ pub(super) fn handle(method: &str, path: &str, body: &str, state: &mut WebCanvas
         ("GET", FilesRoute::Document { key, action: "thumb" }) => thumbnail(&dir, key),
         ("POST", FilesRoute::Document { key, action }) => match action {
             "open" => open_document(state, &dir, key),
-            "save" => save_document(state, &dir, key),
+            "save" => save_document(body, state, &dir, key, WriteKind::Explicit),
+            // Autosave is the same write without the preview render: the
+            // thumbnail is a 480 px rasterization, and paying for it every few
+            // seconds is what would make autosave expensive enough to disable.
+            "autosave" => save_document(body, state, &dir, key, WriteKind::Quiet),
             "rename" => rename_document(body, &dir, key),
             _ => not_found_reply(),
         },
@@ -271,24 +275,64 @@ fn open_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -
     }
 }
 
-/// `POST /api/files/<key>/save` — write the open document back to its file.
-fn save_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -> WebReply {
+/// Whether a write also refreshes the stored preview.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WriteKind {
+    /// A user asked: the preview is part of what they expect to see.
+    Explicit,
+    /// Autosave: the document only.
+    Quiet,
+}
+
+/// `POST /api/files/<key>/save` — write the document back to its file.
+///
+/// A body wins over the daemon's own state when one is present. The browser
+/// holds the document the user is editing; the daemon's copy arrives over the
+/// sync channel, which is size-limited, so for a large document the daemon's
+/// state can be a stale echo. Saving what was sent is what makes "Save" mean
+/// "what I see".
+fn save_document(
+    body: &str,
+    state: &mut WebCanvasState,
+    dir: &std::path::Path,
+    key: &str,
+    kind: WriteKind,
+) -> WebReply {
     let path = match document_store::path_for(dir, key) {
         Ok(path) => path,
         Err(error) => return store_error_reply(error),
     };
-    if let Err(error) = crate::doc_io::save_to_path(&state.editor, &path) {
+    let body = body.trim();
+    // One error type for both branches: the caller only needs to know the
+    // write failed and why.
+    let saved: std::result::Result<(), String> = if body.is_empty() || body == "{}" {
+        crate::doc_io::save_to_path(&state.editor, &path).map_err(|error| error.to_string())
+    } else {
+        // The body is the browser's document; it is written to the file and
+        // adopted, so the daemon and the disk agree afterwards.
+        super::save_editor_from_body(body, &state.editor, &path)
+            .map(|next| {
+                state.editor = next;
+                state.version += 1;
+            })
+            .map_err(|error| error.to_string())
+    };
+    if let Err(error) = saved {
         return WebReply {
             status: "500 Internal Server Error",
-            body: serde_json::json!({ "ok": false, "error": error.to_string() }).to_string(),
+            body: serde_json::json!({ "ok": false, "error": error }).to_string(),
         };
     }
-    // The write went through the same path desktop Save uses, so the
-    // document is by definition in sync with its file now.
     state.editor.mark_saved_revision();
-    refresh_thumbnail(state, dir, key);
+    if kind == WriteKind::Explicit {
+        refresh_thumbnail(state, dir, key);
+    }
     match document_store::touch(dir, key) {
-        Ok(entry) => ok_json(serde_json::json!({ "ok": true, "file": entry_json(&entry) })),
+        Ok(entry) => ok_json(serde_json::json!({
+            "ok": true,
+            "file": entry_json(&entry),
+            "version": state.version,
+        })),
         Err(error) => store_error_reply(error),
     }
 }

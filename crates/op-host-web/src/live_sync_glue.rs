@@ -55,9 +55,16 @@ use crate::repaint_ctx::RepaintContext;
 const POLL_INTERVAL_MS: i32 = 400;
 /// Push cadence — TS `PUSH_DEBOUNCE_MS` (use-mcp-sync.ts:6).
 const PUSH_INTERVAL_MS: i32 = 2000;
-/// TS `SYNC_MAX_BODY_BYTES` (use-mcp-sync.ts:10): documents larger than this
-/// are not pushed (warned once), mirroring the renderer's oversize guard.
-const SYNC_MAX_BODY_BYTES: usize = 2 * 1024 * 1024;
+/// Documents larger than this are not pushed (warned once).
+///
+/// The ceiling exists so a runaway document cannot flood the channel, and it
+/// used to sit at the retired TS value of 2 MiB. That was below the size of an
+/// ordinary document here: a kit-backed screen is ~3.4 MiB, so **every** real
+/// document silently stopped syncing — the daemon kept an old copy, Save wrote
+/// that old copy to disk, and the tab was told it had saved. Raised to clear
+/// the sizes the product actually produces; the honest fix is an incremental
+/// push (issue #16) rather than moving this number again.
+const SYNC_MAX_BODY_BYTES: usize = 12 * 1024 * 1024;
 
 enum SyncDocumentJson {
     Ready(String),

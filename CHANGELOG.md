@@ -12,6 +12,25 @@ here at a glance.
 
 ### Added
 
+- **Autosave.** A stored document now reaches disk on its own: after edits
+  settle (3 s of quiet, and never more often than every 15 s) the browser
+  writes it through a quiet route that skips the preview render. The
+  acknowledgement is the one the manual save already uses, so a late reply can
+  never mark a different document saved. A document with no server key is left
+  alone — where a draft for it should live is a product decision (#16), not
+  something a background task should invent.
+- **Cmd/Ctrl+S saves in the browser.** It stopped the browser's own dialog and
+  then did nothing — the first shortcut everybody tries did not save.
+
+### Fixed
+
+- **Edits reached the daemon again.** The sync channel refused documents over
+  2 MiB, and an ordinary kit-backed screen is ~3.4 MiB, so *every* real
+  document silently stopped syncing: the daemon kept an old copy and Save wrote
+  that old copy. The ceiling is now above the sizes the product produces (the
+  honest fix is an incremental push — #16), and Save carries the document from
+  the browser rather than trusting the daemon's echo.
+
 - **Links work in both builds.** The desktop window now has what the browser
   got from the address bar: its title carries the page, `Cmd/Ctrl+Alt+←/→`
   walks back and forward over documents, pages and nodes, and

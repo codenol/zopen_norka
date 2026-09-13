@@ -181,6 +181,8 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // The file browser fetches its list from the frame: reached by
                 // address or by a click, this is the one path both share.
                 crate::route_sync::tick_files(&inner_for_paint);
+                // Autosave: a change reaches disk without a command (issue #16).
+                crate::web_autosave::tick(&inner_for_paint);
             } else {
                 crate::repaint_coalescer::request();
             }

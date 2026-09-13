@@ -147,6 +147,7 @@ mod web_acp_connect;
 mod vscode_bridge;
 #[cfg(feature = "canvaskit")]
 mod web_storage;
+mod web_autosave;
 mod web_chat_persist;
 // Pure web_sys clipboard/download — Ctrl+C/X in inputs + Figma/file paste.
 #[cfg(feature = "canvaskit")]
