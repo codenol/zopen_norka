@@ -32,6 +32,19 @@
 //! it may not open has anything worth changing, and a stranger must not get a
 //! different answer for a read than for a write.
 //!
+//! ## Whose document, though — a question about the STORE
+//!
+//! Those two questions are about "the document this request is served
+//! against", and the accept loop names that by taking a lease: the lease says
+//! whose workspace the request is for. A stored document is named by a KEY
+//! instead, and every account's files live in one directory, so the key on its
+//! own says nothing about whose row it is. [`RequestAccess::
+//! reaches_stored_document`] is that third question, asked by the
+//! stored-document routes after the gate above and before they touch a file:
+//! the row's owner is compared with the caller's id and with the lease's. It
+//! is what a shared deployment was missing when it refused the whole
+//! stored-document family instead (#20).
+//!
 //! ## Why an empty role list reads but never writes
 //!
 //! "No roles" means "no roles", not "no access". The hub may send none (an
@@ -298,6 +311,55 @@ impl<'a> RequestAccess<'a> {
             (Some(owner), Some(caller)) => owner == caller.user_id,
             _ => false,
         }
+    }
+
+    /// Whether a document the STORE holds belongs to an account this caller may
+    /// address.
+    ///
+    /// A second question, and a different one from [`Self::decide`]. `decide`
+    /// asks about "the document this request is served against", which the
+    /// accept loop names by taking a lease: it establishes that the caller may
+    /// reach *that account's workspace*. A stored document is addressed by a
+    /// key, and every account's documents live in one directory, so the key on
+    /// its own says nothing about who owns the row it names. Answering the
+    /// lease question and skipping this one is how a caller of one tenant reads
+    /// another tenant's file by naming its key (#20).
+    ///
+    /// `owner` is the account the stored row belongs to, `None` when no account
+    /// stands behind it — the local operator's own rows, and every row the
+    /// legacy index import brought over. Online that is nobody's: there is no
+    /// operator in a shared deployment, and handing an unattributed file to the
+    /// first caller that names its key is the leak this check exists to close.
+    ///
+    /// The three ways a document is reachable online:
+    ///
+    /// 1. the caller owns it;
+    /// 2. the lease names its owner AND that owner's access list admitted this
+    ///    caller (which is what `shared_with_caller` records — the registry
+    ///    answered it when it handed out the lease, so this cannot claim a
+    ///    share nobody checked);
+    /// 3. nothing else. A caller whose roles are empty reaches exactly the same
+    ///    set of documents as one whose roles allow edits: the roles decide what
+    ///    may be *done*, never what may be *seen*, which is why this check asks
+    ///    a question [`Self::decide`] cannot.
+    pub fn reaches_stored_document(&self, owner: Option<&str>) -> bool {
+        // One operator, one directory: everything in it is theirs. This is the
+        // branch that keeps the local daemon's file screen working.
+        if !self.mode.is_online() {
+            return true;
+        }
+        let (Some(lease_owner), Some(caller)) = (self.owner_id, self.caller) else {
+            // No owner or no verified caller: online that is a carrier built
+            // without an identity, which refuses rather than falling open.
+            return false;
+        };
+        let Some(owner) = owner else {
+            return false;
+        };
+        if owner == caller.user_id {
+            return true;
+        }
+        self.shared_with_caller && owner == lease_owner
     }
 
     /// Whether this caller may see the document at all.

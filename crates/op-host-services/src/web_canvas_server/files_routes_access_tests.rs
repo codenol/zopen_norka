@@ -5,14 +5,18 @@
 //! BEFORE the store is touched, and that an allowed caller really does reach
 //! the handler.
 //!
-//! ## Why these call `handle` rather than the dispatcher
+//! ## What these do not cover any more
 //!
-//! An online deployment still refuses `/api/files*` wholesale, in front of
-//! this tier, because the document directory has no owner dimension yet (see
-//! the dispatcher's comment). The gate below is what that refusal will be
-//! lifted onto, so it is driven directly here — the mode the deployment
-//! refuses is asserted in `online_run_loop_tests`, and the decision it will
-//! fall through to is asserted here.
+//! This family used to be refused wholesale by the dispatcher in a shared
+//! deployment, in front of this tier, because the document directory had no
+//! owner dimension (#20). It does now, so the tier IS what an online request
+//! reaches: the deployment-level refusal these notes used to point at is gone,
+//! and `online_run_loop_tests` drives the routes through the real accept loop
+//! against a directory of two accounts.
+//!
+//! Right and ownership are two questions ([`RequestAccess::decide`], then
+//! [`RequestAccess::reaches_stored_document`]); these cover the first, and
+//! `files_routes_store_tests` covers the second against a real store.
 //!
 //! ## Why the keys are deliberately invalid
 //!

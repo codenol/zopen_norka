@@ -8,6 +8,21 @@
 //! Keys, not paths, are what crosses this boundary. A path in a URL would be
 //! a filesystem oracle for anyone who can reach the daemon; a key is opaque
 //! and validated (`document_store::key_is_valid`) before it resolves at all.
+//!
+//! ## Two questions, because a key is not an authorization
+//!
+//! [`RequestAccess::decide`] answers what a caller may DO with the document
+//! this request is served against. A key names a row in a store that every
+//! account of a deployment shares, so a second question has to be asked:
+//! whether that document belongs to an account this caller may address
+//! ([`RequestAccess::reaches_stored_document`]). The two are asked in that
+//! order — right first, then ownership — and a refusal from either is the
+//! daemon's standard coded 403.
+//!
+//! That pair is what replaced the wholesale refusal of this family in a shared
+//! deployment (#20). Nothing here trusts the directory: the list asks for the
+//! caller's own rows, a create records the creator as the owner, and every
+//! per-key route looks the row up before it touches a file.
 
 use super::*;
 use crate::document_db::DocumentDb;
@@ -148,15 +163,60 @@ pub(super) fn handle(
         Err(error) => return store_error_reply(error),
     };
     let dir = store.dir().to_path_buf();
+    // Every route below names one document by key, and the key has to be
+    // resolved before it is trusted: the store is one directory shared by every
+    // account of a deployment, so "this key is well-formed" says nothing about
+    // whose document it names. The gate above decided what the caller may DO;
+    // this decides whether the document is theirs to do it to.
+    if let FilesRoute::Document { key, .. } = &route {
+        match document_store::find(&store, key) {
+            Ok(Some(entry)) => {
+                if !access.reaches_stored_document(entry.owner_id.as_deref()) {
+                    // The same code a stranger gets from the lease, because it
+                    // is the same statement about the same document.
+                    return request_access::refusal_reply(AccessRefusal::NotShared);
+                }
+            }
+            // No row carries the key. Locally that is not the end of it — the
+            // store creates the row on the next save, which is how an `.op`
+            // dropped into the operator's directory becomes a document. Online
+            // it IS the end: a caller naming a key is not a caller creating a
+            // document, nothing would attribute the row to anyone, and letting
+            // the save through would write an ownerless file that nobody —
+            // including whoever wrote it — could ever list or reach again.
+            // Creating a document online goes through `POST /api/files`, which
+            // records its owner.
+            Ok(None) if access.mode().is_online() => {
+                return store_error_reply(DocumentStoreError::NotFound)
+            }
+            Ok(None) => {}
+            Err(error) => return store_error_reply(error),
+        }
+    }
     match (method, route) {
-        ("GET", FilesRoute::List) => match document_store::list(&store) {
-            Ok(entries) => ok_json(serde_json::json!({
-                "ok": true,
-                "files": entries.iter().map(entry_json).collect::<Vec<_>>(),
-            })),
-            Err(error) => store_error_reply(error),
-        },
-        ("POST", FilesRoute::List | FilesRoute::Create) => create_document(body, state, &store),
+        ("GET", FilesRoute::List) => {
+            // Whose documents this list is about. Online, the caller's own: one
+            // directory holds every account's files, and a list hands every row
+            // over whole — name, size and timestamps included. A document
+            // shared WITH the caller is deliberately absent from it; what names
+            // such a document is the key its link carried, which is how it is
+            // opened. Locally there are no accounts and the directory is the
+            // operator's, so every row is theirs to see.
+            let listed = match access.caller_id() {
+                Some(caller) => document_store::list_owned_by(&store, caller),
+                None => document_store::list(&store),
+            };
+            match listed {
+                Ok(entries) => ok_json(serde_json::json!({
+                    "ok": true,
+                    "files": entries.iter().map(entry_json).collect::<Vec<_>>(),
+                })),
+                Err(error) => store_error_reply(error),
+            }
+        }
+        ("POST", FilesRoute::List | FilesRoute::Create) => {
+            create_document(body, state, &store, access)
+        }
         (
             "GET",
             FilesRoute::Document {
@@ -165,7 +225,7 @@ pub(super) fn handle(
             },
         ) => thumbnail(&dir, key),
         ("POST", FilesRoute::Document { key, action }) => match action {
-            "open" => open_document(state, &store, key),
+            "open" => open_document(state, &store, key, access),
             "save" => save_document(body, state, &store, key, WriteKind::Explicit),
             // Autosave is the same write without the preview render: the
             // thumbnail is a 480 px rasterization, and paying for it every few
@@ -250,7 +310,16 @@ fn thumbnail(dir: &std::path::Path, key: &str) -> WebReply {
 }
 
 /// `POST /api/files` — a new document, stored, and opened in the daemon.
-fn create_document(body: &str, state: &mut WebCanvasState, store: &DocumentDb) -> WebReply {
+///
+/// The creator owns what it makes. The account id is read from the verified
+/// identity and never from the body: a body a caller can write is not a
+/// statement about who the caller is.
+fn create_document(
+    body: &str,
+    state: &mut WebCanvasState,
+    store: &DocumentDb,
+    access: &RequestAccess<'_>,
+) -> WebReply {
     if let Err(refusal) = state.gate_daemon_mutation(
         op_editor_core::CollabGateAction::ReplaceDocument,
         op_editor_core::CollabEditSource::User,
@@ -275,11 +344,14 @@ fn create_document(body: &str, state: &mut WebCanvasState, store: &DocumentDb) -
                 .filter(|name| !name.is_empty())
                 .map(str::to_string)
         });
+    // `None` locally: the offline daemon has no accounts, so its rows are
+    // ownerless and every one of them is in the operator's own list.
+    let owner = access.caller_id();
     // The starter is the same document File → New produces, so a document made
     // here is indistinguishable from one made in the editor.
     let mut next = op_pen_loader::new_skala_editor_state();
     super::preserve_web_canvas_preferences(&state.editor, &mut next);
-    let created = document_store::create_with(store, name.as_deref(), |path| {
+    let created = document_store::create_with(store, name.as_deref(), owner, |path| {
         crate::doc_io::save_to_path(&next, path)
             .map_err(|error| DocumentStoreError::Io(format!("save {}: {error}", path.display())))
     });
@@ -291,7 +363,7 @@ fn create_document(body: &str, state: &mut WebCanvasState, store: &DocumentDb) -
             state.current_path = None;
             state.version += 1;
             refresh_thumbnail(state, store, &entry.key);
-            let _ = document_store::remember_last(store, &entry.key);
+            remember_last_opened(store, &entry.key, owner);
             ok_json(serde_json::json!({
                 "ok": true,
                 "file": entry_json(&entry),
@@ -302,8 +374,30 @@ fn create_document(body: &str, state: &mut WebCanvasState, store: &DocumentDb) -
     }
 }
 
+/// Record the document a restart should come back to — for the local operator
+/// only.
+///
+/// The pointer is ONE row per daemon, keyed by `LOCAL_OWNER` (the empty
+/// string), because the daemon holds one document at a time and the operator
+/// has no account id to key it by. In a shared deployment that would be a row
+/// every account overwrote, holding a document most of them may not open — and
+/// nothing reads it there anyway: an online tenant always starts from the
+/// starter document (`WebCanvasState::new_for_tenant`), and the one reader,
+/// `serve_options::restore_last_document`, is the local daemon's start-up. So
+/// the pointer is written only when there IS a local operator.
+fn remember_last_opened(store: &DocumentDb, key: &str, owner: Option<&str>) {
+    if owner.is_none() {
+        let _ = document_store::remember_last(store, key);
+    }
+}
+
 /// `POST /api/files/<key>/open` — load that document into the daemon.
-fn open_document(state: &mut WebCanvasState, store: &DocumentDb, key: &str) -> WebReply {
+fn open_document(
+    state: &mut WebCanvasState,
+    store: &DocumentDb,
+    key: &str,
+    access: &RequestAccess<'_>,
+) -> WebReply {
     if let Err(refusal) = state.gate_daemon_mutation(
         op_editor_core::CollabGateAction::ReplaceDocument,
         op_editor_core::CollabEditSource::ExternalSync,
@@ -328,14 +422,16 @@ fn open_document(state: &mut WebCanvasState, store: &DocumentDb, key: &str) -> W
     match crate::mcp_serve::load_editor_state(&path) {
         Ok(mut next) => {
             super::preserve_web_canvas_preferences(&state.editor, &mut next);
-            let name = document_store::list(store)
+            // The row, not the store's whole list: the name of the one document
+            // this caller is opening is the only name this answer may carry.
+            let name = document_store::find(store, key)
                 .ok()
-                .and_then(|entries| entries.into_iter().find(|entry| entry.key == key))
+                .flatten()
                 .map(|entry| entry.name);
             next.editor_ui.file_key = Some(key.to_string());
             next.editor_ui.file_name_display = name.clone();
             // A restart should come back to this document, not to the kit.
-            let _ = document_store::remember_last(store, key);
+            remember_last_opened(store, key, access.caller_id());
             state.editor = next;
             state.current_path = None;
             state.version += 1;
@@ -494,6 +590,7 @@ mod tests {
         let entry = document_store::DocumentEntry {
             key: "k".into(),
             name: "n".into(),
+            owner_id: Some("userA".into()),
             created_at: 1,
             updated_at: 2,
             size: 3,
@@ -503,6 +600,12 @@ mod tests {
         assert_eq!(json["key"], "k");
         assert_eq!(json["createdAt"], 1);
         assert_eq!(json["updatedAt"], 2);
+        // The owner is the daemon's business: it is the account id the identity
+        // verifier issued, and the browser has its own account projection.
+        assert!(
+            json.get("ownerId").is_none(),
+            "the file list must not carry another account's id: {json}"
+        );
     }
 }
 

@@ -159,6 +159,86 @@ fn an_online_carrier_without_an_account_fails_closed() {
     assert_refused_whole(&access);
 }
 
+// ---------------------------------------------------------------------------
+// The second question: whose stored document is this.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_local_deployment_reaches_every_row_in_its_own_directory() {
+    // One operator, one directory: every file in it is theirs, including the
+    // ownerless rows the legacy index brought over.
+    for mode in [ServeMode::Local, ServeMode::Managed] {
+        let access = RequestAccess::local_operator(mode);
+        assert!(access.reaches_stored_document(Some("userA")));
+        assert!(
+            access.reaches_stored_document(None),
+            "{mode:?}: the operator's own rows have no account to name"
+        );
+    }
+}
+
+#[test]
+fn a_caller_reaches_its_own_documents_whatever_its_roles() {
+    // Seeing is not editing: the documents a caller owns are theirs to address
+    // with no roles at all, and this check is about addressing.
+    for roles in [&[][..], &["wizard"][..]] {
+        let caller = owner(roles);
+        let access = RequestAccess::online("userA", &caller, false);
+        assert!(access.reaches_stored_document(Some("userA")));
+    }
+}
+
+#[test]
+fn a_shared_visitor_reaches_the_owners_documents_and_only_those() {
+    // The grant is on the workspace, so every document of the owner's that the
+    // visitor names is reachable — and a third account's is not, however the
+    // visitor's roles read.
+    let visitor = identity("userB", &["admin"]);
+    let access = RequestAccess::online("userA", &visitor, true);
+    assert!(access.reaches_stored_document(Some("userA")));
+    assert!(access.reaches_stored_document(Some("userB")));
+    assert!(!access.reaches_stored_document(Some("userC")));
+    assert!(!access.reaches_stored_document(None));
+}
+
+#[test]
+fn an_account_that_owns_nothing_reaches_nobody_elses_documents() {
+    // The hole the owner column closes: a key names a row in a directory every
+    // account shares, so a caller whose own lease says nothing about that row
+    // must not reach it — the lease is on THEIR workspace, not on the document
+    // the key names.
+    let stranger = identity("userB", &["admin"]);
+    let access = RequestAccess::online("userB", &stranger, false);
+    assert!(access.reaches_stored_document(Some("userB")));
+    assert!(!access.reaches_stored_document(Some("userA")));
+    assert!(!access.reaches_stored_document(None));
+}
+
+#[test]
+fn an_ownerless_row_is_reached_by_no_account() {
+    // NULL owner: the legacy import's rows, and everything a daemon without
+    // accounts made. There is no account to match them against, so the answer
+    // is no — for an owner, for a granted visitor, for everyone.
+    let proprietor = owner(&["admin"]);
+    assert!(!RequestAccess::online("userA", &proprietor, false).reaches_stored_document(None));
+    let visitor = identity("userB", &["admin"]);
+    assert!(!RequestAccess::online("userA", &visitor, true).reaches_stored_document(None));
+}
+
+#[test]
+fn the_share_flag_is_what_admits_a_visitor_and_nothing_else_is() {
+    // A caller naming an owner it holds no lease on: the flag is false, and the
+    // answer must be refused even though the owner id is the one it named. This
+    // is the fail-closed direction of a check that would otherwise be "the
+    // request mentioned the right account".
+    let visitor = identity("userB", &["admin"]);
+    assert!(!RequestAccess::online("userA", &visitor, false).reaches_stored_document(Some("userA")));
+    // And a carrier with no verified caller reaches nothing, owner or not.
+    let bare = RequestAccess::local_operator(ServeMode::Online);
+    assert!(!bare.reaches_stored_document(Some("userA")));
+    assert!(!bare.reaches_stored_document(None));
+}
+
 #[test]
 fn the_actions_name_themselves_and_split_into_reads_and_writes() {
     let names: Vec<&str> = DocumentAction::ALL.iter().map(|a| a.as_str()).collect();
