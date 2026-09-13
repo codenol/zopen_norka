@@ -285,6 +285,10 @@ impl WidgetHost {
     }
 
     pub fn apply_send(&mut self) -> bool {
+        // Enter commits a file rename before anything else can claim it.
+        if self.file_rename_commit() {
+            return true;
+        }
         // Enter inside the guidelines rule editor inserts a newline: the
         // panel's markdown field owns the key while its form is open.
         if let Some(changed) = shared::design_rule_newline(&mut self.editor_state, self.now_ms) {

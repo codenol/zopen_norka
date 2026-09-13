@@ -374,7 +374,7 @@ pub use editor_ui_state::{
     Locale, MergeConflictRow, MergeResolveFile, MergeResolveState, MissingFontSurface,
     PaddingEditMode, PageRenameState, PencilCursorStyle, PreviewDeviceKind, PreviewState,
     PromptCenterFocus, PromptCenterState, PromptFilter, PropertyTab, RecentFile, SceneFilter,
-    ServerFile, SERVER_FILE_CAP,
+    ServerFile, ServerFileMenu, ServerFileRename, SERVER_FILE_CAP,
     SceneTemplateCenterState, SceneTemplateFocus, SizeToggleState, SlidesDrag, SlidesPanelState,
     SlidesPanelTarget, StyleImportState, ThemeMode, UpdateStatus, VariableRowFocus,
     WindowControlRequest,

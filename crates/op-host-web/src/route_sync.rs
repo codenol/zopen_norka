@@ -408,6 +408,7 @@ pub(crate) fn tick_files<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     }
     // A click on the file screen, performed here because the widget layer has
     // no transport of its own.
+    let base = crate::daemon_base::daemon_base();
     let (open_request, create_request) = {
         let Ok(mut borrowed) = inner.try_borrow_mut() else {
             return;
@@ -420,6 +421,59 @@ pub(crate) fn tick_files<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     };
     if let Some(key) = open_request {
         open_stored_document(inner, &key);
+        return;
+    }
+    // Rename and delete are asked for by the screen and performed here.
+    let (rename_request, delete_request) = {
+        let Ok(mut borrowed) = inner.try_borrow_mut() else {
+            return;
+        };
+        let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
+        (
+            ui.server_files_rename_request.take(),
+            ui.server_files_delete_request.take(),
+        )
+    };
+    if let Some((key, name)) = rename_request {
+        // Optimistic: the card shows the new name immediately, and the fresh
+        // list below is the authority.
+        if let Ok(mut borrowed) = inner.try_borrow_mut() {
+            let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
+            if let Some(file) = ui.server_files.iter_mut().find(|file| file.key == key) {
+                file.name = name.clone();
+            }
+            borrowed.host_mut().mark_editor_state_dirty();
+            let _ = borrowed.repaint();
+        }
+        let body = serde_json::json!({ "name": name }).to_string();
+        let inner_for_response = inner.clone();
+        let on_response: Rc<dyn Fn(String)> = Rc::new(move |_response: String| {
+            // The optimistic rename above is corrected by a fresh list.
+            request_file_list(&inner_for_response);
+        });
+        let _ = crate::live_sync::post_json(
+            &format!("{base}/api/files/{key}/rename"),
+            &body,
+            Some(on_response),
+        );
+        return;
+    }
+    if let Some(key) = delete_request {
+        let inner_for_response = inner.clone();
+        let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
+            let ok = serde_json::from_str::<serde_json::Value>(&response)
+                .ok()
+                .and_then(|value| value.get("ok").and_then(|ok| ok.as_bool()))
+                .unwrap_or(false);
+            if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
+                let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
+                if !ok {
+                    ui.server_files_error = Some("That file could not be deleted".to_string());
+                }
+            }
+            request_file_list(&inner_for_response);
+        });
+        let _ = crate::live_sync::delete_json(&format!("{base}/api/files/{key}"), Some(on_response));
         return;
     }
     if create_request {

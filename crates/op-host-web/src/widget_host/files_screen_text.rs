@@ -17,8 +17,71 @@ impl super::WidgetHost {
             && self.editor_state.editor_ui.server_files_search_focused
     }
 
+    /// Whether a rename is being typed.
+    fn file_rename_active(&self) -> bool {
+        self.editor_state.editor_ui.screen == AppScreen::Files
+            && self.editor_state.editor_ui.server_files_rename.is_some()
+    }
+
+    /// Push a character into the rename field. Returns whether it was consumed.
+    pub(in crate::widget_host) fn file_rename_takes_text(&mut self, c: char) -> bool {
+        if !self.file_rename_active() {
+            return false;
+        }
+        if !c.is_control() && self.editor_state.editor_ui.server_files_rename.is_some() {
+            if let Some(rename) = self.editor_state.editor_ui.server_files_rename.as_mut() {
+                if rename.draft.chars().count() < MAX_QUERY_CHARS {
+                    rename.draft.push(c);
+                }
+            }
+            self.mark_dirty();
+        }
+        true
+    }
+
+    pub(in crate::widget_host) fn file_rename_takes_backspace(&mut self) -> bool {
+        if !self.file_rename_active() {
+            return false;
+        }
+        if let Some(rename) = self.editor_state.editor_ui.server_files_rename.as_mut() {
+            if rename.draft.pop().is_some() {
+                self.mark_dirty();
+            }
+        }
+        true
+    }
+
+    /// Commit the rename (Enter) or abandon it (Escape).
+    pub(in crate::widget_host) fn file_rename_commit(&mut self) -> bool {
+        if !self.file_rename_active() {
+            return false;
+        }
+        if let Some(rename) = self.editor_state.editor_ui.server_files_rename.take() {
+            let name = rename.draft.trim().to_string();
+            // An empty name would leave a card with nothing to read; treat it
+            // as "no change" rather than writing it.
+            if !name.is_empty() {
+                self.editor_state.editor_ui.server_files_rename_request = Some((rename.key, name));
+            }
+            self.mark_dirty();
+        }
+        true
+    }
+
+    pub(in crate::widget_host) fn file_rename_cancel(&mut self) -> bool {
+        if !self.file_rename_active() {
+            return false;
+        }
+        self.editor_state.editor_ui.server_files_rename = None;
+        self.mark_dirty();
+        true
+    }
+
     /// Push a character into the search field. Returns whether it was consumed.
     pub(in crate::widget_host) fn file_search_takes_text(&mut self, c: char) -> bool {
+        if self.file_rename_takes_text(c) {
+            return true;
+        }
         if !self.file_search_active() {
             return false;
         }
@@ -34,6 +97,9 @@ impl super::WidgetHost {
 
     /// Remove the last character. Returns whether it was consumed.
     pub(in crate::widget_host) fn file_search_takes_backspace(&mut self) -> bool {
+        if self.file_rename_takes_backspace() {
+            return true;
+        }
         if !self.file_search_active() {
             return false;
         }

@@ -14,6 +14,20 @@ use op_editor_core::host_escape_transitions as escape;
 impl WidgetHost {
     /// Escape — handles one layer per press.
     pub fn apply_escape(&mut self) -> bool {
+        // The file screen's own layers come first: a rename in progress, then
+        // an open card menu, then the search field's focus.
+        if self.file_rename_cancel() {
+            return true;
+        }
+        if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
+            if self.editor_state.editor_ui.server_files_menu.take().is_some() {
+                self.mark_dirty();
+                return true;
+            }
+            if self.set_file_search_focused(false) {
+                return true;
+            }
+        }
         // Slideshow presentation consumes Escape to exit. This must run
         // before all the property/panel/modal escapes so presentation gets
         // priority when it is active. Use the cached viewport dimensions,

@@ -1,7 +1,8 @@
 //! Public re-exports for the `editor_ui_state` spine.
 
 pub use super::chrome::{
-    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ServerFile, ThemeMode,
+    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ServerFile,
+    ServerFileMenu, ServerFileRename, ThemeMode,
     ThemePresetIo, UpdateStatus, WindowControlRequest, RECENT_FILE_CAP, SERVER_FILE_CAP,
 };
 pub use super::git_panel::{

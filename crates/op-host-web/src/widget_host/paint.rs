@@ -55,15 +55,12 @@ impl WidgetHost {
         // The file browser is a screen, not an overlay: when the address says
         // `/files`, nothing of the editor paints behind it.
         if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
-            let screen = op_editor_ui::widgets::files_screen::FilesScreen {
-                now_unix_ms: self.editor_state.editor_ui.now_unix_ms,
-                theme: &self.theme,
-                files: &self.editor_state.editor_ui.server_files,
-                search_focused: self.editor_state.editor_ui.server_files_search_focused,
-                loading: self.editor_state.editor_ui.server_files_loading,
-                error: self.editor_state.editor_ui.server_files_error.as_deref(),
-                query: &self.editor_state.editor_ui.server_files_query,
-            };
+            // One constructor for paint and hit-test: the screen's own
+            // `menu`/`rename` come from the state, so the two can't drift.
+            let screen = self.files_screen(op_editor_ui::Rect {
+                origin: op_editor_ui::Point2D::new(0.0, 0.0),
+                size: op_editor_ui::Point2D::new(viewport_width, viewport_height),
+            });
             let mut cx = op_editor_ui::widgets::PaintCx { backend };
             screen.paint(
                 &mut cx,
