@@ -56,6 +56,7 @@ impl WidgetHost {
         // `/files`, nothing of the editor paints behind it.
         if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
             let screen = op_editor_ui::widgets::files_screen::FilesScreen {
+                now_unix_ms: self.editor_state.editor_ui.now_unix_ms,
                 theme: &self.theme,
                 files: &self.editor_state.editor_ui.server_files,
                 loading: self.editor_state.editor_ui.server_files_loading,
