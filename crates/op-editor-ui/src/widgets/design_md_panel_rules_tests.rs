@@ -96,7 +96,8 @@ fn clicking_a_row_opens_that_components_document() {
     let rect = panel_rect();
     let point = {
         let panel = DesignMdPanel::for_editor(&state).expect("open");
-        find_hit(&panel, rect, DesignMdHit::RuleEdit(FIRST_COMPONENT)).expect("row body is hittable")
+        find_hit(&panel, rect, DesignMdHit::RuleEdit(FIRST_COMPONENT))
+            .expect("row body is hittable")
     };
 
     assert!(apply_design_rules_hit(
@@ -200,7 +201,9 @@ fn editing_and_saving_a_component_document_persists_the_body() {
 
     // The list shows the saved body from now on.
     let panel = DesignMdPanel::for_editor(&state).expect("open");
-    assert!(panel.rows[FIRST_COMPONENT as usize].body.starts_with("Always align"));
+    assert!(panel.rows[FIRST_COMPONENT as usize]
+        .body
+        .starts_with("Always align"));
     assert!(panel.rows[FIRST_COMPONENT as usize].saved);
 }
 

@@ -19,6 +19,7 @@ pub mod git_panel;
 pub mod groups;
 mod methods;
 pub mod pickers;
+pub mod recovery;
 pub mod slides_panel_state;
 #[cfg(test)]
 mod tests;
@@ -91,6 +92,17 @@ pub struct EditorUiState {
     pub server_files_rename_request: Option<(String, String)>,
     /// A delete the screen asked the host to perform.
     pub server_files_delete_request: Option<String>,
+    /// The daemon's draft slot as the launch probe last described it, while
+    /// the user has not answered — the offer the recovery banner paints (#26).
+    /// `None` covers both "no draft" and "already answered"; see
+    /// [`crate::editor_ui_state::recovery`] for the policy.
+    pub recovery_draft: Option<crate::editor_ui_state::recovery::RecoveryDraft>,
+    /// Whether the user answered the offer in this page. Latched, so the
+    /// banner cannot come back to someone who already said no.
+    pub recovery_answered: bool,
+    /// A banner press the host has yet to perform — the widget layer owns no
+    /// transport, so the answer reaches the frame tick through here.
+    pub recovery_request: Option<crate::editor_ui_state::recovery::RecoveryRequest>,
     /// Wall clock in Unix milliseconds, refreshed by the host each frame.
     ///
     /// The chrome needs real time for exactly one thing: telling how old the

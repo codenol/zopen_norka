@@ -168,6 +168,7 @@ mod press_chrome_tiers;
 mod press_ctx;
 mod press_overlay_tiers;
 mod press_property_tiers;
+mod press_recovery_banner;
 mod press_surface_tiers;
 mod preview_frame;
 mod preview_frame_teardown;
@@ -186,6 +187,8 @@ mod property_input_tests;
 mod property_layout_dispatch;
 #[cfg(test)]
 mod property_panel_press_tests;
+#[cfg(test)]
+mod recovery_banner_press_tests;
 mod release_input;
 mod resize_drag;
 #[cfg(test)]
@@ -373,6 +376,15 @@ pub struct WidgetHost {
     /// the toast is still live before trusting it (see
     /// `op_editor_ui::widgets::editor_toast_flow::press`).
     pub(in crate::widget_host) toast_rect: Option<op_editor_ui::Rect>,
+    /// Rect the recovery banner painted last frame, or `None` when nothing
+    /// painted.
+    ///
+    /// Cached for a different reason than `toast_rect`: the banner's *width*
+    /// is fixed, but its vertical slot depends on whether the align toolbar or
+    /// a toast is up, and either can change between the paint and the press.
+    /// The press arm re-checks the offer is still on screen before trusting it
+    /// (see `op_editor_ui::widgets::recovery_banner_flow::press`).
+    pub(in crate::widget_host) recovery_banner_rect: Option<op_editor_ui::Rect>,
     /// Most recent viewport size seen via `apply_press` etc. — cached
     /// so `apply_cursor_move(x, y)` can rebuild the canvas region
     /// when its signature can't carry viewport dims (mirrors native).

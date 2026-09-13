@@ -189,6 +189,13 @@ impl WidgetHost {
         if let Some(consumed) = self.press_topmost_overlay_tiers(&ctx) {
             return consumed;
         }
+        // Tier 1b — the launch-time recovery banner (#26). It paints above the
+        // canvas and below the whole menu / modal / panel band, so it belongs
+        // exactly here: after the tier that owns that band and before every
+        // tier below it.
+        if let Some(consumed) = self.press_recovery_banner_tier(&ctx) {
+            return consumed;
+        }
         // Tier 2 — import dropdown + locale picker.
         if let Some(consumed) = self.press_import_locale_tiers(&ctx) {
             return consumed;

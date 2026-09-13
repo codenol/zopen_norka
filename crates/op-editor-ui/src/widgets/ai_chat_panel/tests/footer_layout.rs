@@ -406,10 +406,10 @@ fn thinking_toggle_is_dropped_before_the_model_pill_becomes_unreadable() {
         let rect = Rect::xywh(0.0, 0.0, w, AI_CHAT_HEIGHT);
         let input = panel.input_rect(rect);
         // The input block carries the chip band, so its real height —
-    // not the bare area constant — places the toolbar.
-    // The toolbar sits below the whole input block bar the toolbar row
-    // itself (chip band + text area + staged attachments).
-    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
+        // not the bare area constant — places the toolbar.
+        // The toolbar sits below the whole input block bar the toolbar row
+        // itself (chip band + text area + staged attachments).
+        let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
         panel.footer_layout(rect, input, toolbar_top)
     };
 

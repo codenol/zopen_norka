@@ -586,6 +586,34 @@ impl WidgetHost {
             panel.paint(&mut cx, panel_rect);
         }
 
+        // Launch-time recovery offer (#26) — the daemon's draft, offered back.
+        //
+        // Placed here on purpose, between the chrome overlays above and the
+        // menu / modal / floating-panel band below:
+        //   * above the canvas, the rails, the toolbar, the status bar, the
+        //     align toolbar and the property overlays, so the offer is not
+        //     buried under the document it is about;
+        //   * below every dropdown, modal and floating panel, so a dialog
+        //     covers it rather than the reverse — a bar painted over a scrim
+        //     would look pressable while the dialog owned the press. The
+        //     banner's own `for_editor` hides it outright while a full-viewport
+        //     scrim is up, which is the same rule stated once.
+        // The rect is cached for the press arm: the bar's vertical slot moves
+        // with the align toolbar and the toast, so the press must hit-test the
+        // geometry that was actually painted.
+        self.recovery_banner_rect = {
+            let mut cx = PaintCx {
+                backend: &mut *backend,
+            };
+            op_editor_ui::widgets::recovery_banner_flow::paint(
+                &mut cx,
+                &self.editor_state,
+                viewport_width,
+                viewport_height,
+                self.now_ms,
+            )
+        };
+
         // Menus, modals, floating panels and the top-most notices —
         // z-order above everything painted so far. Split into its own
         // method purely to keep this file under the repo's 800-line cap;

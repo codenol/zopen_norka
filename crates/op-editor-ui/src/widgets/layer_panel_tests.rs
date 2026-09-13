@@ -786,8 +786,14 @@ fn recipe_rows_are_hittable_in_the_rail() {
     };
     assert!(!panel.recipes.is_empty(), "the session kit ships recipes");
     let r = panel.regions(rect);
-    assert!(r.recipes_view_h > 0.0, "the recipes region must be laid out");
-    let p = Point2D::new(rect.size.x / 2.0, r.recipes_rows_top + PAGE_ROW_HEIGHT / 2.0);
+    assert!(
+        r.recipes_view_h > 0.0,
+        "the recipes region must be laid out"
+    );
+    let p = Point2D::new(
+        rect.size.x / 2.0,
+        r.recipes_rows_top + PAGE_ROW_HEIGHT / 2.0,
+    );
     match panel.hit_test(rect, p) {
         Some(LayerPanelHit::Recipe(index)) => assert_eq!(index, 0),
         other => panic!("expected the first recipe row, got {other:?}"),

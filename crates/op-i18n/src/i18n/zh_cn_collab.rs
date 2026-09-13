@@ -176,6 +176,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "复制链接",
         "layerMenu.linkCopied" => "链接已复制到剪贴板",
         "topbar.saved" => "已保存",
+        "recovery.banner.title" => "发现未保存的工作：{{when}}",
+        "recovery.banner.restore" => "恢复",
+        "recovery.banner.discard" => "放弃",
         _ => return None,
     })
 }

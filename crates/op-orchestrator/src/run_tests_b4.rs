@@ -425,18 +425,21 @@ fn non_append_mode_resolves_scaffold_root_when_empty_frame_is_replaced() {
 
 // ── Dashboard / append mutex (spec §2) ────────────────────────────────────────
 
-/// Append + dashboard request → append fast-path wins (dashboard does NOT fire).
+/// Append + dashboard request → append fast-path wins; no scaffold root is
+/// inserted on top of the pre-existing target frame.
 ///
-/// The request carries `Some(append_context)` AND a prompt + plan that would
-/// normally trigger `should_use_dashboard_columns`:
-/// - prompt "an analytics admin dashboard" → dashboard keyword
-/// - rootFrame.width 1440 (> 480)
-/// - sidebar subtask + metrics subtask
-///
-/// Without the mutex guard the dashboard path would dispatch first, inserting
-/// a multi-frame dashboard scaffold (sidebar + main + row frames).  With the
-/// guard, the append fast-path takes priority — no scaffold-root InsertSubtree
-/// beyond the 1 pre-setup target, content lands in `ctx.target_parent_id`.
+/// The request carries `Some(append_context)` AND everything that used to
+/// select the bespoke dashboard scaffold: a dashboard keyword in the prompt,
+/// a 1440-wide root, and sidebar + metrics subtasks. That scaffold is gone
+/// (`c179fd28` deleted `scaffold_dashboard`), and `plan_repair::finalize_plan`
+/// now strips both the kit-owned sidebar and the non-kit metrics module from
+/// any desktop-screen plan, so this plan reaches phase 2 as a single content
+/// section. The guard that survives — and the reason to keep the fixture — is
+/// that append mode adds **no** scaffold root of any shape: exactly one
+/// `InsertSubtree` per subtask the run actually executed, on top of the one
+/// from the pre-setup, with every sub-agent body landing in
+/// `ctx.target_parent_id`. The count is derived from `summary.subtasks` rather
+/// than pinned to a plan shape the normaliser no longer produces.
 #[test]
 fn append_mode_wins_over_dashboard_branch() {
     // Dashboard-like plan: 1440 wide, sidebar + metrics subtasks, dashboard
@@ -514,20 +517,27 @@ fn append_mode_wins_over_dashboard_branch() {
         "append fast-path must win — root_frame_id should be the target id"
     );
 
-    // No dashboard scaffold: total InsertSubtree count is exactly
-    // 1 (pre-setup) + 2 (sub-agents) = 3.  Dashboard scaffold would push
-    // 1 root + 1 sidebar + 1 main + N row frames → >>3.
+    // One pre-setup insert + exactly one sub-agent insert per subtask the run
+    // actually executed. A scaffold root of ANY shape would show up here as an
+    // extra InsertSubtree (the old two-column dashboard scaffold alone emitted
+    // a root + a sidebar + a content column).
     let inserts = sink
         .applied
         .iter()
         .filter(|c| matches!(c, EditorCommand::InsertSubtree { .. }))
         .count();
+    assert!(
+        !summary.subtasks.is_empty(),
+        "the run must execute at least one section, otherwise this count proves nothing"
+    );
     assert_eq!(
-        inserts, 3,
-        "expected 3 InsertSubtrees (1 pre-setup + 2 sub-agents, no dashboard scaffold): got {inserts}"
+        inserts,
+        1 + summary.subtasks.len(),
+        "expected 1 pre-setup + {} sub-agent InsertSubtree(s), no scaffold root: got {inserts}",
+        summary.subtasks.len()
     );
 
-    // Content landed in target frame.
+    // Content landed in target frame rather than in a freshly built root.
     let after_count = descendant_count(sink.state(), &live_id);
     assert!(
         after_count > before_count,

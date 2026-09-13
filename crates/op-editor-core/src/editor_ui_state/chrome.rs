@@ -181,7 +181,6 @@ pub struct RecentFile {
     pub modified_at: u64,
 }
 
-
 /// One server-side document, as the file browser shows it.
 ///
 /// A trimmed projection of the daemon's index row: enough to paint a card and
@@ -203,7 +202,6 @@ pub struct ServerFile {
 /// The list is a screen, not a table: more than this and the answer is a
 /// search, not a scroll.
 pub const SERVER_FILE_CAP: usize = 60;
-
 
 /// An open context menu on a file card.
 #[derive(Debug, Clone, PartialEq)]

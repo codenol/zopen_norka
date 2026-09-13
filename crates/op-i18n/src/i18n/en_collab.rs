@@ -216,6 +216,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "Copy link",
         "layerMenu.linkCopied" => "Link copied to clipboard",
         "topbar.saved" => "Saved",
+        "recovery.banner.title" => "Unsaved work found: {{when}}",
+        "recovery.banner.restore" => "Restore",
+        "recovery.banner.discard" => "Discard",
         _ => return None,
     })
 }

@@ -59,7 +59,9 @@ impl TopBar {
         } else {
             None
         };
-        let edited_w = status_label.map(|label| measure(label, 11.0)).unwrap_or(0.0);
+        let edited_w = status_label
+            .map(|label| measure(label, 11.0))
+            .unwrap_or(0.0);
         let edited_span = if status_label.is_some() {
             EDITED_GAP + edited_w
         } else {
@@ -107,8 +109,8 @@ impl TopBar {
         let file_x = group_left;
         // The marker is present in either state ("Edited" or "Saved"); only a
         // document with no name at all has nothing to say about its state.
-        let edited_x = (self.edited || self.show_saved)
-            .then_some(file_x + file_w + actual_edited_gap);
+        let edited_x =
+            (self.edited || self.show_saved).then_some(file_x + file_w + actual_edited_gap);
         let git_rect = show_git.then_some(Rect {
             origin: Point2D::new(
                 group_left + title_w + GIT_GAP,

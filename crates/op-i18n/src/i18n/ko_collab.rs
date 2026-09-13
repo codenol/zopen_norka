@@ -192,6 +192,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "링크 복사",
         "layerMenu.linkCopied" => "링크를 클립보드에 복사했습니다",
         "topbar.saved" => "저장됨",
+        "recovery.banner.title" => "저장되지 않은 작업을 찾았습니다: {{when}}",
+        "recovery.banner.restore" => "복원",
+        "recovery.banner.discard" => "버리기",
         _ => return None,
     })
 }

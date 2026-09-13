@@ -96,7 +96,10 @@ fn design_rules_are_reported_instead_of_the_pin_and_carry_no_clear() {
     });
 
     let receipt = StyleReceipt::for_state(&state).expect("a row");
-    assert!(receipt.is_rules, "the row reports rules, not a catalog guide");
+    assert!(
+        receipt.is_rules,
+        "the row reports rules, not a catalog guide"
+    );
     assert!(
         receipt.name.parse::<usize>().is_ok(),
         "the row carries the rule count, got {:?}",

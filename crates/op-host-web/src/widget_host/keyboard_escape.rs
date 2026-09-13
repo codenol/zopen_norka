@@ -20,7 +20,13 @@ impl WidgetHost {
             return true;
         }
         if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
-            if self.editor_state.editor_ui.server_files_menu.take().is_some() {
+            if self
+                .editor_state
+                .editor_ui
+                .server_files_menu
+                .take()
+                .is_some()
+            {
                 self.mark_dirty();
                 return true;
             }

@@ -224,26 +224,25 @@ impl LayerPanel {
         }
     }
 
-
-/// The session kit's recipes as panel rows.
-///
-/// They come from the kit rather than the document, so an empty new file
-/// lists them exactly like an opened one.
-fn recipes_from_kit() -> Rc<Vec<PageItem>> {
-    Rc::new(
-        op_editor_core::session_kit()
-            .recipes
-            .iter()
-            .enumerate()
-            .map(|(index, recipe)| PageItem {
-                page_index: index,
-                label: recipe.name.clone(),
-                active: false,
-                renaming: false,
-            })
-            .collect(),
-    )
-}
+    /// The session kit's recipes as panel rows.
+    ///
+    /// They come from the kit rather than the document, so an empty new file
+    /// lists them exactly like an opened one.
+    fn recipes_from_kit() -> Rc<Vec<PageItem>> {
+        Rc::new(
+            op_editor_core::session_kit()
+                .recipes
+                .iter()
+                .enumerate()
+                .map(|(index, recipe)| PageItem {
+                    page_index: index,
+                    label: recipe.name.clone(),
+                    active: false,
+                    renaming: false,
+                })
+                .collect(),
+        )
+    }
 
     /// Floating ghost row for the dragged source — host paints it
     /// at the cursor's y. None when the source isn't on the

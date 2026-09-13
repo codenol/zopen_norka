@@ -178,6 +178,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "คัดลอกลิงก์",
         "layerMenu.linkCopied" => "คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว",
         "topbar.saved" => "บันทึกแล้ว",
+        "recovery.banner.title" => "พบงานที่ยังไม่ได้บันทึก: {{when}}",
+        "recovery.banner.restore" => "กู้คืน",
+        "recovery.banner.discard" => "ละทิ้ง",
         _ => return None,
     })
 }

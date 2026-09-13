@@ -176,6 +176,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "Link kopieren",
         "layerMenu.linkCopied" => "Link in die Zwischenablage kopiert",
         "topbar.saved" => "Gespeichert",
+        "recovery.banner.title" => "Nicht gespeicherte Arbeit gefunden: {{when}}",
+        "recovery.banner.restore" => "Wiederherstellen",
+        "recovery.banner.discard" => "Verwerfen",
         _ => return None,
     })
 }

@@ -223,6 +223,17 @@ fn replace_or_insert_component_master(
 ) -> Result<bool, IdAllocError> {
     let id = NodeId::new(master_id);
     if replace_node_in_doc(&mut state.doc, &id, root.clone()) {
+        // A master's coordinates on a `Components/{Type}` page are DERIVED,
+        // never authored: the append branch below lands the node on the page
+        // and then lays that page out into its gallery. The replace branch
+        // must run the same pass, or re-running a conversion script swaps the
+        // master for the incoming `node_json` — which carries no coordinates
+        // — and the master silently falls out of the grid it was placed in.
+        // That made the script non-idempotent: the same input produced two
+        // different documents (asserted by `conversion_tests::
+        // upsert_component_rerun_preserves_descendant_ids` and, end to end,
+        // by `mcp_serve::conversion_flow_tests::scripted_conversion_is_idempotent`).
+        state.layout_components_page_gallery();
         return Ok(true);
     }
     Ok(state.append_components_page_masters_with_allocator(vec![root], allocator)? == 1)

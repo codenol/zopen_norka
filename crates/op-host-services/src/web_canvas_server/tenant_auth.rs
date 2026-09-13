@@ -12,6 +12,8 @@
 
 use std::collections::HashMap;
 
+use op_editor_core::access::RoleSet;
+
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::mcp_serve::HttpRequest;
 
@@ -45,6 +47,19 @@ pub struct ResolvedIdentity {
     pub user_id: String,
     pub username: String,
     pub display_name: String,
+    /// The product roles the hub says this account holds (#10).
+    ///
+    /// Carried here so the decision points downstream — the REST routes, and
+    /// later the chrome — read the verified identity instead of asking the
+    /// hub again or trusting the request. The hub HAS always sent these on
+    /// `GET /api/v1/session`; before this field existed they were parsed and
+    /// thrown away, which is what made every account the same account.
+    ///
+    /// Empty is normal and means "no roles", never "no access": see
+    /// [`op_editor_core::access::RoleSet::rights`], which floors at view-only
+    /// for its own workspace. Nothing enforces these rights yet — the route
+    /// checks belong to the step that also knows who owns a document.
+    pub roles: RoleSet,
     pub via: IdentityVia,
     /// What this credential may drive over MCP.
     ///
@@ -276,6 +291,13 @@ impl IdentityVerifier for StaticVerifier {
             user_id: user_id.clone(),
             username: user_id.clone(),
             display_name: user_id.clone(),
+            // This table has no roles to give: it is an operator-written
+            // `token=user` list for development, with no hub behind it. An
+            // empty set is the honest answer and it must not narrow anything
+            // — `RoleSet::rights` floors at view-only, so a static deployment
+            // keeps working exactly as it did before roles existed. The
+            // credential's real narrowing axis here stays `scopes`.
+            roles: RoleSet::empty(),
             via,
             // A browser session is the account itself, so it carries full
             // authority however the token table classified the same string.

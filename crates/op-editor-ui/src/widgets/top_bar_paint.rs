@@ -419,7 +419,9 @@ impl TopBar {
             if crate::widgets::build_stamp::blink_visible(self.now_unix_ms as u64, period) {
                 let color = match freshness {
                     crate::widgets::build_stamp::BuildFreshness::Fresh => self.theme.status_success,
-                    crate::widgets::build_stamp::BuildFreshness::Ageing => self.theme.status_warning,
+                    crate::widgets::build_stamp::BuildFreshness::Ageing => {
+                        self.theme.status_warning
+                    }
                     crate::widgets::build_stamp::BuildFreshness::Stale => self.theme.destructive,
                 };
                 let stamp_w = text_metrics::measure_chrome(cx.backend, &self.build_label, 10.0);

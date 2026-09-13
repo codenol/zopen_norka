@@ -56,6 +56,7 @@ impl WidgetHost {
             now_ms: 0,
             wall_now_secs: 0,
             toast_rect: None,
+            recovery_banner_rect: None,
             last_viewport_w: 0.0,
             last_viewport_h: 0.0,
             last_cursor_x: 0.0,

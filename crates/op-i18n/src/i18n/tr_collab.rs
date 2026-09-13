@@ -176,6 +176,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "Bağlantıyı kopyala",
         "layerMenu.linkCopied" => "Bağlantı panoya kopyalandı",
         "topbar.saved" => "Kaydedildi",
+        "recovery.banner.title" => "Kaydedilmemiş çalışma bulundu: {{when}}",
+        "recovery.banner.restore" => "Geri yükle",
+        "recovery.banner.discard" => "Yoksay",
         _ => return None,
     })
 }

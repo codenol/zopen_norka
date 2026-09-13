@@ -143,6 +143,9 @@ mod property_panel_wash_tests;
 pub mod property_panel_widget;
 #[cfg(test)]
 mod property_panel_widget_tests;
+pub mod recovery_banner;
+pub mod recovery_banner_flow;
+pub(crate) mod relative_age;
 mod scene_template_card_actions;
 mod scene_template_card_paint;
 mod scene_template_caret;
@@ -483,6 +486,10 @@ pub use mobile_more_panel::MobileMoreEntry;
 pub use prompt_center_panel::{
     PromptCenterCard, PromptCenterHit, PromptCenterPanel, PROMPT_CENTER_MIN_H, PROMPT_CENTER_MIN_W,
     PROMPT_CENTER_VIEWPORT_H_RATIO, PROMPT_CENTER_VIEWPORT_W_RATIO,
+};
+pub use recovery_banner::{
+    RecoveryBanner, RecoveryBannerAction, RecoveryBannerHit, RECOVERY_BANNER_HEIGHT,
+    RECOVERY_BANNER_RADIUS,
 };
 pub use save_name_dialog::{SaveNameDialog, SaveNameDialogHit};
 pub use shape_picker::{ShapeChoice, ShapePicker, SHAPE_PICKER_WIDTH};

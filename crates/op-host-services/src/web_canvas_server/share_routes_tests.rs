@@ -10,6 +10,7 @@ fn identity(user_id: &str) -> ResolvedIdentity {
         user_id: user_id.into(),
         username: user_id.into(),
         display_name: user_id.into(),
+        roles: op_editor_core::access::RoleSet::empty(),
         via: IdentityVia::ApiToken,
         scopes: McpScopes::FULL,
     }

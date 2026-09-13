@@ -29,7 +29,10 @@ thread_local! {
 }
 
 fn fingerprint(messages: &[ChatMessage]) -> (usize, usize) {
-    (messages.len(), messages.iter().map(|m| m.content.len()).sum())
+    (
+        messages.len(),
+        messages.iter().map(|m| m.content.len()).sum(),
+    )
 }
 
 /// Restore the saved transcript when the editor state has none.
@@ -92,7 +95,10 @@ pub(crate) fn persist_if_changed(state: &EditorState) {
                     ChatRole::User => "u".into(),
                 }),
             );
-            entry.insert("c".into(), serde_json::Value::String(message.content.clone()));
+            entry.insert(
+                "c".into(),
+                serde_json::Value::String(message.content.clone()),
+            );
             if let Some(name) = message.agent_name.as_deref() {
                 entry.insert("n".into(), serde_json::Value::String(name.to_string()));
             }

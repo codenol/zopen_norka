@@ -197,10 +197,10 @@ fn paint_send_button_hover_adds_visible_feedback() {
         // Use footer_layout to get the exact rect rather than hardcoding.
         let input = panel.input_rect(rect);
         // The input block carries the chip band, so its real height —
-    // not the bare area constant — places the toolbar.
-    // The toolbar sits below the whole input block bar the toolbar row
-    // itself (chip band + text area + staged attachments).
-    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
+        // not the bare area constant — places the toolbar.
+        // The toolbar sits below the whole input block bar the toolbar row
+        // itself (chip band + text area + staged attachments).
+        let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
         let footer = panel.footer_layout(rect, input, toolbar_top);
         backend
             .round_rects
@@ -264,10 +264,10 @@ fn paint_footer_neutral_hovers_use_visible_feedback() {
         let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
         let input = panel.input_rect(rect);
         // The input block carries the chip band, so its real height —
-    // not the bare area constant — places the toolbar.
-    // The toolbar sits below the whole input block bar the toolbar row
-    // itself (chip band + text area + staged attachments).
-    let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
+        // not the bare area constant — places the toolbar.
+        // The toolbar sits below the whole input block bar the toolbar row
+        // itself (chip band + text area + staged attachments).
+        let toolbar_top = input.origin.y + panel.input_height_for_rect(rect) - INPUT_TOOLBAR_HEIGHT;
         let footer = panel.footer_layout(rect, input, toolbar_top);
         // old→new: AgentTeam removed (zero-width in #27); Send is always
         // a filled circle so its hover is a bg-alpha change, not a separate wash.

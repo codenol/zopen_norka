@@ -183,6 +183,10 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 crate::route_sync::tick_files(&inner_for_paint);
                 // Autosave: a change reaches disk without a command (issue #16).
                 crate::web_autosave::tick(&inner_for_paint);
+                // The recovery banner's half: deliver a probe that arrived
+                // while the shell was borrowed, then perform whichever answer
+                // the user gave (issue #26).
+                crate::web_recovery::tick(&inner_for_paint);
             } else {
                 crate::repaint_coalescer::request();
             }
@@ -243,6 +247,12 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
     // Populate the chat model picker from the daemon's `/api/ai/models`
     // catalog (best-effort; async, repaints when the response lands).
     crate::web_chat::fetch_models(&inner);
+    // Ask once about the daemon's draft slot: work from the last session that
+    // had no file to save into. Asked here, with the other one-shot daemon
+    // reads, because the token (in managed mode) is already installed above —
+    // and asked exactly once, because the answer is about the *last* session
+    // (issue #26).
+    crate::web_recovery::probe_at_mount(&inner);
     // Pull the brand-logo catalog (omitted from the wasm bundle) from the daemon
     // in the background so the icon picker / figma can resolve simple-icons.
     crate::iconify_web::fetch_brand_catalog(&inner);
