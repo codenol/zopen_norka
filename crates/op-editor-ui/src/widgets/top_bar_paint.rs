@@ -203,15 +203,20 @@ impl TopBar {
                 }
 
                 if let Some(edited_x) = title.edited_x {
-                    let edited = TextLayout::single_run(
-                        self.label_edited,
+                    let label = if self.edited {
+                        self.label_edited
+                    } else {
+                        self.label_saved
+                    };
+                    let status = TextLayout::single_run(
+                        label,
                         "system-ui",
                         11.0,
                         (self.theme.muted_foreground).to_jian(),
                         Point2D::new(0.0, 0.0),
                     );
                     cx.backend
-                        .draw_text(&edited, Point2D::new(edited_x, center_y + 4.0));
+                        .draw_text(&status, Point2D::new(edited_x, center_y + 4.0));
                 }
 
                 // Git-panel button just right of the file name (TS

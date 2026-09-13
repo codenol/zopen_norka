@@ -175,6 +175,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "Semua file",
         "layerMenu.copyLink" => "Salin tautan",
         "layerMenu.linkCopied" => "Tautan disalin ke papan klip",
+        "topbar.saved" => "Tersimpan",
         _ => return None,
     })
 }

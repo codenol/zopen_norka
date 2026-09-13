@@ -177,6 +177,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "ไฟล์ทั้งหมด",
         "layerMenu.copyLink" => "คัดลอกลิงก์",
         "layerMenu.linkCopied" => "คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว",
+        "topbar.saved" => "บันทึกแล้ว",
         _ => return None,
     })
 }

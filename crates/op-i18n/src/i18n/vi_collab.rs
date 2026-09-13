@@ -187,6 +187,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "Tất cả tệp",
         "layerMenu.copyLink" => "Sao chép liên kết",
         "layerMenu.linkCopied" => "Đã sao chép liên kết vào bộ nhớ tạm",
+        "topbar.saved" => "Đã lưu",
         _ => return None,
     })
 }

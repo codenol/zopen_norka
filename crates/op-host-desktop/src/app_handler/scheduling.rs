@@ -140,6 +140,20 @@ impl DesktopApp {
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }
+        // Autosave is not a background *job*: while the window sits idle
+        // waiting for input, nothing else would wake it, and a document left
+        // alone after an edit would never reach disk. Its deadline pulls the
+        // idle wait forward — and never pushes it back.
+        if let Some(deadline) = self.autosave_deadline() {
+            let earlier = match event_loop.control_flow() {
+                ControlFlow::WaitUntil(current) => deadline < current,
+                ControlFlow::Wait => true,
+                ControlFlow::Poll => false,
+            };
+            if earlier {
+                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+            }
+        }
     }
 
     pub(super) fn timed_wake_needs_redraw(&self, cause: &StartCause) -> bool {

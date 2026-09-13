@@ -175,6 +175,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "Tüm dosyalar",
         "layerMenu.copyLink" => "Bağlantıyı kopyala",
         "layerMenu.linkCopied" => "Bağlantı panoya kopyalandı",
+        "topbar.saved" => "Kaydedildi",
         _ => return None,
     })
 }

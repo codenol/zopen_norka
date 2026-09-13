@@ -142,6 +142,11 @@ pub struct TopBar {
     pub collab: CollabTopBarModel,
     pub theme: Theme,
     pub label_edited: &'static str,
+    /// Shown instead of `label_edited` when the document is saved.
+    pub label_saved: &'static str,
+    /// Whether a saved state is worth stating: a document that has never been
+    /// named has nothing on disk to be in sync with.
+    pub show_saved: bool,
     pub label_agents_and_mcp: &'static str,
     /// Version + build time, painted left of the agents chip.
     pub build_label: String,
@@ -209,6 +214,8 @@ impl TopBar {
             collab: CollabTopBarModel::default(),
             theme: Theme::dark(),
             label_edited: "",
+            label_saved: "",
+            show_saved: false,
             label_agents_and_mcp: "Agents & MCP",
             build_label: build_label(),
             now_unix_ms: 0.0,
@@ -265,6 +272,10 @@ impl TopBar {
             collab: CollabTopBarModel::for_editor_ui(ui),
             theme: theme_for(ui),
             label_edited: translate(ui, "topbar.edited"),
+            label_saved: translate(ui, "topbar.saved"),
+            // A document with a name has somewhere to be saved; one without a
+            // name has nothing to claim.
+            show_saved: ui.file_name_display.is_some(),
             label_agents_and_mcp: if ui.embed == op_editor_core::EmbedHost::VsCode {
                 translate(ui, "topbar.mcp")
             } else {

@@ -12,6 +12,15 @@ here at a glance.
 
 ### Added
 
+- **The saved state is stated, not implied.** The title bar now says "Saved"
+  when the document matches its file and "Edited" when it does not; before, a
+  saved document showed nothing, which is indistinguishable from a label that
+  failed to draw. The marker follows the localised label in all fifteen
+  languages.
+- **Desktop autosave.** The window saves a stored document on the same
+  schedule as the browser (3 s of quiet, floor 15 s) through the existing
+  `SaveSession`, and reports its deadline to the event loop — without that, a
+  window sitting idle after an edit would never wake to save.
 - **A restart returns to your work.** The daemon records which document was
   open and reopens it on startup, instead of handing back the kit. An explicit
   document argument still wins, and a document that has since been deleted

@@ -48,12 +48,19 @@ impl TopBar {
             size: Point2D::new(slot_width, top_bar_rect.size.y),
         };
 
-        let edited_w = if self.edited {
-            measure(self.label_edited, 11.0)
+        // The marker states the document's relationship to disk: "Edited" while
+        // changes are unsaved, "Saved" once they are. Showing nothing when
+        // saved (the old behaviour) left the user unable to tell a saved
+        // document from a document whose label had not been drawn yet.
+        let status_label = if self.edited {
+            Some(self.label_edited)
+        } else if self.show_saved {
+            Some(self.label_saved)
         } else {
-            0.0
+            None
         };
-        let edited_span = if self.edited {
+        let edited_w = status_label.map(|label| measure(label, 11.0)).unwrap_or(0.0);
+        let edited_span = if status_label.is_some() {
             EDITED_GAP + edited_w
         } else {
             0.0
@@ -87,7 +94,7 @@ impl TopBar {
             measure(candidate, 13.0)
         });
         let file_w = measure(&file_name, 13.0);
-        let actual_edited_gap = if self.edited && !file_name.is_empty() {
+        let actual_edited_gap = if (self.edited || self.show_saved) && !file_name.is_empty() {
             EDITED_GAP
         } else {
             0.0
@@ -98,7 +105,10 @@ impl TopBar {
         let max_group_left = (slot_right - group_w).max(slot_left);
         let group_left = desired_group_left.clamp(slot_left, max_group_left);
         let file_x = group_left;
-        let edited_x = self.edited.then_some(file_x + file_w + actual_edited_gap);
+        // The marker is present in either state ("Edited" or "Saved"); only a
+        // document with no name at all has nothing to say about its state.
+        let edited_x = (self.edited || self.show_saved)
+            .then_some(file_x + file_w + actual_edited_gap);
         let git_rect = show_git.then_some(Rect {
             origin: Point2D::new(
                 group_left + title_w + GIT_GAP,

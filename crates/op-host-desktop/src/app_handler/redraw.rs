@@ -323,6 +323,8 @@ impl DesktopApp {
         let session_running = self.current_chat.is_some() || self.current_design.is_some();
         self.persist_connection_changes();
         self.persist_ui_pref_changes();
+        // A change reaches disk without a command (issue #16).
+        self.autosave_tick();
         if crate::chat_session::reconcile_starter_ghost(
             self.host.editor_state_mut(),
             session_running,

@@ -179,6 +179,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "सभी फ़ाइलें",
         "layerMenu.copyLink" => "लिंक कॉपी करें",
         "layerMenu.linkCopied" => "लिंक क्लिपबोर्ड पर कॉपी हो गया",
+        "topbar.saved" => "सहेजा गया",
         _ => return None,
     })
 }
