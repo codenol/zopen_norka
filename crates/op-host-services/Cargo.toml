@@ -105,6 +105,12 @@ skia-safe = { version = "0.97.0", default-features = false, features = [
   "textlayout",
   "pdf",
 ] }
+# The stored-document index (issue #10). `bundled` compiles SQLite from the
+# crate's own amalgamation instead of linking whatever the host happens to
+# have: the daemon ships as a container AND as a desktop binary, and a store
+# whose behaviour depends on the local libsqlite3 is one that fails only on
+# somebody else's machine.
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 # Unix signal handling for the online daemon's controlled shutdown. Already in
 # the dependency graph transitively; named here so the SIGTERM handler can use

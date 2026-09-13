@@ -116,6 +116,15 @@ pub struct WebCanvasState {
     /// process's filesystem, settings file and device session between
     /// mutually untrusting accounts. See `online_policy.rs`.
     pub(crate) mode: ServeMode,
+    /// The document accounting for this machine's documents directory, opened
+    /// by the first stored-document request and kept for the life of the
+    /// process (`document_db::local_store`). Held HERE, under the same mutex
+    /// every other request takes, so the store keeps one writer at a time by
+    /// construction — the lock order is `state -> db` and never the reverse.
+    ///
+    /// `None` until a request needs it: a daemon that never lists a file
+    /// creates no database, and a state built by a test touches no directory.
+    pub(crate) documents: Option<crate::document_db::DocumentDb>,
 }
 
 impl WebCanvasState {
@@ -168,6 +177,7 @@ impl WebCanvasState {
             auth_login_handle: None,
             collab: collab_state::WebCollabState::default(),
             mode: ServeMode::Local,
+            documents: None,
         }
     }
 
