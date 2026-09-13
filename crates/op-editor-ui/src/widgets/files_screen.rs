@@ -10,6 +10,10 @@
 
 use op_editor_core::{ServerFile, ServerFileMenu, ServerFileRename};
 
+use crate::files_thumb_runtime;
+use crate::widgets::canvas_viewport_image::{note_pending_decode, required_raster_edge};
+use crate::ImageDrawMode;
+
 use crate::theme::Theme;
 use crate::widgets::text_metrics;
 use crate::widgets::PaintCx;
@@ -333,19 +337,11 @@ impl FilesScreen<'_> {
         cx.backend.fill_rect(rect, theme.card);
         cx.backend.stroke_rect(rect, theme.border, 1.0);
 
-        // Thumbnail band: a document preview is not painted yet, so the band
-        // stays a quiet placeholder rather than a misleading picture.
         let thumb = Rect {
             origin: Point2D::new(rect.origin.x, rect.origin.y),
             size: Point2D::new(rect.size.x, THUMB_H),
         };
-        cx.backend.fill_rect(thumb, theme.muted);
-        cx.backend.stroke_line(
-            Point2D::new(thumb.origin.x, thumb.origin.y + thumb.size.y),
-            Point2D::new(thumb.origin.x + thumb.size.x, thumb.origin.y + thumb.size.y),
-            theme.border,
-            1.0,
-        );
+        self.paint_thumbnail(cx, thumb, file);
 
         let name = TextLayout::single_run(
             &file.name,
@@ -379,6 +375,50 @@ impl FilesScreen<'_> {
         );
     }
 
+
+    /// The card's preview band: the document's stored preview, or a quiet
+    /// placeholder while it is missing.
+    ///
+    /// The handshake is the canvas's own (bytes → decode → draw), so a preview
+    /// decodes asynchronously and lands on a later frame without blocking the
+    /// list. Anything missing or failed costs the picture and nothing else —
+    /// the card still shows its name and date.
+    fn paint_thumbnail(&self, cx: &mut PaintCx<'_>, thumb: Rect, file: &ServerFile) {
+        let theme = self.theme;
+        let image_id = files_thumb_runtime::thumb_image_id(&file.key, file.updated_at);
+        let Some(encoded) = files_thumb_runtime::thumb_bytes(image_id) else {
+            if file.has_thumbnail {
+                files_thumb_runtime::request_thumb(&file.key, file.updated_at);
+            }
+            paint_thumb_band(cx, thumb, theme);
+            return;
+        };
+        let max_edge_px = required_raster_edge(thumb, cx.backend.dpi_scale());
+        let sharp = cx.backend.image_decoded(image_id, encoded.as_ref(), max_edge_px);
+        if !sharp {
+            note_pending_decode(image_id, max_edge_px);
+        }
+        if !sharp && !cx.backend.image_resident(image_id) {
+            paint_thumb_band(cx, thumb, theme);
+            return;
+        }
+        cx.backend.save();
+        cx.backend.clip_rect(thumb);
+        // `Fill` crops rather than letter-boxing: a card band is a fixed
+        // aspect, and a document is whatever shape its author chose.
+        cx.backend
+            .draw_image_with_mode(thumb, image_id, encoded.as_ref(), ImageDrawMode::Fill);
+        cx.backend.restore();
+        cx.backend.stroke_line(
+            Point2D::new(thumb.origin.x, thumb.origin.y + thumb.size.y),
+            Point2D::new(
+                thumb.origin.x + thumb.size.x,
+                thumb.origin.y + thumb.size.y,
+            ),
+            theme.border,
+            1.0,
+        );
+    }
     fn paint_note(&self, cx: &mut PaintCx<'_>, rect: Rect, message: &str, color: Color) {
         let layout = TextLayout::single_run(
             message,
@@ -395,6 +435,17 @@ impl FilesScreen<'_> {
             ),
         );
     }
+}
+
+/// The band a card shows before (or instead of) its preview.
+fn paint_thumb_band(cx: &mut PaintCx<'_>, thumb: Rect, theme: &Theme) {
+    cx.backend.fill_rect(thumb, theme.muted);
+    cx.backend.stroke_line(
+        Point2D::new(thumb.origin.x, thumb.origin.y + thumb.size.y),
+        Point2D::new(thumb.origin.x + thumb.size.x, thumb.origin.y + thumb.size.y),
+        theme.border,
+        1.0,
+    );
 }
 
 /// A short, human "when" for a card.
@@ -437,6 +488,7 @@ mod tests {
                 name: format!("File {index}"),
                 updated_at: 1_700_000_000,
                 size: 10,
+                has_thumbnail: false,
             })
             .collect()
     }
@@ -454,8 +506,20 @@ mod tests {
     #[test]
     fn the_search_filters_by_name_and_keeps_source_indices() {
         let files = vec![
-            ServerFile { key: "a".into(), name: "Список токенов".into(), updated_at: 1, size: 1 },
-            ServerFile { key: "b".into(), name: "Коммутаторы".into(), updated_at: 1, size: 1 },
+            ServerFile {
+                key: "a".into(),
+                name: "Список токенов".into(),
+                updated_at: 1,
+                size: 1,
+                has_thumbnail: false,
+            },
+            ServerFile {
+                key: "b".into(),
+                name: "Коммутаторы".into(),
+                updated_at: 1,
+                size: 1,
+                has_thumbnail: false,
+            },
         ];
         let matching = FilesScreen {
             now_unix_ms: 0.0,

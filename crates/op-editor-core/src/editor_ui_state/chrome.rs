@@ -193,6 +193,9 @@ pub struct ServerFile {
     /// Unix seconds.
     pub updated_at: u64,
     pub size: u64,
+    /// Whether the server has a rendered preview for this document. The
+    /// screen only asks for a preview when there is one to ask for.
+    pub has_thumbnail: bool,
 }
 
 /// Maximum rows the browser paints at once.

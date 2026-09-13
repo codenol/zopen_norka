@@ -12,6 +12,12 @@ here at a glance.
 
 ### Added
 
+- **Preview cards on the file screen.** The card grid shows each document's
+  rendered preview instead of a placeholder band. Bytes are fetched by the host
+  (the route answers a base64 envelope), installed into the image cache the
+  canvas already uses, and drawn with the canvas's own decode handshake — so a
+  preview is crisp on retina, decoded off the paint path, and evicted like any
+  other image. A missing or failed preview costs the picture and nothing else.
 - **Document previews, server side.** Saving (or creating) a document renders
   a preview through the same raster exporter the Export button uses — scaled to
   the card width from the page's own bounds — stores it beside the document,
