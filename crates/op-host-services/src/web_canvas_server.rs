@@ -487,11 +487,14 @@ pub fn handle_web_canvas_request(
     state: &mut WebCanvasState,
     access: &RequestAccess<'_>,
 ) -> WebReply {
-    // The gate on this tier, ahead of the `match` rather than inside the arms
-    // that need it. It names the routes that change the document and nothing
-    // else. The connection tier asks the same question for the routes it
-    // dispatches itself (the pre-parsed push, JSON-RPC, `/api/ai/*`).
-    if let Some(refusal) = document_writes::check(method, path, body, access) {
+    // Who may change what, ahead of the `match` rather than inside the arms
+    // that need it: the document first (`document_writes`), then this account's
+    // own configuration (`workspace_settings`) — the same shape one right
+    // apart. The connection tier asks the document question again for the
+    // routes it dispatches itself (the pre-parsed push, JSON-RPC, `/api/ai/*`).
+    if let Some(refusal) = document_writes::check(method, path, body, access)
+        .or_else(|| workspace_settings::check(method, path, access))
+    {
         return refusal;
     }
     match (method, path) {
@@ -822,6 +825,7 @@ pub mod tenant;
 pub mod tenant_auth;
 pub mod tenant_store;
 mod tool_scopes;
+mod workspace_settings;
 
 pub use collab_state::{DaemonMutationRefusal, IngestOutcome};
 pub use connect_routes::*;

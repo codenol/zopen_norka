@@ -122,6 +122,19 @@ here at a glance.
 
 ### Fixed
 
+- **A shared document no longer hands over the account behind it.** Two routes
+  write the *workspace* rather than the document — the AI provider credentials
+  and the MCP server card — and both are reachable with a `?tenant=` lease,
+  which is how a browser addresses a document shared with it. A visitor whose
+  roles grant no more than reading could rewrite the owner's provider keys and
+  the owner's MCP port: the document was protected and the account behind it
+  was not.
+
+  The right here is not the document's. Answering with the document's "edit"
+  would have made the hole worse rather than smaller — an editing role is
+  handed out to work on a shared document and must not carry the owner's
+  credentials with it. So the question is *whose workspace is this*: the owner,
+  or an admin.
 - **The rights reached the routes that actually edit the document.** The gates
   added for the file routes covered saving a document; they did not cover
   *editing* one, and the browser edits through `POST /api/mcp/document`. An

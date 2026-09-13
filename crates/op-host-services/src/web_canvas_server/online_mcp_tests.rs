@@ -660,3 +660,122 @@ fn a_browser_session_is_held_to_the_same_answer_as_a_token() {
     );
     assert_eq!(status_line(&own), "HTTP/1.1 200 OK", "{own}");
 }
+
+// ---------------------------------------------------------------------------
+// #41: the account's own configuration is not part of a shared document.
+// ---------------------------------------------------------------------------
+
+/// The settings modal's two writes, as the shell sends them.
+fn configuration_writes() -> [(&'static str, &'static str); 2] {
+    [
+        ("/api/settings/credentials", "{}"),
+        ("/api/mcp/server", r#"{"action":"start","port":15000}"#),
+    ]
+}
+
+#[test]
+fn an_editing_role_on_a_shared_document_does_not_reach_the_owners_workspace() {
+    // UX/UI may change the document it was given; the account's provider keys
+    // and its MCP switch are not part of that document.
+    let registry = registry();
+    grant(&registry, "userA@", "userB");
+    for (path, payload) in configuration_writes() {
+        let refused = serve_roles(
+            &registry,
+            as_tenant(
+                Request::json("POST", path, payload).with_bearer("userB@ux_ui"),
+                "userA",
+            ),
+        );
+        assert_eq!(
+            status_line(&refused),
+            "HTTP/1.1 403 Forbidden",
+            "{path}: {refused}"
+        );
+        assert_eq!(
+            body(&refused)["error"],
+            "read-only-role",
+            "{path}: {refused}"
+        );
+    }
+}
+
+#[test]
+fn a_refused_configuration_write_leaves_the_workspace_alone() {
+    let registry = registry();
+    grant(&registry, "userA@", "userB");
+
+    // The owner picks a port, so the value the visitor tries to write has
+    // something to overwrite.
+    let started = serve_roles(
+        &registry,
+        Request::json(
+            "POST",
+            "/api/mcp/server",
+            r#"{"action":"start","port":3102}"#,
+        )
+        .with_bearer("userA@"),
+    );
+    assert_eq!(status_line(&started), "HTTP/1.1 200 OK", "{started}");
+    assert_eq!(body(&started)["port"], 3102, "{started}");
+
+    let refused = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json(
+                "POST",
+                "/api/mcp/server",
+                r#"{"action":"start","port":15000}"#,
+            )
+            .with_bearer("userB@ux_ui"),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&refused), "HTTP/1.1 403 Forbidden", "{refused}");
+
+    // A stop carries no port, so the port in the answer is whichever write
+    // landed: the visitor's 15000, or the owner's 3102.
+    let stopped = serve_roles(
+        &registry,
+        Request::json("POST", "/api/mcp/server", r#"{"action":"stop"}"#).with_bearer("userA@"),
+    );
+    assert_eq!(status_line(&stopped), "HTTP/1.1 200 OK", "{stopped}");
+    assert_eq!(body(&stopped)["port"], 3102, "{stopped}");
+    assert_eq!(body(&stopped)["running"], false, "{stopped}");
+}
+
+#[test]
+fn an_admin_may_configure_a_workspace_shared_with_them() {
+    let registry = registry();
+    grant(&registry, "userA@", "userB");
+    let admin = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json(
+                "POST",
+                "/api/mcp/server",
+                r#"{"action":"start","port":3210}"#,
+            )
+            .with_bearer("userB@admin"),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&admin), "HTTP/1.1 200 OK", "{admin}");
+    assert_eq!(body(&admin)["port"], 3210, "{admin}");
+
+    // The credential route answers an admin exactly as it answers the owner:
+    // online never persists them, so the refusal is the deployment's, not this
+    // gate's.
+    let credentials = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json("POST", "/api/settings/credentials", "{}").with_bearer("userB@admin"),
+            "userA",
+        ),
+    );
+    assert_ne!(
+        body(&credentials)["error"],
+        "read-only-role",
+        "{credentials}"
+    );
+}

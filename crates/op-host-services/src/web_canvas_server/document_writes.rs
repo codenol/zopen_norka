@@ -124,6 +124,23 @@ pub(super) fn required_action(
         // bumps its version. Dispatched ahead of the REST handler, which is why
         // the gate is at the connection tier as well.
         ("POST", "/api/ai/standard") => Some(DocumentAction::Edit),
+        // The collaboration panel, whole. `RequestUndo` applies an editor
+        // command to this document here and now, and every other action feeds
+        // the session that carries the peers' commands — including the two that
+        // admit a peer. Which of them is "only" panel state is a property of a
+        // list that grows, so the route is asked as one thing: a caller that may
+        // watch a document is not a caller that may drive a session on it.
+        //
+        // Online this refuses a reach rather than a use — the relay is
+        // unavailable there (`ServeMode::allows_relay_collaboration`), so the
+        // panel stays a projection and its actions sit in a slot no driver
+        // drains. Locally and under a supervisor the operator is the only
+        // client, as always.
+        //
+        // `POST /api/collab/presence` is deliberately not here: a cursor is not
+        // a command, and a viewer's cursor is what a session with a viewer in
+        // it is made of.
+        ("POST", "/api/collab/action") => Some(DocumentAction::Edit),
         // The three local-path routes: each installs a document into
         // `state.editor`. Online they are refused wholesale, before this gate
         // (the daemon host's filesystem is one filesystem for every account);
