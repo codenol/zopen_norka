@@ -161,6 +161,7 @@ mod pen_press;
 #[cfg(test)]
 mod pen_press_tests;
 mod files_screen_press;
+mod files_screen_text;
 mod press;
 mod press_canvas_tiers;
 mod press_chrome_tiers;

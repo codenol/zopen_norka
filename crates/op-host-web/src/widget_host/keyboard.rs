@@ -15,6 +15,12 @@ impl WidgetHost {
     /// Push a typed character into the focused chat / settings input.
     /// Returns true if anything changed.
     pub fn apply_text(&mut self, c: char) -> bool {
+        // The file screen's search field takes the keyboard while it has focus;
+        // without this a typed letter would fall through to the canvas
+        // shortcuts and switch tools behind the screen.
+        if self.file_search_takes_text(c) {
+            return true;
+        }
         if let Some(changed) = shared::prompt_center_text(&mut self.editor_state, c, self.now_ms) {
             if changed {
                 self.mark_dirty();
@@ -143,6 +149,9 @@ impl WidgetHost {
     }
 
     pub fn apply_backspace(&mut self) -> bool {
+        if self.file_search_takes_backspace() {
+            return true;
+        }
         if let Some(changed) = shared::prompt_center_backspace(&mut self.editor_state, self.now_ms)
         {
             if changed {

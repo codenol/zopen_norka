@@ -12,6 +12,10 @@ here at a glance.
 
 ### Added
 
+- **Search on the file screen.** The field takes the keyboard when clicked,
+  filters the cards by name as you type (case-insensitive substring, Cyrillic
+  included) and paints a caret; it swallows keystrokes while focused, so a
+  letter cannot reach the canvas shortcuts behind the screen.
 - **File browser actions.** A card opens its document (the daemon loads it,
   the address becomes `/f/<key>` and the tab takes the file's name), and
   "New file" creates a stored document and opens it. Presses are recorded on
