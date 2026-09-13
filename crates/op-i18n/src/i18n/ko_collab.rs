@@ -191,6 +191,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "모든 파일",
         "layerMenu.copyLink" => "링크 복사",
         "layerMenu.linkCopied" => "링크를 클립보드에 복사했습니다",
+        "topbar.saved" => "저장됨",
         _ => return None,
     })
 }

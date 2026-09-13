@@ -139,6 +139,7 @@ impl DesktopApp {
             zoom_modifier: false,
             // Parsed here rather than passed in: the constructor already reads
             // the environment for other launch options (MCP port).
+            autosave: crate::autosave::AutosaveClock::default(),
             pending_node: crate::parse_node_arg(std::env::args().skip(1)),
             route_history: Vec::new(),
             route_cursor: 0,

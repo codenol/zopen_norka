@@ -175,6 +175,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "所有文件",
         "layerMenu.copyLink" => "复制链接",
         "layerMenu.linkCopied" => "链接已复制到剪贴板",
+        "topbar.saved" => "已保存",
         _ => return None,
     })
 }

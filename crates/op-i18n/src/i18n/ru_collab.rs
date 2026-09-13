@@ -205,6 +205,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "Все файлы",
         "layerMenu.copyLink" => "Копировать ссылку",
         "layerMenu.linkCopied" => "Ссылка скопирована в буфер обмена",
+        "topbar.saved" => "Сохранено",
         _ => return None,
     })
 }

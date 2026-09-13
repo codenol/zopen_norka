@@ -175,6 +175,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "topbar.allFiles" => "Alle Dateien",
         "layerMenu.copyLink" => "Link kopieren",
         "layerMenu.linkCopied" => "Link in die Zwischenablage kopiert",
+        "topbar.saved" => "Gespeichert",
         _ => return None,
     })
 }

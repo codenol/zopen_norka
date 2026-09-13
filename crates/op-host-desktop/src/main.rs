@@ -60,6 +60,7 @@ mod image_search_session;
 mod ime_window;
 mod keyboard_chat_tabs;
 mod keyboard_clipboard_payload;
+mod autosave;
 mod route_history;
 mod keyboard_input;
 mod keyboard_input_arrows;
@@ -191,6 +192,8 @@ struct DesktopApp {
     /// Cmd / Ctrl held — promotes scroll to zoom + gates editor shortcuts.
     zoom_modifier: bool,
     alt_modifier: bool,
+    /// When the next autosave is due (see `autosave`).
+    autosave: crate::autosave::AutosaveClock,
     /// Node named by `--node` at launch, applied once the window has a size.
     pending_node: Option<String>,
     /// Where the window has been, for Back and Forward.
