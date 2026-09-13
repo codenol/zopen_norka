@@ -83,3 +83,4 @@ packages/.toolchain/
 
 # Local toolchain downloads (binaryen etc.) — machine-specific, multi-MB.
 .tools/
+.norka-docs/

@@ -718,6 +718,9 @@ pub fn handle_web_canvas_request(
         ("GET", op_editor_core::collab_routes::STATE) => collab_routes::state(state),
         ("POST", op_editor_core::collab_routes::ACTION) => collab_routes::action(body, state),
         ("POST", op_editor_core::collab_routes::PRESENCE) => collab_routes::presence(body, state),
+        // `/api/files*` carries a key in the path, so it is matched by prefix
+        // rather than by the exact-path arms above (§ files_routes).
+        _ if path.starts_with("/api/files") => files_routes::handle(method, path, body, state),
         _ => not_found_reply(),
     }
 }
@@ -751,6 +754,7 @@ pub(crate) mod collab_state;
 mod connect_routes;
 mod connection;
 mod connection_ai_routes;
+mod files_routes;
 mod doc_routes;
 mod export_routes;
 mod hub_verifier;

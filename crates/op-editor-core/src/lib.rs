@@ -71,6 +71,7 @@ pub mod conversion;
 pub mod design_md;
 pub mod design_md_button_state;
 pub mod design_rules;
+pub mod route;
 pub mod design_rules_policy;
 pub mod design_rules_ui;
 pub mod document_install;
@@ -364,7 +365,7 @@ pub use edit_transaction::{
     CompletedLocalEdit, EditOrigin, LocalEditCapture, LocalEditError, LocalEditOutcome,
 };
 pub use editor_ui_state::{
-    AssetCenterTab, AssetsHit, AssetsPanelState, BooleanOp, CloneField, CloneFormState,
+    AppScreen, AssetCenterTab, AssetsHit, AssetsPanelState, BooleanOp, CloneField, CloneFormState,
     CommitDiffPatch, CommitDiffSummary, CommitDiffView, CompositingPickerTarget, CustomPrompt,
     DesignMdPanelState, DesignMdRequest, EditorUiState, EmbedHost, ExportFormat, FileAction,
     FillType, FlexLayout, FontPickerPurpose, GitBranchPickerMode, GitCandidateFile,
@@ -373,6 +374,7 @@ pub use editor_ui_state::{
     Locale, MergeConflictRow, MergeResolveFile, MergeResolveState, MissingFontSurface,
     PaddingEditMode, PageRenameState, PencilCursorStyle, PreviewDeviceKind, PreviewState,
     PromptCenterFocus, PromptCenterState, PromptFilter, PropertyTab, RecentFile, SceneFilter,
+    ServerFile, SERVER_FILE_CAP,
     SceneTemplateCenterState, SceneTemplateFocus, SizeToggleState, SlidesDrag, SlidesPanelState,
     SlidesPanelTarget, StyleImportState, ThemeMode, UpdateStatus, VariableRowFocus,
     WindowControlRequest,

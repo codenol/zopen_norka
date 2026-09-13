@@ -45,6 +45,7 @@ mod agent_indicator_sync;
 // animation-deadline scheduler of its own).
 #[cfg(feature = "canvaskit")]
 mod build_stamp_pump;
+mod route_sync;
 mod tooltip_pump;
 // Daemon device-login relay (action drain + login-status poll + popup).
 #[cfg(feature = "canvaskit")]

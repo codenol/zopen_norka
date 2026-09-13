@@ -181,6 +181,26 @@ pub struct RecentFile {
     pub modified_at: u64,
 }
 
+
+/// One server-side document, as the file browser shows it.
+///
+/// A trimmed projection of the daemon's index row: enough to paint a card and
+/// open it, with nothing that only the server can act on.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ServerFile {
+    pub key: String,
+    pub name: String,
+    /// Unix seconds.
+    pub updated_at: u64,
+    pub size: u64,
+}
+
+/// Maximum rows the browser paints at once.
+///
+/// The list is a screen, not a table: more than this and the answer is a
+/// search, not a scroll.
+pub const SERVER_FILE_CAP: usize = 60;
+
 /// Maximum number of recent files shown in the File menu.
 pub const RECENT_FILE_CAP: usize = 10;
 

@@ -472,6 +472,18 @@ impl WidgetHost {
         self.wall_now_secs = secs;
     }
 
+    /// Switch the app between the editor and the file browser.
+    ///
+    /// Returns whether anything changed, so the caller can decide to repaint.
+    pub fn set_screen(&mut self, screen: op_editor_core::AppScreen) -> bool {
+        if self.editor_state.editor_ui.screen == screen {
+            return false;
+        }
+        self.editor_state.editor_ui.screen = screen;
+        self.mark_editor_state_dirty();
+        true
+    }
+
     /// Frame clock (performance.now).
     pub fn now_ms(&self) -> u64 {
         self.now_ms

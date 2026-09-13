@@ -296,7 +296,15 @@ fn signed_in_account(payload: &serde_json::Value) -> AccountState {
 }
 
 fn drain_actions<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str) {
-    let actions = inner.borrow_mut().host_mut().take_pending_auth_actions();
+    // `try_borrow_mut`, not `borrow_mut`: this runs from the frame, where the
+    // shell may legitimately be borrowed by an event in flight. The panic that
+    // `borrow_mut` raised here ("already mutably borrowed") killed the whole
+    // wasm instance — after it, nothing on the page updated again.
+    let Ok(mut borrowed) = inner.try_borrow_mut() else {
+        return;
+    };
+    let actions = borrowed.host_mut().take_pending_auth_actions();
+    drop(borrowed);
     for action in actions {
         let path = match action {
             PendingAuthAction::CancelLogin => {
@@ -318,7 +326,12 @@ fn maybe_poll_login<C: RepaintContext + 'static>(
     cells: &FlowCells,
 ) {
     {
-        let b = inner.borrow();
+        // Soft borrow: this runs from the frame, and an event in flight may
+        // hold the shell. A hard borrow here panicked and took the whole wasm
+        // instance with it (nothing on the page updated afterwards).
+        let Ok(b) = inner.try_borrow() else {
+            return;
+        };
         let ui = &b.host().editor_state().editor_ui;
         let flow_active = ui.login_modal_open && ui.login_modal_status.is_some();
         // While the begin POST is in flight the daemon may not have the

@@ -38,8 +38,33 @@ use std::collections::HashSet;
 /// drafts, pen-tool path, color picker, text-edit drafts, variable
 /// caches, active page index) lives on [`crate::ui_draft::UiDraftState`]
 /// and is not duplicated here.
+/// Which screen the app is showing.
+///
+/// The editor is one screen of the product, not the whole of it: the file
+/// browser is a screen of its own, reached by `/files` and left by opening a
+/// document (see `crate::route`). Keeping it as state rather than as a modal
+/// flag means the address, the window title and the paint all read the same
+/// answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AppScreen {
+    #[default]
+    Editor,
+    Files,
+}
+
 #[derive(Debug, Clone)]
 pub struct EditorUiState {
+    /// Which screen is showing (`/files` vs the editor).
+    pub screen: AppScreen,
+    /// Server documents, newest first — what `/files` paints.
+    pub server_files: Vec<crate::editor_ui_state::chrome::ServerFile>,
+    /// Whether a list request is in flight (the screen shows a spinner line
+    /// instead of "no files yet", which would be a lie while loading).
+    pub server_files_loading: bool,
+    /// Set when the last list request failed, so the screen can say so.
+    pub server_files_error: Option<String>,
+    /// Search text on the file screen.
+    pub server_files_query: String,
     /// Wall clock in Unix milliseconds, refreshed by the host each frame.
     ///
     /// The chrome needs real time for exactly one thing: telling how old the
@@ -124,6 +149,11 @@ pub struct EditorUiState {
     pub recent_files: Vec<RecentFile>,
     /// TopBar display name; `None` = "Untitled".
     pub file_name_display: Option<String>,
+    /// Server-side key of the open document, when it has one.
+    ///
+    /// It is what the address bar names (`/f/<key>`) and what Save writes
+    /// back to; `None` for a document that was never stored on the server.
+    pub file_key: Option<String>,
     /// Derived from `EditorState::revision != saved_revision`; painted
     /// by the TopBar only, never serialized.
     pub document_dirty: bool,

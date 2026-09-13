@@ -1,8 +1,8 @@
 //! Public re-exports for the `editor_ui_state` spine.
 
 pub use super::chrome::{
-    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ThemeMode,
-    ThemePresetIo, UpdateStatus, WindowControlRequest, RECENT_FILE_CAP,
+    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ServerFile, ThemeMode,
+    ThemePresetIo, UpdateStatus, WindowControlRequest, RECENT_FILE_CAP, SERVER_FILE_CAP,
 };
 pub use super::git_panel::{
     CloneField, CloneFormState, CommitDiffPatch, CommitDiffSummary, CommitDiffView,

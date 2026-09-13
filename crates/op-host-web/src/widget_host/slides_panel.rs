@@ -334,6 +334,18 @@ impl WidgetHost {
         }
     }
 
+    /// Frame one node in the canvas region. Camera only.
+    ///
+    /// The same body as `frame_slide_board`, exposed for routing: a link that
+    /// names a node should land on that node (§ `crate::route_sync`).
+    pub fn reveal_node(&mut self, node_id: &str, viewport_w: f32, viewport_h: f32) -> bool {
+        if node_id.is_empty() {
+            return false;
+        }
+        self.frame_slide_board(node_id, viewport_w, viewport_h);
+        true
+    }
+
     /// Frame one board in the canvas region. Camera only.
     fn frame_slide_board(&mut self, board_id: &str, viewport_w: f32, viewport_h: f32) {
         self.refresh_layout_scene();
