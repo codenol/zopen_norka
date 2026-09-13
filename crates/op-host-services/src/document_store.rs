@@ -207,6 +207,48 @@ pub fn create(
     Ok(entry)
 }
 
+/// File recording which document was last open, so a restart returns to it.
+const LAST_DOCUMENT_FILE: &str = "last.json";
+
+/// Remember `key` as the document to reopen next time.
+///
+/// The daemon holds one document at a time, so "last open" is a single key,
+/// not a session list. Written on every successful open and create.
+pub fn remember_last(dir: &Path, key: &str) -> Result<(), DocumentStoreError> {
+    if !key_is_valid(key) {
+        return Err(DocumentStoreError::InvalidKey);
+    }
+    let Some(entry) = list(dir)?.into_iter().find(|entry| entry.key == key) else {
+        return Err(DocumentStoreError::NotFound);
+    };
+    std::fs::create_dir_all(dir)
+        .map_err(|error| DocumentStoreError::Io(format!("create {}: {error}", dir.display())))?;
+    let raw = serde_json::to_string_pretty(&entry)
+        .map_err(|error| DocumentStoreError::Io(format!("serialize last: {error}")))?;
+    let tmp = dir.join("last.json.tmp");
+    {
+        let mut file = std::fs::File::create(&tmp)
+            .map_err(|error| DocumentStoreError::Io(format!("create last: {error}")))?;
+        file.write_all(raw.as_bytes())
+            .map_err(|error| DocumentStoreError::Io(format!("write last: {error}")))?;
+    }
+    std::fs::rename(&tmp, dir.join(LAST_DOCUMENT_FILE))
+        .map_err(|error| DocumentStoreError::Io(format!("replace last: {error}")))
+}
+
+/// The document to reopen on startup, when it still exists.
+///
+/// Returns `None` for a missing or unreadable record, and for a record whose
+/// document has since been deleted — the caller falls back to a fresh
+/// document rather than failing to start.
+pub fn last_document(dir: &Path) -> Option<DocumentEntry> {
+    let raw = std::fs::read_to_string(dir.join(LAST_DOCUMENT_FILE)).ok()?;
+    let entry: DocumentEntry = serde_json::from_str(&raw).ok()?;
+    // The record is only as good as the file it names.
+    document_path(dir, &entry.key).ok().filter(|path| path.exists())?;
+    Some(entry)
+}
+
 /// Where a key's thumbnail lives, when one has been rendered.
 pub fn thumb_path(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> {
     if !key_is_valid(key) {
