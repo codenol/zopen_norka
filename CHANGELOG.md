@@ -47,6 +47,17 @@ here at a glance.
 
 ### Fixed
 
+- **The stored-document routes now clear the same gates as the local ones.**
+  `POST /api/files/<key>/save` (the route the browser and autosave actually
+  use) installs the document it wrote — a whole-document swap — but never
+  asked the collaboration policy, so a guest could write through it while the
+  same write through `/api/file/save` was refused. It now clears the same gate.
+- **Online deployments refuse the document routes.** `documents_dir()` has no
+  tenant dimension, so in a shared process one account's list, preview, save or
+  delete addresses every other account's files. `/api/files/*` and
+  `/api/recovery*` are refused in online mode exactly as the local-path routes
+  already were; a per-tenant store is the real fix and belongs with #10.
+
 - **Edits reached the daemon again.** The sync channel refused documents over
   2 MiB, and an ordinary kit-backed screen is ~3.4 MiB, so *every* real
   document silently stopped syncing: the daemon kept an old copy and Save wrote

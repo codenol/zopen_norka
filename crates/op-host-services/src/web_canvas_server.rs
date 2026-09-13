@@ -718,6 +718,19 @@ pub fn handle_web_canvas_request(
         ("GET", op_editor_core::collab_routes::STATE) => collab_routes::state(state),
         ("POST", op_editor_core::collab_routes::ACTION) => collab_routes::action(body, state),
         ("POST", op_editor_core::collab_routes::PRESENCE) => collab_routes::presence(body, state),
+        // Every stored-document route reads and writes a directory that
+        // belongs to the daemon process, not to the caller: `documents_dir()`
+        // has no tenant dimension, so in a shared deployment one account's
+        // list, preview, save or delete would address every other account's
+        // files. Refused before the handler, exactly as the local-path routes
+        // are — a per-tenant store is the real fix and it belongs with the
+        // roles work (#10, #20).
+        _ if path.starts_with("/api/files") && !state.mode.allows_local_file_routes() => {
+            online_policy::refusal_reply(online_policy::OnlineRouteRefusal::LocalFileAccess)
+        }
+        _ if path.starts_with("/api/recovery") && !state.mode.allows_local_file_routes() => {
+            online_policy::refusal_reply(online_policy::OnlineRouteRefusal::LocalFileAccess)
+        }
         // `/api/files*` carries a key in the path, so it is matched by prefix
         // rather than by the exact-path arms above (§ files_routes).
         _ if path.starts_with("/api/files") => files_routes::handle(method, path, body, state),
