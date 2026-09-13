@@ -301,6 +301,24 @@ fn save_document(
     key: &str,
     kind: WriteKind,
 ) -> WebReply {
+    // A save installs the document it wrote, which is a whole-document swap —
+    // the same gate the local-path save clears. Without it a guest in a shared
+    // session could write the document through this route while the same write
+    // through `/api/file/save` would be refused.
+    if let Err(refusal) = state.gate_daemon_mutation(
+        op_editor_core::CollabGateAction::ReplaceDocument,
+        op_editor_core::CollabEditSource::ExternalSync,
+    ) {
+        return WebReply {
+            status: refusal.http_status(),
+            body: serde_json::json!({
+                "ok": false,
+                "error": refusal.code(),
+                "message": refusal.to_string(),
+            })
+            .to_string(),
+        };
+    }
     let path = match document_store::path_for(dir, key) {
         Ok(path) => path,
         Err(error) => return store_error_reply(error),
