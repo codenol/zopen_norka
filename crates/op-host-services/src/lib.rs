@@ -34,7 +34,6 @@ pub mod chat_copilot;
 pub mod chat_grok_stream;
 pub mod chat_http_server;
 pub mod chat_intent;
-pub mod document_store;
 pub mod chat_provider_llm;
 pub mod chat_runtime;
 pub mod chat_spawn;
@@ -71,6 +70,12 @@ pub mod design_md_llm;
 pub mod design_md_llm_error;
 pub mod design_session;
 pub mod doc_io;
+/// The document index in SQLite. Crate-internal for now: `document_store` is
+/// the API the routes use, and this is where the rows live.
+pub(crate) mod document_db;
+pub mod document_store;
+#[cfg(test)]
+mod document_test_dir;
 pub mod export;
 pub mod export_batch;
 pub mod export_html;

@@ -248,10 +248,27 @@ pub(super) fn startup_editor_from_base_for_web_canvas(
 }
 
 /// Reopen the document the daemon had open, when there is one to reopen.
+///
+/// This is also the daemon's start-up open of the document database — the one
+/// place that runs the schema migration and the one-time import of the legacy
+/// `index.json` before any request arrives.
 fn restore_last_document(base: &EditorState) -> Option<EditorState> {
     let dir = crate::document_store::documents_dir();
-    let entry = crate::document_store::last_document(&dir)?;
-    let path = crate::document_store::path_for(&dir, &entry.key).ok()?;
+    let store = match crate::document_db::DocumentDb::open(&dir) {
+        Ok(store) => store,
+        // Not fatal: the daemon opens on a fresh document, exactly as it does
+        // when nothing was remembered. Said out loud because "my document did
+        // not come back" is otherwise indistinguishable from "there was none".
+        Err(error) => {
+            eprintln!(
+                "openpencil --serve-web: {} is unusable, starting fresh: {error}",
+                dir.display()
+            );
+            return None;
+        }
+    };
+    let entry = crate::document_store::last_document(&store)?;
+    let path = crate::document_store::path_for(store.dir(), &entry.key).ok()?;
     let mut next = crate::mcp_serve::load_editor_state(&path).ok()?;
     preserve_web_canvas_preferences(base, &mut next);
     op_pen_loader::ensure_skala_session(&mut next);

@@ -12,6 +12,22 @@ here at a glance.
 
 ### Added
 
+- **The daemon's document list lives in SQLite.** The accounting behind the
+  file list — name, timestamps, size, whether a preview exists — was one
+  `index.json` rewritten whole on every change, so a save cost more as the
+  folder filled, a crash between the temp file and the rename lost everything
+  since the previous good write, and a flat array had nowhere to put the
+  relations the next steps ask for. It is now one row per document in
+  `documents.db`, beside the `.op` files. From the outside nothing moves: same
+  routes, same answers, same order.
+
+  The old files are not touched. `index.json` is read once at the first open —
+  its rows land in the database with no owner — and kept, because it is the
+  only record of what the folder held before; `last.json` is read the same way,
+  so an upgrade still reopens the document that was open. A file that will not
+  parse leaves that import unfinished and records why, instead of failing the
+  start or throwing the history away.
+
 - **The daemon asks who is calling before it touches a stored document.** A
   request now carries what the answer needs — the deployment mode, the
   document's owner, the caller's verified identity with its roles, and whether

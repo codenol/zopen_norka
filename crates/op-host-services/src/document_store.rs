@@ -1,18 +1,28 @@
-//! Server-side documents: a directory, an index, and short keys.
+//! Server-side documents: a directory of `.op` files, a SQLite index, and short
+//! keys.
 //!
 //! The browser has no filesystem, so "the file" has to live somewhere the
-//! daemon can reach. This is that somewhere: one `.op` per document plus an
-//! `index.json` that carries what a file list needs (name, timestamps, size)
-//! without opening every document.
+//! daemon can reach. This is that somewhere: one `.op` per document, one
+//! `.thumb.png` preview beside it, one `recovery.op` draft for work that has no
+//! document yet — and the accounting (name, owner, timestamps, size, thumbnail
+//! flag) in a SQLite database owned by `crate::document_db`.
+//!
+//! This module is the rules, not the storage: it validates keys, decides where
+//! a file lives, refuses a write to a document that is not there, and hands the
+//! row work to the database. Nothing here reads `index.json` any more. The two
+//! JSON files the accounting used to live in (`index.json`, `last.json`) are
+//! still on disk, untouched: they are the record of what this directory held
+//! before the move, and the database imported them once.
 //!
 //! Keys are short, opaque and validated before they touch a path. The address
 //! bar shows them (`/f/<key>`), people paste them into chat, so they must be
 //! safe to hand around — which is also why nothing here trusts a key that did
 //! not come out of [`new_key`].
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::document_db::{self, DocumentDb};
 
 /// Environment variable naming the documents directory, for tests and for a
 /// deployment that wants documents on another volume.
@@ -22,6 +32,19 @@ pub const DOCUMENTS_DIR_ENV: &str = "NORKA_DOCUMENTS_DIR";
 const MAX_KEY_LEN: usize = 32;
 /// Shortest key accepted — short enough for a URL, long enough not to collide.
 const MIN_KEY_LEN: usize = 8;
+
+/// Name a document gets when whoever made it did not give one.
+const DEFAULT_NAME: &str = "Untitled";
+
+/// The JSON index this store used before the database did the accounting.
+///
+/// Never deleted and never renamed: it is the only record of what the documents
+/// directory held before the move, and `crate::document_db` reads it once.
+pub(crate) const INDEX_FILE: &str = "index.json";
+
+/// The single-key "which document was open" record, replaced by the database's
+/// `last_opened` table and likewise left where it is.
+pub(crate) const LAST_DOCUMENT_FILE: &str = "last.json";
 
 /// One document as the file list sees it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -44,8 +67,10 @@ pub enum DocumentStoreError {
     InvalidKey,
     /// No document carries that key.
     NotFound,
-    /// The index exists but cannot be read as one.
-    CorruptIndex(String),
+    /// The database could not be opened, read or written. Carries what SQLite
+    /// said, which is the only part a reader can act on.
+    Database(String),
+    /// A file beside the database could not be read, created or removed.
     Io(String),
 }
 
@@ -54,7 +79,7 @@ impl std::fmt::Display for DocumentStoreError {
         match self {
             Self::InvalidKey => write!(f, "invalid document key"),
             Self::NotFound => write!(f, "document not found"),
-            Self::CorruptIndex(detail) => write!(f, "document index unreadable: {detail}"),
+            Self::Database(detail) => write!(f, "document database: {detail}"),
             Self::Io(detail) => write!(f, "{detail}"),
         }
     }
@@ -71,7 +96,9 @@ pub fn documents_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os(DOCUMENTS_DIR_ENV).filter(|dir| !dir.is_empty()) {
         return PathBuf::from(dir);
     }
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
     home.join(".norka").join("files")
 }
 
@@ -133,107 +160,125 @@ fn document_path(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> {
     Ok(dir.join(format!("{key}.op")))
 }
 
-fn index_path(dir: &Path) -> PathBuf {
-    dir.join("index.json")
-}
-
-fn now_secs() -> u64 {
+pub(crate) fn now_secs() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
 
-/// Read the index, treating a missing file as an empty store.
-pub fn list(dir: &Path) -> Result<Vec<DocumentEntry>, DocumentStoreError> {
-    let path = index_path(dir);
-    let raw = match std::fs::read_to_string(&path) {
-        Ok(raw) => raw,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(error) => return Err(DocumentStoreError::Io(format!("read index: {error}"))),
-    };
-    let mut entries: Vec<DocumentEntry> = serde_json::from_str(&raw)
-        .map_err(|error| DocumentStoreError::CorruptIndex(error.to_string()))?;
-    // Most recently touched first: the file list is a recency list.
-    entries.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then(b.key.cmp(&a.key)));
-    Ok(entries)
-}
-
-fn write_index(dir: &Path, entries: &[DocumentEntry]) -> Result<(), DocumentStoreError> {
-    std::fs::create_dir_all(dir)
-        .map_err(|error| DocumentStoreError::Io(format!("create {}: {error}", dir.display())))?;
-    let raw = serde_json::to_string_pretty(entries)
-        .map_err(|error| DocumentStoreError::Io(format!("serialize index: {error}")))?;
-    // Write-then-rename: a crash mid-write must not leave a half index, and
-    // readers never observe a partial file because rename is atomic.
-    let tmp = dir.join("index.json.tmp");
-    {
-        let mut file = std::fs::File::create(&tmp)
-            .map_err(|error| DocumentStoreError::Io(format!("create index: {error}")))?;
-        file.write_all(raw.as_bytes())
-            .map_err(|error| DocumentStoreError::Io(format!("write index: {error}")))?;
-    }
-    std::fs::rename(&tmp, index_path(dir))
-        .map_err(|error| DocumentStoreError::Io(format!("replace index: {error}")))
-}
-
-fn entry_for(key: &str, name: &str, created_at: u64, updated_at: u64) -> DocumentEntry {
+fn entry_for(key: &str, name: &str, created_at: u64, updated_at: u64, size: u64) -> DocumentEntry {
     DocumentEntry {
         key: key.to_string(),
         name: name.to_string(),
         created_at,
         updated_at,
-        size: 0,
+        size,
         has_thumbnail: false,
     }
 }
 
-/// Register a new document and write its first bytes.
-pub fn create(
-    dir: &Path,
+/// Where a key's document lives on disk.
+///
+/// Still a function of the directory rather than of the store: the callers that
+/// need a path (the document loader, the raster exporter) want the path, and
+/// resolving it through the database would only add a query to say what the key
+/// already says.
+pub fn path_for(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> {
+    document_path(dir, key)
+}
+
+/// The file list, most recently touched first.
+pub fn list(db: &DocumentDb) -> Result<Vec<DocumentEntry>, DocumentStoreError> {
+    document_db::list_entries(db)
+}
+
+/// Register a new document whose bytes someone else writes.
+///
+/// The daemon serializes a document straight to its path (the same writer the
+/// desktop Save uses), so the store hands out the key and the path rather than
+/// copying bytes through itself. The row follows the file: a create that fails
+/// to write leaves nothing in the list.
+pub fn create_with<F>(
+    db: &DocumentDb,
     name: Option<&str>,
-    bytes: &[u8],
-) -> Result<DocumentEntry, DocumentStoreError> {
+    write: F,
+) -> Result<DocumentEntry, DocumentStoreError>
+where
+    F: FnOnce(&Path) -> Result<(), DocumentStoreError>,
+{
+    let dir = db.dir();
     std::fs::create_dir_all(dir)
         .map_err(|error| DocumentStoreError::Io(format!("create {}: {error}", dir.display())))?;
     let key = new_key();
-    write_document(dir, &key, bytes)?;
+    let path = document_path(dir, &key)?;
+    write(&path)?;
+    let size = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
     let now = now_secs();
-    let mut entries = list(dir)?;
-    let mut entry = entry_for(&key, name.unwrap_or("Untitled"), now, now);
-    entry.size = bytes.len() as u64;
-    entries.insert(0, entry.clone());
-    write_index(dir, &entries)?;
+    let entry = entry_for(&key, name.unwrap_or(DEFAULT_NAME), now, now, size);
+    document_db::insert_entry(db, &entry)?;
     Ok(entry)
 }
 
-/// File recording which document was last open, so a restart returns to it.
-const LAST_DOCUMENT_FILE: &str = "last.json";
+/// Refresh an existing document's size and timestamp after a save.
+///
+/// The file decides whether the document exists — the row follows it, and a row
+/// for a document whose file is gone is exactly what this repairs.
+pub fn touch(db: &DocumentDb, key: &str) -> Result<DocumentEntry, DocumentStoreError> {
+    let path = document_path(db.dir(), key)?;
+    if !path.exists() {
+        return Err(DocumentStoreError::NotFound);
+    }
+    let size = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
+    document_db::touch_entry(db, key, now_secs(), size, DEFAULT_NAME)
+}
+
+/// Rename a document — the key, and so the address, stays put.
+pub fn rename(db: &DocumentDb, key: &str, name: &str) -> Result<DocumentEntry, DocumentStoreError> {
+    let path = document_path(db.dir(), key)?;
+    if !path.exists() {
+        return Err(DocumentStoreError::NotFound);
+    }
+    document_db::rename_entry(db, key, name, now_secs())?.ok_or(DocumentStoreError::NotFound)
+}
+
+/// Remove a document, its row, and whatever pointed at it.
+///
+/// The last-opened pointer follows the row out through the schema's foreign key
+/// (see `crate::document_db`), so a delete cannot leave the daemon coming back
+/// to a document that is gone.
+pub fn delete(db: &DocumentDb, key: &str) -> Result<(), DocumentStoreError> {
+    let path = document_path(db.dir(), key)?;
+    match std::fs::remove_file(&path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Err(DocumentStoreError::NotFound)
+        }
+        Err(error) => {
+            return Err(DocumentStoreError::Io(format!(
+                "remove {}: {error}",
+                path.display()
+            )))
+        }
+    }
+    document_db::delete_entry(db, key)?;
+    Ok(())
+}
 
 /// Remember `key` as the document to reopen next time.
 ///
-/// The daemon holds one document at a time, so "last open" is a single key,
-/// not a session list. Written on every successful open and create.
-pub fn remember_last(dir: &Path, key: &str) -> Result<(), DocumentStoreError> {
+/// The daemon holds one document at a time, so "last open" is a single key per
+/// operator, not a session list. Written on every successful open and create.
+pub fn remember_last(db: &DocumentDb, key: &str) -> Result<(), DocumentStoreError> {
     if !key_is_valid(key) {
         return Err(DocumentStoreError::InvalidKey);
     }
-    let Some(entry) = list(dir)?.into_iter().find(|entry| entry.key == key) else {
+    // A key no document carries is not a thing to reopen: refusing here is what
+    // keeps a start-up from pointing at nothing.
+    if document_db::find_entry(db, key)?.is_none() {
         return Err(DocumentStoreError::NotFound);
-    };
-    std::fs::create_dir_all(dir)
-        .map_err(|error| DocumentStoreError::Io(format!("create {}: {error}", dir.display())))?;
-    let raw = serde_json::to_string_pretty(&entry)
-        .map_err(|error| DocumentStoreError::Io(format!("serialize last: {error}")))?;
-    let tmp = dir.join("last.json.tmp");
-    {
-        let mut file = std::fs::File::create(&tmp)
-            .map_err(|error| DocumentStoreError::Io(format!("create last: {error}")))?;
-        file.write_all(raw.as_bytes())
-            .map_err(|error| DocumentStoreError::Io(format!("write last: {error}")))?;
     }
-    std::fs::rename(&tmp, dir.join(LAST_DOCUMENT_FILE))
-        .map_err(|error| DocumentStoreError::Io(format!("replace last: {error}")))
+    document_db::remember_last_opened(db, document_db::LOCAL_OWNER, key)
 }
 
 /// The document to reopen on startup, when it still exists.
@@ -241,11 +286,12 @@ pub fn remember_last(dir: &Path, key: &str) -> Result<(), DocumentStoreError> {
 /// Returns `None` for a missing or unreadable record, and for a record whose
 /// document has since been deleted — the caller falls back to a fresh
 /// document rather than failing to start.
-pub fn last_document(dir: &Path) -> Option<DocumentEntry> {
-    let raw = std::fs::read_to_string(dir.join(LAST_DOCUMENT_FILE)).ok()?;
-    let entry: DocumentEntry = serde_json::from_str(&raw).ok()?;
+pub fn last_document(db: &DocumentDb) -> Option<DocumentEntry> {
+    let entry = document_db::last_entry(db, document_db::LOCAL_OWNER).ok()??;
     // The record is only as good as the file it names.
-    document_path(dir, &entry.key).ok().filter(|path| path.exists())?;
+    path_for(db.dir(), &entry.key)
+        .ok()
+        .filter(|path| path.exists())?;
     Some(entry)
 }
 
@@ -302,289 +348,14 @@ pub fn thumb_path(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> 
 }
 
 /// Record that a thumbnail now exists for `key`.
-pub fn note_thumbnail(dir: &Path, key: &str, exists: bool) -> Result<(), DocumentStoreError> {
-    let mut entries = list(dir)?;
-    let Some(entry) = entries.iter_mut().find(|entry| entry.key == key) else {
-        return Err(DocumentStoreError::NotFound);
-    };
-    if entry.has_thumbnail == exists {
-        return Ok(());
+pub fn note_thumbnail(db: &DocumentDb, key: &str, exists: bool) -> Result<(), DocumentStoreError> {
+    if document_db::set_thumbnail(db, key, exists)? {
+        Ok(())
+    } else {
+        Err(DocumentStoreError::NotFound)
     }
-    entry.has_thumbnail = exists;
-    write_index(dir, &entries)
-}
-
-/// Where a key's document lives on disk.
-pub fn path_for(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> {
-    document_path(dir, key)
-}
-
-/// Register a new document whose bytes someone else writes.
-///
-/// The daemon serializes a document straight to its path (the same writer the
-/// desktop Save uses), so the store hands out the key and the path rather
-/// than copying bytes through itself.
-pub fn create_with<F>(
-    dir: &Path,
-    name: Option<&str>,
-    write: F,
-) -> Result<DocumentEntry, DocumentStoreError>
-where
-    F: FnOnce(&Path) -> Result<(), DocumentStoreError>,
-{
-    std::fs::create_dir_all(dir)
-        .map_err(|error| DocumentStoreError::Io(format!("create {}: {error}", dir.display())))?;
-    let key = new_key();
-    let path = document_path(dir, &key)?;
-    write(&path)?;
-    let size = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
-    let now = now_secs();
-    let mut entries = list(dir)?;
-    let mut entry = entry_for(&key, name.unwrap_or("Untitled"), now, now);
-    entry.size = size;
-    entries.insert(0, entry.clone());
-    write_index(dir, &entries)?;
-    Ok(entry)
-}
-
-/// Refresh an existing document's size and timestamp after a save.
-pub fn touch(dir: &Path, key: &str) -> Result<DocumentEntry, DocumentStoreError> {
-    if !document_path(dir, key)?.exists() {
-        return Err(DocumentStoreError::NotFound);
-    }
-    let size = std::fs::metadata(document_path(dir, key)?)
-        .map(|meta| meta.len())
-        .unwrap_or(0);
-    let mut entries = list(dir)?;
-    let now = now_secs();
-    let position = entries.iter().position(|entry| entry.key == key);
-    let mut entry = match position {
-        Some(index) => entries.remove(index),
-        None => entry_for(key, "Untitled", now, now),
-    };
-    entry.updated_at = now;
-    entry.size = size;
-    entries.insert(0, entry.clone());
-    write_index(dir, &entries)?;
-    Ok(entry)
-}
-
-/// Write a document's bytes, creating it when the file is missing.
-pub fn write_document(dir: &Path, key: &str, bytes: &[u8]) -> Result<(), DocumentStoreError> {
-    let path = document_path(dir, key)?;
-    std::fs::create_dir_all(dir)
-        .map_err(|error| DocumentStoreError::Io(format!("create {}: {error}", dir.display())))?;
-    std::fs::write(&path, bytes)
-        .map_err(|error| DocumentStoreError::Io(format!("write {}: {error}", path.display())))
-}
-
-/// Read a document's bytes.
-pub fn read_document(dir: &Path, key: &str) -> Result<Vec<u8>, DocumentStoreError> {
-    let path = document_path(dir, key)?;
-    match std::fs::read(&path) {
-        Ok(bytes) => Ok(bytes),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            Err(DocumentStoreError::NotFound)
-        }
-        Err(error) => Err(DocumentStoreError::Io(format!("read {}: {error}", path.display()))),
-    }
-}
-
-/// Replace an existing document's bytes and refresh its index entry.
-pub fn save(
-    dir: &Path,
-    key: &str,
-    name: Option<&str>,
-    bytes: &[u8],
-) -> Result<DocumentEntry, DocumentStoreError> {
-    if !document_path(dir, key)?.exists() {
-        return Err(DocumentStoreError::NotFound);
-    }
-    write_document(dir, key, bytes)?;
-    let mut entries = list(dir)?;
-    let now = now_secs();
-    let position = entries.iter().position(|entry| entry.key == key);
-    let mut entry = match position {
-        Some(index) => entries.remove(index),
-        None => entry_for(key, name.unwrap_or("Untitled"), now, now),
-    };
-    entry.updated_at = now;
-    entry.size = bytes.len() as u64;
-    if let Some(name) = name {
-        entry.name = name.to_string();
-    }
-    entries.insert(0, entry.clone());
-    write_index(dir, &entries)?;
-    Ok(entry)
-}
-
-/// Remove a document and its index entry.
-pub fn delete(dir: &Path, key: &str) -> Result<(), DocumentStoreError> {
-    let path = document_path(dir, key)?;
-    match std::fs::remove_file(&path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Err(DocumentStoreError::NotFound)
-        }
-        Err(error) => return Err(DocumentStoreError::Io(format!("remove {}: {error}", path.display()))),
-    }
-    let entries: Vec<DocumentEntry> = list(dir)?
-        .into_iter()
-        .filter(|entry| entry.key != key)
-        .collect();
-    write_index(dir, &entries)
-}
-
-/// Rename a document — the key, and so the address, stays put.
-pub fn rename(dir: &Path, key: &str, name: &str) -> Result<DocumentEntry, DocumentStoreError> {
-    if !document_path(dir, key)?.exists() {
-        return Err(DocumentStoreError::NotFound);
-    }
-    let mut entries = list(dir)?;
-    let Some(position) = entries.iter().position(|entry| entry.key == key) else {
-        return Err(DocumentStoreError::NotFound);
-    };
-    entries[position].name = name.to_string();
-    entries[position].updated_at = now_secs();
-    let entry = entries[position].clone();
-    write_index(dir, &entries)?;
-    Ok(entry)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct TempDir(PathBuf);
-
-    impl TempDir {
-        fn new(tag: &str) -> Self {
-            let path = std::env::temp_dir().join(format!(
-                "norka-store-{tag}-{}-{}",
-                std::process::id(),
-                new_key()
-            ));
-            std::fs::create_dir_all(&path).expect("temp dir");
-            Self(path)
-        }
-
-        fn path(&self) -> &Path {
-            &self.0
-        }
-    }
-
-    impl Drop for TempDir {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-
-    #[test]
-    fn a_new_key_is_usable_in_a_path() {
-        let key = new_key();
-        assert!(key_is_valid(&key), "{key}");
-        assert!(!key.contains('/'));
-        assert!(key.len() >= MIN_KEY_LEN && key.len() <= MAX_KEY_LEN);
-    }
-
-    #[test]
-    fn suspicious_keys_are_refused_before_touching_a_path() {
-        for key in ["", "..", "../etc/passwd", "abc/def", ".hidden..", "SHORT", "i-l-o"] {
-            assert!(!key_is_valid(key), "{key} must not be a key");
-            assert_eq!(
-                read_document(Path::new("/tmp"), key),
-                Err(DocumentStoreError::InvalidKey),
-                "{key}"
-            );
-        }
-    }
-
-    #[test]
-    fn create_list_read_and_delete_round_trip() {
-        let dir = TempDir::new("round-trip");
-        let entry = create(dir.path(), Some("Список токенов"), b"first").expect("create");
-        assert_eq!(entry.name, "Список токенов");
-        assert_eq!(entry.size, 5);
-
-        let listed = list(dir.path()).expect("list");
-        assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0].key, entry.key);
-
-        assert_eq!(read_document(dir.path(), &entry.key).expect("read"), b"first");
-
-        delete(dir.path(), &entry.key).expect("delete");
-        assert!(list(dir.path()).expect("list").is_empty());
-        assert_eq!(
-            read_document(dir.path(), &entry.key),
-            Err(DocumentStoreError::NotFound)
-        );
-    }
-
-    #[test]
-    fn saving_refreshes_the_entry_and_keeps_one_row() {
-        let dir = TempDir::new("save");
-        let entry = create(dir.path(), Some("Draft"), b"one").expect("create");
-        let saved = save(dir.path(), &entry.key, None, b"two-longer").expect("save");
-        assert_eq!(saved.key, entry.key);
-        assert_eq!(saved.size, 10);
-        assert_eq!(saved.name, "Draft");
-        let listed = list(dir.path()).expect("list");
-        assert_eq!(listed.len(), 1, "a save must not add a second row");
-        assert_eq!(read_document(dir.path(), &entry.key).expect("read"), b"two-longer");
-    }
-
-    #[test]
-    fn saving_an_unknown_key_is_not_found() {
-        let dir = TempDir::new("save-missing");
-        let key = new_key();
-        assert_eq!(
-            save(dir.path(), &key, None, b"x"),
-            Err(DocumentStoreError::NotFound)
-        );
-    }
-
-    #[test]
-    fn renaming_keeps_the_key_so_links_survive() {
-        let dir = TempDir::new("rename");
-        let entry = create(dir.path(), Some("Before"), b"body").expect("create");
-        let renamed = rename(dir.path(), &entry.key, "After").expect("rename");
-        assert_eq!(renamed.key, entry.key);
-        assert_eq!(renamed.name, "After");
-        assert_eq!(read_document(dir.path(), &entry.key).expect("read"), b"body");
-    }
-
-    #[test]
-    fn the_list_is_most_recent_first() {
-        let dir = TempDir::new("order");
-        let first = create(dir.path(), Some("First"), b"1").expect("create");
-        std::thread::sleep(std::time::Duration::from_millis(1100));
-        let second = create(dir.path(), Some("Second"), b"2").expect("create");
-        let listed = list(dir.path()).expect("list");
-        assert_eq!(listed[0].key, second.key, "the newer document leads");
-        assert_eq!(listed[1].key, first.key);
-    }
-
-    #[test]
-    fn a_missing_index_reads_as_empty_and_a_broken_one_is_reported() {
-        let dir = TempDir::new("index");
-        assert!(list(dir.path()).expect("missing index").is_empty());
-        std::fs::write(index_path(dir.path()), "{ not json").expect("write");
-        assert!(matches!(
-            list(dir.path()),
-            Err(DocumentStoreError::CorruptIndex(_))
-        ));
-    }
-
-    #[test]
-    fn the_directory_can_be_pointed_somewhere_else() {
-        let previous = std::env::var_os(DOCUMENTS_DIR_ENV);
-        // SAFETY: this test owns the variable for its duration; the store is
-        // not read concurrently here.
-        unsafe { std::env::set_var(DOCUMENTS_DIR_ENV, "/tmp/norka-docs-test") };
-        assert_eq!(documents_dir(), PathBuf::from("/tmp/norka-docs-test"));
-        match previous {
-            Some(value) => unsafe { std::env::set_var(DOCUMENTS_DIR_ENV, value) },
-            None => unsafe { std::env::remove_var(DOCUMENTS_DIR_ENV) },
-        }
-    }
-}
+#[path = "document_store_tests.rs"]
+mod tests;

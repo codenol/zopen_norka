@@ -10,6 +10,7 @@
 //! and validated (`document_store::key_is_valid`) before it resolves at all.
 
 use super::*;
+use crate::document_db::DocumentDb;
 use crate::document_store::{self, DocumentStoreError};
 
 /// One file-list row, as the browser sees it.
@@ -28,7 +29,7 @@ fn store_error_reply(error: DocumentStoreError) -> WebReply {
     let status = match error {
         DocumentStoreError::InvalidKey => "400 Bad Request",
         DocumentStoreError::NotFound => "404 Not Found",
-        DocumentStoreError::CorruptIndex(_) | DocumentStoreError::Io(_) => "500 Internal Server Error",
+        DocumentStoreError::Database(_) | DocumentStoreError::Io(_) => "500 Internal Server Error",
     };
     WebReply {
         status,
@@ -90,12 +91,20 @@ fn required_action(method: &str, route: &FilesRoute<'_>) -> Option<DocumentActio
         // browser sends; the parser also accepts `Create`, and both are one
         // action here so they cannot drift apart.
         ("POST", FilesRoute::List | FilesRoute::Create) => Some(DocumentAction::Edit),
-        ("GET", FilesRoute::Document { action: "thumb", .. }) => Some(DocumentAction::View),
+        (
+            "GET",
+            FilesRoute::Document {
+                action: "thumb", ..
+            },
+        ) => Some(DocumentAction::View),
         ("POST", FilesRoute::Document { action: "open", .. }) => Some(DocumentAction::View),
-        ("POST", FilesRoute::Document {
-            action: "save" | "autosave" | "rename",
-            ..
-        }) => Some(DocumentAction::Edit),
+        (
+            "POST",
+            FilesRoute::Document {
+                action: "save" | "autosave" | "rename",
+                ..
+            },
+        ) => Some(DocumentAction::Edit),
         ("DELETE", FilesRoute::Document { action: "", .. }) => Some(DocumentAction::Delete),
         _ => None,
     }
@@ -121,43 +130,66 @@ pub(super) fn handle(
     if let Err(refusal) = access.decide(action) {
         return request_access::refusal_reply(refusal);
     }
-    let dir = document_store::documents_dir();
+    // A key this store could never have issued is refused BEFORE the database
+    // is opened or a directory is created: a pasted URL must not be able to
+    // reach the filesystem, and it must not be able to make the daemon touch
+    // one either.
+    if let FilesRoute::Document { key, .. } = &route {
+        if !document_store::key_is_valid(key) {
+            return store_error_reply(DocumentStoreError::InvalidKey);
+        }
+    }
+    // The store for this daemon's documents directory, opened on this request
+    // and reused by every later one. Opening can fail (an unwritable volume, a
+    // database another process has corrupted), and that is a 500 on the
+    // document routes rather than a panic or a fall back to the file index.
+    let store = match crate::document_db::local_store(&mut state.documents) {
+        Ok(store) => store,
+        Err(error) => return store_error_reply(error),
+    };
+    let dir = store.dir().to_path_buf();
     match (method, route) {
-        ("GET", FilesRoute::List) => match document_store::list(&dir) {
+        ("GET", FilesRoute::List) => match document_store::list(&store) {
             Ok(entries) => ok_json(serde_json::json!({
                 "ok": true,
                 "files": entries.iter().map(entry_json).collect::<Vec<_>>(),
             })),
             Err(error) => store_error_reply(error),
         },
-        ("POST", FilesRoute::List | FilesRoute::Create) => create_document(body, state, &dir),
-        ("GET", FilesRoute::Document { key, action: "thumb" }) => thumbnail(&dir, key),
+        ("POST", FilesRoute::List | FilesRoute::Create) => create_document(body, state, &store),
+        (
+            "GET",
+            FilesRoute::Document {
+                key,
+                action: "thumb",
+            },
+        ) => thumbnail(&dir, key),
         ("POST", FilesRoute::Document { key, action }) => match action {
-            "open" => open_document(state, &dir, key),
-            "save" => save_document(body, state, &dir, key, WriteKind::Explicit),
+            "open" => open_document(state, &store, key),
+            "save" => save_document(body, state, &store, key, WriteKind::Explicit),
             // Autosave is the same write without the preview render: the
             // thumbnail is a 480 px rasterization, and paying for it every few
             // seconds is what would make autosave expensive enough to disable.
-            "autosave" => save_document(body, state, &dir, key, WriteKind::Quiet),
-            "rename" => rename_document(body, &dir, key),
+            "autosave" => save_document(body, state, &store, key, WriteKind::Quiet),
+            "rename" => rename_document(body, &store, key),
             _ => not_found_reply(),
         },
-        ("DELETE", FilesRoute::Document { key, action: "" }) => match document_store::delete(&dir, key)
-        {
-            Ok(()) => {
-                // The preview belongs to the document: leaving it behind would
-                // keep a picture of a file the user deleted.
-                if let Ok(path) = document_store::thumb_path(&dir, key) {
-                    let _ = std::fs::remove_file(path);
+        ("DELETE", FilesRoute::Document { key, action: "" }) => {
+            match document_store::delete(&store, key) {
+                Ok(()) => {
+                    // The preview belongs to the document: leaving it behind
+                    // would keep a picture of a file the user deleted.
+                    if let Ok(path) = document_store::thumb_path(&dir, key) {
+                        let _ = std::fs::remove_file(path);
+                    }
+                    ok_json(serde_json::json!({ "ok": true }))
                 }
-                ok_json(serde_json::json!({ "ok": true }))
+                Err(error) => store_error_reply(error),
             }
-            Err(error) => store_error_reply(error),
-        },
+        }
         _ => not_found_reply(),
     }
 }
-
 
 /// Width a card's preview is rendered at.
 ///
@@ -194,9 +226,9 @@ fn render_thumbnail(state: &WebCanvasState, dir: &std::path::Path, key: &str) ->
 }
 
 /// Keep the stored preview in step with a document that was just written.
-pub(super) fn refresh_thumbnail(state: &WebCanvasState, dir: &std::path::Path, key: &str) {
-    let has = render_thumbnail(state, dir, key);
-    let _ = document_store::note_thumbnail(dir, key, has);
+pub(super) fn refresh_thumbnail(state: &WebCanvasState, store: &DocumentDb, key: &str) {
+    let has = render_thumbnail(state, store.dir(), key);
+    let _ = document_store::note_thumbnail(store, key, has);
 }
 
 /// `GET /api/files/<key>/thumb` — the stored preview, base64 like the export
@@ -218,7 +250,7 @@ fn thumbnail(dir: &std::path::Path, key: &str) -> WebReply {
 }
 
 /// `POST /api/files` — a new document, stored, and opened in the daemon.
-fn create_document(body: &str, state: &mut WebCanvasState, dir: &std::path::Path) -> WebReply {
+fn create_document(body: &str, state: &mut WebCanvasState, store: &DocumentDb) -> WebReply {
     if let Err(refusal) = state.gate_daemon_mutation(
         op_editor_core::CollabGateAction::ReplaceDocument,
         op_editor_core::CollabEditSource::User,
@@ -247,7 +279,7 @@ fn create_document(body: &str, state: &mut WebCanvasState, dir: &std::path::Path
     // here is indistinguishable from one made in the editor.
     let mut next = op_pen_loader::new_skala_editor_state();
     super::preserve_web_canvas_preferences(&state.editor, &mut next);
-    let created = document_store::create_with(dir, name.as_deref(), |path| {
+    let created = document_store::create_with(store, name.as_deref(), |path| {
         crate::doc_io::save_to_path(&next, path)
             .map_err(|error| DocumentStoreError::Io(format!("save {}: {error}", path.display())))
     });
@@ -258,8 +290,8 @@ fn create_document(body: &str, state: &mut WebCanvasState, dir: &std::path::Path
             state.editor = next;
             state.current_path = None;
             state.version += 1;
-            refresh_thumbnail(state, dir, &entry.key);
-            let _ = document_store::remember_last(dir, &entry.key);
+            refresh_thumbnail(state, store, &entry.key);
+            let _ = document_store::remember_last(store, &entry.key);
             ok_json(serde_json::json!({
                 "ok": true,
                 "file": entry_json(&entry),
@@ -271,7 +303,7 @@ fn create_document(body: &str, state: &mut WebCanvasState, dir: &std::path::Path
 }
 
 /// `POST /api/files/<key>/open` — load that document into the daemon.
-fn open_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -> WebReply {
+fn open_document(state: &mut WebCanvasState, store: &DocumentDb, key: &str) -> WebReply {
     if let Err(refusal) = state.gate_daemon_mutation(
         op_editor_core::CollabGateAction::ReplaceDocument,
         op_editor_core::CollabEditSource::ExternalSync,
@@ -286,7 +318,7 @@ fn open_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -
             .to_string(),
         };
     }
-    let path = match document_store::path_for(dir, key) {
+    let path = match document_store::path_for(store.dir(), key) {
         Ok(path) => path,
         Err(error) => return store_error_reply(error),
     };
@@ -296,14 +328,14 @@ fn open_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -
     match crate::mcp_serve::load_editor_state(&path) {
         Ok(mut next) => {
             super::preserve_web_canvas_preferences(&state.editor, &mut next);
-            let name = document_store::list(dir)
+            let name = document_store::list(store)
                 .ok()
                 .and_then(|entries| entries.into_iter().find(|entry| entry.key == key))
                 .map(|entry| entry.name);
             next.editor_ui.file_key = Some(key.to_string());
             next.editor_ui.file_name_display = name.clone();
             // A restart should come back to this document, not to the kit.
-            let _ = document_store::remember_last(dir, key);
+            let _ = document_store::remember_last(store, key);
             state.editor = next;
             state.current_path = None;
             state.version += 1;
@@ -341,7 +373,7 @@ enum WriteKind {
 fn save_document(
     body: &str,
     state: &mut WebCanvasState,
-    dir: &std::path::Path,
+    store: &DocumentDb,
     key: &str,
     kind: WriteKind,
 ) -> WebReply {
@@ -363,7 +395,7 @@ fn save_document(
             .to_string(),
         };
     }
-    let path = match document_store::path_for(dir, key) {
+    let path = match document_store::path_for(store.dir(), key) {
         Ok(path) => path,
         Err(error) => return store_error_reply(error),
     };
@@ -390,9 +422,9 @@ fn save_document(
     }
     state.editor.mark_saved_revision();
     if kind == WriteKind::Explicit {
-        refresh_thumbnail(state, dir, key);
+        refresh_thumbnail(state, store, key);
     }
-    match document_store::touch(dir, key) {
+    match document_store::touch(store, key) {
         Ok(entry) => ok_json(serde_json::json!({
             "ok": true,
             "file": entry_json(&entry),
@@ -403,7 +435,7 @@ fn save_document(
 }
 
 /// `POST /api/files/<key>/rename` — the key stays, so links keep working.
-fn rename_document(body: &str, dir: &std::path::Path, key: &str) -> WebReply {
+fn rename_document(body: &str, store: &DocumentDb, key: &str) -> WebReply {
     let Some(name) = serde_json::from_str::<serde_json::Value>(body)
         .ok()
         .and_then(|value| {
@@ -420,7 +452,7 @@ fn rename_document(body: &str, dir: &std::path::Path, key: &str) -> WebReply {
             body: crate::mcp_serve::rest_error_body("Missing name string"),
         };
     };
-    match document_store::rename(dir, key, &name) {
+    match document_store::rename(store, key, &name) {
         Ok(entry) => ok_json(serde_json::json!({ "ok": true, "file": entry_json(&entry) })),
         Err(error) => store_error_reply(error),
     }
@@ -433,10 +465,7 @@ mod tests {
     #[test]
     fn the_route_parser_accepts_the_shapes_the_client_sends() {
         assert!(matches!(parse_route("/api/files"), Some(FilesRoute::List)));
-        assert!(matches!(
-            parse_route("/api/files/"),
-            Some(FilesRoute::List)
-        ));
+        assert!(matches!(parse_route("/api/files/"), Some(FilesRoute::List)));
         match parse_route("/api/files/abcd1234") {
             Some(FilesRoute::Document { key, action }) => {
                 assert_eq!(key, "abcd1234");
@@ -484,3 +513,9 @@ mod tests {
 #[cfg(test)]
 #[path = "files_routes_access_tests.rs"]
 mod access_tests;
+
+/// The routes against a real document database: what the gate admits has to
+/// reach the rows, since `access_tests` deliberately stops short of them.
+#[cfg(test)]
+#[path = "files_routes_store_tests.rs"]
+mod store_tests;

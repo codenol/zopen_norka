@@ -166,9 +166,7 @@ fn store_error(error: DocumentStoreError) -> WebReply {
     let status = match error {
         DocumentStoreError::InvalidKey => "400 Bad Request",
         DocumentStoreError::NotFound => "404 Not Found",
-        DocumentStoreError::CorruptIndex(_) | DocumentStoreError::Io(_) => {
-            "500 Internal Server Error"
-        }
+        DocumentStoreError::Database(_) | DocumentStoreError::Io(_) => "500 Internal Server Error",
     };
     WebReply {
         status,
