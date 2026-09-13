@@ -82,7 +82,7 @@ fn temp_op_file_name_sanitizes_windows_reserved_path_chars() {
 
 #[test]
 fn server_health_matches_ts_running_port_shape() {
-    let r = handle_web_canvas_request("GET", "/api/mcp/server", "", &mut fresh_state());
+    let r = handle_local_request("GET", "/api/mcp/server", "", &mut fresh_state());
     assert!(r.status.starts_with("200"));
     // TS `server.get.ts` parity: clients test `running` + `port`.
     assert!(r.body.contains(r#""running":true"#));
@@ -98,7 +98,7 @@ fn credential_policy_endpoint_reports_only_the_boolean() {
         3100,
         crate::web_credential_policy::WebCredentialPersistence::BrowserOnly,
     );
-    let reply = handle_web_canvas_request("GET", "/api/settings/credential-policy", "", &mut state);
+    let reply = handle_local_request("GET", "/api/settings/credential-policy", "", &mut state);
 
     assert_eq!(reply.status, "200 OK");
     assert_eq!(reply.body, r#"{"serverPersistence":false}"#);
@@ -111,7 +111,7 @@ fn browser_only_route_rejects_credentials_without_mutating_state() {
     let mut state = fresh_state();
     let before = crate::settings_io::fingerprint(&state.editor);
 
-    let reply = handle_web_canvas_request(
+    let reply = handle_local_request(
         "POST",
         "/api/settings/credentials",
         CREDENTIAL_BODY,
@@ -127,7 +127,7 @@ fn browser_only_route_rejects_credentials_without_mutating_state() {
 fn server_policy_merges_credentials_without_echoing_them() {
     let mut state = fresh_server_persistence_state();
 
-    let reply = handle_web_canvas_request(
+    let reply = handle_local_request(
         "POST",
         "/api/settings/credentials",
         CREDENTIAL_BODY,
@@ -272,7 +272,7 @@ fn credential_persistence_failure_rolls_back_and_returns_500_without_echoing_sec
     let settings_before = crate::settings_io::fingerprint(&state.editor);
     let agent_settings_before = state.editor.editor_ui.agent_settings.clone();
     let document_children = state.editor.doc.children.as_ptr();
-    let reply = handle_web_canvas_request(
+    let reply = handle_local_request(
         "POST",
         "/api/settings/credentials",
         CREDENTIAL_BODY,
@@ -470,7 +470,7 @@ fn post_mcp_server_start_stop_updates_daemon_agent_settings() {
     let mut s = fresh_state();
     assert!(!s.editor.editor_ui.agent_settings.mcp_server.running);
 
-    let start = handle_web_canvas_request(
+    let start = handle_local_request(
         "POST",
         "/api/mcp/server",
         r#"{"action":"start","port":3201}"#,
@@ -483,7 +483,7 @@ fn post_mcp_server_start_stop_updates_daemon_agent_settings() {
     assert_eq!(s.editor.editor_ui.agent_settings.mcp_server.port, 3201);
     assert_eq!(s.version, 0, "MCP settings are not document mutations");
 
-    let stop = handle_web_canvas_request(
+    let stop = handle_local_request(
         "POST",
         "/api/mcp/server",
         r#"{"action":"stop","port":3201}"#,
@@ -502,7 +502,7 @@ fn post_mcp_server_rejects_invalid_body_without_changing_settings() {
     s.editor.editor_ui.agent_settings.mcp_server.running = true;
     s.editor.editor_ui.agent_settings.mcp_server.port = 4321;
 
-    let r = handle_web_canvas_request("POST", "/api/mcp/server", r#"{"action":"restart"}"#, &mut s);
+    let r = handle_local_request("POST", "/api/mcp/server", r#"{"action":"restart"}"#, &mut s);
 
     assert!(r.status.starts_with("400"), "{}", r.body);
     assert!(r.body.contains("Invalid MCP server action"), "{}", r.body);
@@ -514,7 +514,7 @@ fn post_mcp_server_rejects_invalid_body_without_changing_settings() {
 fn get_document_returns_doc_and_version() {
     let mut state = fresh_state();
     state.editor.editor_ui.preserve_authored_geometry = true;
-    let r = handle_web_canvas_request("GET", "/api/mcp/document", "", &mut state);
+    let r = handle_local_request("GET", "/api/mcp/document", "", &mut state);
     assert!(r.status.starts_with("200"));
     assert!(r.body.contains(r#""document":"#));
     assert!(r.body.contains(r#""version":0"#));
@@ -558,7 +558,7 @@ fn every_web_persistence_policy_propagates_strict_settings_load_failures() {
 fn post_document_replaces_doc_and_bumps_version() {
     use op_editor_core::PenNodeExt;
     let mut s = fresh_state();
-    let r = handle_web_canvas_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
+    let r = handle_local_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
     assert!(r.status.starts_with("200"), "{}", r.body);
     assert!(r.body.contains(r#""ok":true"#));
     assert!(r.body.contains(r#""version":1"#));
@@ -569,7 +569,7 @@ fn post_document_replaces_doc_and_bumps_version() {
         .iter()
         .any(|n| n.base().name.as_deref() == Some("Synced Rect")));
     // A second sync bumps the version again (monotonic).
-    let r2 = handle_web_canvas_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
+    let r2 = handle_local_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
     assert!(r2.body.contains(r#""version":2"#));
 }
 
@@ -577,7 +577,7 @@ fn post_document_replaces_doc_and_bumps_version() {
 fn post_file_save_requires_a_known_daemon_path() {
     let mut s = fresh_state();
 
-    let r = handle_web_canvas_request("POST", "/api/file/save", SYNC_BODY, &mut s);
+    let r = handle_local_request("POST", "/api/file/save", SYNC_BODY, &mut s);
 
     assert!(r.status.starts_with("400"), "{}", r.body);
     assert!(r.body.contains("No file path"), "{}", r.body);
@@ -592,7 +592,7 @@ fn post_file_save_writes_current_path_and_embedded_editor_meta() {
     let mut s = WebCanvasState::new_with_path(EditorState::new(), 3100, Some(path.clone()));
     let body = r##"{"document":{"version":"1.0.0","children":[],"pages":[{"id":"p1","name":"One","children":[]},{"id":"p2","name":"Two","children":[{"id":"saved-node","type":"rectangle","name":"Saved Rect","x":1,"y":2,"width":80,"height":40,"fill":[{"type":"solid","color":"#123456"}]}]}],"editorMeta":{"activePageIndex":1,"preserveAuthoredGeometry":true}},"activePageIndex":1}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/file/save", body, &mut s);
+    let r = handle_local_request("POST", "/api/file/save", body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     assert!(r.body.contains(r#""ok":true"#), "{}", r.body);
@@ -620,12 +620,12 @@ fn post_file_save_keeps_document_wrapper_validation_errors() {
     let path = write_temp_op("save-validation", r#"{"version":"1.0.0","children":[]}"#);
     let mut state = WebCanvasState::new_with_path(EditorState::new(), 3100, Some(path.clone()));
 
-    let missing = handle_web_canvas_request("POST", "/api/file/save", "{}", &mut state);
+    let missing = handle_local_request("POST", "/api/file/save", "{}", &mut state);
     assert!(missing.status.starts_with("400"), "{}", missing.body);
     assert!(missing.body.contains("save failed: missing document"));
 
     let scalar =
-        handle_web_canvas_request("POST", "/api/file/save", r#"{"document":42}"#, &mut state);
+        handle_local_request("POST", "/api/file/save", r#"{"document":42}"#, &mut state);
     assert!(scalar.status.starts_with("400"), "{}", scalar.body);
     assert!(scalar
         .body
@@ -657,7 +657,7 @@ fn sync_reset_reloads_current_path_when_daemon_has_backing_file() {
         .value,
     );
 
-    let r = handle_web_canvas_request("POST", "/api/mcp/sync-reset", "", &mut s);
+    let r = handle_local_request("POST", "/api/mcp/sync-reset", "", &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     assert_eq!(s.version, 2);
@@ -699,7 +699,7 @@ fn sync_reset_preserves_signed_out_account_entry_capability() {
 #[test]
 fn post_document_rejects_invalid_body_with_400() {
     let mut s = fresh_state();
-    let r = handle_web_canvas_request("POST", "/api/mcp/document", r#"{"nope":1}"#, &mut s);
+    let r = handle_local_request("POST", "/api/mcp/document", r#"{"nope":1}"#, &mut s);
     assert!(r.status.starts_with("400"));
     assert!(r.body.contains("Missing document in request body"));
     // A rejected sync must not bump the version.
@@ -708,7 +708,7 @@ fn post_document_rejects_invalid_body_with_400() {
 
 #[test]
 fn unknown_route_404s() {
-    let r = handle_web_canvas_request("DELETE", "/whatever", "", &mut fresh_state());
+    let r = handle_local_request("DELETE", "/whatever", "", &mut fresh_state());
     assert!(r.status.starts_with("404"));
 }
 
@@ -720,7 +720,7 @@ fn post_file_new_unbinds_path_and_installs_starter_policy() {
     s.editor.doc.children.clear();
     s.editor.editor_ui.locale = op_editor_core::Locale::De;
 
-    let r = handle_web_canvas_request("POST", "/api/file/new", "{}", &mut s);
+    let r = handle_local_request("POST", "/api/file/new", "{}", &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     assert!(r.body.contains("\"ok\":true"));
@@ -759,7 +759,7 @@ fn get_ai_models_returns_json_array() {
         );
     state.editor.rebuild_chat_models();
 
-    let r = handle_web_canvas_request("GET", "/api/ai/models", "", &mut state);
+    let r = handle_local_request("GET", "/api/ai/models", "", &mut state);
     assert!(r.status.starts_with("200"));
     let models =
         serde_json::from_str::<Vec<serde_json::Value>>(&r.body).expect("models body is valid JSON");

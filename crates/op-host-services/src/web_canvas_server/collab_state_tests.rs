@@ -255,7 +255,7 @@ fn the_projection_sequence_is_independent_of_the_document_version() {
 
 /// Drive the REST route table directly, which is where the gate lives.
 fn save_reply(state: &mut WebCanvasState) -> crate::web_canvas_server::WebReply {
-    crate::web_canvas_server::handle_web_canvas_request(
+    crate::web_canvas_server::handle_local_request(
         "POST",
         "/api/file/save",
         r#"{"document":{"version":"1.0.0","children":[]}}"#,

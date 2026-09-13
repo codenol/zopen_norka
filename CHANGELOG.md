@@ -12,6 +12,24 @@ here at a glance.
 
 ### Added
 
+- **The daemon asks who is calling before it touches a stored document.** A
+  request now carries what the answer needs — the deployment mode, the
+  document's owner, the caller's verified identity with its roles, and whether
+  the owner's access list admits them — and one pure function decides. Two
+  questions, in this order: *may this caller see this document at all* (owner,
+  or named in the access list), then *does a role they hold grant the write*.
+  Local and managed daemons answer "the operator" and behave exactly as
+  before; nothing about working on your own machine changed.
+
+  Rights come from roles, not from owning a file: an owner with no recognised
+  role reads. That is the operator's matrix applied uniformly, and it is the
+  fail-closed direction — the alternative would let a hub that sends no roles,
+  or one that renames a role this build does not know, silently grant write.
+
+  The online refusal that fronts these routes (#20) stays for now: it answers
+  a different question — *whose files may be addressed at all* — and
+  `documents_dir()` is still one flat directory for the process. A test pins
+  the refusal so lifting it has to be deliberate.
 - **Every role has a colour.** Golden for Admin, violet for UX/UI, sky for
   Software, yellow for Analyst, green for Frontend, grey for Backend, brown for
   QA — taken from the operator's own naming and resolved to values that stay
