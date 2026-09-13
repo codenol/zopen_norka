@@ -74,6 +74,14 @@ pub struct EditorUiState {
     pub server_files_create_request: bool,
     /// Whether the search field on the file screen has the keyboard.
     pub server_files_search_focused: bool,
+    /// Set when the user asked to copy a link and the platform that owns the
+    /// clipboard has yet to do it.
+    ///
+    /// The widget layer cannot reach a clipboard, and the desktop host has no
+    /// origin to build a link from — so the request travels through the state
+    /// to whichever layer can answer it (the browser shell, or the desktop
+    /// window, which owns `arboard`).
+    pub copy_link_requested: bool,
     /// The card context menu, when one is open.
     pub server_files_menu: Option<crate::editor_ui_state::chrome::ServerFileMenu>,
     /// A rename being typed, when one is in progress. While it is set the

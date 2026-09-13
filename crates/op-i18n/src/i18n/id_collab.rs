@@ -173,6 +173,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "Resep",
         "ai.rulesActive" => "Aturan · {{count}}",
         "topbar.allFiles" => "Semua file",
+        "layerMenu.copyLink" => "Salin tautan",
+        "layerMenu.linkCopied" => "Tautan disalin ke papan klip",
         _ => return None,
     })
 }

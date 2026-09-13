@@ -137,6 +137,12 @@ impl DesktopApp {
             dpi: 1.0,
             ime_window_sync: ime_window::ImeWindowSync::default(),
             zoom_modifier: false,
+            // Parsed here rather than passed in: the constructor already reads
+            // the environment for other launch options (MCP port).
+            pending_node: crate::parse_node_arg(std::env::args().skip(1)),
+            route_history: Vec::new(),
+            route_cursor: 0,
+            route_replaying: false,
             alt_modifier: false,
             shift_modifier: false,
             pending_cursor_move: None,
@@ -334,23 +340,30 @@ impl DesktopApp {
         }
     }
 
-    /// Set the window title to `<file> (<branch>) — Norka`, with
-    /// the branch shown only when the document is in a git repository.
-    fn refresh_window_title(&self) {
+    /// Set the window title to `<file> (<branch>) — <page> — Norka`.
+    ///
+    /// The page is part of it because the window has no address bar: on the
+    /// web, "which page am I on" is answered by the URL, and on the desktop
+    /// the title is the only place that can answer it without opening a panel.
+    pub(crate) fn refresh_window_title(&self) {
         let Some(window) = self.window.as_ref() else {
             return;
         };
+        let state = self.host.editor_state();
         let name = self
             .current_path
             .as_ref()
             .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned());
-        let title = match (name, self.git_session.current_branch()) {
-            (Some(name), Some(branch)) => {
-                format!("{name} ({branch}) — {}", op_editor_ui::PRODUCT_NAME)
-            }
-            (Some(name), None) => format!("{name} — {}", op_editor_ui::PRODUCT_NAME),
-            (None, _) => op_editor_ui::PRODUCT_NAME.to_string(),
+        let page = active_page_label(state);
+        let identity = match (name, self.git_session.current_branch()) {
+            (Some(name), Some(branch)) => format!("{name} ({branch})"),
+            (Some(name), None) => name,
+            (None, _) => "Untitled".to_string(),
+        };
+        let title = match page {
+            Some(page) => format!("{identity} — {page} — {}", op_editor_ui::PRODUCT_NAME),
+            None => format!("{identity} — {}", op_editor_ui::PRODUCT_NAME),
         };
         window.set_title(&title);
     }
@@ -584,4 +597,18 @@ impl DesktopApp {
             Some(crate::message_dialog::Choice::Cancel) => false,
         }
     }
+}
+
+/// The active page's name, when the document has more than one page.
+///
+/// A single-page document has nothing to disambiguate, and repeating its name
+/// in the title would only make the title longer than the thing it names.
+fn active_page_label(state: &op_editor_core::EditorState) -> Option<String> {
+    let pages = state.doc.pages.as_ref()?;
+    if pages.len() <= 1 {
+        return None;
+    }
+    let index = state.ui.active_page_index;
+    let name = pages.get(index)?.name.trim();
+    (!name.is_empty()).then(|| name.to_string())
 }

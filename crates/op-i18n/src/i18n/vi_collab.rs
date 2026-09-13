@@ -185,6 +185,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "Công thức",
         "ai.rulesActive" => "Quy tắc · {{count}}",
         "topbar.allFiles" => "Tất cả tệp",
+        "layerMenu.copyLink" => "Sao chép liên kết",
+        "layerMenu.linkCopied" => "Đã sao chép liên kết vào bộ nhớ tạm",
         _ => return None,
     })
 }

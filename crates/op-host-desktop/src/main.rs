@@ -60,6 +60,7 @@ mod image_search_session;
 mod ime_window;
 mod keyboard_chat_tabs;
 mod keyboard_clipboard_payload;
+mod route_history;
 mod keyboard_input;
 mod keyboard_input_arrows;
 mod keyboard_presenting;
@@ -190,6 +191,21 @@ struct DesktopApp {
     /// Cmd / Ctrl held — promotes scroll to zoom + gates editor shortcuts.
     zoom_modifier: bool,
     alt_modifier: bool,
+    /// Node named by `--node` at launch, applied once the window has a size.
+    pending_node: Option<String>,
+    /// Where the window has been, for Back and Forward.
+    ///
+    /// The browser gets this from the History API; the desktop has no address
+    /// bar, so the same "which document, which page, which node" trail is kept
+    /// here and replayed by `navigate_route`. The vocabulary itself still lives
+    /// in `op_editor_core::route` — this is a stack of those routes, not a
+    /// second notion of where the app is.
+    route_history: Vec<op_editor_core::route::DocumentRoute>,
+    /// Index into `route_history`; the entry the window is showing.
+    route_cursor: usize,
+    /// True while a route is being replayed, so replaying does not record
+    /// itself as a new entry.
+    route_replaying: bool,
     /// Shift held — arrow-key nudge 1→10 px.
     shift_modifier: bool,
     /// Cursor moves coalesced between paints; drained on RedrawRequested
@@ -473,6 +489,23 @@ fn live_mcp_port_from_argv() -> Option<u16> {
 
 /// Pure `--live-mcp` parser (extracted for testing). Accepts
 /// `--live-mcp`, `--live-mcp=<port>`, and `--live-mcp <port>`.
+/// `--node <id>`: open the document already focused on one node.
+///
+/// The desktop equivalent of pasting a link: the browser reads `?node=` from
+/// the address, and a window launched by a script has only its arguments.
+fn parse_node_arg<I: Iterator<Item = String>>(args: I) -> Option<String> {
+    let mut args = args;
+    while let Some(arg) = args.next() {
+        if arg == "--node" {
+            return args
+                .next()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty());
+        }
+    }
+    None
+}
+
 fn parse_live_mcp_port<I: Iterator<Item = String>>(args: I) -> Option<u16> {
     let mut args = args;
     while let Some(arg) = args.next() {

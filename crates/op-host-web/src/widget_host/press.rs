@@ -68,6 +68,13 @@ impl WidgetHost {
         action: op_editor_ui::widgets::layer_context_menu::LayerContextAction,
         target: op_editor_core::ui_draft::LayerContextTarget,
     ) {
+        // Copy link is the one row the shared flow cannot run: the link needs
+        // this page's origin and the browser clipboard. It joins the keyboard
+        // chord on `copy_selection_link` rather than duplicating the rule.
+        if action == op_editor_ui::widgets::layer_context_menu::LayerContextAction::CopyLink {
+            self.copy_selection_link();
+            return;
+        }
         let step = if let Some(allocator) = self.collab_id_allocator.as_mut() {
             match press_flow::apply_layer_context_action_with_allocator(
                 &mut self.editor_state,

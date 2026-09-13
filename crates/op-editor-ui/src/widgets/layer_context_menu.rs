@@ -1,5 +1,5 @@
 //! Right-click context menu for LayerPanel rows. Two row sets:
-//! layer rows (Duplicate / Delete / Create component / Toggle lock /
+//! layer rows (Duplicate / Copy link / Delete / Create component / Toggle lock /
 //! Toggle visibility) and page rows (Rename / Duplicate / Move up /
 //! Move down / Delete).
 //!
@@ -33,6 +33,10 @@ pub enum LayerContextAction {
     // Layer-row actions
     RenameLayer,
     Duplicate,
+    /// Copy a shareable link to the current selection (issue #14). The host
+    /// owns the copy — the link needs an origin and a clipboard, neither of
+    /// which exists in the widget layer.
+    CopyLink,
     Delete,
     GroupSelection,
     /// Boolean path ops — TS `boolean-union` etc. rows
@@ -82,6 +86,14 @@ const LAYER_ROWS: &[Row] = &[
         icon: Icon::Copy,
         action: LayerContextAction::Duplicate,
         label_key: "common.duplicate",
+        destructive: false,
+    },
+    Row {
+        // `ArrowUpRight` is the library's link affordance ("link / external
+        // nav indicator"); the lucide `link` glyph itself is not in `icons`.
+        icon: Icon::ArrowUpRight,
+        action: LayerContextAction::CopyLink,
+        label_key: "layerMenu.copyLink",
         destructive: false,
     },
     Row {

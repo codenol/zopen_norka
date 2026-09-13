@@ -163,6 +163,25 @@ pub(super) fn register_keyboard_listeners(
                     consumed = b.host.apply_new_chat_tab()
                 }
                 "a" | "A" if is_mod && !shift => consumed = b.host.apply_select_all(),
+                // Cmd/Ctrl+Alt+C — copy a link to the selection (issue #14).
+                //
+                // This arm MUST precede the Cmd/Ctrl+C arm below, which does
+                // not test Alt: without it, Cmd+Alt+C would be read as an
+                // element copy. Alt is the free modifier here — Cmd+C is
+                // element copy, Cmd+Shift+C is the browser's element
+                // inspector, and Cmd+L (Figma's own Copy link) is the address
+                // bar everywhere else, so none of those are ours to take.
+                // While a text field owns the keyboard the chord is declined,
+                // matching how the other editor chords behave.
+                "c" | "C"
+                    if is_mod
+                        && evt.alt_key()
+                        && !shift
+                        && !image_popover_open
+                        && !prompt_center_open =>
+                {
+                    consumed = !b.host.input_active() && b.host.copy_selection_link()
+                }
                 "c" | "C" if is_mod && !shift => consumed = b.host.apply_copy(),
                 "x" | "X" if is_mod && !shift => consumed = b.host.apply_cut(),
                 // Cmd/Ctrl+V is owned by the DOM `paste` listener

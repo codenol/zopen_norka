@@ -22,6 +22,7 @@ impl Default for EditorUiState {
             server_files_open_request: None,
             server_files_create_request: false,
             server_files_search_focused: false,
+            copy_link_requested: false,
             server_files_menu: None,
             server_files_rename: None,
             server_files_rename_request: None,

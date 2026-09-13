@@ -31,6 +31,14 @@ impl WidgetHostNative {
         };
         use op_editor_ui::widgets::layer_context_menu::LayerContextAction as Action;
 
+        // Copying a link changes nothing in the document, so the collaboration
+        // gate has nothing to say about it. The desktop owns the clipboard and
+        // answers this from the frame; reaching the gate here would refuse a
+        // read-only action for no reason.
+        if action == Action::CopyLink {
+            self.editor_state.editor_ui.copy_link_requested = true;
+            return;
+        }
         let mutation = match action {
             Action::RenameLayer => Mutation::NodeProperty(Field::Name),
             Action::Duplicate => Mutation::Unsupported(Unsupported::Duplicate),
@@ -51,6 +59,8 @@ impl WidgetHostNative {
             | Action::MovePageUp
             | Action::MovePageDown
             | Action::DeletePage => Mutation::Unsupported(Unsupported::PageStructure),
+            // Handled above, before the gate: it mutates nothing.
+            Action::CopyLink => Mutation::NodeProperty(Field::Name),
         };
         if !self.collab_allows_document_mutation(mutation) {
             return;

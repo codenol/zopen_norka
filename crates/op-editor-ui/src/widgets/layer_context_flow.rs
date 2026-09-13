@@ -197,6 +197,12 @@ fn apply_layer_context_ids(
             }
             LayerContextStep::Done
         }
+        // Copy link is performed by the host: the link needs the platform's
+        // origin and clipboard, and this flow has neither. Reaching this arm
+        // means a host that has not wired the row yet, so it stays a no-op —
+        // the alternative, a dedicated `LayerContextStep` variant, would force
+        // every host to answer for a command only some platforms can perform.
+        (A::CopyLink, _) => LayerContextStep::Done,
         // Mismatched action/target — no-op.
         _ => LayerContextStep::Done,
     };

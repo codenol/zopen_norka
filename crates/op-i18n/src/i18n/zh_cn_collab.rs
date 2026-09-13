@@ -173,6 +173,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "预设方案",
         "ai.rulesActive" => "规则 · {{count}}",
         "topbar.allFiles" => "所有文件",
+        "layerMenu.copyLink" => "复制链接",
+        "layerMenu.linkCopied" => "链接已复制到剪贴板",
         _ => return None,
     })
 }

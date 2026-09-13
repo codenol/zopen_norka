@@ -556,6 +556,13 @@ impl ApplicationHandler<DesktopEvent> for DesktopApp {
         // A Git-panel click or Enter may have queued an action
         // (Commit / Refresh / Pull) — run it after the event.
         self.drain_git_action();
+        // "Copy link" arrives as a state flag from the menu or the shortcut;
+        // the clipboard and the origin live out here.
+        self.drain_copy_link_request();
+        // Record where this event left the window, for Back/Forward.
+        self.note_route();
+        // `--node` waits for a window with a real size before framing a node.
+        self.drain_pending_node();
         // A Design-MD panel click may have queued an import / export.
         if self.drain_design_md_action() {
             self.request_redraw(true);

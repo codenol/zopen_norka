@@ -35,6 +35,8 @@ pub mod tree;
 // `op_editor_core::EditorState`).
 pub(crate) mod font_picker_cache;
 pub mod layer_context_menu;
+#[cfg(test)]
+mod layer_context_menu_tests;
 pub mod layer_panel;
 pub(crate) mod layer_panel_cache;
 mod layer_panel_hit;

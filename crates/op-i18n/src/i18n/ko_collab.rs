@@ -189,6 +189,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "레시피",
         "ai.rulesActive" => "규칙 · {{count}}",
         "topbar.allFiles" => "모든 파일",
+        "layerMenu.copyLink" => "링크 복사",
+        "layerMenu.linkCopied" => "링크를 클립보드에 복사했습니다",
         _ => return None,
     })
 }

@@ -83,39 +83,19 @@ pub(crate) fn current_location() -> Option<RouteTarget> {
     }
 }
 
-/// The route the editor state currently describes.
-fn state_route(host: &WidgetHost) -> RouteTarget {
-    let state = host.editor_state();
+/// The route the editor state currently describes, for the address bar.
+///
+/// Two clauses, on purpose. The document mapping is the shared
+/// [`route::state_route`] — the same rule the desktop records for Back/Forward
+/// — and the browser adds the one thing that rule cannot know: `/files` is a
+/// screen rather than a place in a document. A copy of the document mapping
+/// here is exactly the drift the shared rule exists to prevent, so there is
+/// none.
+pub(crate) fn state_route(state: &op_editor_core::EditorState) -> RouteTarget {
     if state.editor_ui.screen == op_editor_core::AppScreen::Files {
         return RouteTarget::Files;
     }
-    let file = match state.editor_ui.file_key.as_deref() {
-        Some(key) => RouteFile::Key(key.to_string()),
-        None => RouteFile::Untitled,
-    };
-    // Page 0 is the default landing page and needs no parameter; a selection
-    // wins over the page, because a node already says where it lives.
-    let first_page = state.ui.active_page_index == 0;
-    let node = single_selection(state);
-    let route = DocumentRoute {
-        file,
-        slug: state
-            .editor_ui
-            .file_name_display
-            .as_deref()
-            .map(route::slugify)
-            .filter(|slug| !slug.is_empty()),
-        page: (!first_page).then_some(state.ui.active_page_index),
-        node,
-        embed: (state.editor_ui.embed != op_editor_core::EmbedHost::None)
-            .then_some(state.editor_ui.embed.clone()),
-    };
-    RouteTarget::Document(route)
-}
-
-fn single_selection(state: &op_editor_core::EditorState) -> Option<NodeId> {
-    let set = &state.selection.set;
-    (set.len() == 1).then(|| set[0].clone())
+    route::state_route(state, route::file_from_key(state))
 }
 
 /// Write the state's route into the address bar when it differs from what is
@@ -135,7 +115,7 @@ pub(crate) fn tick(host: &WidgetHost) {
         // The address is the source of truth until it has been applied.
         return;
     }
-    let target = state_route(host);
+    let target = state_route(host.editor_state());
     let path = route::to_path(&target);
     let already = LAST_WRITTEN.with(|last| last.borrow().as_deref() == Some(path.as_str()));
     if already {
