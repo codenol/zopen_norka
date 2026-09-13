@@ -20,6 +20,7 @@ fn entry_json(entry: &document_store::DocumentEntry) -> serde_json::Value {
         "createdAt": entry.created_at,
         "updatedAt": entry.updated_at,
         "size": entry.size,
+        "hasThumbnail": entry.has_thumbnail,
     })
 }
 
@@ -86,6 +87,7 @@ pub(super) fn handle(method: &str, path: &str, body: &str, state: &mut WebCanvas
             Err(error) => store_error_reply(error),
         },
         ("POST", FilesRoute::List | FilesRoute::Create) => create_document(body, state, &dir),
+        ("GET", FilesRoute::Document { key, action: "thumb" }) => thumbnail(&dir, key),
         ("POST", FilesRoute::Document { key, action }) => match action {
             "open" => open_document(state, &dir, key),
             "save" => save_document(state, &dir, key),
@@ -94,10 +96,76 @@ pub(super) fn handle(method: &str, path: &str, body: &str, state: &mut WebCanvas
         },
         ("DELETE", FilesRoute::Document { key, action: "" }) => match document_store::delete(&dir, key)
         {
-            Ok(()) => ok_json(serde_json::json!({ "ok": true })),
+            Ok(()) => {
+                // The preview belongs to the document: leaving it behind would
+                // keep a picture of a file the user deleted.
+                if let Ok(path) = document_store::thumb_path(&dir, key) {
+                    let _ = std::fs::remove_file(path);
+                }
+                ok_json(serde_json::json!({ "ok": true }))
+            }
             Err(error) => store_error_reply(error),
         },
         _ => not_found_reply(),
+    }
+}
+
+
+/// Width a card's preview is rendered at.
+///
+/// A card paints roughly 250 px wide at 2× on a retina display, so 480 is the
+/// smallest size that still looks sharp — and it keeps the file small enough
+/// to send as base64 without a second route type.
+const THUMB_WIDTH: f32 = 480.0;
+
+/// Render and store a preview for a document, returning whether one exists.
+///
+/// Rendering happens through the same raster export the Export button uses, so
+/// the preview is the document as the renderer sees it — not a second, simpler
+/// painter that would drift from it.
+fn render_thumbnail(state: &WebCanvasState, dir: &std::path::Path, key: &str) -> bool {
+    let Ok(path) = document_store::thumb_path(dir, key) else {
+        return false;
+    };
+    let scene = op_pen_loader::editor_state_to_active_page_layout_scene(&state.editor);
+    // Scale to the target width rather than a fixed factor: documents are
+    // authored at whatever size the designer chose, and a 20 000 px board at
+    // scale 1 would be a several-megabyte preview.
+    let scale = scene
+        .active_page()
+        .and_then(op_render_export::page_bounds)
+        .map(|bounds| (THUMB_WIDTH / bounds.size.x.max(1.0)).min(1.0))
+        .unwrap_or(1.0);
+    match crate::export::export_raster(&scene, &path, crate::export::RasterFormat::Png, scale) {
+        Ok(()) => true,
+        Err(_) => {
+            let _ = std::fs::remove_file(&path);
+            false
+        }
+    }
+}
+
+/// Keep the stored preview in step with a document that was just written.
+pub(super) fn refresh_thumbnail(state: &WebCanvasState, dir: &std::path::Path, key: &str) {
+    let has = render_thumbnail(state, dir, key);
+    let _ = document_store::note_thumbnail(dir, key, has);
+}
+
+/// `GET /api/files/<key>/thumb` — the stored preview, base64 like the export
+/// routes (the reply type carries text, and the export precedent is a JSON
+/// envelope rather than a raw body).
+fn thumbnail(dir: &std::path::Path, key: &str) -> WebReply {
+    let path = match document_store::thumb_path(dir, key) {
+        Ok(path) => path,
+        Err(error) => return store_error_reply(error),
+    };
+    match std::fs::read(&path) {
+        Ok(bytes) => ok_json(serde_json::json!({
+            "ok": true,
+            "mime": "image/png",
+            "dataBase64": base64::engine::general_purpose::STANDARD.encode(bytes),
+        })),
+        Err(_) => store_error_reply(DocumentStoreError::NotFound),
     }
 }
 
@@ -142,6 +210,7 @@ fn create_document(body: &str, state: &mut WebCanvasState, dir: &std::path::Path
             state.editor = next;
             state.current_path = None;
             state.version += 1;
+            refresh_thumbnail(state, dir, &entry.key);
             ok_json(serde_json::json!({
                 "ok": true,
                 "file": entry_json(&entry),
@@ -183,7 +252,7 @@ fn open_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -
                 .and_then(|entries| entries.into_iter().find(|entry| entry.key == key))
                 .map(|entry| entry.name);
             next.editor_ui.file_key = Some(key.to_string());
-            next.editor_ui.file_name_display = name;
+            next.editor_ui.file_name_display = name.clone();
             state.editor = next;
             state.current_path = None;
             state.version += 1;
@@ -217,6 +286,7 @@ fn save_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -
     // The write went through the same path desktop Save uses, so the
     // document is by definition in sync with its file now.
     state.editor.mark_saved_revision();
+    refresh_thumbnail(state, dir, key);
     match document_store::touch(dir, key) {
         Ok(entry) => ok_json(serde_json::json!({ "ok": true, "file": entry_json(&entry) })),
         Err(error) => store_error_reply(error),
@@ -289,6 +359,7 @@ mod tests {
             created_at: 1,
             updated_at: 2,
             size: 3,
+            has_thumbnail: false,
         };
         let json = entry_json(&entry);
         assert_eq!(json["key"], "k");
