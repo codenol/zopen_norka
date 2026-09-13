@@ -190,7 +190,19 @@ fn launch_populates_system_prompt_and_history() {
     assert_eq!(history[1].1, "first answer");
 
     let system = build_chat_system_prompt(host.editor_state(), "make it red");
-    assert!(system.starts_with("You are a design assistant for OpenPencil"));
+    // The prompt is assembled from the resolved skills plus the rules policy,
+    // so it no longer opens with a fixed sentence. What matters is that the
+    // session's rules reached it and that no template placeholder leaked in —
+    // the old assertion pinned a literal that the rules work removed, which
+    // made this test fail for a change that was correct.
+    assert!(
+        system.contains("WORKING AGREEMENT"),
+        "the session's rules must lead the prompt: {system:.200}"
+    );
+    assert!(
+        !system.contains("{{"),
+        "an unresolved template placeholder reached the model: {system:.200}"
+    );
 }
 
 #[test]

@@ -72,6 +72,16 @@ impl DesktopApp {
             Key::Named(NamedKey::Escape) if !self.zoom_modifier => {
                 consumed = self.host.apply_escape();
             }
+            // Back / Forward over documents, pages and nodes — what the
+            // browser gets from Back and Forward. Cmd(Ctrl)+Alt+arrows is free:
+            // `[` / `]` reorder siblings and Cmd+arrows nudge or zoom, so this
+            // chord is the one the editor's own table does not claim.
+            Key::Named(NamedKey::ArrowLeft) if self.zoom_modifier && self.alt_modifier => {
+                consumed = self.navigate_route(-1);
+            }
+            Key::Named(NamedKey::ArrowRight) if self.zoom_modifier && self.alt_modifier => {
+                consumed = self.navigate_route(1);
+            }
             Key::Named(NamedKey::ArrowLeft) if prompt_center_open && !self.zoom_modifier => {
                 consumed = self
                     .host
@@ -199,6 +209,14 @@ impl DesktopApp {
                     "i" => consumed = self.host.apply_boolean_op(BooleanOp::Intersect),
                     "x" => consumed = self.host.apply_boolean_op(BooleanOp::Exclude),
                     "k" => consumed = self.host.apply_create_component(),
+                    // The same chord the browser shell uses, so one habit
+                    // works in both builds. This is the one editor command in
+                    // this arm that does not mutate the document — it hands
+                    // the request to the window, which owns a clipboard.
+                    "c" => {
+                        self.host.editor_state_mut().editor_ui.copy_link_requested = true;
+                        consumed = true;
+                    }
                     _ => {}
                 }
             }

@@ -173,6 +173,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "Tarifler",
         "ai.rulesActive" => "Kurallar · {{count}}",
         "topbar.allFiles" => "Tüm dosyalar",
+        "layerMenu.copyLink" => "Bağlantıyı kopyala",
+        "layerMenu.linkCopied" => "Bağlantı panoya kopyalandı",
         _ => return None,
     })
 }

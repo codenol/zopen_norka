@@ -12,8 +12,8 @@
 //! window title and its own back/forward stack, and neither of those decisions
 //! belongs here.
 
+use crate::editor_ui_state::{AppScreen, EmbedHost};
 use crate::NodeId;
-use crate::editor_ui_state::EmbedHost;
 
 /// `/f/<key>` — the editor, on a document the server knows by key.
 pub const DOCUMENT_PREFIX: &str = "/f/";
@@ -223,6 +223,76 @@ fn translit(ch: char) -> Option<&'static str> {
     })
 }
 
+
+/// The route the editor state describes.
+///
+/// One rule, two hosts: the browser writes it into the address and the desktop
+/// records it for Back/Forward, so "where am I" cannot mean two things. The
+/// document's *identity* is a parameter because the two hosts know it
+/// differently — the browser holds a server key, the desktop holds a file path
+/// — and neither may guess the other's.
+pub fn state_route(state: &crate::EditorState, file: RouteFile) -> RouteTarget {
+    let node = match state.selection.set.as_slice() {
+        [only] => Some(only.clone()),
+        // A multi-selection has no single node to name: the route vocabulary
+        // carries one `NodeId`, and picking a member would invent an order the
+        // selection does not have. The link still points at the document and
+        // the page, which is what the address bar shows as well.
+        _ => None,
+    };
+    RouteTarget::Document(DocumentRoute {
+        file,
+        slug: state
+            .editor_ui
+            .file_name_display
+            .as_deref()
+            .map(slugify)
+            .filter(|slug| !slug.is_empty()),
+        page: (state.ui.active_page_index != 0).then_some(state.ui.active_page_index),
+        node,
+        embed: (state.editor_ui.embed != EmbedHost::None).then_some(state.editor_ui.embed.clone()),
+    })
+}
+
+/// The document identity the browser knows: its server key, or none.
+pub fn file_from_key(state: &crate::EditorState) -> RouteFile {
+    match state.editor_ui.file_key.as_deref() {
+        Some(key) => RouteFile::Key(key.to_string()),
+        None => RouteFile::Untitled,
+    }
+}
+
+/// An absolute link to the current selection.
+///
+/// The browser passes its page origin, the desktop the daemon it talks to.
+/// `None` when there is nothing to link to, or when the screen is the file
+/// browser (a list is not a place in a document).
+pub fn selection_link(base: &str, state: &crate::EditorState) -> Option<String> {
+    if state.selection.is_empty() {
+        return None;
+    }
+    // `/files` is a screen, not a place in a document. The selection survives
+    // behind it (leaving the screen returns to the same document and node), so
+    // without this clause the command would hand out a link to a selection the
+    // user cannot see and did not pick here.
+    if state.editor_ui.screen == AppScreen::Files {
+        return None;
+    }
+    let RouteTarget::Document(route) = state_route(state, file_from_key(state)) else {
+        return None;
+    };
+    // A document with no server key is still the one the editor is talking to
+    // — the browser shell only ever edits a document the daemon holds, so the
+    // node resolves for anyone who opens this origin. Dropping the node here
+    // (the first version did) made "copy link" hand out a link to the editor
+    // rather than to the thing the user selected.
+    Some(format!(
+        "{}{}",
+        base.trim_end_matches('/'),
+        to_path(&RouteTarget::Document(route))
+    ))
+}
+
 /// The handful of query parameters a route understands.
 struct QueryParams {
     page: Option<usize>,
@@ -344,6 +414,101 @@ mod tests {
     fn a_trailing_slash_after_the_key_is_not_a_slug() {
         let route = document("/f/abc/", "");
         assert_eq!(route.slug, None);
+    }
+
+    #[test]
+    fn a_link_names_the_selected_node() {
+        let mut state = crate::EditorState::starter();
+        state.editor_ui.file_key = Some("01hqx".to_string());
+        state.editor_ui.file_name_display = Some("Список токенов".to_string());
+        state.ui.active_page_index = 2;
+        state.set_single_selection(crate::NodeId::new("n42"));
+
+        let link = selection_link("http://127.0.0.1:3100/", &state).expect("a link");
+        assert_eq!(
+            link,
+            "http://127.0.0.1:3100/f/01hqx/spisok-tokenov?page=2&node=n42"
+        );
+    }
+
+    #[test]
+    fn nothing_selected_makes_no_link() {
+        let state = crate::EditorState::starter();
+        assert_eq!(selection_link("http://example.test", &state), None);
+    }
+
+    #[test]
+    fn a_multi_selection_links_the_document_without_a_node() {
+        let mut state = crate::EditorState::starter();
+        state.selection.set = vec![
+            crate::NodeId::new("n1".to_string()),
+            crate::NodeId::new("n2".to_string()),
+        ];
+        // No single node to name: the link points at the document and page,
+        // which is exactly what the address bar shows for this selection.
+        assert_eq!(
+            selection_link("http://example.test", &state),
+            Some("http://example.test/".to_string())
+        );
+    }
+
+    #[test]
+    fn a_node_is_linked_even_when_the_document_has_no_server_key() {
+        let mut state = crate::EditorState::starter();
+        state.set_single_selection(crate::NodeId::new("n42"));
+        // The node is addressable because the document is live on the daemon
+        // this origin serves — which is the only way the browser shell ever
+        // holds a document.
+        assert_eq!(
+            selection_link("http://example.test", &state),
+            Some("http://example.test/?node=n42".to_string())
+        );
+    }
+
+    #[test]
+    fn a_link_reads_back_as_the_route_it_names() {
+        let mut state = crate::EditorState::starter();
+        state.editor_ui.file_key = Some("01hqx".to_string());
+        state.editor_ui.file_name_display = Some("Список токенов".to_string());
+        state.set_single_selection(crate::NodeId::new("n42"));
+
+        let link = selection_link("http://127.0.0.1:3100", &state).expect("a link");
+        // Reading our own link back is what makes it a link: whoever opens it
+        // lands on the file and the node the sender had.
+        let path = link.trim_start_matches("http://127.0.0.1:3100");
+        match parse(path, "") {
+            RoutePath::Known(RouteTarget::Document(route)) => {
+                assert_eq!(route.key(), Some("01hqx"));
+                assert_eq!(route.node, Some(crate::NodeId::new("n42")));
+                assert_eq!(route.page, None, "the default page is not written");
+                assert_eq!(route.slug.as_deref(), Some("spisok-tokenov"));
+            }
+            other => panic!("a copied link is not a route: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_link_to_a_non_default_page_keeps_the_page() {
+        let mut state = crate::EditorState::starter();
+        state.editor_ui.file_key = Some("01hqx".to_string());
+        state.ui.active_page_index = 3;
+        state.set_single_selection(crate::NodeId::new("n42"));
+
+        let link = selection_link("http://example.test", &state).expect("a link");
+        assert_eq!(
+            link, "http://example.test/f/01hqx?page=3&node=n42",
+            "page 0 needs no parameter, any other page does"
+        );
+    }
+
+    #[test]
+    fn the_file_browser_has_nothing_to_link_to() {
+        let mut state = crate::EditorState::starter();
+        state.editor_ui.file_key = Some("01hqx".to_string());
+        state.set_single_selection(crate::NodeId::new("n42"));
+        state.editor_ui.screen = AppScreen::Files;
+
+        assert_eq!(selection_link("http://example.test", &state), None);
     }
 
     #[test]

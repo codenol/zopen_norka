@@ -173,6 +173,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "Receitas",
         "ai.rulesActive" => "Regras · {{count}}",
         "topbar.allFiles" => "Todos os arquivos",
+        "layerMenu.copyLink" => "Copiar link",
+        "layerMenu.linkCopied" => "Link copiado para a área de transferência",
         _ => return None,
     })
 }

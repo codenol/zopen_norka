@@ -12,6 +12,22 @@ here at a glance.
 
 ### Added
 
+- **Links work in both builds.** The desktop window now has what the browser
+  got from the address bar: its title carries the page, `Cmd/Ctrl+Alt+←/→`
+  walks back and forward over documents, pages and nodes, and
+  `openpencil-desktop <file> --node <id>` opens focused on a node. "Copy link"
+  is one command (layer context menu, or `Cmd/Ctrl+Alt+C`) that copies exactly
+  the address the browser shows for the same selection, and says so with the
+  editor's existing banner. The rule behind all of it — state to route, route
+  to link — lives once in `op_editor_core::route`, shared by both hosts; the
+  browser supplies its origin, the desktop the daemon it talks to.
+
+- **"Copy link" for the selection (web).** The layer context menu gained a row
+  and the editor a `Cmd/Ctrl+Alt+C` chord; both copy `<origin>/f/<key>/<slug>`
+  with the current page and the selected node — exactly the address the tab is
+  already showing — and raise the editor's transient banner to confirm it. One
+  platform-free rule builds the link for both entry points, so a copied link
+  cannot drift from the visible address.
 - **Preview cards on the file screen.** The card grid shows each document's
   rendered preview instead of a placeholder band. Bytes are fetched by the host
   (the route answers a base64 envelope), installed into the image cache the

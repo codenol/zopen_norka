@@ -325,6 +325,38 @@ impl WidgetHost {
         false
     }
 
+    /// Cmd/Ctrl+Alt+C (and the layer menu's "Copy link" row) — copy a
+    /// shareable link to the current selection, then say so.
+    ///
+    /// The link itself is the shared, platform-free rule
+    /// (`op_editor_core::route::selection_link` — the same one the desktop
+    /// uses); this arm supplies the two things only a host has: the origin the
+    /// page is served from and the clipboard. Both entry points route through
+    /// here so the menu and the chord can never copy different things.
+    ///
+    /// `false` (the chord is not consumed) when there is nothing to link to,
+    /// so an unusable Copy link falls through exactly like every other
+    /// declined shortcut instead of swallowing the keystroke.
+    pub fn copy_selection_link(&mut self) -> bool {
+        let base = crate::daemon_base::daemon_base();
+        let Some(link) = op_editor_core::route::selection_link(&base, &self.editor_state) else {
+            return false;
+        };
+        self.host_copy_text(&link);
+        // Feedback, not decoration: the clipboard is invisible, and a share
+        // command that appears to do nothing reads as a broken command. The
+        // toast is the editor's existing transient notice slot (single, time
+        // driven) — no new UI surface.
+        self.editor_state.editor_ui.show_toast(
+            "layerMenu.linkCopied",
+            Vec::new(),
+            op_editor_core::editor_toast::EditorToastLevel::Info,
+            self.now_ms,
+        );
+        self.mark_dirty();
+        true
+    }
+
     /// Cmd/Ctrl+C — copy the selection into the clipboard.
     pub fn apply_copy(&mut self) -> bool {
         if self.editor_state.editor_ui.image_panel.search_open

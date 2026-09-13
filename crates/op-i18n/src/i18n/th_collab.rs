@@ -175,6 +175,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "สูตรสำเร็จ",
         "ai.rulesActive" => "กฎ · {{count}}",
         "topbar.allFiles" => "ไฟล์ทั้งหมด",
+        "layerMenu.copyLink" => "คัดลอกลิงก์",
+        "layerMenu.linkCopied" => "คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว",
         _ => return None,
     })
 }

@@ -177,6 +177,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recipes.title" => "रेसिपी",
         "ai.rulesActive" => "नियम · {{count}}",
         "topbar.allFiles" => "सभी फ़ाइलें",
+        "layerMenu.copyLink" => "लिंक कॉपी करें",
+        "layerMenu.linkCopied" => "लिंक क्लिपबोर्ड पर कॉपी हो गया",
         _ => return None,
     })
 }
