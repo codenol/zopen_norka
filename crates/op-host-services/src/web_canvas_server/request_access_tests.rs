@@ -33,16 +33,49 @@ fn assert_all_allowed(access: &RequestAccess<'_>) {
     }
 }
 
+/// A caller who may read the document and may change nothing about it.
+///
+/// Commenting is deliberately outside the loop: it writes to the CONVERSATION
+/// rather than to the document, and the five contributor roles hold it while
+/// holding no edit at all — which is exactly why it is an action of its own
+/// ([`DocumentAction::Comment`]). Whether a given caller holds it is asserted
+/// beside each use, and [`assert_reads_only`] is the stricter form for a caller
+/// with no role at all.
 fn assert_read_only(access: &RequestAccess<'_>) {
     assert_eq!(access.decide(DocumentAction::View), Ok(()));
-    for action in DocumentAction::ALL.into_iter().filter(|a| a.is_write()) {
-        assert_eq!(access.decide(action), Err(AccessRefusal::ReadOnly), "{action:?}");
+    for action in DocumentAction::ALL
+        .into_iter()
+        .filter(|action| action.is_write() && *action != DocumentAction::Comment)
+    {
+        assert_eq!(
+            access.decide(action),
+            Err(AccessRefusal::ReadOnly),
+            "{action:?}"
+        );
     }
+}
+
+/// A caller who may read and may write nothing at all.
+///
+/// Including the conversation: a comment needs a role like every other write,
+/// and "no roles" is not one — the fail-closed direction, and the rule the
+/// operator gave for a guest handed a link.
+fn assert_reads_only(access: &RequestAccess<'_>) {
+    assert_read_only(access);
+    assert_eq!(
+        access.decide(DocumentAction::Comment),
+        Err(AccessRefusal::ReadOnly),
+        "a caller with no role may not comment either"
+    );
 }
 
 fn assert_refused_whole(access: &RequestAccess<'_>) {
     for action in DocumentAction::ALL {
-        assert_eq!(access.decide(action), Err(AccessRefusal::NotShared), "{action:?}");
+        assert_eq!(
+            access.decide(action),
+            Err(AccessRefusal::NotShared),
+            "{action:?}"
+        );
     }
 }
 
@@ -89,7 +122,7 @@ fn a_shared_visitor_without_a_role_reads_but_never_writes() {
     // for: someone handed a link, with nothing in their account yet.
     let visitor = identity("userB", &[]);
     let access = RequestAccess::online("userA", &visitor, true);
-    assert_read_only(&access);
+    assert_reads_only(&access);
     assert_eq!(access.caller_id(), Some("userB"));
 }
 
@@ -101,7 +134,12 @@ fn a_shared_contributor_role_reads_but_never_writes_someone_elses_document() {
     // these roles carry.
     for role in ["software", "analyst", "frontend", "backend", "qa"] {
         let visitor = identity("userB", &[role]);
-        assert_read_only(&RequestAccess::online("userA", &visitor, true));
+        let access = RequestAccess::online("userA", &visitor, true);
+        assert_read_only(&access);
+        // …and the one write they DO hold: taking part in the conversation. It
+        // changes what is said about the document, not the document, which is
+        // the line the operator's matrix draws through the middle of "write".
+        assert_eq!(access.decide(DocumentAction::Comment), Ok(()), "{role}");
         let proprietor = owner(&[role]);
         assert_all_allowed(&RequestAccess::online("userA", &proprietor, false));
     }
@@ -126,7 +164,7 @@ fn an_unknown_role_grants_nothing() {
         let caller = identity("userB", &[raw]);
         assert!(caller.roles.is_empty(), "{raw:?}");
         assert!(!caller.roles.unrecognized().is_empty(), "{raw:?}");
-        assert_read_only(&RequestAccess::online("userA", &caller, true));
+        assert_reads_only(&RequestAccess::online("userA", &caller, true));
     }
 }
 
@@ -242,11 +280,89 @@ fn the_share_flag_is_what_admits_a_visitor_and_nothing_else_is() {
 #[test]
 fn the_actions_name_themselves_and_split_into_reads_and_writes() {
     let names: Vec<&str> = DocumentAction::ALL.iter().map(|a| a.as_str()).collect();
-    assert_eq!(names, ["view", "edit", "delete", "restore"]);
+    assert_eq!(names, ["view", "comment", "edit", "delete", "restore"]);
     assert!(!DocumentAction::View.is_write());
-    for action in [DocumentAction::Edit, DocumentAction::Delete, DocumentAction::Restore] {
+    for action in [
+        // A comment writes a row — to the conversation, not to the document —
+        // and reading is still the only action that changes nothing.
+        DocumentAction::Comment,
+        DocumentAction::Edit,
+        DocumentAction::Delete,
+        DocumentAction::Restore,
+    ] {
         assert!(action.is_write(), "{action:?}");
     }
+}
+
+#[test]
+fn commenting_is_the_write_the_contributor_roles_hold_and_editing_is_not() {
+    // The split this action exists for: a plain contributor may take part in
+    // the conversation and may change nothing else, and a visitor whose roles
+    // grant only a view may not even do that.
+    let contributor = identity("userB", &["analyst"]);
+    let access = RequestAccess::online("userA", &contributor, true);
+    assert_eq!(access.decide(DocumentAction::View), Ok(()));
+    assert_eq!(access.decide(DocumentAction::Comment), Ok(()));
+    assert_eq!(
+        access.decide(DocumentAction::Edit),
+        Err(AccessRefusal::ReadOnly)
+    );
+
+    let reader = identity("userB", &[]);
+    let access = RequestAccess::online("userA", &reader, true);
+    assert_eq!(access.decide(DocumentAction::View), Ok(()));
+    assert_eq!(
+        access.decide(DocumentAction::Comment),
+        Err(AccessRefusal::ReadOnly),
+        "a caller with no role reads and does nothing else"
+    );
+
+    // An unrecognised role grants nothing, comments included.
+    let unknown = identity("userB", &["reviewer"]);
+    let access = RequestAccess::online("userA", &unknown, true);
+    assert_eq!(
+        access.decide(DocumentAction::Comment),
+        Err(AccessRefusal::ReadOnly)
+    );
+}
+
+#[test]
+fn a_thread_belongs_to_its_author_and_to_whoever_may_edit_the_document() {
+    let author_identity = identity("userB", &["analyst"]);
+    let author = RequestAccess::online("userA", &author_identity, true);
+    assert_eq!(author.decide_thread_resolution(Some("userB")), Ok(()));
+    // The same caller on somebody else's thread: they may comment, not close.
+    assert_eq!(
+        author.decide_thread_resolution(Some("userC")),
+        Err(AccessRefusal::ReadOnly)
+    );
+    // An editor may close anyone's, which is what triaging a review is.
+    let editor_identity = identity("userC", &["ux_ui"]);
+    let editor = RequestAccess::online("userA", &editor_identity, true);
+    assert_eq!(editor.decide_thread_resolution(Some("userB")), Ok(()));
+    // The document's owner may, whatever roles the hub sent them.
+    let owner_identity = identity("userA", &[]);
+    let owner = RequestAccess::online("userA", &owner_identity, false);
+    assert_eq!(owner.decide_thread_resolution(Some("userB")), Ok(()));
+    // A thread with no account behind it — the local operator's — has no author
+    // to pass the first half, so only the editing half answers.
+    assert_eq!(
+        author.decide_thread_resolution(None),
+        Err(AccessRefusal::ReadOnly)
+    );
+    // A stranger is refused before the thread is looked at, so the answer cannot
+    // tell them whether the thread they named exists.
+    let stranger_identity = identity("userC", &["admin"]);
+    let stranger = RequestAccess::online("userA", &stranger_identity, false);
+    assert_eq!(
+        stranger.decide_thread_resolution(Some("userB")),
+        Err(AccessRefusal::NotShared)
+    );
+    // Local work is untouched: one operator, nothing to decide.
+    assert_eq!(
+        RequestAccess::local_operator(ServeMode::Local).decide_thread_resolution(Some("userB")),
+        Ok(())
+    );
 }
 
 #[test]

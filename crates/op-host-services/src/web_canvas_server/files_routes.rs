@@ -40,7 +40,12 @@ fn entry_json(entry: &document_store::DocumentEntry) -> serde_json::Value {
     })
 }
 
-fn store_error_reply(error: DocumentStoreError) -> WebReply {
+/// The reply for a store failure, in the one shape this family uses.
+///
+/// `pub(super)` because the conversation routes answer with it too
+/// (`super::comment_routes`): to a client they are one family, and a status that
+/// drifted between them would be a difference nobody asked for.
+pub(super) fn store_error_reply(error: DocumentStoreError) -> WebReply {
     let status = match error {
         DocumentStoreError::InvalidKey => "400 Bad Request",
         DocumentStoreError::NotFound => "404 Not Found",
@@ -52,7 +57,13 @@ fn store_error_reply(error: DocumentStoreError) -> WebReply {
     }
 }
 
-fn ok_json(value: serde_json::Value) -> WebReply {
+/// The 200-with-a-JSON-object reply every route in this family answers with.
+///
+/// Shared with the conversation routes (`super::comment_routes`) rather than
+/// copied there: the two are one route family to a client, and a status or an
+/// envelope that drifted between them would be a difference no client asked
+/// for. `pub(super)` for exactly that reason.
+pub(super) fn ok_json(value: serde_json::Value) -> WebReply {
     WebReply {
         status: "200 OK",
         body: value.to_string(),
@@ -63,7 +74,42 @@ fn ok_json(value: serde_json::Value) -> WebReply {
 enum FilesRoute<'a> {
     List,
     Create,
-    Document { key: &'a str, action: &'a str },
+    Document {
+        key: &'a str,
+        action: &'a str,
+    },
+    /// `/api/files/<key>/comments`, and `/api/files/<key>/comments/<id>/<action>`.
+    ///
+    /// Part of this family rather than a route family of its own because
+    /// everything in front of a handler is a property of the KEY, not of the
+    /// table behind it: the gate, the key's shape, the store, and the check that
+    /// the document belongs to an account this caller may address. A second
+    /// family prefix would have to repeat that preamble, and two copies of an
+    /// authorization preamble is how the two drift.
+    Comments {
+        key: &'a str,
+        /// The thread, as the client spelled it. Parsed where it is used (see
+        /// `super::comment_routes`) rather than here, so this parser stays a
+        /// statement about the SHAPE of a path.
+        thread: Option<&'a str>,
+        /// `""` for the collection itself, else `reply` / `resolve` / `reopen`.
+        action: &'a str,
+    },
+}
+
+impl FilesRoute<'_> {
+    /// The document key this route names, when it names one.
+    ///
+    /// What the caller does with it is the same for every variant: check the
+    /// key's shape before the store is opened, and check that the row belongs to
+    /// an account this caller may address. One accessor so a route added later
+    /// cannot be the one that forgets the second half.
+    fn key(&self) -> Option<&str> {
+        match self {
+            Self::List | Self::Create => None,
+            Self::Document { key, .. } | Self::Comments { key, .. } => Some(key),
+        }
+    }
 }
 
 fn parse_route(path: &str) -> Option<FilesRoute<'_>> {
@@ -80,10 +126,38 @@ fn parse_route(path: &str) -> Option<FilesRoute<'_>> {
     }
     let mut segments = rest.split('/');
     let key = segments.next().filter(|key| !key.is_empty())?;
-    match (segments.next(), segments.next()) {
-        // `/api/files/<key>` — the document itself.
-        (None, None) => Some(FilesRoute::Document { key, action: "" }),
-        (Some(action), None) => Some(FilesRoute::Document { key, action }),
+    let Some(second) = segments.next() else {
+        return Some(FilesRoute::Document { key, action: "" });
+    };
+    if second != "comments" {
+        return match segments.next() {
+            // `/api/files/<key>` — the document itself.
+            None => Some(FilesRoute::Document {
+                key,
+                action: second,
+            }),
+            // More than two segments after the key is not a route this family
+            // has, and the parser is what says so.
+            Some(_) => None,
+        };
+    }
+    match (segments.next(), segments.next(), segments.next()) {
+        // `/api/files/<key>/comments` — the document's conversation.
+        (None, None, None) => Some(FilesRoute::Comments {
+            key,
+            thread: None,
+            action: "",
+        }),
+        // `/api/files/<key>/comments/<thread>/<action>`.
+        (Some(thread), Some(action), None) => Some(FilesRoute::Comments {
+            key,
+            thread: Some(thread),
+            action,
+        }),
+        // A thread on its own is deliberately not a route: the list brings every
+        // thread WITH its comments, so there is nothing a single-thread read
+        // would answer that the list does not, and a shape the parser refuses
+        // cannot become a handler somebody forgets to gate.
         _ => None,
     }
 }
@@ -121,6 +195,18 @@ fn required_action(method: &str, route: &FilesRoute<'_>) -> Option<DocumentActio
             },
         ) => Some(DocumentAction::Edit),
         ("DELETE", FilesRoute::Document { action: "", .. }) => Some(DocumentAction::Delete),
+        // Reading a document's conversation is reading the document, no more:
+        // whoever may open it may see what is pinned to it.
+        ("GET", FilesRoute::Comments { thread: None, .. }) => Some(DocumentAction::View),
+        // Opening a thread is taking part in the conversation, and so is
+        // replying to or closing one. `Comment` — not `Edit` — is the right the
+        // five contributor roles hold, and `resolve`/`reopen` ask it here as
+        // well: the finer question (is this thread YOURS, or may you edit the
+        // document) is one only the thread can answer, and it is asked after the
+        // thread has been read (`super::request_access::RequestAccess::
+        // decide_thread_resolution`). Asking it here instead would decide from a
+        // path that does not name an author.
+        ("POST", FilesRoute::Comments { .. }) => Some(DocumentAction::Comment),
         _ => None,
     }
 }
@@ -149,7 +235,7 @@ pub(super) fn handle(
     // is opened or a directory is created: a pasted URL must not be able to
     // reach the filesystem, and it must not be able to make the daemon touch
     // one either.
-    if let FilesRoute::Document { key, .. } = &route {
+    if let Some(key) = route.key() {
         if !document_store::key_is_valid(key) {
             return store_error_reply(DocumentStoreError::InvalidKey);
         }
@@ -167,8 +253,11 @@ pub(super) fn handle(
     // resolved before it is trusted: the store is one directory shared by every
     // account of a deployment, so "this key is well-formed" says nothing about
     // whose document it names. The gate above decided what the caller may DO;
-    // this decides whether the document is theirs to do it to.
-    if let FilesRoute::Document { key, .. } = &route {
+    // this decides whether the document is theirs to do it to — for the
+    // conversation routes as much as for the file's own: a thread is reached
+    // through its document, and a caller who may not address the document must
+    // not reach its comments either.
+    if let Some(key) = route.key() {
         match document_store::find(&store, key) {
             Ok(Some(entry)) => {
                 if !access.reaches_stored_document(entry.owner_id.as_deref()) {
@@ -247,6 +336,24 @@ pub(super) fn handle(
                 Err(error) => store_error_reply(error),
             }
         }
+        // The conversation about the document. Its handlers live next door to
+        // keep this file about the file, and they are reached only from here —
+        // after the gate, the key's shape and the row's owner, which is the
+        // whole reason these routes were written as part of this family.
+        //
+        // Note what is deliberately NOT here: the document's version, its
+        // editor state, its file and its row. A comment route answers about a
+        // conversation; a comment is not part of the document's content and
+        // must not move its version, which is the one thing these routes have
+        // in common with the reads above them.
+        (
+            _,
+            FilesRoute::Comments {
+                key,
+                thread,
+                action,
+            },
+        ) => super::comment_routes::handle(method, key, thread, action, body, &store, access),
         _ => not_found_reply(),
     }
 }

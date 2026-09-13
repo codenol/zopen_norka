@@ -24,13 +24,27 @@
 //!    anyone else only if the owner's access list names them. Refused as
 //!    [`AccessRefusal::NotShared`] — the same code the tenant lease already
 //!    answers with, because it is the same statement about the same document.
-//! 2. **Does a role the caller holds grant the write?** [`Rights::Edit`] is
-//!    the right every mutating route needs; without it the caller reads.
-//!    Refused as [`AccessRefusal::ReadOnly`].
+//! 2. **Does a role the caller holds grant what was asked?** A read is answered
+//!    by question one alone. Everything that writes asks for the right its
+//!    [`DocumentAction`] names: [`Rights::Edit`] for changing the document,
+//!    [`Rights::Comment`] for taking part in the conversation about it — the
+//!    one write the operator's matrix grants below editing (see the `Comment`
+//!    variant). Refused as [`AccessRefusal::ReadOnly`].
 //!
 //! Order matters: an account with no roles must not learn whether a document
 //! it may not open has anything worth changing, and a stranger must not get a
 //! different answer for a read than for a write.
+//!
+//! ## Why one action is not one right
+//!
+//! [`DocumentAction`] exists so a route names what it does instead of choosing
+//! a right, and so that a change to the policy is a change to one function
+//! rather than to every route. The map from action to right is not the identity
+//! because the operator's levels are not nested on the writing side: the five
+//! contributor roles may comment and may not edit, so "may write" is two
+//! questions, not one. It stays a small closed set — an action is added when a
+//! route's decision genuinely differs from every existing one, not to describe
+//! what a handler happens to do.
 //!
 //! ## Whose document, though — a question about the STORE
 //!
@@ -88,8 +102,20 @@ use super::tenant_auth::ResolvedIdentity;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DocumentAction {
     /// Look at it: list the store, open a document, read its preview, ask
-    /// about the recovery draft.
+    /// about the recovery draft, read its comments.
     View,
+    /// Take part in the conversation about it: open a thread on an element,
+    /// reply, close or reopen one.
+    ///
+    /// Its own action rather than a spelling of [`DocumentAction::Edit`],
+    /// because the operator's matrix has a level that the two split: the five
+    /// contributor roles (ПО, Аналитик, Фронт, Бэк, QA) may comment and may not
+    /// edit. Asking for `Edit` here would refuse the very people comments exist
+    /// for, and asking for `View` would hand them to a guest who was given only
+    /// a link to read. The right itself already exists in the model
+    /// (`op_editor_core::access::Rights::can_comment`, which is what
+    /// [`Rights::CONTRIBUTOR`] carries); this is the action that reaches it.
+    Comment,
     /// Change it: create, save, autosave, rename, or write a draft.
     Edit,
     /// Remove it from the store.
@@ -100,12 +126,19 @@ pub enum DocumentAction {
 
 impl DocumentAction {
     /// Every action, in ascending authority.
-    pub const ALL: [Self; 4] = [Self::View, Self::Edit, Self::Delete, Self::Restore];
+    pub const ALL: [Self; 5] = [
+        Self::View,
+        Self::Comment,
+        Self::Edit,
+        Self::Delete,
+        Self::Restore,
+    ];
 
     /// Stable name, for logs and for a refusal that has to say what was asked.
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::View => "view",
+            Self::Comment => "comment",
             Self::Edit => "edit",
             Self::Delete => "delete",
             Self::Restore => "restore",
@@ -113,6 +146,12 @@ impl DocumentAction {
     }
 
     /// Whether this action changes stored state.
+    ///
+    /// A comment does, and it is worth being exact about which state: it writes
+    /// a row, and it writes it to the conversation rather than to the document
+    /// (see `super::comment_routes` — no comment route touches the editor, the
+    /// document's version or its file). Reading is still the only action that
+    /// changes nothing, which is what this predicate is for.
     pub const fn is_write(self) -> bool {
         !matches!(self, Self::View)
     }
@@ -164,9 +203,7 @@ impl std::fmt::Display for AccessRefusal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotShared => f.write_str("this document is not shared with you"),
-            Self::ReadOnly => {
-                f.write_str("your roles do not allow changing this document")
-            }
+            Self::ReadOnly => f.write_str("your roles do not allow changing this document"),
         }
     }
 }
@@ -264,6 +301,75 @@ impl<'a> RequestAccess<'a> {
         // the caller's own — and a stranger is still stopped by question one.
         if self.is_owner() {
             return Ok(());
+        }
+        let rights = self.rights();
+        // Which right answers is chosen by the action, and the match is
+        // exhaustive so that adding an action forces the question rather than
+        // silently inheriting `Edit` (or, worse, inheriting the `View` answer
+        // above).
+        let allowed = match action {
+            // Unreachable — `View` returned above. Kept explicit because the
+            // match is what makes the next action a decision.
+            DocumentAction::View => true,
+            DocumentAction::Comment => rights.can_comment(),
+            DocumentAction::Edit | DocumentAction::Delete | DocumentAction::Restore => {
+                rights.can_edit()
+            }
+        };
+        if allowed {
+            Ok(())
+        } else {
+            Err(AccessRefusal::ReadOnly)
+        }
+    }
+
+    /// May this caller close or reopen one thread — this one?
+    ///
+    /// A question [`Self::decide`] cannot answer, because it is about an OBJECT
+    /// rather than about the document. The operator's rule, and Figma's: a
+    /// thread may be closed by whoever opened it, and by anyone who may edit
+    /// the document — a review is triaged by the designer, who is closing other
+    /// people's threads all day, and a conversation nobody can close is a
+    /// conversation nobody finishes.
+    ///
+    /// `thread_author` is the account id the thread records; `None` for a
+    /// thread the local operator opened, which has no account behind it, so
+    /// only the editing half can answer for it.
+    ///
+    /// Refused as [`AccessRefusal::ReadOnly`] — the code the daemon already has
+    /// for "you may reach this but may not change it". A refusal of its own
+    /// would make every client learn a second spelling of the same 403, and the
+    /// caller who sees it here may genuinely take part in the conversation;
+    /// they are simply not its author and not an editor.
+    ///
+    /// The route asks [`DocumentAction::Comment`] BEFORE this, so the caller
+    /// who arrives here may comment. That order is what keeps a guest who was
+    /// given a link to read from closing threads: they are refused at the floor
+    /// and never reach the author test at all.
+    pub fn decide_thread_resolution(
+        &self,
+        thread_author: Option<&str>,
+    ) -> Result<(), AccessRefusal> {
+        // One operator, one client, nothing to decide — the same branch, and
+        // the same reason, as every other decision here.
+        if !self.mode.is_online() {
+            return Ok(());
+        }
+        // Reach first: a stranger learns nothing about a thread they cannot
+        // open its document to see.
+        if !self.reaches_document() {
+            return Err(AccessRefusal::NotShared);
+        }
+        // The owner of a document may change it (see [`Self::decide`]), so they
+        // may close what is said about it — including when no role grants them
+        // anything.
+        if self.is_owner() {
+            return Ok(());
+        }
+        if let (Some(author), Some(caller)) = (thread_author, self.caller_id()) {
+            if author == caller {
+                return Ok(());
+            }
         }
         if self.rights().can_edit() {
             Ok(())
@@ -395,6 +501,36 @@ impl<'a> RequestAccess<'a> {
     /// The verified caller's account id, when there is one.
     pub fn caller_id(&self) -> Option<&str> {
         self.caller.map(|caller| caller.user_id.as_str())
+    }
+
+    /// The name to record against something this caller says or does.
+    ///
+    /// The verified identity's display name, falling back to its username when
+    /// the hub sent none — an empty name is the local operator's mark (see
+    /// `crate::document_comments::Author::name`), and an account that arrived
+    /// without one must not be recorded as if it were the operator. Never read
+    /// from a request body: a body a caller can write is not a statement about
+    /// who the caller is.
+    /// The caller's role as the wire names it, for anything that records it.
+    ///
+    /// `None` for the local operator (no account, no roles) and for an account
+    /// whose roles this build does not recognise — the same answer
+    /// [`RequestAccess::decide`] would act on, so a comment cannot claim a
+    /// colour the caller was not granted.
+    pub fn caller_role(&self) -> Option<&'static str> {
+        self.caller
+            .and_then(|caller| caller.roles.leading_role())
+            .map(|role| role.as_wire())
+    }
+
+    pub fn caller_name(&self) -> Option<&str> {
+        self.caller.map(|caller| {
+            if caller.display_name.trim().is_empty() {
+                caller.username.as_str()
+            } else {
+                caller.display_name.as_str()
+            }
+        })
     }
 
     /// The account the document belongs to, when it has one.

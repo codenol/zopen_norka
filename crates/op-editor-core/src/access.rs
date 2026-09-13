@@ -411,6 +411,27 @@ impl RoleSet {
     }
 
     /// The roles this build recognised.
+    /// The role to show this account as, when one has to be picked.
+    ///
+    /// A comment records a single role because it is shown as a single colour.
+    /// An account holding several is shown as the strongest it holds: a
+    /// designer who is also an admin is an admin, and showing the weaker one
+    /// would understate what they may do. Authority, not list order, decides —
+    /// the hub's order is not a promise.
+    pub fn leading_role(&self) -> Option<ProductRole> {
+        let mut best: Option<ProductRole> = None;
+        for role in self.roles() {
+            let better = match best {
+                None => true,
+                Some(current) => rank(*role) > rank(current),
+            };
+            if better {
+                best = Some(*role);
+            }
+        }
+        best
+    }
+
     pub fn roles(&self) -> &[ProductRole] {
         &self.known
     }
@@ -458,6 +479,15 @@ impl RoleSet {
         if !self.unrecognized.iter().any(|seen| seen == raw) {
             self.unrecognized.push(raw.to_string());
         }
+    }
+}
+
+/// How much authority a role carries, for picking one to display.
+const fn rank(role: ProductRole) -> u8 {
+    match role {
+        ProductRole::Admin => 3,
+        ProductRole::UxUi => 2,
+        _ => 1,
     }
 }
 

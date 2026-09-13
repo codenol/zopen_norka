@@ -110,9 +110,10 @@ struct Migration {
 /// been overtaken by later work (migration 1 says every row is ownerless
 /// "today") is corrected where the behaviour lives now, not in the record of
 /// what the database was.
-const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    sql: "
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        sql: "
         CREATE TABLE documents (
             key           TEXT PRIMARY KEY,
             name          TEXT NOT NULL,
@@ -137,7 +138,72 @@ const MIGRATIONS: &[Migration] = &[Migration {
             key      TEXT NOT NULL REFERENCES documents (key) ON DELETE CASCADE
         );
     ",
-}];
+    },
+    Migration {
+        version: 2,
+        sql: "
+        -- A conversation about a document, pinned to an ELEMENT. A thread
+        -- anchored to a coordinate would point at empty canvas the first time
+        -- somebody moved the frame it was about, where a node id travels with
+        -- its node and is deleted only with it.
+        CREATE TABLE comment_threads (
+            -- A rowid, not a key: `documents.key` is opaque because it builds
+            -- filesystem paths, and a thread id reaches no path. AUTOINCREMENT
+            -- is the part that matters — ids are never reused, so an id a client
+            -- is still holding answers 'no such thread' once its row is gone,
+            -- instead of naming somebody else's conversation.
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            -- The conversation goes with the document it is about: a deleted
+            -- document must not leave its threads behind for whoever asks for
+            -- that key next. The same rule, and the same reason
+            -- `foreign_keys=ON` is set, that `last_opened` above states.
+            document_key     TEXT NOT NULL REFERENCES documents (key) ON DELETE CASCADE,
+            -- The node the pin sits on, as the client names it. Not a foreign
+            -- key: nodes live inside the `.op` file, so this is a name the
+            -- client and the document agree on rather than a row here.
+            node_id          TEXT NOT NULL,
+            created_at       INTEGER NOT NULL,
+            -- Closed, not deleted: a resolved thread is the record of what was
+            -- asked and answered, which is most of a review's value.
+            resolved         INTEGER NOT NULL DEFAULT 0,
+            -- Written and cleared WITH `resolved`, by one UPDATE
+            -- (`document_comments::set_resolved`), so an open thread never
+            -- carries a resolver.
+            resolved_at      INTEGER,
+            resolved_by      TEXT,
+            -- The resolver's name at the time, for the reason a comment keeps
+            -- one: a stamp nobody can read as a person is not a record.
+            resolved_by_name TEXT
+        );
+
+        -- How the threads are read: one document's, in the order written. The
+        -- leading column is also what the cascade from `documents` finds its
+        -- children by — SQLite does not index a foreign key on its own.
+        CREATE INDEX comment_threads_by_document
+            ON comment_threads (document_key, created_at, id);
+
+        CREATE TABLE comments (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            thread_id   INTEGER NOT NULL REFERENCES comment_threads (id) ON DELETE CASCADE,
+            author_role TEXT,
+            -- NULL is the local operator, who has no account: the same meaning
+            -- this column carries on `documents.owner_id`.
+            author_id   TEXT,
+            -- A snapshot, not a join: a comment must keep reading as the person
+            -- who wrote it after they are renamed or leave the workspace.
+            author_name TEXT NOT NULL,
+            body        TEXT NOT NULL,
+            created_at  INTEGER NOT NULL
+        );
+
+        -- Replies are found by their thread, oldest first — and the same index
+        -- is what the cascade from a deleted thread finds its children by.
+        -- No index on `author_id`: no route reads comments by author, and an
+        -- index nothing queries is a write cost with no reader.
+        CREATE INDEX comments_by_thread ON comments (thread_id, created_at, id);
+    ",
+    },
+];
 
 /// A store's database, plus the directory whose files it accounts for.
 #[derive(Clone)]
@@ -200,7 +266,13 @@ impl DocumentDb {
     /// the guard is recovered rather than propagated: turning every later
     /// request into a panic would take the file list down for a fault that has
     /// already been contained.
-    fn conn(&self) -> MutexGuard<'_, Connection> {
+    ///
+    /// `pub(crate)` rather than private since the conversation tables moved
+    /// into their own module ([`crate::document_comments`]): the mutex is not
+    /// reentrant, so a sibling holding this guard must never call back into the
+    /// handle, and one connection behind one lock stays the rule — a second
+    /// accessor would be a second writer.
+    pub(crate) fn conn(&self) -> MutexGuard<'_, Connection> {
         self.inner
             .conn
             .lock()
@@ -704,7 +776,11 @@ fn find_by_conn(conn: &Connection, key: &str) -> Result<Option<DocumentEntry>, D
 /// Every rusqlite failure becomes one variant: the caller's decision is the
 /// same for all of them (the store is unusable for this request), and the
 /// message carries what SQLite said.
-fn db_error(error: rusqlite::Error) -> DocumentStoreError {
+///
+/// `pub(crate)` for the sibling modules that run their own statements against
+/// this database — one mapping, so "what a database failure looks like" cannot
+/// drift between them.
+pub(crate) fn db_error(error: rusqlite::Error) -> DocumentStoreError {
     DocumentStoreError::Database(error.to_string())
 }
 

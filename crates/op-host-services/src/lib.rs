@@ -70,6 +70,11 @@ pub mod design_md_llm;
 pub mod design_md_llm_error;
 pub mod design_session;
 pub mod doc_io;
+/// Comment threads on a document's elements. Crate-internal like the database
+/// they live in: the browser reaches them through `/api/files/<key>/comments*`
+/// (`web_canvas_server::comment_routes`), and nothing outside this crate has a
+/// second reason to read those tables.
+pub(crate) mod document_comments;
 /// The document index in SQLite. Crate-internal for now: `document_store` is
 /// the API the routes use, and this is where the rows live.
 pub(crate) mod document_db;
