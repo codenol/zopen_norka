@@ -721,6 +721,10 @@ pub fn handle_web_canvas_request(
         // `/api/files*` carries a key in the path, so it is matched by prefix
         // rather than by the exact-path arms above (§ files_routes).
         _ if path.starts_with("/api/files") => files_routes::handle(method, path, body, state),
+        // The unsaved-work draft: one slot, no key, dropped once restored.
+        _ if path.starts_with("/api/recovery") => {
+            recovery_routes::handle(method, path, body, state)
+        }
         _ => not_found_reply(),
     }
 }
@@ -755,6 +759,7 @@ mod connect_routes;
 mod connection;
 mod connection_ai_routes;
 mod files_routes;
+mod recovery_routes;
 mod doc_routes;
 mod export_routes;
 mod hub_verifier;

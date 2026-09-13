@@ -12,6 +12,12 @@ here at a glance.
 
 ### Added
 
+- **A draft slot for work with no home (server side).** A document with no
+  server key and no path now has somewhere to write itself: one draft beside
+  the documents, addressed by `/api/recovery` (write, ask about, restore,
+  drop). It is deliberately not a document in the store — no key, never
+  listed, and dropped the moment it is restored or refused. The banner that
+  offers it back is the next change.
 - **The saved state is stated, not implied.** The title bar now says "Saved"
   when the document matches its file and "Edited" when it does not; before, a
   saved document showed nothing, which is indistinguishable from a label that

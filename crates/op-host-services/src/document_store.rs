@@ -249,6 +249,50 @@ pub fn last_document(dir: &Path) -> Option<DocumentEntry> {
     Some(entry)
 }
 
+/// Where the unsaved-work draft lives.
+///
+/// One draft, not one per document: the daemon holds a single document at a
+/// time, so "the document that had no home when it was edited" is a single
+/// slot. Kept inside the documents directory so a deployment that moves the
+/// store (`NORKA_DOCUMENTS_DIR`) moves the draft with it — a recovery file on
+/// a different volume would be lost exactly when it is needed.
+pub fn recovery_path(dir: &Path) -> PathBuf {
+    dir.join("recovery.op")
+}
+
+/// What is known about a stored draft, for the banner that offers it back.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RecoveryInfo {
+    /// Unix seconds the draft was written.
+    pub saved_at: u64,
+    pub size: u64,
+}
+
+/// Describe the draft, when one exists.
+pub fn recovery_info(dir: &Path) -> Option<RecoveryInfo> {
+    let path = recovery_path(dir);
+    let metadata = std::fs::metadata(&path).ok()?;
+    let saved_at = metadata
+        .modified()
+        .ok()
+        .and_then(|modified| modified.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|since| since.as_secs())
+        .unwrap_or_else(now_secs);
+    Some(RecoveryInfo {
+        saved_at,
+        size: metadata.len(),
+    })
+}
+
+/// Drop the draft — after it has been restored, or refused.
+pub fn clear_recovery(dir: &Path) -> Result<(), DocumentStoreError> {
+    match std::fs::remove_file(recovery_path(dir)) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(DocumentStoreError::Io(format!("remove recovery: {error}"))),
+    }
+}
+
 /// Where a key's thumbnail lives, when one has been rendered.
 pub fn thumb_path(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> {
     if !key_is_valid(key) {
