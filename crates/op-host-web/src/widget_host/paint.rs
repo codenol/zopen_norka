@@ -59,6 +59,7 @@ impl WidgetHost {
                 now_unix_ms: self.editor_state.editor_ui.now_unix_ms,
                 theme: &self.theme,
                 files: &self.editor_state.editor_ui.server_files,
+                search_focused: self.editor_state.editor_ui.server_files_search_focused,
                 loading: self.editor_state.editor_ui.server_files_loading,
                 error: self.editor_state.editor_ui.server_files_error.as_deref(),
                 query: &self.editor_state.editor_ui.server_files_query,

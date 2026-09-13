@@ -72,6 +72,8 @@ pub struct EditorUiState {
     pub server_files_open_request: Option<String>,
     /// Whether the screen asked for a new document.
     pub server_files_create_request: bool,
+    /// Whether the search field on the file screen has the keyboard.
+    pub server_files_search_focused: bool,
     /// Wall clock in Unix milliseconds, refreshed by the host each frame.
     ///
     /// The chrome needs real time for exactly one thing: telling how old the

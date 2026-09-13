@@ -45,6 +45,8 @@ pub struct FilesScreen<'a> {
     pub loading: bool,
     pub error: Option<&'a str>,
     pub query: &'a str,
+    /// Whether the search field has the keyboard (paints a caret).
+    pub search_focused: bool,
 }
 
 impl FilesScreen<'_> {
@@ -75,17 +77,32 @@ impl FilesScreen<'_> {
         (((usable + CARD_GAP) / (CARD_W + CARD_GAP)).floor() as usize).max(1)
     }
 
+    /// The files the search field lets through, with their index in `files`.
+    ///
+    /// Matching is a case-insensitive substring on the name: the list is a
+    /// short recency list, not a corpus, so a fuzzy ranker would only make the
+    /// result harder to predict.
+    fn visible_indices(&self) -> Vec<usize> {
+        let needle = self.query.trim().to_lowercase();
+        self.files
+            .iter()
+            .enumerate()
+            .filter(|(_, file)| needle.is_empty() || file.name.to_lowercase().contains(&needle))
+            .map(|(index, _)| index)
+            .collect()
+    }
+
     /// Every card, in paint order, with the index of the file it shows.
     pub fn cards(&self, rect: Rect) -> Vec<FileCard> {
         let columns = Self::columns(rect);
         let origin_x = rect.origin.x + PAD;
         let origin_y = rect.origin.y + PAD + Self::header_height();
-        self.files
-            .iter()
+        self.visible_indices()
+            .into_iter()
             .enumerate()
-            .filter_map(|(index, _)| {
-                let column = index % columns;
-                let row = index / columns;
+            .filter_map(|(position, index)| {
+                let column = position % columns;
+                let row = position / columns;
                 let card = Rect {
                     origin: Point2D::new(
                         origin_x + column as f32 * (CARD_W + CARD_GAP),
@@ -187,6 +204,19 @@ impl FilesScreen<'_> {
             &layout,
             Point2D::new(field.origin.x + 10.0, field.origin.y + field.size.y / 2.0 + 4.5),
         );
+        if self.search_focused {
+            // Caret after the text: the field has no cursor navigation, so the
+            // end of the string is the only place it can be.
+            let width = text_metrics::measure_chrome(cx.backend, text, 13.0);
+            let caret_x = (field.origin.x + 10.0 + width + 1.0)
+                .min(field.origin.x + field.size.x - 4.0);
+            cx.backend.stroke_line(
+                Point2D::new(caret_x, field.origin.y + 7.0),
+                Point2D::new(caret_x, field.origin.y + field.size.y - 7.0),
+                theme.foreground,
+                1.0,
+            );
+        }
     }
 
     fn paint_card(&self, cx: &mut PaintCx<'_>, card: FileCard, file: &ServerFile) {
@@ -314,6 +344,33 @@ mod tests {
     }
 
     #[test]
+    fn the_search_filters_by_name_and_keeps_source_indices() {
+        let files = vec![
+            ServerFile { key: "a".into(), name: "Список токенов".into(), updated_at: 1, size: 1 },
+            ServerFile { key: "b".into(), name: "Коммутаторы".into(), updated_at: 1, size: 1 },
+        ];
+        let matching = FilesScreen {
+            now_unix_ms: 0.0,
+            theme: &Theme::default(),
+            files: &files,
+            loading: false,
+            error: None,
+            query: "коммут",
+            search_focused: false,
+        };
+        let cards = matching.cards(screen_rect());
+        assert_eq!(cards.len(), 1);
+        // The card still points at the *second* file in the source list.
+        assert_eq!(cards[0].index, 1);
+
+        let none = FilesScreen { query: "ничего-такого", ..matching };
+        assert!(none.cards(screen_rect()).is_empty());
+
+        let all = FilesScreen { query: "  ", ..none };
+        assert_eq!(all.cards(screen_rect()).len(), 2);
+    }
+
+    #[test]
     fn cards_are_laid_out_in_a_grid_without_overlap() {
         let files = files(5);
         let screen = FilesScreen {
@@ -323,6 +380,7 @@ mod tests {
             loading: false,
             error: None,
             query: "",
+            search_focused: false,
         };
         let cards = screen.cards(screen_rect());
         assert_eq!(cards.len(), 5);
@@ -343,6 +401,7 @@ mod tests {
             loading: false,
             error: None,
             query: "",
+            search_focused: false,
         };
         let cards = screen.cards(screen_rect());
         assert!(cards.len() < files.len(), "some cards must fall outside");
