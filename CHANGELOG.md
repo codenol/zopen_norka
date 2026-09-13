@@ -12,6 +12,11 @@ here at a glance.
 
 ### Added
 
+- **Rename and delete from the file screen.** Right-press a card for its
+  menu: Rename opens a field over the card (Enter commits, Escape abandons,
+  an empty name is treated as no change) and Delete removes the stored
+  document. The card updates immediately and the fresh list is the authority,
+  so a failed request corrects itself.
 - **Search on the file screen.** The field takes the keyboard when clicked,
   filters the cards by name as you type (case-insensitive substring, Cyrillic
   included) and paints a caret; it swallows keystrokes while focused, so a

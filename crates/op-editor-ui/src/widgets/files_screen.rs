@@ -8,7 +8,7 @@
 //! Geometry is computed by pure functions so the hit-test and the paint can
 //! never disagree about where a card is.
 
-use op_editor_core::ServerFile;
+use op_editor_core::{ServerFile, ServerFileMenu, ServerFileRename};
 
 use crate::theme::Theme;
 use crate::widgets::text_metrics;
@@ -23,6 +23,18 @@ const CARD_H: f32 = 156.0;
 const CARD_GAP: f32 = 20.0;
 /// Thumbnail band inside a card.
 const THUMB_H: f32 = 92.0;
+
+/// The card menu's two actions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileMenuAction {
+    Rename,
+    Delete,
+}
+
+/// Menu row height.
+const MENU_ROW_H: f32 = 30.0;
+/// Menu width.
+const MENU_W: f32 = 148.0;
 
 /// A card's rectangle plus the index of the file it shows.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -47,6 +59,10 @@ pub struct FilesScreen<'a> {
     pub query: &'a str,
     /// Whether the search field has the keyboard (paints a caret).
     pub search_focused: bool,
+    /// The card context menu, when one is open.
+    pub menu: Option<&'a ServerFileMenu>,
+    /// A rename in progress, painted as a field over its card.
+    pub rename: Option<&'a ServerFileRename>,
 }
 
 impl FilesScreen<'_> {
@@ -68,6 +84,53 @@ impl FilesScreen<'_> {
         Rect {
             origin: Point2D::new(rect.origin.x + PAD, rect.origin.y + PAD + 52.0),
             size: Point2D::new((rect.size.x - PAD * 2.0).min(360.0), 32.0),
+        }
+    }
+
+    /// The menu rectangle anchored at a card, clamped inside the screen.
+    pub fn menu_rect(rect: Rect, anchor: Point2D) -> Rect {
+        let width = MENU_W;
+        let height = MENU_ROW_H * 2.0 + 8.0;
+        let x = anchor.x.min(rect.origin.x + rect.size.x - width - 8.0).max(rect.origin.x + 8.0);
+        let y = anchor.y.min(rect.origin.y + rect.size.y - height - 8.0).max(rect.origin.y + 8.0);
+        Rect {
+            origin: Point2D::new(x, y),
+            size: Point2D::new(width, height),
+        }
+    }
+
+    /// The two rows of an open menu, in paint order.
+    pub fn menu_rows(menu: Rect) -> [(Rect, FileMenuAction); 2] {
+        let row = |index: usize| Rect {
+            origin: Point2D::new(menu.origin.x + 4.0, menu.origin.y + 4.0 + index as f32 * MENU_ROW_H),
+            size: Point2D::new(menu.size.x - 8.0, MENU_ROW_H),
+        };
+        [(row(0), FileMenuAction::Rename), (row(1), FileMenuAction::Delete)]
+    }
+
+    /// Paint the context menu.
+    pub fn paint_menu(&self, cx: &mut PaintCx<'_>, menu: Rect) {
+        let theme = self.theme;
+        cx.backend.fill_rect(menu, theme.popover);
+        cx.backend.stroke_rect(menu, theme.border, 1.0);
+        for (rect, action) in Self::menu_rows(menu) {
+            let label = match action {
+                FileMenuAction::Rename => "Rename",
+                FileMenuAction::Delete => "Delete",
+            };
+            let color = match action {
+                FileMenuAction::Rename => theme.popover_foreground,
+                FileMenuAction::Delete => theme.destructive,
+            };
+            let layout = TextLayout::single_run(
+                label,
+                "system-ui",
+                12.0,
+                color.to_jian(),
+                Point2D::new(0.0, 0.0),
+            );
+            cx.backend
+                .draw_text(&layout, Point2D::new(rect.origin.x + 10.0, rect.origin.y + 19.0));
         }
     }
 
@@ -148,6 +211,51 @@ impl FilesScreen<'_> {
         for card in self.cards(rect) {
             self.paint_card(cx, card, &self.files[card.index]);
         }
+        if let Some(rename) = self.rename {
+            self.paint_rename(cx, rect, rename);
+        }
+        if let Some(menu) = self.menu {
+            let anchor = Point2D::new(menu.x, menu.y);
+            self.paint_menu(cx, Self::menu_rect(rect, anchor));
+        }
+    }
+
+    /// The rename field, drawn over the card it belongs to.
+    fn paint_rename(&self, cx: &mut PaintCx<'_>, rect: Rect, rename: &ServerFileRename) {
+        let theme = self.theme;
+        let Some(card) = self
+            .cards(rect)
+            .into_iter()
+            .find(|card| self.files[card.index].key == rename.key)
+        else {
+            return;
+        };
+        let field = Rect {
+            origin: Point2D::new(card.rect.origin.x + 10.0, card.rect.origin.y + 10.0),
+            size: Point2D::new(card.rect.size.x - 20.0, 28.0),
+        };
+        cx.backend.fill_rect(field, theme.input);
+        cx.backend.stroke_rect(field, theme.ring, 1.0);
+        let layout = TextLayout::single_run(
+            &rename.draft,
+            "system-ui",
+            12.0,
+            theme.foreground.to_jian(),
+            Point2D::new(0.0, 0.0),
+        );
+        cx.backend.save();
+        cx.backend.clip_rect(field);
+        cx.backend
+            .draw_text(&layout, Point2D::new(field.origin.x + 8.0, field.origin.y + 18.0));
+        cx.backend.restore();
+        let width = text_metrics::measure_chrome(cx.backend, &rename.draft, 12.0);
+        let caret_x = (field.origin.x + 8.0 + width + 1.0).min(field.origin.x + field.size.x - 4.0);
+        cx.backend.stroke_line(
+            Point2D::new(caret_x, field.origin.y + 6.0),
+            Point2D::new(caret_x, field.origin.y + field.size.y - 6.0),
+            theme.foreground,
+            1.0,
+        );
     }
 
     fn paint_title(&self, cx: &mut PaintCx<'_>, rect: Rect) {
@@ -357,6 +465,8 @@ mod tests {
             error: None,
             query: "коммут",
             search_focused: false,
+            menu: None,
+            rename: None,
         };
         let cards = matching.cards(screen_rect());
         assert_eq!(cards.len(), 1);
@@ -381,6 +491,8 @@ mod tests {
             error: None,
             query: "",
             search_focused: false,
+            menu: None,
+            rename: None,
         };
         let cards = screen.cards(screen_rect());
         assert_eq!(cards.len(), 5);
@@ -402,6 +514,8 @@ mod tests {
             error: None,
             query: "",
             search_focused: false,
+            menu: None,
+            rename: None,
         };
         let cards = screen.cards(screen_rect());
         assert!(cards.len() < files.len(), "some cards must fall outside");

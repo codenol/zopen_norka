@@ -148,6 +148,36 @@ pub fn get_with_status(url: &str, on_response: Rc<dyn Fn(u16, String)>) -> bool 
 /// response body on completion — including error/empty bodies, so an
 /// in-flight latch held by the caller is always released. Returns `false`
 /// when the request could not start (the callback will then never fire).
+/// Issue one async `DELETE` and hand the response body to the caller.
+///
+/// The file screen deletes stored documents; the shape mirrors `post_json`, so
+/// callers do not have to care which verb the daemon expects.
+pub fn delete_json(url: &str, on_response: Option<Rc<dyn Fn(String)>>) -> bool {
+    let Ok(xhr) = web_sys::XmlHttpRequest::new() else {
+        return false;
+    };
+    if xhr
+        .open_with_async("DELETE", &crate::daemon_base::with_tenant_param(url), true)
+        .is_err()
+    {
+        return false;
+    }
+    attach_daemon_headers(&xhr, url);
+    if let Some(on_response) = on_response {
+        let xhr_for_load = xhr.clone();
+        let onloadend = Closure::<dyn FnMut()>::once_into_js(move || {
+            let text = xhr_for_load
+                .response_text()
+                .ok()
+                .flatten()
+                .unwrap_or_default();
+            on_response(text);
+        });
+        xhr.set_onloadend(Some(onloadend.unchecked_ref()));
+    }
+    xhr.send().is_ok()
+}
+
 pub fn post_json(url: &str, body: &str, on_response: Option<Rc<dyn Fn(String)>>) -> bool {
     let Ok(xhr) = web_sys::XmlHttpRequest::new() else {
         return false;

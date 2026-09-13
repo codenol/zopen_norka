@@ -25,6 +25,11 @@ impl WidgetHost {
     /// Right-click handler — opens the LayerPanel context menu on
     /// a layer or page row.
     pub fn apply_right_press(&mut self, x: f32, y: f32, viewport_w: f32, viewport_h: f32) -> bool {
+        // On the file screen a right press opens the card's menu; the editor's
+        // context menus are not reachable from here.
+        if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
+            return self.right_press_files_screen(x, y, viewport_w, viewport_h);
+        }
         self.commit_variable_row_focus_if_any();
         self.close_image_popovers_for_higher_overlay();
         if self.over_topmost_panel(x, y, viewport_w, viewport_h) {

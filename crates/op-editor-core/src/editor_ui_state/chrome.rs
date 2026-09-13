@@ -201,6 +201,24 @@ pub struct ServerFile {
 /// search, not a scroll.
 pub const SERVER_FILE_CAP: usize = 60;
 
+
+/// An open context menu on a file card.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ServerFileMenu {
+    pub key: String,
+    /// Screen position the menu is anchored to.
+    pub x: f32,
+    pub y: f32,
+}
+
+/// A rename in progress on a file card.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ServerFileRename {
+    pub key: String,
+    /// The text being typed, seeded from the current name.
+    pub draft: String,
+}
+
 /// Maximum number of recent files shown in the File menu.
 pub const RECENT_FILE_CAP: usize = 10;
 

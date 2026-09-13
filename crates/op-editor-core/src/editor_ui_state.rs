@@ -74,6 +74,15 @@ pub struct EditorUiState {
     pub server_files_create_request: bool,
     /// Whether the search field on the file screen has the keyboard.
     pub server_files_search_focused: bool,
+    /// The card context menu, when one is open.
+    pub server_files_menu: Option<crate::editor_ui_state::chrome::ServerFileMenu>,
+    /// A rename being typed, when one is in progress. While it is set the
+    /// keyboard belongs to it, so the search field cannot steal the text.
+    pub server_files_rename: Option<crate::editor_ui_state::chrome::ServerFileRename>,
+    /// A rename the screen asked the host to perform (key, new name).
+    pub server_files_rename_request: Option<(String, String)>,
+    /// A delete the screen asked the host to perform.
+    pub server_files_delete_request: Option<String>,
     /// Wall clock in Unix milliseconds, refreshed by the host each frame.
     ///
     /// The chrome needs real time for exactly one thing: telling how old the
