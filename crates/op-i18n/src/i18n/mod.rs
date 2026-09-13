@@ -213,6 +213,8 @@ pub fn translate_with(locale: Locale, key: &'static str, variables: &[(&str, &st
 #[cfg(test)]
 mod catalog_integrity_tests;
 #[cfg(test)]
+mod comment_key_tests;
+#[cfg(test)]
 mod figma_property_panel_key_tests;
 #[cfg(test)]
 mod html_import_key_tests;

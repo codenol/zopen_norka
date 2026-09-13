@@ -633,6 +633,11 @@ impl EditorUiState {
         // preserve-geometry layout path) — matches file-open, which resets it
         // via a fresh `editor_ui`.
         self.preserve_authored_geometry = false;
+        // Document-derived in the strongest sense: a comment thread is about a
+        // node of ONE document, and the threads the daemon answers for the next
+        // key are a different conversation entirely. Keeping them would paint
+        // pins on elements that inherited an id and described by somebody else.
+        self.comments.clear_for_document();
     }
 }
 

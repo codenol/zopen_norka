@@ -614,6 +614,55 @@ impl WidgetHost {
             )
         };
 
+        // Comment threads: the pins paint inside the canvas (they belong to the
+        // document), the thread list and the open thread's popover paint here —
+        // the same band as the recovery banner, above the canvas and below every
+        // dropdown, modal and floating panel. The rects are cached for the press
+        // arm, exactly as the banner's is.
+        {
+            let canvas_rect = op_editor_ui::widgets::host_canvas_geometry::canvas_rect(
+                &self.editor_state,
+                viewport_width,
+                viewport_height,
+            );
+            let scene = &self.layout_scene;
+            let node_exists = |node_id: &str| {
+                scene
+                    .active_page()
+                    .is_some_and(|page| page.find(node_id).is_some())
+            };
+            // The popover hangs from the pin of its own thread, so it needs the
+            // markers the canvas just placed.
+            let pins = {
+                let mut canvas =
+                    CanvasViewport::from_editor(&self.editor_state, &self.layout_scene);
+                canvas.now_ms = self.now_ms;
+                canvas.comment_pins(canvas_rect)
+            };
+            let mut cx = PaintCx {
+                backend: &mut *backend,
+            };
+            self.comments_panel_rect = op_editor_ui::widgets::comments_flow::paint_panel(
+                &mut cx,
+                &self.editor_state,
+                canvas_rect,
+                &node_exists,
+            );
+            self.comments_popover_rect = op_editor_ui::widgets::comments_flow::paint_popover(
+                &mut cx,
+                &self.editor_state,
+                canvas_rect,
+                &pins,
+            );
+            // The pill is the panel's collapsed form: painted only while the
+            // panel is shut, and in the corner the panel opens into.
+            self.comments_toggle_rect = op_editor_ui::widgets::comments_flow::paint_toggle(
+                &mut cx,
+                &self.editor_state,
+                canvas_rect,
+            );
+        }
+
         // Menus, modals, floating panels and the top-most notices —
         // z-order above everything painted so far. Split into its own
         // method purely to keep this file under the repo's 800-line cap;

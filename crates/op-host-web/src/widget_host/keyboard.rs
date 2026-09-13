@@ -15,6 +15,12 @@ impl WidgetHost {
     /// Push a typed character into the focused chat / settings input.
     /// Returns true if anything changed.
     pub fn apply_text(&mut self, c: char) -> bool {
+        // The comment field owns the keystroke while it has focus — checked
+        // before every other arm, because a bare letter would otherwise switch
+        // the tool behind a comment somebody is typing.
+        if self.comment_text(c) {
+            return true;
+        }
         // The file screen's search field takes the keyboard while it has focus;
         // without this a typed letter would fall through to the canvas
         // shortcuts and switch tools behind the screen.
@@ -149,6 +155,9 @@ impl WidgetHost {
     }
 
     pub fn apply_backspace(&mut self) -> bool {
+        if self.comment_backspace() {
+            return true;
+        }
         if self.file_search_takes_backspace() {
             return true;
         }
@@ -285,6 +294,12 @@ impl WidgetHost {
     }
 
     pub fn apply_send(&mut self) -> bool {
+        // Enter in the comment field sends the comment. Above the rename
+        // commit below, because the composer only takes the keyboard while it
+        // is focused and a rename menu is not open at the same time.
+        if self.comment_send() {
+            return true;
+        }
         // Enter commits a file rename before anything else can claim it.
         if self.file_rename_commit() {
             return true;

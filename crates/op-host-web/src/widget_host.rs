@@ -97,10 +97,14 @@ mod design_md_press_tests;
 pub(crate) mod icon_ingest;
 // Browser file-IO ingestion (Open / Figma import / clipboard paste)
 // — needs the codegen-gated document-pipeline deps (jian-ops-schema).
+#[cfg(test)]
+mod comments_press_tests;
 #[cfg(feature = "canvaskit")]
 mod file_ingest;
 #[cfg(test)]
 mod file_menu_paint_tests;
+mod files_screen_press;
+mod files_screen_text;
 #[cfg(test)]
 mod font_picker_keyboard_tests;
 mod geometry;
@@ -123,6 +127,9 @@ mod image_panel_selection_tests;
 #[cfg(all(test, feature = "canvaskit"))]
 mod io_tests;
 mod keyboard;
+mod keyboard_comments;
+#[cfg(test)]
+mod keyboard_comments_tests;
 mod keyboard_edit_ops;
 mod keyboard_escape;
 mod keyboard_git;
@@ -160,11 +167,10 @@ mod pan_tests;
 mod pen_press;
 #[cfg(test)]
 mod pen_press_tests;
-mod files_screen_press;
-mod files_screen_text;
 mod press;
 mod press_canvas_tiers;
 mod press_chrome_tiers;
+mod press_comments;
 mod press_ctx;
 mod press_overlay_tiers;
 mod press_property_tiers;
@@ -385,6 +391,16 @@ pub struct WidgetHost {
     /// The press arm re-checks the offer is still on screen before trusting it
     /// (see `op_editor_ui::widgets::recovery_banner_flow::press`).
     pub(in crate::widget_host) recovery_banner_rect: Option<op_editor_ui::Rect>,
+    /// Where the comment thread list painted this frame, for the press arm.
+    ///
+    /// Cached for the same reason the recovery banner's rect is: the geometry
+    /// follows the canvas region and the length of the conversation, either of
+    /// which can change between the paint and the press.
+    pub(in crate::widget_host) comments_panel_rect: Option<op_editor_ui::Rect>,
+    /// Where the open thread's popover painted this frame.
+    pub(in crate::widget_host) comments_popover_rect: Option<op_editor_ui::Rect>,
+    /// Where the comment pill (the panel's collapsed form) painted this frame.
+    pub(in crate::widget_host) comments_toggle_rect: Option<op_editor_ui::Rect>,
     /// Most recent viewport size seen via `apply_press` etc. — cached
     /// so `apply_cursor_move(x, y)` can rebuild the canvas region
     /// when its signature can't carry viewport dims (mirrors native).

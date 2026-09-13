@@ -241,6 +241,17 @@ impl WidgetHost {
             self.mark_dirty();
             return true;
         }
+        // Comment threads: the popover first (what the reviewer is looking at),
+        // then the armed pin mode, and only then the selection the comment was
+        // about — the order `host_escape_transitions` documents.
+        if escape::escape_comment_popover(&mut self.editor_state) {
+            self.mark_dirty();
+            return true;
+        }
+        if escape::escape_comment_pin_mode(&mut self.editor_state) {
+            self.mark_dirty();
+            return true;
+        }
         if escape::escape_selection(&mut self.editor_state) {
             self.mark_dirty();
             return true;

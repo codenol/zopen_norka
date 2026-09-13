@@ -174,6 +174,13 @@ mod web_recovery;
 // Pure web_sys clipboard/download — Ctrl+C/X in inputs + Figma/file paste.
 #[cfg(feature = "canvaskit")]
 mod web_clipboard;
+// Comment threads over the daemon's REST API. Behind `canvaskit` for the same
+// two reasons as `web_recovery`: the transport needs `serde_json`, and a
+// finished answer is installed through the `RepaintContext` seam — neither of
+// which the `web` stub baseline carries, so an ungated module fails the
+// default-feature compile that `cargo check --workspace` runs.
+#[cfg(feature = "canvaskit")]
+mod web_comments;
 #[cfg(feature = "canvaskit")]
 mod web_fonts;
 // IndexedDB persistence for user-imported fonts (Phase 4).
