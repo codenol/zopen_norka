@@ -21,10 +21,11 @@ here at a glance.
   Local and managed daemons answer "the operator" and behave exactly as
   before; nothing about working on your own machine changed.
 
-  Rights come from roles, not from owning a file: an owner with no recognised
-  role reads. That is the operator's matrix applied uniformly, and it is the
-  fail-closed direction — the alternative would let a hub that sends no roles,
-  or one that renames a role this build does not know, silently grant write.
+  An owner works on their own document whatever roles the hub sends: the file
+  is theirs, and a deployment whose hub sends no roles would otherwise be
+  read-only for the very people the documents belong to. Someone else's
+  document is a different matter — there the roles decide, so a visitor given
+  access without an editing role reads, and an unknown role grants nothing.
 
   The online refusal that fronts these routes (#20) stays for now: it answers
   a different question — *whose files may be addressed at all* — and

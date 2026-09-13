@@ -42,22 +42,20 @@
 //! and is refused every write — the fail-closed direction, and the one that
 //! cannot silently hand out an edit.
 //!
-//! ## Why ownership alone does not confer edit
+//! ## Ownership grants edit — on your own document only
 //!
-//! An owner with no recognised role is refused writes on their own document.
-//! That is the operator's matrix applied uniformly: rights come from roles,
-//! not from owning a file, and `Guest` — the row with no role — reads. The
-//! alternative (ownership implies edit) was rejected because it would make a
-//! hub that sends no roles, or one that renames a role this build does not
-//! know, silently grant write to every account — the failure #10 exists to
-//! stop. It would also make the accounts inside one deployment disagree about
-//! what the same role means depending on who owns the file.
+//! An owner may change the document they own, whatever roles they hold, and
+//! that is the operator's decision: the file is theirs to work on, and a
+//! deployment whose hub sends no roles would otherwise be read-only for the
+//! very people the documents belong to.
 //!
-//! The cost is real and is stated rather than hidden: a deployment whose hub
-//! sends no roles is read-only, so the roles must arrive before the routes
-//! that write become reachable. That is why the online refusal that fronts
-//! the stored-document routes is still in place — see
-//! `handle_web_canvas_request`.
+//! What this is **not** is the rule this module first rejected. "Ownership
+//! implies edit" as a general principle would hand writes on *any* document to
+//! whoever owns it and, when a hub fails to send roles, to every account at
+//! once. Here it reaches exactly one file — the caller's own — and only after
+//! question one has already established that the caller may see it. A stranger
+//! is still refused at the door, and a shared visitor with no editing role
+//! still reads.
 //!
 //! ## Why delete and restore are not separate rights
 //!
@@ -242,10 +240,30 @@ impl<'a> RequestAccess<'a> {
         if action == DocumentAction::View {
             return Ok(());
         }
+        // The owner of a document may change it. Their own file is theirs to
+        // work on, and a deployment whose hub sends no roles would otherwise
+        // be read-only for the very people the documents belong to.
+        //
+        // This is not the "ownership implies edit" that the module docs reject:
+        // that would have granted writes on *other people's* documents to
+        // whoever the owner happens to be, and to every account when a hub
+        // fails to send roles for anyone. Here it reaches exactly one file —
+        // the caller's own — and a stranger is still stopped by question one.
+        if self.is_owner() {
+            return Ok(());
+        }
         if self.rights().can_edit() {
             Ok(())
         } else {
             Err(AccessRefusal::ReadOnly)
+        }
+    }
+
+    /// Whether the caller owns the document being served.
+    fn is_owner(&self) -> bool {
+        match (self.owner_id, self.caller) {
+            (Some(owner), Some(caller)) => owner == caller.user_id,
+            _ => false,
         }
     }
 
