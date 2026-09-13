@@ -69,12 +69,12 @@ fn an_owner_with_an_editing_role_may_do_everything() {
 }
 
 #[test]
-fn an_owner_without_a_role_reads_but_never_writes() {
-    // The plain consequence of "rights come from roles": an owner with no
-    // recognised role is a reader on their own document. See the module docs
-    // for why ownership alone does not confer an edit.
+fn an_owner_without_a_role_still_works_on_their_own_document() {
+    // The operator's decision: the document is theirs to work on, whatever
+    // roles the hub sends — otherwise a deployment whose hub sends none would
+    // be read-only for the people the documents belong to.
     let caller = owner(&[]);
-    assert_read_only(&RequestAccess::online("userA", &caller, false));
+    assert_all_allowed(&RequestAccess::online("userA", &caller, false));
 }
 
 #[test]
@@ -94,14 +94,16 @@ fn a_shared_visitor_without_a_role_reads_but_never_writes() {
 }
 
 #[test]
-fn a_shared_contributor_role_reads_but_never_writes() {
-    // Five of the seven roles land in the contributor bucket; none of them may
-    // change a document, whether or not it is their own.
+fn a_shared_contributor_role_reads_but_never_writes_someone_elses_document() {
+    // Five of the seven roles land in the contributor bucket: none of them may
+    // change a document they were merely given. On their *own* document they
+    // may, like any owner — that is the point of ownership, not a privilege
+    // these roles carry.
     for role in ["software", "analyst", "frontend", "backend", "qa"] {
         let visitor = identity("userB", &[role]);
         assert_read_only(&RequestAccess::online("userA", &visitor, true));
         let proprietor = owner(&[role]);
-        assert_read_only(&RequestAccess::online("userA", &proprietor, false));
+        assert_all_allowed(&RequestAccess::online("userA", &proprietor, false));
     }
 }
 
@@ -119,10 +121,12 @@ fn an_unknown_role_grants_nothing() {
     // must never land in a privileged bucket — and a blank entry is not
     // "no roles at all" either; both answer as a caller with no role.
     for raw in ["wizard", "", "  "] {
-        let caller = owner(&[raw]);
+        // A *visitor* with such a role: the owner's own document is theirs
+        // regardless of roles, so the rule has to be proved on someone else's.
+        let caller = identity("userB", &[raw]);
         assert!(caller.roles.is_empty(), "{raw:?}");
         assert!(!caller.roles.unrecognized().is_empty(), "{raw:?}");
-        assert_read_only(&RequestAccess::online("userA", &caller, false));
+        assert_read_only(&RequestAccess::online("userA", &caller, true));
     }
 }
 

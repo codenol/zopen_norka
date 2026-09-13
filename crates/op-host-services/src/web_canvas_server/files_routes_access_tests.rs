@@ -187,27 +187,42 @@ fn a_visitor_whose_roles_grant_an_edit_reaches_the_store() {
 }
 
 #[test]
-fn the_owner_needs_a_role_too() {
-    // Ownership admits the caller to the document; it does not grant the write.
+fn the_owner_reaches_their_own_document_without_asking_a_role() {
+    // The operator's decision: a document belongs to someone who may work on
+    // it, whatever roles the hub sends — otherwise a deployment whose hub sends
+    // none would be read-only for the very people the documents belong to.
+    // The gate lets the request through, so the answer now comes from the
+    // store, about a key that does not exist.
     let owner = as_owner(&[]);
-    let read_only = handle(
+    let reached = handle(
         "DELETE",
         &format!("/api/files/{INVALID_KEY}"),
         "",
         &mut tenant_state(),
         &RequestAccess::online("userA", &owner, false),
     );
-    assert_eq!(read_only.status, "403 Forbidden");
-    assert_eq!(error_code(&read_only), "read-only-role");
+    assert_eq!(reached.status, "400 Bad Request", "{}", reached.body);
 
-    // With the designer role the same request reaches the store again.
-    let editor = as_owner(&["ux_ui"]);
+    // Someone else's document still needs an editing role.
+    let visitor = as_visitor(&[]);
+    let refused = handle(
+        "DELETE",
+        &format!("/api/files/{INVALID_KEY}"),
+        "",
+        &mut tenant_state(),
+        &RequestAccess::online("userA", &visitor, true),
+    );
+    assert_eq!(refused.status, "403 Forbidden");
+    assert_eq!(error_code(&refused), "read-only-role");
+
+    // And with the designer role the visitor reaches the store as well.
+    let editor = as_visitor(&["ux_ui"]);
     let allowed = handle(
         "DELETE",
         &format!("/api/files/{INVALID_KEY}"),
         "",
         &mut tenant_state(),
-        &RequestAccess::online("userA", &editor, false),
+        &RequestAccess::online("userA", &editor, true),
     );
     assert_eq!(allowed.status, "400 Bad Request", "{}", allowed.body);
 }
