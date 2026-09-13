@@ -215,6 +215,7 @@ fn create_document(body: &str, state: &mut WebCanvasState, dir: &std::path::Path
             state.current_path = None;
             state.version += 1;
             refresh_thumbnail(state, dir, &entry.key);
+            let _ = document_store::remember_last(dir, &entry.key);
             ok_json(serde_json::json!({
                 "ok": true,
                 "file": entry_json(&entry),
@@ -257,6 +258,8 @@ fn open_document(state: &mut WebCanvasState, dir: &std::path::Path, key: &str) -
                 .map(|entry| entry.name);
             next.editor_ui.file_key = Some(key.to_string());
             next.editor_ui.file_name_display = name.clone();
+            // A restart should come back to this document, not to the kit.
+            let _ = document_store::remember_last(dir, key);
             state.editor = next;
             state.current_path = None;
             state.version += 1;

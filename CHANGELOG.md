@@ -12,6 +12,10 @@ here at a glance.
 
 ### Added
 
+- **A restart returns to your work.** The daemon records which document was
+  open and reopens it on startup, instead of handing back the kit. An explicit
+  document argument still wins, and a document that has since been deleted
+  falls back to a fresh one rather than failing to start.
 - **Autosave.** A stored document now reaches disk on its own: after edits
   settle (3 s of quiet, and never more often than every 15 s) the browser
   writes it through a quiet route that skips the preview render. The

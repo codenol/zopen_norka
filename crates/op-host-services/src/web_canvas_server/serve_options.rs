@@ -233,11 +233,33 @@ pub(super) fn startup_editor_from_base_for_web_canvas(
             Ok(next)
         }
         None => {
+            // No document was named on the command line: come back to the one
+            // that was open last, so a restart resumes work instead of handing
+            // back the kit. An explicit argument still wins — a script that
+            // asks for a file gets that file.
+            if let Some(restored) = restore_last_document(&base) {
+                return Ok(restored);
+            }
             let mut base = base;
             op_pen_loader::ensure_skala_session(&mut base);
             Ok(base)
         }
     }
+}
+
+/// Reopen the document the daemon had open, when there is one to reopen.
+fn restore_last_document(base: &EditorState) -> Option<EditorState> {
+    let dir = crate::document_store::documents_dir();
+    let entry = crate::document_store::last_document(&dir)?;
+    let path = crate::document_store::path_for(&dir, &entry.key).ok()?;
+    let mut next = crate::mcp_serve::load_editor_state(&path).ok()?;
+    preserve_web_canvas_preferences(base, &mut next);
+    op_pen_loader::ensure_skala_session(&mut next);
+    next.editor_ui.file_key = Some(entry.key.clone());
+    next.editor_ui.file_name_display = Some(entry.name.clone());
+    // Restored from disk, so nothing is unsaved.
+    next.mark_saved_revision();
+    Some(next)
 }
 
 pub(super) fn startup_editor_for_web_canvas_with_loader<Checked>(
