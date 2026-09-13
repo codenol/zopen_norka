@@ -248,3 +248,37 @@ fn a_parse_failure_says_which_role_it_could_not_read() {
         "unknown product role: wat"
     );
 }
+
+#[test]
+fn every_role_has_its_own_colour() {
+    let mut seen: Vec<(&str, ProductRole)> = Vec::new();
+    for role in ProductRole::ALL {
+        let colour = role.colour().hex;
+        assert!(
+            colour.starts_with('#') && colour.len() == 7,
+            "{role:?} has a malformed colour: {colour}"
+        );
+        if let Some((other, other_role)) = seen.iter().find(|(seen, _)| *seen == colour) {
+            panic!("{role:?} and {other_role:?} share the colour {other}");
+        }
+        seen.push((colour, role));
+    }
+    assert_eq!(seen.len(), 7, "all seven roles must be covered");
+}
+
+#[test]
+fn the_two_warm_roles_stay_apart() {
+    // Admin's gold and the Analyst's yellow are the pair most at risk of
+    // reading as one colour; keeping them apart is the reason the values were
+    // chosen rather than picked from a palette in order.
+    let gold = ProductRole::Admin.colour().hex;
+    let yellow = ProductRole::Analyst.colour().hex;
+    let channel = |hex: &str, index: usize| {
+        u8::from_str_radix(&hex[1 + index * 2..3 + index * 2], 16).expect("hex")
+    };
+    // Gold is markedly darker and less blue than the analyst's light yellow.
+    assert!(
+        channel(gold, 2) + 60 < channel(yellow, 2),
+        "gold {gold} and yellow {yellow} are too close"
+    );
+}

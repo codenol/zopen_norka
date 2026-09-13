@@ -12,6 +12,14 @@ here at a glance.
 
 ### Added
 
+- **Every role has a colour.** Golden for Admin, violet for UX/UI, sky for
+  Software, yellow for Analyst, green for Frontend, grey for Backend, brown for
+  QA — taken from the operator's own naming and resolved to values that stay
+  apart on the dark chrome, gold and yellow included. Roles need to be
+  recognisable before they are useful: the first thing a team asks of them is
+  who said or did something, and that has to read without a label. The colours
+  land now so that commenting, which reads them, arrives into a system that
+  already knows what an author looks like.
 - **The draft is offered back (#26).** The next launch asks the daemon once,
   and a bar over the canvas offers the recovered work: "Unsaved work found:
   10m ago" with **Restore** and **Discard**. Restore adopts the draft as the
@@ -65,6 +73,17 @@ here at a glance.
   only reads. An account may hold several roles — rights compose by union — and
   an unknown role from the wire is refused rather than trusted. Nothing enforces
   these yet on the routes: that needs a document owner, which is the next step.
+- **Roles decide the stored-document and recovery routes (#10, second step).**
+  Who owns a document, and what the caller's roles grant, now reach
+  `/api/files*` and `/api/recovery*`, and one function decides every route
+  there. Local and managed deployments answer exactly as before — no accounts,
+  no login, nothing refused. Online, a caller must own the document or be on
+  its access list, and then hold a role that grants an edit before anything is
+  saved, renamed, deleted, restored or written as a draft; a caller with no
+  roles — or with role names this build does not know, which fail closed — may
+  read and is refused every write. Both families are still refused wholesale
+  online, in front of that gate: `documents_dir()` has no owner dimension yet,
+  and a role check says who may edit, never whose file it is.
 
 ### Fixed
 
