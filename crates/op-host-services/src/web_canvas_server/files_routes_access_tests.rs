@@ -79,6 +79,31 @@ fn every_route_the_parser_produces_names_the_right_it_asks_for() {
         ("POST", "/api/files/abcd1234/autosave", DocumentAction::Edit),
         ("POST", "/api/files/abcd1234/rename", DocumentAction::Edit),
         ("DELETE", "/api/files/abcd1234", DocumentAction::Delete),
+        // The conversation about a document. Reading it is reading the
+        // document; everything that writes asks for the right the five
+        // contributor roles hold, which is not the right that writes the
+        // document itself.
+        ("GET", "/api/files/abcd1234/comments", DocumentAction::View),
+        (
+            "POST",
+            "/api/files/abcd1234/comments",
+            DocumentAction::Comment,
+        ),
+        (
+            "POST",
+            "/api/files/abcd1234/comments/7/reply",
+            DocumentAction::Comment,
+        ),
+        (
+            "POST",
+            "/api/files/abcd1234/comments/7/resolve",
+            DocumentAction::Comment,
+        ),
+        (
+            "POST",
+            "/api/files/abcd1234/comments/7/reopen",
+            DocumentAction::Comment,
+        ),
     ];
     for (method, path, expected) in cases {
         let route = parse_route(path).unwrap_or_else(|| panic!("unparsed {path}"));
@@ -101,14 +126,24 @@ fn a_combination_no_route_handles_names_no_right() {
         ("GET", "/api/files/abcd1234/save"),
         ("DELETE", "/api/files/abcd1234/open"),
         ("PATCH", "/api/files"),
+        // A thread on its own is not a route: the list brings every thread with
+        // its comments, and a shape the parser refuses cannot become a handler
+        // somebody forgets to gate.
+        ("GET", "/api/files/abcd1234/comments/7"),
+        ("DELETE", "/api/files/abcd1234/comments"),
+        ("GET", "/api/files/abcd1234/comments/7/reply"),
+        ("POST", "/api/files/abcd1234/comments/7"),
+        ("POST", "/api/files/abcd1234/comments/7/reply/extra"),
     ];
     // A caller who may reach the document, so the 404 can only come from the
     // route table and not from a refusal.
     let visitor = as_visitor(&[]);
     let access = RequestAccess::online("userA", &visitor, true);
     for (method, path) in cases {
-        let route = parse_route(path).unwrap_or_else(|| panic!("unparsed {path}"));
-        assert_eq!(required_action(method, &route), None, "{method} {path}");
+        let route = parse_route(path);
+        if let Some(route) = &route {
+            assert_eq!(required_action(method, route), None, "{method} {path}");
+        }
         assert_eq!(
             handle(method, path, "", &mut tenant_state(), &access).status,
             "404 Not Found",
@@ -120,16 +155,24 @@ fn a_combination_no_route_handles_names_no_right() {
 #[test]
 fn a_caller_with_no_role_may_read_the_store() {
     let visitor = as_visitor(&[]);
-    let reply = handle(
-        "GET",
-        &format!("/api/files/{INVALID_KEY}/thumb"),
-        "",
-        &mut tenant_state(),
-        &RequestAccess::online("userA", &visitor, true),
-    );
-    // Not the gate's 403: the request reached the store, which refused the key.
-    assert_eq!(reply.status, "400 Bad Request", "{}", reply.body);
-    assert_eq!(error_code(&reply), "invalid document key");
+    // Reading a document's conversation is reading the document: whoever may
+    // open the key may see what is pinned to it.
+    for path in [
+        format!("/api/files/{INVALID_KEY}/thumb"),
+        format!("/api/files/{INVALID_KEY}/comments"),
+    ] {
+        let reply = handle(
+            "GET",
+            &path,
+            "",
+            &mut tenant_state(),
+            &RequestAccess::online("userA", &visitor, true),
+        );
+        // Not the gate's 403: the request reached the store, which refused the
+        // key.
+        assert_eq!(reply.status, "400 Bad Request", "{path}: {}", reply.body);
+        assert_eq!(error_code(&reply), "invalid document key", "{path}");
+    }
 }
 
 #[test]
@@ -148,11 +191,63 @@ fn a_caller_with_no_role_is_refused_every_write() {
             r#"{"name":"x"}"#,
         ),
         ("DELETE", "/api/files/not-a-valid-key", ""),
+        // A guest given a link to READ is refused the conversation too: they
+        // hold no role, and commenting is exactly what a role is needed for.
+        (
+            "POST",
+            "/api/files/not-a-valid-key/comments",
+            r#"{"nodeId":"n1","text":"hello"}"#,
+        ),
+        (
+            "POST",
+            "/api/files/not-a-valid-key/comments/7/reply",
+            r#"{"text":"hello"}"#,
+        ),
+        ("POST", "/api/files/not-a-valid-key/comments/7/resolve", ""),
+        ("POST", "/api/files/not-a-valid-key/comments/7/reopen", ""),
     ];
     let visitor = as_visitor(&[]);
     let access = RequestAccess::online("userA", &visitor, true);
     for (method, path, body) in writes {
         let reply = handle(method, path, body, &mut tenant_state(), &access);
+        assert_eq!(reply.status, "403 Forbidden", "{method} {path}");
+        assert_eq!(error_code(&reply), "read-only-role", "{method} {path}");
+    }
+}
+
+#[test]
+fn a_contributor_may_comment_and_still_may_not_write_the_document() {
+    // The split `DocumentAction::Comment` exists for, proved through the route
+    // table rather than through the model: the same caller, the same key, one
+    // family of routes — admitted to the conversation, refused the document.
+    let contributor = as_visitor(&["analyst"]);
+    let access = RequestAccess::online("userA", &contributor, true);
+    let commented = handle(
+        "POST",
+        &format!("/api/files/{INVALID_KEY}/comments"),
+        r#"{"nodeId":"n1","text":"hello"}"#,
+        &mut tenant_state(),
+        &access,
+    );
+    // Past the gate, into the store, refused there: the gate is not what
+    // answered.
+    assert_eq!(commented.status, "400 Bad Request", "{}", commented.body);
+    assert_eq!(error_code(&commented), "invalid document key");
+
+    for (method, path, body) in [
+        (
+            "POST",
+            format!("/api/files/{INVALID_KEY}/save"),
+            "{}".to_string(),
+        ),
+        (
+            "POST",
+            format!("/api/files/{INVALID_KEY}/rename"),
+            r#"{"name":"x"}"#.to_string(),
+        ),
+        ("DELETE", format!("/api/files/{INVALID_KEY}"), String::new()),
+    ] {
+        let reply = handle(method, &path, &body, &mut tenant_state(), &access);
         assert_eq!(reply.status, "403 Forbidden", "{method} {path}");
         assert_eq!(error_code(&reply), "read-only-role", "{method} {path}");
     }

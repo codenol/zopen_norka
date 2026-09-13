@@ -7,7 +7,35 @@
 //! file that will not parse, an entry whose key could not be opened.
 
 use super::*;
+use crate::document_comments::{self, Author, NewComment};
 use crate::document_test_dir::TempDir;
+
+/// Every object the schema holds, by name.
+fn schema_objects(conn: &Connection) -> Vec<String> {
+    let mut statement = conn
+        .prepare("SELECT name FROM sqlite_master ORDER BY name")
+        .expect("prepare");
+    statement
+        .query_map([], |row| row.get(0))
+        .expect("query")
+        .collect::<rusqlite::Result<Vec<String>>>()
+        .expect("collect")
+}
+
+/// A database exactly as a deployment that predates the conversation tables has
+/// it: migration 1 applied, and the version recorded to match.
+fn open_at_version_one(dir: &TempDir) -> Connection {
+    let conn = Connection::open(dir.join(DB_FILE)).expect("open");
+    conn.execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        .expect("meta");
+    conn.execute_batch(MIGRATIONS[0].sql).expect("migration 1");
+    conn.execute(
+        "INSERT INTO meta (key, value) VALUES (?1, '1')",
+        params![META_SCHEMA_VERSION],
+    )
+    .expect("version 1");
+    conn
+}
 
 /// A stored document with everything spelled out, so a test can compare whole
 /// entries rather than field by field.
@@ -81,24 +109,124 @@ fn the_schema_migrations_and_pragmas_are_all_in_place() {
             .query_row("PRAGMA busy_timeout", [], |row| row.get(0))
             .expect("busy timeout");
         assert_eq!(busy_timeout, 5000);
-        let objects: Vec<String> = {
-            let mut statement = conn
-                .prepare("SELECT name FROM sqlite_master ORDER BY name")
-                .expect("prepare");
-            let rows = statement
-                .query_map([], |row| row.get(0))
-                .expect("query")
-                .collect::<rusqlite::Result<Vec<String>>>()
-                .expect("collect");
-            rows
-        };
-        for name in ["documents", "last_opened", "meta", "documents_by_recency"] {
+        let objects = schema_objects(&conn);
+        for name in [
+            "documents",
+            "last_opened",
+            "meta",
+            "documents_by_recency",
+            // Migration 2: the conversation.
+            "comment_threads",
+            "comments",
+            "comment_threads_by_document",
+            "comments_by_thread",
+        ] {
             assert!(
                 objects.contains(&name.to_string()),
                 "{name} missing: {objects:?}"
             );
         }
     }
+}
+
+#[test]
+fn a_database_from_before_the_conversation_tables_gains_them_on_open() {
+    // The upgrade a deployment in the field actually takes: a database at
+    // version 1, with the rows it already had, opened by this build.
+    let dir = TempDir::new("upgrade-from-v1");
+    {
+        let conn = open_at_version_one(&dir);
+        conn.execute(
+            "INSERT INTO documents
+                 (key, name, owner_id, created_at, updated_at, size, has_thumbnail)
+             VALUES ('aaaaaaaa00000001', 'Older', NULL, 1, 2, 3, 0)",
+            [],
+        )
+        .expect("a document from before the upgrade");
+    }
+
+    let db = dir.open();
+    assert_eq!(
+        db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
+        Some("2"),
+        "an open brings the schema to the newest version"
+    );
+    {
+        let conn = db.conn();
+        let objects = schema_objects(&conn);
+        for name in [
+            "comment_threads",
+            "comments",
+            "comment_threads_by_document",
+            "comments_by_thread",
+        ] {
+            assert!(
+                objects.contains(&name.to_string()),
+                "{name} missing after the upgrade: {objects:?}"
+            );
+        }
+    }
+    // And what was already there is still there: a migration adds, it does not
+    // rebuild.
+    assert_eq!(list_entries(&db).expect("list").len(), 1);
+}
+
+#[test]
+fn opening_the_same_database_again_does_not_migrate_it_a_second_time() {
+    let dir = TempDir::new("reopen-v2");
+    let key = "aaaaaaaa00000001";
+    {
+        let db = dir.open();
+        insert_entry(&db, &entry(key, "Kept", 1, 1, 1, false)).expect("insert");
+        // A thread written through the tables migration 2 added. Running that
+        // migration again would fail loudly (`CREATE TABLE` with no `IF NOT
+        // EXISTS`) rather than duplicate anything — which is the point: the
+        // version in `meta`, and not any tolerance in the SQL, is what keeps a
+        // second open from re-running a step.
+        document_comments::create_thread(
+            &db,
+            key,
+            "n1",
+            NewComment {
+                author: Author { id: None, name: "", role: None },
+                body: "hello",
+            },
+            10,
+        )
+        .expect("create")
+        .expect("the document is stored");
+    }
+
+    let db = dir.open();
+    assert_eq!(
+        db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
+        Some("2")
+    );
+    assert_eq!(
+        list_entries(&db).expect("list").len(),
+        1,
+        "no row was written twice"
+    );
+    {
+        let conn = db.conn();
+        let objects = schema_objects(&conn);
+        assert_eq!(
+            objects
+                .iter()
+                .filter(|name| *name == "comment_threads")
+                .count(),
+            1,
+            "the table exists once: {objects:?}"
+        );
+    }
+    assert_eq!(
+        document_comments::list_threads(&db, key)
+            .expect("list")
+            .expect("the document is stored")
+            .len(),
+        1,
+        "and the thread written before the second open is still there"
+    );
 }
 
 #[test]
