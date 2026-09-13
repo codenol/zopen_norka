@@ -172,6 +172,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "designMd.rules.aiInstructions" => "AI talimatları",
         "recipes.title" => "Tarifler",
         "ai.rulesActive" => "Kurallar · {{count}}",
+        "topbar.allFiles" => "Tüm dosyalar",
         _ => return None,
     })
 }

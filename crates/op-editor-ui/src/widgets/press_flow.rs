@@ -418,6 +418,14 @@ pub fn apply_shared_top_bar_hit(
             core_press::toggle_import_menu(&mut state.editor_ui);
             TopBarPress::Handled
         }
+        TopBarHit::OpenFilesScreen => {
+            // The file browser is a screen, not an overlay: the address (web)
+            // and the window title (desktop) follow from this one field.
+            state.editor_ui.screen = op_editor_core::AppScreen::Files;
+            state.editor_ui.server_files_search_focused = false;
+            state.editor_ui.server_files_menu = None;
+            TopBarPress::Handled
+        }
         TopBarHit::ToggleFileMenu => {
             core_press::toggle_file_menu(&mut state.editor_ui);
             TopBarPress::FileMenuToggled

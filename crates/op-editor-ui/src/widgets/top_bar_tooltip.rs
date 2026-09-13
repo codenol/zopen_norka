@@ -64,6 +64,7 @@ pub fn tooltip_for(ui: &EditorUiState, button: TopBarButton) -> TopBarTooltip {
             },
             None,
         ),
+        TopBarButton::OpenFilesScreen => (translate(ui, "topbar.allFiles"), None),
         TopBarButton::ToggleFileMenu => (translate(ui, "tooltip.topbar.file"), None),
         TopBarButton::OpenImportMenu => (translate(ui, "tooltip.topbar.import"), None),
         TopBarButton::ToggleTheme => (
@@ -124,6 +125,7 @@ pub fn tooltip_for(ui: &EditorUiState, button: TopBarButton) -> TopBarTooltip {
 /// says more than a tooltip would, and the tooltip would paint over it.
 pub fn suppressed(ui: &EditorUiState, button: TopBarButton) -> bool {
     match button {
+        TopBarButton::OpenFilesScreen => false,
         TopBarButton::ToggleFileMenu => ui.file_menu_open,
         TopBarButton::OpenImportMenu => ui.import_menu_open || ui.import_menu.open,
         TopBarButton::ToggleLocale => ui.locale_picker.open,

@@ -276,6 +276,7 @@ pub fn topbar_button_hover(
     use op_editor_core::TopBarButton as O;
     match hit {
         W::ToggleSidebar => O::ToggleSidebar,
+        W::OpenFilesScreen => O::OpenFilesScreen,
         W::ToggleFileMenu => O::ToggleFileMenu,
         W::OpenImportMenu => O::OpenImportMenu,
         W::ToggleTheme => O::ToggleTheme,

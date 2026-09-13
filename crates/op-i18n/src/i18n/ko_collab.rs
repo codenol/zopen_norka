@@ -188,6 +188,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "designMd.rules.aiInstructions" => "AI 지침",
         "recipes.title" => "레시피",
         "ai.rulesActive" => "규칙 · {{count}}",
+        "topbar.allFiles" => "모든 파일",
         _ => return None,
     })
 }

@@ -22,6 +22,31 @@ impl WidgetHostNative {
         viewport_width: f32,
         viewport_height: f32,
     ) {
+        // The file browser is a screen of its own on both hosts. The browser
+        // reaches it by address; the desktop reaches it from the top bar, so
+        // it has to paint here too — otherwise the button is a dead end.
+        if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
+            let screen = op_editor_ui::widgets::files_screen::FilesScreen {
+                now_unix_ms: self.editor_state.editor_ui.now_unix_ms,
+                theme: &self.theme,
+                files: &self.editor_state.editor_ui.server_files,
+                search_focused: self.editor_state.editor_ui.server_files_search_focused,
+                loading: self.editor_state.editor_ui.server_files_loading,
+                error: self.editor_state.editor_ui.server_files_error.as_deref(),
+                query: &self.editor_state.editor_ui.server_files_query,
+                menu: self.editor_state.editor_ui.server_files_menu.as_ref(),
+                rename: self.editor_state.editor_ui.server_files_rename.as_ref(),
+            };
+            let mut cx = op_editor_ui::widgets::PaintCx { backend: frame };
+            screen.paint(
+                &mut cx,
+                Rect {
+                    origin: Point2D::new(0.0, 0.0),
+                    size: Point2D::new(viewport_width, viewport_height),
+                },
+            );
+            return;
+        }
         self.image_input_geometry = None;
         self.publish_viewport_geometry(viewport_width, viewport_height);
         // Rotate the transcript-cache owner if the active chat session changed

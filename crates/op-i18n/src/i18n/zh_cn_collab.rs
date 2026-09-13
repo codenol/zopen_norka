@@ -172,6 +172,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "designMd.rules.aiInstructions" => "AI 指令",
         "recipes.title" => "预设方案",
         "ai.rulesActive" => "规则 · {{count}}",
+        "topbar.allFiles" => "所有文件",
         _ => return None,
     })
 }

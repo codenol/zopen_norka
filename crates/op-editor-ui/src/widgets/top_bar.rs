@@ -26,6 +26,8 @@ pub(super) const GLOBE_BUTTON_WIDTH: f32 = 44.0;
 /// inside a single round-rect background. Tighter gap than two
 /// separate icon buttons (4 px between glyphs vs ICON_BUTTON + 4).
 pub(super) const FILE_MENU_BUTTON_WIDTH: f32 = 46.0;
+/// Space between the file-browser button and the file menu.
+pub(super) const ALL_FILES_GAP: f32 = 4.0;
 pub(super) const GIT_BUTTON_PAD_X: f32 = (ICON_BUTTON - ICON_SIZE) / 2.0;
 pub(super) const PAD: f32 = 12.0;
 /// Top-bar vertical divider geometry (TS `w-px h-3.5 bg-border/60
@@ -79,6 +81,8 @@ pub(super) const TRAFFIC_CLUSTER_W: f32 = if cfg!(target_os = "macos") {
 pub enum TopBarHit {
     /// PanelLeft icon — toggle sidebar (LayerPanel) visibility.
     ToggleSidebar,
+    /// Files icon — open the file browser screen.
+    OpenFilesScreen,
     /// Folder + chevron compound — toggle the file menu dropdown.
     ToggleFileMenu,
     /// Figma logo — open the .fig import modal.
@@ -442,6 +446,9 @@ impl TopBar {
         // File-scoped chrome (file menu, import) — hidden inside a
         // VS Code embed, where the workbench owns file identity.
         if self.file_controls_visible() {
+            if self.all_files_button_rect_for(rect).contains(point) {
+                return Some(TopBarHit::OpenFilesScreen);
+            }
             let file_menu_rect = self.file_menu_rect_for(rect);
             if (file_menu_rect).contains(point) {
                 return Some(TopBarHit::ToggleFileMenu);

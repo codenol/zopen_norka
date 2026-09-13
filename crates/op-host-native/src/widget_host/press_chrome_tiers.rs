@@ -172,7 +172,8 @@ impl WidgetHostNative {
             }
             match hit {
                 // Handled by the shared flow above.
-                TopBarHit::ToggleSidebar
+                TopBarHit::OpenFilesScreen
+                | TopBarHit::ToggleSidebar
                 | TopBarHit::ToggleTheme
                 | TopBarHit::ToggleLocale
                 | TopBarHit::OpenAgentSettings
