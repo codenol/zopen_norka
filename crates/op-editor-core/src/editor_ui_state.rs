@@ -13,6 +13,7 @@
 //! implementations and regression coverage.
 
 pub mod chrome;
+pub mod comments;
 mod defaults;
 mod exports;
 pub mod git_panel;
@@ -150,6 +151,17 @@ pub struct EditorUiState {
     /// widgets. Transport handles, tickets, subjects, and device ids never
     /// enter this paint-state projection.
     pub collab: crate::collab_ui_state::CollabUiState,
+
+    // --- Comments (the review on this document) ----------------------
+    /// The document's comment threads plus the review in progress: the open
+    /// thread, the two drafts, and whether the next canvas click drops a pin.
+    ///
+    /// Grouped like `collab` rather than added as a dozen flat fields: every
+    /// one of them is about the same conversation and they are read and reset
+    /// as a unit (see [`comments::CommentsUiState::clear_for_document`]). The
+    /// writes the widget layer queues for the host travel inside it too, so the
+    /// host has exactly one place to drain and no way to see half of one.
+    pub comments: crate::editor_ui_state::comments::CommentsUiState,
 
     // --- File menu --------------------------------------------------
     /// File-menu dropdown open (anchored under folder + chevron).

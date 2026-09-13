@@ -8,6 +8,11 @@ use crate::widgets::PaintCx;
 use crate::{Color, Point2D, Rect};
 use op_editor_core::{CollabUiState, PencilCursorStyle, Viewport};
 
+// The doc→screen mapping is shared with the other canvas overlays
+// (`canvas_doc_mapping`); a second copy of the pan/zoom arithmetic is how two
+// overlays end up disagreeing about where the same element is.
+use crate::widgets::canvas_doc_mapping::{doc_point_to_screen, doc_rect_to_screen};
+
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct CollabPresencePaint {
     participant_key: String,
@@ -90,22 +95,6 @@ fn find_node<'a>(roots: &'a [SceneNode], id: &str) -> Option<&'a SceneNode> {
         }
     }
     None
-}
-
-fn doc_rect_to_screen(rect: Rect, canvas_rect: Rect, viewport: &Viewport) -> Rect {
-    Rect::xywh(
-        canvas_rect.origin.x + viewport.pan_x + rect.origin.x * viewport.zoom,
-        canvas_rect.origin.y + viewport.pan_y + rect.origin.y * viewport.zoom,
-        rect.size.x * viewport.zoom,
-        rect.size.y * viewport.zoom,
-    )
-}
-
-fn doc_point_to_screen(point: Point2D, canvas_rect: Rect, viewport: &Viewport) -> Point2D {
-    Point2D::new(
-        canvas_rect.origin.x + viewport.pan_x + point.x * viewport.zoom,
-        canvas_rect.origin.y + viewport.pan_y + point.y * viewport.zoom,
-    )
 }
 
 fn stroke_outline(cx: &mut PaintCx<'_>, rect: Rect, color: Color) {

@@ -176,11 +176,23 @@ mod canvas_agent_cursor_motion_tests;
 mod canvas_agent_cursor_presence_tests;
 #[cfg(test)]
 mod canvas_agent_cursor_tests;
+#[cfg(test)]
+mod canvas_comment_pins_tests;
 mod canvas_collab_presence;
+mod canvas_doc_mapping;
 mod canvas_frame_labels;
 mod canvas_generation_scan;
 #[cfg(test)]
 mod canvas_generation_scan_tests;
+
+// Comment threads: the pins on elements, the popover they open, and the list
+// of every conversation the document carries.
+pub mod comment_identity;
+pub(crate) mod comment_paint;
+pub mod comment_pins;
+pub mod comment_thread_popover;
+pub mod comments_flow;
+pub mod comments_panel;
 pub mod canvas_layout_transition;
 pub mod canvas_overlay_transform;
 mod canvas_path_overlay;

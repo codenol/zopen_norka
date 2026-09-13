@@ -10,6 +10,15 @@ impl WidgetHost {
         let ui = &self.editor_state.ui;
         self.editor_state.editor_ui.design_md_panel.rule_draft.is_some()
             || self.editor_state.editor_ui.collab_join_input_active()
+            // The comment composer is an in-canvas field like the rest of
+            // these, and the rule above applies to it unchanged: while it is
+            // focused a typed letter must reach the draft (issue #49 — a bare
+            // `r`/`t`/`v` switched the canvas tool and never appeared in the
+            // comment), and the browser's hidden IME capture input only takes
+            // DOM focus while this answers `true` — without that, a composed
+            // character (IME commit, dead key, `Input.insertText`) has nowhere
+            // to land and the reviewer's typing is silently lost.
+            || self.editor_state.editor_ui.comments.takes_keyboard()
             || ui.layer_rename.is_some()
             || ui.text_editing.is_some()
             || ui.property_focus.is_some()

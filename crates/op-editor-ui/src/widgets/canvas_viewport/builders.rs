@@ -83,6 +83,10 @@ impl<'a> CanvasViewport<'a> {
             collab_presence: crate::widgets::canvas_collab_presence::snapshot(
                 &state.editor_ui.collab,
             ),
+            comment_threads: crate::widgets::comment_pins::threads_for(
+                &state.editor_ui.comments,
+            ),
+            comment_pin_hover: None,
             fast_interaction: false,
             cull_override: None,
         }
@@ -135,6 +139,11 @@ impl<'a> CanvasViewport<'a> {
             hovered: None,
             frame_labels: Vec::new(),
             collab_presence: Vec::new(),
+            // The read-only SDK viewer has no conversation to show: comments
+            // are asked for with a document key and an account, and a viewer
+            // has neither.
+            comment_threads: Vec::new(),
+            comment_pin_hover: None,
             fast_interaction: false,
             cull_override: None,
         }

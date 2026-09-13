@@ -449,6 +449,33 @@ pub fn escape_chat_focus(state: &mut EditorState, now_ms: u64) -> bool {
     true
 }
 
+/// Close the comment popover.
+///
+/// The rung belongs above [`escape_comment_pin_mode`] and above
+/// [`escape_selection`]: a reviewer who opened a thread is looking at it, and
+/// Escape must dismiss what they are looking at before it starts dismantling
+/// the state underneath (an armed pin mode, then the selection).
+pub fn escape_comment_popover(state: &mut EditorState) -> bool {
+    if state.editor_ui.comments.composer().is_none() {
+        return false;
+    }
+    state.editor_ui.comments.close();
+    true
+}
+
+/// Disarm comment pin mode.
+///
+/// Below the popover and above the selection, because arming pin mode is the
+/// more recent act: the reviewer picked the mode to place a pin, and Escape
+/// takes that back first, leaving the selection they were commenting on intact.
+pub fn escape_comment_pin_mode(state: &mut EditorState) -> bool {
+    if !state.editor_ui.comments.pin_mode {
+        return false;
+    }
+    state.editor_ui.comments.set_pin_mode(false);
+    true
+}
+
 /// Clear the canvas selection.
 pub fn escape_selection(state: &mut EditorState) -> bool {
     if state.selection.is_empty() {
@@ -461,6 +488,64 @@ pub fn escape_selection(state: &mut EditorState) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::editor_ui_state::{Comment, CommentAuthor, CommentThread};
+
+    #[test]
+    fn escape_dismisses_the_comment_surfaces_one_layer_at_a_time() {
+        let mut state = EditorState::new();
+        state
+            .editor_ui
+            .comments
+            .install_threads(vec![CommentThread {
+                id: 1,
+                node_id: "n1".to_string(),
+                comments: vec![Comment {
+                    id: 10,
+                    author: CommentAuthor {
+                        id: Some("u1".to_string()),
+                        name: "Kay".to_string(),
+                        role: None,
+                    },
+                    body: "hello".to_string(),
+                    created_at: 1_700_000_000,
+                }],
+                ..CommentThread::default()
+            }]);
+        state.set_single_selection(crate::NodeId::new("n1"));
+        state.editor_ui.comments.open(1);
+        state.editor_ui.comments.set_pin_mode(true);
+
+        // The popover first.
+        assert!(escape_comment_popover(&mut state));
+        assert!(state.editor_ui.comments.composer().is_none());
+        // Then the armed mode, leaving the selection the reviewer was about to
+        // comment on.
+        assert!(escape_comment_pin_mode(&mut state));
+        assert!(!state.editor_ui.comments.pin_mode);
+        assert!(!state.selection.is_empty());
+        // And only then the selection.
+        assert!(escape_selection(&mut state));
+        assert!(state.selection.is_empty());
+    }
+
+    #[test]
+    fn an_unopened_popover_and_an_unarmed_mode_do_not_consume_escape() {
+        let mut state = EditorState::new();
+        assert!(!escape_comment_popover(&mut state));
+        assert!(!escape_comment_pin_mode(&mut state));
+    }
+
+    #[test]
+    fn disarming_pin_mode_also_drops_a_composer_waiting_for_its_click() {
+        // Escape after arming but before the click: the half-built comment goes
+        // with the mode, so the next click does not open a field nobody asked
+        // for.
+        let mut state = EditorState::new();
+        state.editor_ui.comments.set_pin_mode(true);
+        state.editor_ui.comments.begin_thread_on("n4");
+        assert!(escape_comment_popover(&mut state));
+        assert!(state.editor_ui.comments.pin_node.is_none());
+    }
 
     #[test]
     fn preview_cleanup_clears_nested_or_orphaned_transients_idempotently() {

@@ -196,6 +196,13 @@ impl WidgetHost {
         if let Some(consumed) = self.press_recovery_banner_tier(&ctx) {
             return consumed;
         }
+        // Tier 1c — the comment popover and the thread list panel. They paint
+        // in the same band as the banner above, so they are hit-tested here,
+        // before every dropdown and modal below them.
+        if let Some(consumed) = self.press_comments_tier(&ctx) {
+            return consumed;
+        }
+
         // Tier 2 — import dropdown + locale picker.
         if let Some(consumed) = self.press_import_locale_tiers(&ctx) {
             return consumed;
@@ -246,6 +253,13 @@ impl WidgetHost {
         if let Some(consumed) = self.press_layer_align_click_tiers(&ctx) {
             return consumed;
         }
+        // Tier 11b — a comment pin, or the click that places one. A pin paints
+        // over the node tree, so its press must be resolved before the canvas
+        // tier turns the same click into a selection or a marquee.
+        if let Some(consumed) = self.press_comment_pin_tier(&ctx) {
+            return consumed;
+        }
+
         // Tier 12 — the canvas, branching on the active tool.
         if let Some(consumed) = self.press_canvas_tier(&ctx) {
             return consumed;

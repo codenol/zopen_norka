@@ -134,6 +134,16 @@ pub struct CanvasViewport<'a> {
     /// below the local selection overlay, so local edit affordances remain
     /// visually authoritative.
     pub(super) collab_presence: Vec<crate::widgets::canvas_collab_presence::CollabPresencePaint>,
+    /// Comment threads as pin sources, in the document's own order.
+    ///
+    /// Only the sources: an element's screen position is a property of the
+    /// scene and the viewport, which this widget already owns, so the markers
+    /// are placed during paint (and again on a hit-test) rather than frozen at
+    /// construction — a pin that did not follow a pan would be worse than no
+    /// pin at all.
+    pub(super) comment_threads: Vec<crate::widgets::comment_pins::CommentPinThread>,
+    /// The marker under the cursor, for its hover ring. Paint-only.
+    pub(super) comment_pin_hover: Option<i64>,
     /// True while a pan/zoom gesture is live — the scene paints in
     /// interactive-degrade mode (effect layers + sub-pixel leaves
     /// skip); the host schedules a full-quality repaint on gesture end.
@@ -148,6 +158,39 @@ pub struct CanvasViewport<'a> {
 pub struct CanvasNodeDragOverlay {
     pub node_id: String,
     pub target_origin_doc: Point2D,
+}
+
+impl CanvasViewport<'_> {
+    /// The comment markers this canvas shows, in canvas-screen space.
+    ///
+    /// Pure with respect to the widget: the same call the paint pass makes and
+    /// the same call a press makes, so a click can never land where a marker is
+    /// not (see [`super::comment_pins`]).
+    pub fn comment_pins(&self, canvas_rect: Rect) -> Vec<super::comment_pins::CommentPin> {
+        let Some(page) = self.scene.active_page() else {
+            return Vec::new();
+        };
+        super::comment_pins::scene_pins(
+            &self.comment_threads,
+            &page.children,
+            canvas_rect,
+            &self.viewport,
+        )
+    }
+
+    /// The thread a click at `point` opens, if it landed on a marker.
+    ///
+    /// `touch` widens the target for a finger, which is the only difference
+    /// between the two densities and is decided by the caller that knows the
+    /// input device.
+    pub fn hit_test_comment_pin(
+        &self,
+        canvas_rect: Rect,
+        point: Point2D,
+        touch: bool,
+    ) -> Option<i64> {
+        super::comment_pins::hit_test(&self.comment_pins(canvas_rect), point, touch)
+    }
 }
 
 impl<'a> Widget for CanvasViewport<'a> {
@@ -396,6 +439,13 @@ impl<'a> Widget for CanvasViewport<'a> {
                 viewport,
                 self.pencil_cursor_style,
             );
+            // Comment pins last of the overlays that belong to the document:
+            // a pin is a marker ON an element, so it must stay visible over the
+            // presence wash and the frame labels. The selection chrome paints
+            // below this point and stays on top, because a handle the user is
+            // about to drag must remain grabbable.
+            let pins = self.comment_pins(rect);
+            super::comment_pins::paint(cx, &self.theme, &pins, self.comment_pin_hover);
         }
 
         // 3a. Smart-guide alignment lines (magenta) — painted over the

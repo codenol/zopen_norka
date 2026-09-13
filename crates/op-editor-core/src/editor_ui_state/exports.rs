@@ -2,8 +2,12 @@
 
 pub use super::chrome::{
     DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ServerFile,
-    ServerFileMenu, ServerFileRename, ThemeMode,
-    ThemePresetIo, UpdateStatus, WindowControlRequest, RECENT_FILE_CAP, SERVER_FILE_CAP,
+    ServerFileMenu, ServerFileRename, ThemeMode, ThemePresetIo, UpdateStatus, WindowControlRequest,
+    RECENT_FILE_CAP, SERVER_FILE_CAP,
+};
+pub use super::comments::{
+    Comment, CommentAuthor, CommentComposer, CommentRequest, CommentThread, CommentWriteError,
+    CommentsUiState, MAX_COMMENT_CHARS,
 };
 pub use super::git_panel::{
     CloneField, CloneFormState, CommitDiffPatch, CommitDiffSummary, CommitDiffView,

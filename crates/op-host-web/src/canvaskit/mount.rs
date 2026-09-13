@@ -5,11 +5,11 @@
 use wasm_bindgen::prelude::*;
 
 use super::backend::init_backend;
-use crate::repaint_ctx::RepaintContext;
 use super::inner::{
     dispatch_a11y_dom_event, run_late_init_recovery, start_bootstrap_reset, CkInner,
     BOOTSTRAP_RESET_RETRIES,
 };
+use crate::repaint_ctx::RepaintContext;
 
 /// See [`super::mount_ck`] — the `#[wasm_bindgen]` export delegates here.
 pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
@@ -187,6 +187,11 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // while the shell was borrowed, then perform whichever answer
                 // the user gave (issue #26).
                 crate::web_recovery::tick(&inner_for_paint);
+                // Comment threads: install an answer that arrived while the
+                // shell was borrowed, then send what the canvas queued. The
+                // daemon pushes no signal for comments, so a re-read here is
+                // the only way somebody else's reply ever appears.
+                crate::web_comments::tick(&inner_for_paint);
             } else {
                 crate::repaint_coalescer::request();
             }
