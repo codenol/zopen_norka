@@ -8,9 +8,24 @@ Each entry names the version that ships it; the app's top bar shows the same
 version next to its build time, so a running build can be matched to a section
 here at a glance.
 
-## [Unreleased]
+## [0.9.0] — 2026-09-14
 
 ### Added
+
+- **Comments on elements, with threads and resolve.** A pin hangs on an
+  element rather than a point, so it stays with what it is about when the
+  layout moves; a thread carries its replies and is resolved rather than
+  deleted, because a resolved thread is exactly the record of what was asked
+  and what was answered. The author is recorded as they were — name and role at
+  the time — and drawn in their role's colour, so the panel says who was
+  speaking *then* rather than who they are now.
+
+  Nobody needs the edit right to take part: five of the seven roles comment and
+  do not edit, so commenting is a right of its own. Resolving is the thread's
+  author, or anyone who may edit the document. A conversation is deliberately
+  **not** part of the document: the routes cannot reach the editor state at
+  all, so commenting never bumps a version, never enters undo and never makes
+  a file dirty.
 
 - **The daemon's document list lives in SQLite.** The accounting behind the
   file list — name, timestamps, size, whether a preview exists — was one
@@ -148,6 +163,16 @@ here at a glance.
 
 ### Fixed
 
+- **The comment field takes what you type into it.** A comment composer is an
+  in-canvas text field like the chat input and the property inputs, but the
+  host's "a text input owns the keyboard" rule did not know about it. So while
+  a review was being written, the browser's hidden IME capture input was never
+  focused — and anything the browser delivers that is not a plain
+  single-character `keydown` (an IME commit, a dead key, an emoji insertion)
+  had nowhere to land, leaving the field empty and Send switched off. The
+  letters that name canvas tools (`r`, `t`, `v`, …) also switched the tool
+  instead of being typed. The composer now reports itself as the active text
+  input, which is the same rule every other field follows (#49).
 - **A shared document no longer hands over the account behind it.** Two routes
   write the *workspace* rather than the document — the AI provider credentials
   and the MCP server card — and both are reachable with a `?tenant=` lease,
