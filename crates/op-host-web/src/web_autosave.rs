@@ -123,15 +123,72 @@ pub(crate) fn tick<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     if !due || !dirty || !editing {
         return;
     }
-    let Some(key) = key else {
-        // Nothing to write to. An unsaved document needs a decision about
-        // where a draft should live (issue #16) before this can do anything
-        // honest; writing a file the user never asked for would not be it.
+    STATE.with(|state| state.borrow_mut().attempted_at_ms = now_ms);
+    match key {
+        // A stored document goes to its own file.
+        Some(key) => write(inner, &key),
+        // A document with no key has no file, and inventing one would be a
+        // file the user never asked for. It goes to the daemon's draft slot
+        // instead — the decision recorded in issue #16: drafts live on the
+        // server, and are offered back rather than restored silently.
+        None => write_draft(inner),
+    }
+}
+
+/// Write an unbound document into the server's draft slot.
+fn write_draft<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
+    let (body, snap_epoch, snap_gen, snap_rev) = {
+        let Ok(borrowed) = inner.try_borrow() else {
+            return;
+        };
+        let host = borrowed.host();
+        let state = host.editor_state();
+        let body = file_actions::serialize_save_payload(state, file_actions::SavePayloadTarget::Daemon);
+        (
+            body,
+            host.document_epoch(),
+            state.document_generation(),
+            state.document_revision(),
+        )
+    };
+    let Ok(body) = body else {
         return;
     };
-
-    STATE.with(|state| state.borrow_mut().attempted_at_ms = now_ms);
-    write(inner, &key);
+    STATE.with(|state| state.borrow_mut().in_flight = true);
+    let base = crate::daemon_base::daemon_base();
+    let inner_for_response = inner.clone();
+    let on_response: Rc<dyn Fn(u16, String)> = Rc::new(move |status, _body| {
+        STATE.with(|state| state.borrow_mut().in_flight = false);
+        if status != 200 {
+            return;
+        }
+        let Ok(mut borrowed) = inner_for_response.try_borrow_mut() else {
+            return;
+        };
+        if !file_actions::save_ack_matches_document(
+            borrowed.host().document_epoch(),
+            borrowed.host().editor_state().document_generation(),
+            snap_epoch,
+            snap_gen,
+        ) {
+            return;
+        }
+        // The draft is on disk; the document is as saved as it can be without
+        // a file of its own.
+        if borrowed
+            .host_mut()
+            .editor_state_mut()
+            .mark_saved_revision_at(snap_gen, snap_rev)
+        {
+            borrowed.host_mut().mark_editor_state_dirty();
+            let _ = borrowed.repaint();
+        }
+    });
+    let started =
+        crate::live_sync::post_json_with_status(&format!("{base}/api/recovery"), &body, on_response);
+    if !started {
+        STATE.with(|state| state.borrow_mut().in_flight = false);
+    }
 }
 
 /// Send the document to its file, and mark it saved when the daemon agrees.

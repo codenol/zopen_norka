@@ -12,6 +12,10 @@ here at a glance.
 
 ### Added
 
+- **Unsaved work with no home is kept.** A document with no server key — an
+  untitled screen — now writes itself into the daemon's draft slot on the same
+  autosave schedule, so work that used to exist only in a tab survives. The
+  banner that offers the draft back is #26; nothing is lost meanwhile.
 - **A draft slot for work with no home (server side).** A document with no
   server key and no path now has somewhere to write itself: one draft beside
   the documents, addressed by `/api/recovery` (write, ask about, restore,
