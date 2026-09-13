@@ -499,11 +499,9 @@ pub fn apply_layer_panel_click(
             let master_id = recipe.template.as_str();
             let page_index = state.doc.pages.as_ref().and_then(|pages| {
                 use op_editor_core::PenNodeExt as _;
-                pages.iter().position(|page| {
-                    page.children
-                        .iter()
-                        .any(|root| root.id_str() == master_id)
-                })
+                pages
+                    .iter()
+                    .position(|page| page.children.iter().any(|root| root.id_str() == master_id))
             });
             let Some(page_index) = page_index else {
                 return LayerPanelClick::Dirty;

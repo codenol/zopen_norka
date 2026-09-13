@@ -599,6 +599,7 @@ fn concurrent_grants_all_survive() {
         user_id: "userA".into(),
         username: "userA".into(),
         display_name: "userA".into(),
+        roles: op_editor_core::access::RoleSet::empty(),
         via: crate::web_canvas_server::tenant_auth::IdentityVia::ApiToken,
         scopes: crate::mcp_serve::tool_profile::McpScopes::FULL,
     };

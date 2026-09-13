@@ -206,6 +206,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "Копировать ссылку",
         "layerMenu.linkCopied" => "Ссылка скопирована в буфер обмена",
         "topbar.saved" => "Сохранено",
+        "recovery.banner.title" => "Найдена несохранённая работа: {{when}}",
+        "recovery.banner.restore" => "Восстановить",
+        "recovery.banner.discard" => "Отказаться",
         _ => return None,
     })
 }

@@ -87,7 +87,14 @@ impl super::WidgetHost {
         }
         // Control characters arrive here too (tab, escape sequences); the
         // field is a name filter, so only printable input belongs in it.
-        if !c.is_control() && self.editor_state.editor_ui.server_files_query.chars().count() < MAX_QUERY_CHARS
+        if !c.is_control()
+            && self
+                .editor_state
+                .editor_ui
+                .server_files_query
+                .chars()
+                .count()
+                < MAX_QUERY_CHARS
         {
             self.editor_state.editor_ui.server_files_query.push(c);
             self.mark_dirty();
@@ -103,7 +110,13 @@ impl super::WidgetHost {
         if !self.file_search_active() {
             return false;
         }
-        if self.editor_state.editor_ui.server_files_query.pop().is_some() {
+        if self
+            .editor_state
+            .editor_ui
+            .server_files_query
+            .pop()
+            .is_some()
+        {
             self.mark_dirty();
         }
         true

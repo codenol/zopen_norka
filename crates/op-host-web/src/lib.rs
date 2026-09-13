@@ -45,8 +45,17 @@ mod agent_indicator_sync;
 // animation-deadline scheduler of its own).
 #[cfg(feature = "canvaskit")]
 mod build_stamp_pump;
+// File-screen preview fetch, address-bar routing, and the tooltip dwell pump.
+// All three drive the CanvasKit host — `repaint_ctx` / `widget_host` /
+// `repaint_coalescer` / `raf_pump` / `listener` are themselves `canvaskit`
+// modules, and `serde_json` arrives on that same feature. The `web` stub never
+// paints, so there is nothing here for it to compile-check: gate them with the
+// host they belong to, exactly like every other shell module below.
+#[cfg(feature = "canvaskit")]
 mod files_thumb_fetch;
+#[cfg(feature = "canvaskit")]
 mod route_sync;
+#[cfg(feature = "canvaskit")]
 mod tooltip_pump;
 // Daemon device-login relay (action drain + login-status poll + popup).
 #[cfg(feature = "canvaskit")]
@@ -147,8 +156,21 @@ mod web_acp_connect;
 mod vscode_bridge;
 #[cfg(feature = "canvaskit")]
 mod web_storage;
+// Autosave + the chat transcript mirror. Both are driven from the CanvasKit
+// mount (`canvaskit::mount` / `canvaskit::inner`), read `web_storage`, and
+// need `serde_json` — which the `web` stub does not enable. `web_recovery`
+// below is already gated on `canvaskit` for exactly that reason, and it says
+// so: "the draft it recovers is written by `web_autosave`, which the CanvasKit
+// build is the only one to run".
+#[cfg(feature = "canvaskit")]
 mod web_autosave;
+#[cfg(feature = "canvaskit")]
 mod web_chat_persist;
+// The launch probe for the daemon's draft slot + the banner's two answers
+// (issue #26). Behind `canvaskit` for `serde_json`; the draft it recovers is
+// written by `web_autosave`, which the CanvasKit build is the only one to run.
+#[cfg(feature = "canvaskit")]
+mod web_recovery;
 // Pure web_sys clipboard/download — Ctrl+C/X in inputs + Figma/file paste.
 #[cfg(feature = "canvaskit")]
 mod web_clipboard;

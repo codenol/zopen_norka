@@ -10,6 +10,8 @@ fn identity(user_id: &str) -> ResolvedIdentity {
         user_id: user_id.into(),
         username: user_id.into(),
         display_name: user_id.into(),
+        // These tests are about tenant isolation, which roles do not touch.
+        roles: op_editor_core::access::RoleSet::empty(),
         via: IdentityVia::ApiToken,
         scopes: crate::mcp_serve::tool_profile::McpScopes::FULL,
     }

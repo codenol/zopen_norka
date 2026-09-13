@@ -221,17 +221,13 @@ pub(crate) fn apply_current(host: &mut WidgetHost, viewport: (f32, f32)) -> bool
     changed
 }
 
-
 /// Open the document the address names, when it is not the open one.
 ///
 /// The browser cannot read a file; the daemon can. This is the one call that
 /// turns `/f/<key>` into a document, and it deliberately does nothing when the
 /// key already matches the open document (a reload of the same file must not
 /// throw away unsaved work).
-fn open_named_document<C: RepaintContext + 'static>(
-    inner: &Rc<RefCell<C>>,
-    host: &mut WidgetHost,
-) {
+fn open_named_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, host: &mut WidgetHost) {
     let Some(RouteTarget::Document(route)) = current_location() else {
         return;
     };
@@ -284,9 +280,6 @@ fn open_named_document<C: RepaintContext + 'static>(
     }
 }
 
-
-
-
 /// Open a stored document and put its address in the bar.
 fn open_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key: &str) {
     let base = crate::daemon_base::daemon_base();
@@ -302,8 +295,11 @@ fn open_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key
             .unwrap_or(false);
         if !ok {
             if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-                borrowed.host_mut().editor_state_mut().editor_ui.server_files_error =
-                    Some("That file could not be opened".to_string());
+                borrowed
+                    .host_mut()
+                    .editor_state_mut()
+                    .editor_ui
+                    .server_files_error = Some("That file could not be opened".to_string());
                 let _ = borrowed.repaint();
             }
             return;
@@ -335,11 +331,18 @@ fn create_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         let key = serde_json::from_str::<serde_json::Value>(&response)
             .ok()
             .and_then(|value| value.get("file").cloned())
-            .and_then(|file| file.get("key").and_then(|key| key.as_str()).map(str::to_string));
+            .and_then(|file| {
+                file.get("key")
+                    .and_then(|key| key.as_str())
+                    .map(str::to_string)
+            });
         let Some(key) = key else {
             if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-                borrowed.host_mut().editor_state_mut().editor_ui.server_files_error =
-                    Some("A new file could not be created".to_string());
+                borrowed
+                    .host_mut()
+                    .editor_state_mut()
+                    .editor_ui
+                    .server_files_error = Some("A new file could not be created".to_string());
                 let _ = borrowed.repaint();
             }
             return;
@@ -453,7 +456,8 @@ pub(crate) fn tick_files<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
             }
             request_file_list(&inner_for_response);
         });
-        let _ = crate::live_sync::delete_json(&format!("{base}/api/files/{key}"), Some(on_response));
+        let _ =
+            crate::live_sync::delete_json(&format!("{base}/api/files/{key}"), Some(on_response));
         return;
     }
     if create_request {
@@ -468,8 +472,9 @@ pub(crate) fn tick_files<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         let is_files = ui.screen == op_editor_core::AppScreen::Files;
         // An empty list with no error and no request in flight is "never
         // asked", not "nothing there": ask.
-        let needs_list =
-            ui.server_files.is_empty() && !ui.server_files_loading && ui.server_files_error.is_none();
+        let needs_list = ui.server_files.is_empty()
+            && !ui.server_files_loading
+            && ui.server_files_error.is_none();
         (is_files, needs_list)
     };
     if is_files && needs_list {
@@ -538,8 +543,8 @@ pub(crate) fn request_file_list<C: RepaintContext + 'static>(inner: &Rc<RefCell<
 
 /// Read a `/api/files` response, newest first, capped for the screen.
 fn parse_file_list(response: &str) -> Result<Vec<op_editor_core::ServerFile>, String> {
-    let value: serde_json::Value =
-        serde_json::from_str(response).map_err(|_| "The server sent an unreadable list".to_string())?;
+    let value: serde_json::Value = serde_json::from_str(response)
+        .map_err(|_| "The server sent an unreadable list".to_string())?;
     if value.get("ok").and_then(|ok| ok.as_bool()) != Some(true) {
         return Err(value
             .get("error")
@@ -561,8 +566,14 @@ fn parse_file_list(response: &str) -> Result<Vec<op_editor_core::ServerFile>, St
                             .and_then(|name| name.as_str())
                             .unwrap_or("Untitled")
                             .to_string(),
-                        updated_at: file.get("updatedAt").and_then(|value| value.as_u64()).unwrap_or(0),
-                        size: file.get("size").and_then(|value| value.as_u64()).unwrap_or(0),
+                        updated_at: file
+                            .get("updatedAt")
+                            .and_then(|value| value.as_u64())
+                            .unwrap_or(0),
+                        size: file
+                            .get("size")
+                            .and_then(|value| value.as_u64())
+                            .unwrap_or(0),
                         has_thumbnail: file
                             .get("hasThumbnail")
                             .and_then(|value| value.as_bool())
@@ -578,10 +589,7 @@ fn parse_file_list(response: &str) -> Result<Vec<op_editor_core::ServerFile>, St
 }
 
 /// Fill in the open document's display name from the file list.
-fn request_name_for_key<C: RepaintContext + 'static>(
-    inner: &Rc<RefCell<C>>,
-    key: &str,
-) {
+fn request_name_for_key<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key: &str) {
     let base = crate::daemon_base::daemon_base();
     let inner_for_response = inner.clone();
     let key = key.to_string();
@@ -743,8 +751,7 @@ pub(crate) fn install<C: RepaintContext + 'static>(
             }
         }
     }) as Box<dyn FnMut()>);
-    let _ = window
-        .add_event_listener_with_callback("popstate", callback.as_ref().unchecked_ref());
+    let _ = window.add_event_listener_with_callback("popstate", callback.as_ref().unchecked_ref());
     callback.forget();
 }
 

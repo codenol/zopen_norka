@@ -141,7 +141,14 @@ fn wheel_prefers_design_and_icon_panels_painted_above_prompt_center() {
     assert!(host.apply_wheel(point.x, point.y, -120.0, VIEWPORT_W, VIEWPORT_H));
     // The panel scrolls its rules list — the markdown brief it used to
     // scroll is no longer part of the UI.
-    assert!(host.editor_state.editor_ui.design_md_panel.rules_scroll.offset > 0.0);
+    assert!(
+        host.editor_state
+            .editor_ui
+            .design_md_panel
+            .rules_scroll
+            .offset
+            > 0.0
+    );
     assert_eq!(
         host.editor_state.editor_ui.prompt_center.scroll.offset, 0.0,
         "the covered Prompt Center must not consume Design-MD wheel input"

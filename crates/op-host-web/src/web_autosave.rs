@@ -143,7 +143,8 @@ fn write_draft<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         };
         let host = borrowed.host();
         let state = host.editor_state();
-        let body = file_actions::serialize_save_payload(state, file_actions::SavePayloadTarget::Daemon);
+        let body =
+            file_actions::serialize_save_payload(state, file_actions::SavePayloadTarget::Daemon);
         (
             body,
             host.document_epoch(),
@@ -184,8 +185,11 @@ fn write_draft<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
             let _ = borrowed.repaint();
         }
     });
-    let started =
-        crate::live_sync::post_json_with_status(&format!("{base}/api/recovery"), &body, on_response);
+    let started = crate::live_sync::post_json_with_status(
+        &format!("{base}/api/recovery"),
+        &body,
+        on_response,
+    );
     if !started {
         STATE.with(|state| state.borrow_mut().in_flight = false);
     }
@@ -199,7 +203,8 @@ fn write<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key: &str) {
         };
         let host = borrowed.host();
         let state = host.editor_state();
-        let body = file_actions::serialize_save_payload(state, file_actions::SavePayloadTarget::Daemon);
+        let body =
+            file_actions::serialize_save_payload(state, file_actions::SavePayloadTarget::Daemon);
         (
             body,
             host.document_epoch(),

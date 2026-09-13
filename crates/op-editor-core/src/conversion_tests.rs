@@ -94,13 +94,30 @@ fn upsert_component_creates_master_on_components_page() {
     let master_id = entry.node_id.clone().unwrap();
     assert_eq!(state.components.components[0].id.as_str(), master_id);
     assert_eq!(state.components.components[0].root.id_str(), master_id);
-    assert!(state
-        .doc
-        .pages
-        .as_ref()
-        .unwrap()
+    // The master lands on its own `Components/{Type}` store page, not on the
+    // design page and not on the legacy single `Components` page — that page
+    // is split per type so the left rail's Components list stays short
+    // (`components_page_layout`), and a legacy one is migrated away on the
+    // first layout pass.
+    let pages = state.doc.pages.as_ref().unwrap();
+    let store = pages
         .iter()
-        .any(|page| page.name == "Components"));
+        .find(|page| page.name.starts_with(crate::COMPONENTS_PAGE_PREFIX))
+        .expect("master lives on a Components/{Type} store page");
+    assert_eq!(store.name, "Components/Button");
+    assert_eq!(store.children.len(), 1);
+    assert_eq!(store.children[0].id_str(), master_id);
+    assert!(
+        !pages.iter().any(|page| page.name == "Components"),
+        "the legacy single Components page must not survive",
+    );
+    assert!(
+        state
+            .active_children()
+            .iter()
+            .all(|node| node.id_str() != master_id),
+        "the design page stays clean — masters are library content, not artboards",
+    );
 }
 
 #[test]

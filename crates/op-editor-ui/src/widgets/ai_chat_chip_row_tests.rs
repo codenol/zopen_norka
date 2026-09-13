@@ -163,7 +163,8 @@ fn a_clear_target_is_never_smaller_than_the_sixteen_pixel_floor() {
     // switched off, so it has no target to floor.
     for clear in [panel
         .selection_chip_clear_rect(input_rect)
-        .expect("selection ✕")] {
+        .expect("selection ✕")]
+    {
         assert!(
             clear.size.x >= 16.0 && clear.size.y >= 16.0,
             "the ✕ must stay hittable, got {}×{}",

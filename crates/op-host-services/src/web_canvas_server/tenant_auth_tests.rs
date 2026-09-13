@@ -160,3 +160,31 @@ fn a_cookie_alone_resolves_and_records_how_it_was_established() {
     assert_eq!(identity.user_id, "userB");
     assert_eq!(identity.via, IdentityVia::SessionCookie);
 }
+
+#[test]
+fn the_static_verifier_admits_without_roles_rather_than_denying() {
+    // The env table knows tokens, not people: it has no roles to give. An
+    // empty role set therefore means "no roles", and the account keeps the
+    // baseline every verified account has — it is NOT a denial. A dev
+    // deployment that suddenly lost access to its own documents would be a
+    // regression, and `OPENPENCIL_ONLINE_STATIC_IDENTITIES` predates roles.
+    let verifier = StaticVerifier::parse("tokA=userA");
+    let identity = verifier
+        .resolve(&PresentedCredentials {
+            bearer: Some("tokA".into()),
+            session_cookie: None,
+        })
+        .expect("resolves");
+    assert!(identity.roles.is_empty());
+    assert!(identity.roles.unrecognized().is_empty());
+    assert_eq!(
+        identity.roles.rights(),
+        op_editor_core::access::Rights::VIEW_ONLY
+    );
+    assert!(identity.roles.rights().can_view());
+    // Everything that changes state or widens the circle stays closed.
+    assert!(!identity.roles.rights().can_edit());
+    assert!(!identity.roles.rights().can_comment());
+    assert!(!identity.roles.rights().can_invite());
+    assert!(!identity.roles.rights().can_manage_users());
+}

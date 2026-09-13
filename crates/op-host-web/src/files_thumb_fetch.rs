@@ -128,11 +128,11 @@ mod tests {
 
     #[test]
     fn each_failure_is_named() {
+        assert_eq!(decode_thumb(404, "{}"), Err(ThumbFetchError::Http(404)));
         assert_eq!(
-            decode_thumb(404, "{}"),
-            Err(ThumbFetchError::Http(404))
+            decode_thumb(200, "not json"),
+            Err(ThumbFetchError::Malformed)
         );
-        assert_eq!(decode_thumb(200, "not json"), Err(ThumbFetchError::Malformed));
         assert_eq!(
             decode_thumb(200, r#"{"ok":false}"#),
             Err(ThumbFetchError::Refused)

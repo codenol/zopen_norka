@@ -16,6 +16,7 @@
 use crate::hub_auth_client::{HubAuthClient, HubToken, HubUser};
 use crate::hub_auth_error::HubAuthError;
 use crate::mcp_serve::tool_profile::McpScopes;
+use op_editor_core::access::RoleSet;
 
 use super::tenant_auth::{
     IdentityVerifier, IdentityVia, OnlineAuthError, PresentedCredentials, ResolvedIdentity,
@@ -71,6 +72,13 @@ fn identity_from_user(user: HubUser) -> ResolvedIdentity {
         user_id: user.id,
         username: user.username,
         display_name,
+        // The roles the hub just told us about, parsed rather than dropped.
+        // `RoleSet::from_wire` keeps the strings it does not recognise
+        // instead of failing: a role this build has never heard of must not
+        // stop an account from signing in, and it must not be discarded
+        // either — silently losing the hub's answer is the bug (#10) this
+        // line exists to fix.
+        roles: RoleSet::from_wire(&user.roles),
         via: IdentityVia::SessionCookie,
         // A browser session IS the account, so it carries the account's own
         // authority. Scopes exist to narrow an API token below that.
@@ -95,6 +103,13 @@ fn identity_from_token(token: HubToken) -> ResolvedIdentity {
         user_id: token.user_id,
         display_name: username.clone(),
         username,
+        // Introspection reports scopes and no roles, so a token carries none.
+        // Fail closed rather than invent: an account's roles are a property of
+        // the person, and `POST /api/v1/tokens/introspect` does not answer
+        // about the person. The consequence — an API token cannot act with
+        // its owner's product roles — is a known gap in the hub's contract,
+        // not something to paper over here.
+        roles: RoleSet::empty(),
         via: IdentityVia::ApiToken,
         scopes,
     }
@@ -119,6 +134,7 @@ const fn online_auth_error(error: HubAuthError) -> OnlineAuthError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use op_editor_core::access::{ProductRole, Rights};
 
     fn user() -> HubUser {
         HubUser {
@@ -173,6 +189,54 @@ mod tests {
         });
         assert!(!unscoped.scopes.can_write());
         assert!(!unscoped.scopes.can_read());
+    }
+
+    #[test]
+    fn a_session_carries_the_accounts_roles_to_the_decision_point() {
+        let identity = identity_from_user(HubUser {
+            roles: vec!["ux_ui".into(), "qa".into()],
+            ..user()
+        });
+        assert!(identity.roles.contains(ProductRole::UxUi));
+        assert!(identity.roles.contains(ProductRole::Qa));
+        // UX/UI with QA is the union case from the operator's matrix.
+        assert_eq!(identity.roles.rights(), Rights::EDITOR);
+        assert!(identity.roles.rights().can_edit());
+        assert!(!identity.roles.rights().can_manage_users());
+    }
+
+    #[test]
+    fn an_admin_role_reaches_the_decision_point_too() {
+        let identity = identity_from_user(HubUser {
+            roles: vec!["Админ".into()],
+            ..user()
+        });
+        assert_eq!(identity.roles.rights(), Rights::ADMIN);
+        assert!(identity.roles.rights().can_manage_users());
+    }
+
+    #[test]
+    fn the_hubs_own_role_word_is_not_mistaken_for_a_product_role() {
+        // `GET /api/v1/session` ships `roles: ["user"]` — a hub-level role,
+        // not one of the seven. It must not block the sign-in, must not grant
+        // an edit, and must stay visible to whoever debugs the mismatch
+        // rather than being quietly discarded, which is what #10 is about.
+        let identity = identity_from_user(user());
+        assert!(identity.roles.is_empty());
+        assert_eq!(identity.roles.unrecognized(), &["user".to_string()]);
+        assert!(!identity.roles.rights().can_edit());
+        assert!(identity.roles.rights().can_view());
+    }
+
+    #[test]
+    fn an_api_token_carries_no_product_roles() {
+        // Introspection answers about the token, not about the person, so it
+        // reports no roles. Fail closed: the token's authority stays its
+        // scope list, and no product role is invented for it.
+        let identity = identity_from_token(token());
+        assert!(identity.roles.is_empty());
+        assert_eq!(identity.roles.rights(), Rights::VIEW_ONLY);
+        assert!(!identity.roles.rights().can_comment());
     }
 
     #[test]

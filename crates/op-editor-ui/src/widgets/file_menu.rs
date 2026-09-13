@@ -400,19 +400,9 @@ fn file_name(path: &str) -> String {
 }
 
 fn format_age(ui: &EditorUiState, elapsed_secs: u64) -> String {
-    let locale = ui.effective_locale();
-    if elapsed_secs < 60 {
-        op_i18n::translate(locale, "fileMenu.justNow").to_string()
-    } else if elapsed_secs < 3600 {
-        op_i18n::translate(locale, "fileMenu.minutesAgo")
-            .replace("{{count}}", &(elapsed_secs / 60).to_string())
-    } else if elapsed_secs < 86400 {
-        op_i18n::translate(locale, "fileMenu.hoursAgo")
-            .replace("{{count}}", &(elapsed_secs / 3600).to_string())
-    } else {
-        op_i18n::translate(locale, "fileMenu.daysAgo")
-            .replace("{{count}}", &(elapsed_secs / 86400).to_string())
-    }
+    // Single-sourced with the recovery banner's "found …" clause: two copies
+    // of this ladder is how two screens start disagreeing about one file.
+    crate::widgets::relative_age::relative_age_label(ui.effective_locale(), elapsed_secs)
 }
 
 #[cfg(test)]

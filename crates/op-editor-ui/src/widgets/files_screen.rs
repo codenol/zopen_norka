@@ -78,7 +78,10 @@ impl FilesScreen<'_> {
     /// Where the "new file" button sits.
     pub fn new_button_rect(rect: Rect) -> Rect {
         Rect {
-            origin: Point2D::new(rect.origin.x + rect.size.x - PAD - 152.0, rect.origin.y + PAD),
+            origin: Point2D::new(
+                rect.origin.x + rect.size.x - PAD - 152.0,
+                rect.origin.y + PAD,
+            ),
             size: Point2D::new(152.0, 36.0),
         }
     }
@@ -95,8 +98,14 @@ impl FilesScreen<'_> {
     pub fn menu_rect(rect: Rect, anchor: Point2D) -> Rect {
         let width = MENU_W;
         let height = MENU_ROW_H * 2.0 + 8.0;
-        let x = anchor.x.min(rect.origin.x + rect.size.x - width - 8.0).max(rect.origin.x + 8.0);
-        let y = anchor.y.min(rect.origin.y + rect.size.y - height - 8.0).max(rect.origin.y + 8.0);
+        let x = anchor
+            .x
+            .min(rect.origin.x + rect.size.x - width - 8.0)
+            .max(rect.origin.x + 8.0);
+        let y = anchor
+            .y
+            .min(rect.origin.y + rect.size.y - height - 8.0)
+            .max(rect.origin.y + 8.0);
         Rect {
             origin: Point2D::new(x, y),
             size: Point2D::new(width, height),
@@ -106,10 +115,16 @@ impl FilesScreen<'_> {
     /// The two rows of an open menu, in paint order.
     pub fn menu_rows(menu: Rect) -> [(Rect, FileMenuAction); 2] {
         let row = |index: usize| Rect {
-            origin: Point2D::new(menu.origin.x + 4.0, menu.origin.y + 4.0 + index as f32 * MENU_ROW_H),
+            origin: Point2D::new(
+                menu.origin.x + 4.0,
+                menu.origin.y + 4.0 + index as f32 * MENU_ROW_H,
+            ),
             size: Point2D::new(menu.size.x - 8.0, MENU_ROW_H),
         };
-        [(row(0), FileMenuAction::Rename), (row(1), FileMenuAction::Delete)]
+        [
+            (row(0), FileMenuAction::Rename),
+            (row(1), FileMenuAction::Delete),
+        ]
     }
 
     /// Paint the context menu.
@@ -133,8 +148,10 @@ impl FilesScreen<'_> {
                 color.to_jian(),
                 Point2D::new(0.0, 0.0),
             );
-            cx.backend
-                .draw_text(&layout, Point2D::new(rect.origin.x + 10.0, rect.origin.y + 19.0));
+            cx.backend.draw_text(
+                &layout,
+                Point2D::new(rect.origin.x + 10.0, rect.origin.y + 19.0),
+            );
         }
     }
 
@@ -179,10 +196,8 @@ impl FilesScreen<'_> {
                 };
                 // A card past the bottom of the viewport is not painted (and so
                 // not clickable) — the list scrolls by search, not by pixels.
-                (card.origin.y + card.size.y <= rect.origin.y + rect.size.y).then_some(FileCard {
-                    rect: card,
-                    index,
-                })
+                (card.origin.y + card.size.y <= rect.origin.y + rect.size.y)
+                    .then_some(FileCard { rect: card, index })
             })
             .collect()
     }
@@ -249,8 +264,10 @@ impl FilesScreen<'_> {
         );
         cx.backend.save();
         cx.backend.clip_rect(field);
-        cx.backend
-            .draw_text(&layout, Point2D::new(field.origin.x + 8.0, field.origin.y + 18.0));
+        cx.backend.draw_text(
+            &layout,
+            Point2D::new(field.origin.x + 8.0, field.origin.y + 18.0),
+        );
         cx.backend.restore();
         let width = text_metrics::measure_chrome(cx.backend, &rename.draft, 12.0);
         let caret_x = (field.origin.x + 8.0 + width + 1.0).min(field.origin.x + field.size.x - 4.0);
@@ -271,8 +288,10 @@ impl FilesScreen<'_> {
             theme.foreground.to_jian(),
             Point2D::new(0.0, 0.0),
         );
-        cx.backend
-            .draw_text(&title, Point2D::new(rect.origin.x + PAD, rect.origin.y + PAD + 22.0));
+        cx.backend.draw_text(
+            &title,
+            Point2D::new(rect.origin.x + PAD, rect.origin.y + PAD + 22.0),
+        );
 
         // The new-file button: filled, the way a primary action reads.
         let button = Self::new_button_rect(rect);
@@ -314,14 +333,17 @@ impl FilesScreen<'_> {
         );
         cx.backend.draw_text(
             &layout,
-            Point2D::new(field.origin.x + 10.0, field.origin.y + field.size.y / 2.0 + 4.5),
+            Point2D::new(
+                field.origin.x + 10.0,
+                field.origin.y + field.size.y / 2.0 + 4.5,
+            ),
         );
         if self.search_focused {
             // Caret after the text: the field has no cursor navigation, so the
             // end of the string is the only place it can be.
             let width = text_metrics::measure_chrome(cx.backend, text, 13.0);
-            let caret_x = (field.origin.x + 10.0 + width + 1.0)
-                .min(field.origin.x + field.size.x - 4.0);
+            let caret_x =
+                (field.origin.x + 10.0 + width + 1.0).min(field.origin.x + field.size.x - 4.0);
             cx.backend.stroke_line(
                 Point2D::new(caret_x, field.origin.y + 7.0),
                 Point2D::new(caret_x, field.origin.y + field.size.y - 7.0),
@@ -375,7 +397,6 @@ impl FilesScreen<'_> {
         );
     }
 
-
     /// The card's preview band: the document's stored preview, or a quiet
     /// placeholder while it is missing.
     ///
@@ -394,7 +415,9 @@ impl FilesScreen<'_> {
             return;
         };
         let max_edge_px = required_raster_edge(thumb, cx.backend.dpi_scale());
-        let sharp = cx.backend.image_decoded(image_id, encoded.as_ref(), max_edge_px);
+        let sharp = cx
+            .backend
+            .image_decoded(image_id, encoded.as_ref(), max_edge_px);
         if !sharp {
             note_pending_decode(image_id, max_edge_px);
         }
@@ -411,10 +434,7 @@ impl FilesScreen<'_> {
         cx.backend.restore();
         cx.backend.stroke_line(
             Point2D::new(thumb.origin.x, thumb.origin.y + thumb.size.y),
-            Point2D::new(
-                thumb.origin.x + thumb.size.x,
-                thumb.origin.y + thumb.size.y,
-            ),
+            Point2D::new(thumb.origin.x + thumb.size.x, thumb.origin.y + thumb.size.y),
             theme.border,
             1.0,
         );
@@ -537,10 +557,16 @@ mod tests {
         // The card still points at the *second* file in the source list.
         assert_eq!(cards[0].index, 1);
 
-        let none = FilesScreen { query: "ничего-такого", ..matching };
+        let none = FilesScreen {
+            query: "ничего-такого",
+            ..matching
+        };
         assert!(none.cards(screen_rect()).is_empty());
 
-        let all = FilesScreen { query: "  ", ..none };
+        let all = FilesScreen {
+            query: "  ",
+            ..none
+        };
         assert_eq!(all.cards(screen_rect()).len(), 2);
     }
 
@@ -563,7 +589,10 @@ mod tests {
         assert_eq!(cards[0].rect.origin, Point2D::new(PAD, PAD + 112.0));
         // Second card sits one column to the right, fifth starts row two.
         assert_eq!(cards[1].rect.origin.x, PAD + 248.0 + 20.0);
-        assert_eq!(cards[4].rect.origin.y, cards[0].rect.origin.y + 156.0 + 20.0);
+        assert_eq!(
+            cards[4].rect.origin.y,
+            cards[0].rect.origin.y + 156.0 + 20.0
+        );
         assert_eq!(cards[4].rect.origin.x, cards[0].rect.origin.x);
     }
 

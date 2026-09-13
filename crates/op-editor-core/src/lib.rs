@@ -7,6 +7,7 @@
 //! editor-only state (selection, tool, viewport, history, transient
 //! UI drafts).
 
+pub mod access;
 pub mod account_state;
 pub mod acp_agent_presets;
 pub mod agent_indicators;
@@ -268,6 +269,9 @@ mod tests_pages;
 #[cfg(test)]
 mod translate_equivalence_tests;
 
+pub use access::{
+    rights_for, rights_for_roles, ProductRole, Right, Rights, RoleSet, RoleWireError,
+};
 pub use account_state::{
     AccountMenuRow, AccountState, LoginFlowError, LoginFlowStatus, LoginModalButton,
 };

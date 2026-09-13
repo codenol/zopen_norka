@@ -67,7 +67,14 @@ pub fn next_blink_deadline_ms(now_ms: u64, period: Option<u64>) -> Option<u64> {
     }
     let phase = now_ms % period;
     let half = period / 2;
-    Some(now_ms + if phase < half { half - phase } else { period - phase })
+    Some(
+        now_ms
+            + if phase < half {
+                half - phase
+            } else {
+                period - phase
+            },
+    )
 }
 
 #[cfg(test)]

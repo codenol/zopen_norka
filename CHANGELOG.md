@@ -12,16 +12,24 @@ here at a glance.
 
 ### Added
 
+- **The draft is offered back (#26).** The next launch asks the daemon once,
+  and a bar over the canvas offers the recovered work: "Unsaved work found:
+  10m ago" with **Restore** and **Discard**. Restore adopts the draft as the
+  open document and pulls it into the tab; Discard drops it. Answering is
+  final for the page, whether or not the daemon agrees — a request it rejects
+  leaves the draft in its slot, so the offer returns on the next launch
+  instead of looping on someone who already decided. The bar stays off the
+  screen whenever a modal owns it, so it can never look pressable under a
+  scrim.
 - **Unsaved work with no home is kept.** A document with no server key — an
   untitled screen — now writes itself into the daemon's draft slot on the same
-  autosave schedule, so work that used to exist only in a tab survives. The
-  banner that offers the draft back is #26; nothing is lost meanwhile.
+  autosave schedule, so work that used to exist only in a tab survives, and the
+  next launch offers it back.
 - **A draft slot for work with no home (server side).** A document with no
   server key and no path now has somewhere to write itself: one draft beside
   the documents, addressed by `/api/recovery` (write, ask about, restore,
   drop). It is deliberately not a document in the store — no key, never
-  listed, and dropped the moment it is restored or refused. The banner that
-  offers it back is the next change.
+  listed, and dropped the moment it is restored or refused.
 - **The saved state is stated, not implied.** The title bar now says "Saved"
   when the document matches its file and "Edited" when it does not; before, a
   saved document showed nothing, which is indistinguishable from a label that
@@ -45,7 +53,30 @@ here at a glance.
 - **Cmd/Ctrl+S saves in the browser.** It stopped the browser's own dialog and
   then did nothing — the first shortcut everybody tries did not save.
 
+### Added
+
+- **Product roles arrive from the hub (#10, first step).** The hub already sends
+  a user's roles; the verifier parsed them and dropped them one function later,
+  so nothing downstream could act on a role. They now travel with the resolved
+  identity, and `op_editor_core::access` models the seven product roles
+  (Admin / UX/UI / Software / Analyst / Frontend / Backend / QA) against four
+  rights levels: admin manages everything, UX/UI edits everything except users,
+  the five contributor roles read, comment and invite, and a guest with a link
+  only reads. An account may hold several roles — rights compose by union — and
+  an unknown role from the wire is refused rather than trusted. Nothing enforces
+  these yet on the routes: that needs a document owner, which is the next step.
+
 ### Fixed
+
+- **The three red tests (#19).** Two of them pinned behaviour from before the
+  kit owned the chrome — the sidebar they expected the scaffold to author is now
+  cloned from the kit — and were retargeted at what actually holds today. The
+  third was a real bug: the replace branch of a component upsert skipped the
+  gallery pass the append branch runs, so conversion was not idempotent and a
+  second run produced a different document.
+- **`op-host-web` compiles without `canvaskit` again.** Five modules were added
+  without the feature gate their neighbours carry, so the wasm-clean compile
+  check the CI runs had been red for a while.
 
 - **The stored-document routes now clear the same gates as the local ones.**
   `POST /api/files/<key>/save` (the route the browser and autosave actually

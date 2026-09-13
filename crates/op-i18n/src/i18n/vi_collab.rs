@@ -188,6 +188,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "Sao chép liên kết",
         "layerMenu.linkCopied" => "Đã sao chép liên kết vào bộ nhớ tạm",
         "topbar.saved" => "Đã lưu",
+        "recovery.banner.title" => "Đã tìm thấy công việc chưa lưu: {{when}}",
+        "recovery.banner.restore" => "Khôi phục",
+        "recovery.banner.discard" => "Bỏ qua",
         _ => return None,
     })
 }

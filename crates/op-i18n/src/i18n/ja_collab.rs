@@ -192,6 +192,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "リンクをコピー",
         "layerMenu.linkCopied" => "リンクをクリップボードにコピーしました",
         "topbar.saved" => "保存済み",
+        "recovery.banner.title" => "保存されていない作業が見つかりました：{{when}}",
+        "recovery.banner.restore" => "復元",
+        "recovery.banner.discard" => "破棄",
         _ => return None,
     })
 }

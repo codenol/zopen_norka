@@ -176,6 +176,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "Salin tautan",
         "layerMenu.linkCopied" => "Tautan disalin ke papan klip",
         "topbar.saved" => "Tersimpan",
+        "recovery.banner.title" => "Ditemukan pekerjaan yang belum disimpan: {{when}}",
+        "recovery.banner.restore" => "Pulihkan",
+        "recovery.banner.discard" => "Abaikan",
         _ => return None,
     })
 }

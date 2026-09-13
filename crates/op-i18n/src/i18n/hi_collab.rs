@@ -180,6 +180,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "layerMenu.copyLink" => "लिंक कॉपी करें",
         "layerMenu.linkCopied" => "लिंक क्लिपबोर्ड पर कॉपी हो गया",
         "topbar.saved" => "सहेजा गया",
+        "recovery.banner.title" => "बिना सहेजा गया काम मिला: {{when}}",
+        "recovery.banner.restore" => "पुनर्स्थापित करें",
+        "recovery.banner.discard" => "छोड़ दें",
         _ => return None,
     })
 }
