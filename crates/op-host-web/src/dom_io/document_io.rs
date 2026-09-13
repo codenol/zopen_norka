@@ -288,16 +288,18 @@ fn start_daemon_save<C: RepaintContext + 'static>(
     };
 
     let base = crate::daemon_base::daemon_base();
-    // A document with a server key is saved through its file route: the daemon
-    // owns the bytes and the key, so the browser sends no payload at all. The
-    // local-path route stays for a daemon holding an operator's own file.
+    // Both routes carry the document. The browser holds the copy the user is
+    // editing while the daemon's own copy arrives over the size-limited sync
+    // channel — for a document larger than that limit the daemon's state is a
+    // stale echo, and a save that trusted it would write yesterday's screen
+    // and then tell the user it was saved.
     let file_key = {
         let b = inner.borrow();
         b.host().editor_state().editor_ui.file_key.clone()
     };
-    let (url, body) = match file_key {
-        Some(key) => (format!("{base}/api/files/{key}/save"), String::new()),
-        None => (format!("{base}/api/file/save"), body),
+    let url = match file_key {
+        Some(key) => format!("{base}/api/files/{key}/save"),
+        None => format!("{base}/api/file/save"),
     };
     let inner_for_response = inner.clone();
     let on_response: Rc<dyn Fn(String)> = Rc::new(move |response| {
