@@ -140,8 +140,19 @@ impl TopBar {
             // Divider between the sidebar toggle and the file-menu.
             let divider1_x = panel_left_x + ICON_BUTTON + DIVIDER_GAP;
             paint_divider(cx, &self.theme, divider1_x, center_y);
+            // File-browser button: one icon, left of the file menu.
+            let all_files_rect = self.all_files_button_rect_for(rect);
+            paint_icon_button(
+                cx,
+                &self.theme,
+                all_files_rect.origin.x,
+                center_y,
+                Icon::FolderOpen,
+                self.is_hovered(TopBarButton::OpenFilesScreen),
+                self.is_pressed(TopBarButton::OpenFilesScreen),
+            );
             // File-menu compound: folder + tight chevron in one button.
-            let file_menu_x = divider1_x + DIVIDER_W + DIVIDER_GAP;
+            let file_menu_x = self.file_menu_rect_for(rect).origin.x;
             paint_file_menu_button(
                 cx,
                 &self.theme,

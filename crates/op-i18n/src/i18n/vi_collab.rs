@@ -184,6 +184,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "designMd.rules.aiInstructions" => "Hướng dẫn cho AI",
         "recipes.title" => "Công thức",
         "ai.rulesActive" => "Quy tắc · {{count}}",
+        "topbar.allFiles" => "Tất cả tệp",
         _ => return None,
     })
 }

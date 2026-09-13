@@ -14,6 +14,8 @@
 pub enum TopBarButton {
     /// PanelLeft icon — toggles the sidebar (LayerPanel).
     ToggleSidebar,
+    /// Files icon — opens the file browser screen (`/files`).
+    OpenFilesScreen,
     /// Folder + chevron compound — toggles the file menu.
     ToggleFileMenu,
     /// Figma logo — opens the .fig import modal.

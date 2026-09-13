@@ -174,6 +174,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "designMd.rules.aiInstructions" => "คำแนะนำสำหรับ AI",
         "recipes.title" => "สูตรสำเร็จ",
         "ai.rulesActive" => "กฎ · {{count}}",
+        "topbar.allFiles" => "ไฟล์ทั้งหมด",
         _ => return None,
     })
 }

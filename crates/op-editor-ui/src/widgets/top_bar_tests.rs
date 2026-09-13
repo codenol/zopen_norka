@@ -182,12 +182,17 @@ fn narrow_dirty_title_drops_git_before_filename_extension_or_status() {
     bar.mcp_count = 0;
     bar.label_agents_and_mcp = "Agents & MCP";
     // Two ICON_BUTTONs wider than the fixture used before the export and
-    // Asset Center buttons joined the right cluster: the title slot ends
-    // where that cluster begins, so the window that produces "Git dropped,
-    // name intact" moved right by exactly the width of the new buttons.
+    // Asset Center buttons joined the right cluster, and one more for the
+    // file-browser button on the left: the title slot ends where the right
+    // cluster begins and starts after the left one, so the window that
+    // produces "Git dropped, name intact" moves right by exactly the width of
+    // the buttons that were added.
     let rect = Rect {
         origin: Point2D::ZERO,
-        size: Point2D::new(620.0 + ICON_BUTTON * 2.0, TOP_BAR_HEIGHT),
+        size: Point2D::new(
+            620.0 + ICON_BUTTON * 2.0 + ICON_BUTTON + ALL_FILES_GAP,
+            TOP_BAR_HEIGHT,
+        ),
     };
 
     let layout = bar.title_layout(rect, title_test_width);

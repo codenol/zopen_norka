@@ -17,28 +17,49 @@ impl TopBar {
     /// chevron compound). Host anchors the dropdown directly under
     /// this rect when `Document.ui.file_menu_open == true`.
     pub fn file_menu_rect(top_bar_rect: Rect, fullscreen: bool) -> Rect {
-        // Mirror the paint layout: panel button │ divider │ file-menu.
-        // The divider span (gap + width + gap) pushes the file-menu
-        // right of the sidebar toggle — keep this anchor in sync so
-        // the dropdown opens under the folder button, not left of it.
+        // Mirror the paint layout: panel button │ divider │ all-files │
+        // file-menu. Keep this anchor in sync so the dropdown opens under the
+        // folder button, not left of it.
+        let all_files = Self::all_files_button_rect(top_bar_rect, fullscreen);
+        Rect {
+            origin: Point2D::new(
+                all_files.origin.x + ICON_BUTTON + ALL_FILES_GAP,
+                all_files.origin.y,
+            ),
+            size: Point2D::new(FILE_MENU_BUTTON_WIDTH, ICON_BUTTON),
+        }
+    }
+
+    /// The file-browser button, left of the file menu.
+    pub fn all_files_button_rect(top_bar_rect: Rect, fullscreen: bool) -> Rect {
         let divider_span = DIVIDER_GAP + DIVIDER_W + DIVIDER_GAP;
-        let file_menu_x = top_bar_rect.origin.x
+        let x = top_bar_rect.origin.x
             + PAD
             + Self::left_inset_for(fullscreen)
             + ICON_BUTTON
             + divider_span;
         Rect {
-            origin: Point2D::new(file_menu_x, top_bar_rect.origin.y + 8.0),
-            size: Point2D::new(FILE_MENU_BUTTON_WIDTH, ICON_BUTTON),
+            origin: Point2D::new(x, top_bar_rect.origin.y + 8.0),
+            size: Point2D::new(ICON_BUTTON, ICON_BUTTON),
+        }
+    }
+
+    pub fn all_files_button_rect_for(&self, top_bar_rect: Rect) -> Rect {
+        let divider_span = DIVIDER_GAP + DIVIDER_W + DIVIDER_GAP;
+        let x = top_bar_rect.origin.x + PAD + self.left_inset() + ICON_BUTTON + divider_span;
+        Rect {
+            origin: Point2D::new(x, top_bar_rect.origin.y + 8.0),
+            size: Point2D::new(ICON_BUTTON, ICON_BUTTON),
         }
     }
 
     pub fn file_menu_rect_for(&self, top_bar_rect: Rect) -> Rect {
-        let divider_span = DIVIDER_GAP + DIVIDER_W + DIVIDER_GAP;
-        let file_menu_x =
-            top_bar_rect.origin.x + PAD + self.left_inset() + ICON_BUTTON + divider_span;
+        let all_files = self.all_files_button_rect_for(top_bar_rect);
         Rect {
-            origin: Point2D::new(file_menu_x, top_bar_rect.origin.y + 8.0),
+            origin: Point2D::new(
+                all_files.origin.x + ICON_BUTTON + ALL_FILES_GAP,
+                all_files.origin.y,
+            ),
             size: Point2D::new(FILE_MENU_BUTTON_WIDTH, ICON_BUTTON),
         }
     }
@@ -356,6 +377,12 @@ impl TopBar {
                 origin: Point2D::new(top_bar_rect.origin.x + PAD + self.left_inset(), icon_y),
                 size: Point2D::new(ICON_BUTTON, ICON_BUTTON),
             },
+            B::OpenFilesScreen => {
+                if !self.file_controls_visible() {
+                    return None;
+                }
+                self.all_files_button_rect_for(top_bar_rect)
+            }
             B::ToggleFileMenu => {
                 if !self.file_controls_visible() {
                     return None;

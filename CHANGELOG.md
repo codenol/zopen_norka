@@ -12,6 +12,10 @@ here at a glance.
 
 ### Added
 
+- **"All files" in the top bar.** A button left of the file menu (and of
+  Import) opens the file browser from inside the editor, on both hosts — the
+  browser goes to `/files` and the desktop shows the same screen, since it has
+  no address bar to type into.
 - **Rename and delete from the file screen.** Right-press a card for its
   menu: Rename opens a field over the card (Enter commits, Escape abandons,
   an empty name is treated as no change) and Delete removes the stored
