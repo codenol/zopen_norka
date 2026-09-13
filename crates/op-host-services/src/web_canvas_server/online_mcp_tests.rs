@@ -779,3 +779,88 @@ fn an_admin_may_configure_a_workspace_shared_with_them() {
         "{credentials}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// #42: the collaboration panel is not a way round the document gate.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_visitor_without_an_editing_role_cannot_drive_a_session_on_the_document() {
+    // Undo applies an editor command to this document and the other actions
+    // feed the session that carries the peers' commands — including the two
+    // that admit a peer. A caller that may watch a document is not a caller
+    // that may drive a session on it; a caller that may edit it, is.
+    //
+    // Online the relay is unavailable and the panel is a projection, so this
+    // refuses a reach rather than a use.
+    let visitor_registry = registry();
+    grant(&visitor_registry, "userA@", "userB");
+    for action in [
+        r#"{"type":"requestUndo"}"#,
+        r#"{"type":"openCreate"}"#,
+        r#"{"type":"approveAdmissionViewer","requestKey":"k"}"#,
+    ] {
+        let refused = serve_roles(
+            &visitor_registry,
+            as_tenant(
+                Request::json("POST", op_editor_core::collab_routes::ACTION, action)
+                    .with_bearer("userB@qa"),
+                "userA",
+            ),
+        );
+        assert_eq!(
+            status_line(&refused),
+            "HTTP/1.1 403 Forbidden",
+            "{action}: {refused}"
+        );
+        assert_eq!(
+            body(&refused)["error"],
+            "read-only-role",
+            "{action}: {refused}"
+        );
+    }
+
+    // An editing role on the same document reaches the panel, exactly as it
+    // reaches every other write on it.
+    //
+    // Its own registry, because the queue below holds one action for the whole
+    // document: a second action is answered `409 collab-busy`, not `202`.
+    let editor_registry = registry();
+    grant(&editor_registry, "userA@", "userB");
+    let editor = serve_roles(
+        &editor_registry,
+        as_tenant(
+            Request::json(
+                "POST",
+                op_editor_core::collab_routes::ACTION,
+                r#"{"type":"openCreate"}"#,
+            )
+            .with_bearer("userB@ux_ui"),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&editor), "HTTP/1.1 202 Accepted", "{editor}");
+
+    // The owner's own panel is unaffected.
+    let owner_registry = registry();
+    let owner = serve_roles(
+        &owner_registry,
+        Request::json(
+            "POST",
+            op_editor_core::collab_routes::ACTION,
+            r#"{"type":"openCreate"}"#,
+        )
+        .with_bearer("userA@"),
+    );
+    assert_eq!(status_line(&owner), "HTTP/1.1 202 Accepted", "{owner}");
+
+    // And the projection the visitor may read is still theirs to read.
+    let state = serve_roles(
+        &visitor_registry,
+        as_tenant(
+            Request::new("GET", op_editor_core::collab_routes::STATE).with_bearer("userB@qa"),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&state), "HTTP/1.1 200 OK", "{state}");
+}
