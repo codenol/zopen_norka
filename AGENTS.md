@@ -25,3 +25,26 @@ Tooling is **Cargo** (Rust — the product). The root has **no `package.json`**;
 - Single files ≤ **800 lines**; one component/widget per file.
 - `.rs` snake_case, `.ts`/`.tsx` kebab-case; source comments in English.
 - Conventional Commits: `<type>(<scope>): <subject>` — scopes: `editor`, `canvas`, `panels`, `ai`, `codegen`, `variables`, `figma`, `mcp`, `desktop`, `web`, `renderer`, `sdk`, `cli`, `agent`, `i18n`.
+
+## Releases: changelog, version, build stamp
+
+Every finished piece of work updates the release records in the same change —
+a feature that ships without them is an unfinished feature.
+
+- **CHANGELOG.md** — add the entry under `## [Unreleased]`, Keep a Changelog
+  sections (`Added` / `Changed` / `Fixed` / `Removed`), one line per
+  user-visible change. Move the block under the new version heading when you
+  bump.
+- **Version** — bump `[workspace.package].version` in the root `Cargo.toml`,
+  then run `scripts/sync-version.sh`. That script needs the JS workspace
+  installed; when it cannot run, do its work by hand: `cargo update --workspace
+  --offline` for `Cargo.lock` and the same version string in
+  `packages/*/package.json`, `packages/package.json`,
+  `packages/op-chrome-extension/manifest.json` and `packages/bun.lock`.
+- **Build stamp** — nothing to do by hand. `crates/op-editor-ui/build.rs`
+  stamps the version and the build time into the top bar, next to
+  "Agents & MCP", and colours it by freshness: green under three minutes,
+  amber to six (blinking every three seconds), red beyond that (blinking every
+  second). Read that stamp before debugging "my change does nothing" — the kit
+  manifest is `include_str!`-embedded, so config edits need a rebuild, and a
+  browser tab can hold an older bundle.

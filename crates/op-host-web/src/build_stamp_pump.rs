@@ -20,6 +20,12 @@ use crate::repaint_ctx::RepaintContext;
 
 thread_local! {
     static RUNNING: Cell<bool> = const { Cell::new(false) };
+    /// Keeps the pending timeout closure alive until it fires. Replaced on the
+    /// next schedule, by which point the previous one has run — `Closure::once`
+    /// panicked here with "invoked recursively or after being dropped" because
+    /// a forgotten once-closure is already consumed when the timer fires it.
+    static PENDING: RefCell<Option<wasm_bindgen::closure::Closure<dyn FnMut()>>> =
+        const { RefCell::new(None) };
 }
 
 /// How long to wait before looking again when nothing is blinking.
@@ -52,7 +58,10 @@ pub(crate) fn ensure<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
 }
 
 fn schedule<C: RepaintContext + 'static>(inner: Rc<RefCell<C>>) {
-    let delay = match inner.try_borrow_mut() {
+    // The timeout closure hands its clone on when it fires, which keeps it
+    // `FnMut`-compatible for `Closure::wrap`.
+    let mut slot = Some(inner);
+    let delay = match slot.as_ref().expect("inner").try_borrow_mut() {
         Ok(mut borrowed) => {
             let now = crate::listener::now_ms_perf();
             let unix = crate::listener::now_unix_secs();
@@ -69,17 +78,19 @@ fn schedule<C: RepaintContext + 'static>(inner: Rc<RefCell<C>>) {
         Err(_) => IDLE_RECHECK_MS / 10,
     };
 
-    let callback = wasm_bindgen::closure::Closure::once(move || {
-        schedule(inner);
-    });
+    let callback = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        if let Some(inner) = slot.take() {
+            schedule(inner);
+        }
+    }) as Box<dyn FnMut()>);
     match web_sys::window() {
         Some(window) => {
             let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
                 callback.as_ref().unchecked_ref(),
                 delay,
             );
-            // The timeout owns the closure for its single firing.
-            callback.forget();
+            // Retain until it fires; the next schedule replaces it.
+            PENDING.with(|slot| *slot.borrow_mut() = Some(callback));
         }
         None => {
             RUNNING.with(|running| running.set(false));
