@@ -526,6 +526,17 @@ pub(crate) fn request_file_list<C: RepaintContext + 'static>(inner: &Rc<RefCell<
         ui.server_files_loading = false;
         match parsed {
             Ok(files) => {
+                // A document that is gone takes its preview with it, so a file
+                // recreated under the same key cannot show the old picture.
+                for stale in ui
+                    .server_files
+                    .iter()
+                    .map(|file| file.key.clone())
+                    .filter(|key| !files.iter().any(|file| &file.key == key))
+                    .collect::<Vec<_>>()
+                {
+                    op_editor_ui::files_thumb_runtime::forget_thumb(&stale);
+                }
                 ui.server_files = files;
                 ui.server_files_error = None;
             }
@@ -572,6 +583,10 @@ fn parse_file_list(response: &str) -> Result<Vec<op_editor_core::ServerFile>, St
                             .to_string(),
                         updated_at: file.get("updatedAt").and_then(|value| value.as_u64()).unwrap_or(0),
                         size: file.get("size").and_then(|value| value.as_u64()).unwrap_or(0),
+                        has_thumbnail: file
+                            .get("hasThumbnail")
+                            .and_then(|value| value.as_bool())
+                            .unwrap_or(false),
                     })
                 })
                 .collect::<Vec<_>>()

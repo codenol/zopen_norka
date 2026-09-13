@@ -59,6 +59,8 @@ impl CkInner {
         let viewport = self.backend.logical_size();
         crate::route_sync::tick_pending(&mut self.host, viewport);
         crate::route_sync::tick(&self.host);
+        // Previews the file screen asked for while painting it.
+        crate::files_thumb_fetch::drain_pending();
 
         crate::web_chat::reconcile_models(self.host.editor_state_mut());
         // Detect a credential edit and enqueue the daemon sync BEFORE mirroring
