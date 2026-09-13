@@ -68,19 +68,24 @@ fn share(
 }
 
 #[test]
-fn a_visitor_reads_and_writes_the_owner_document_only_after_a_grant() {
+fn a_visitor_reaches_the_owner_document_only_after_a_grant() {
     let registry = registry();
     let verifier = verifier();
+    // One document request against userA's tenant as userB — an account with no
+    // editing role, which is what a development verifier sends for everyone.
+    let visit = |method: &'static str, body: &str| {
+        serve(
+            &registry,
+            &verifier,
+            as_tenant(
+                Request::json(method, "/api/mcp/document", body).with_bearer("tokB"),
+                "userA",
+            ),
+        )
+    };
 
     // Before the grant, addressing userA's tenant is refused.
-    let refused = serve(
-        &registry,
-        &verifier,
-        as_tenant(
-            Request::new("GET", "/api/mcp/document").with_bearer("tokB"),
-            "userA",
-        ),
-    );
+    let refused = visit("GET", "");
     assert_eq!(status_line(&refused), "HTTP/1.1 403 Forbidden", "{refused}");
     assert_eq!(body(&refused)["error"], "tenant-not-shared");
 
@@ -93,25 +98,25 @@ fn a_visitor_reads_and_writes_the_owner_document_only_after_a_grant() {
     );
     assert_eq!(status_line(&granted), "HTTP/1.1 200 OK", "{granted}");
 
-    // Now userB writes into userA's document…
-    let pushed = serve(
-        &registry,
-        &verifier,
-        as_tenant(
-            Request::json("POST", "/api/mcp/document", SYNC_BODY).with_bearer("tokB"),
-            "userA",
-        ),
-    );
-    assert_eq!(status_line(&pushed), "HTTP/1.1 200 OK", "{pushed}");
+    // Now userB reads userA's document, and cannot write it: the grant answers
+    // "may this caller reach the document", not "may this caller change it"
+    // (#33 — this used to write). A visitor the hub DOES give an editing role
+    // is proven through this accept loop in `online_mcp_tests`.
+    let visited = visit("GET", "");
+    assert_eq!(status_line(&visited), "HTTP/1.1 200 OK", "{visited}");
+    assert_eq!(body(&visited)["version"], 0, "{visited}");
+    let pushed = visit("POST", SYNC_BODY);
+    assert_eq!(status_line(&pushed), "HTTP/1.1 403 Forbidden", "{pushed}");
+    assert_eq!(body(&pushed)["error"], "read-only-role", "{pushed}");
 
-    // …and userA sees it in their own tenant, with no parameter at all.
+    // userA's document is untouched, and userA sees it with no parameter.
     let owner_view = serve(
         &registry,
         &verifier,
         Request::new("GET", "/api/mcp/document").with_bearer("tokA"),
     );
-    assert!(owner_view.contains("Tenant Rect"), "{owner_view}");
-    assert_eq!(body(&owner_view)["version"], 1);
+    assert_eq!(body(&owner_view)["version"], 0, "{owner_view}");
+    assert!(!owner_view.contains("Tenant Rect"), "{owner_view}");
 
     // userB's OWN document is untouched — the parameter addressed a tenant,
     // it did not move the visitor into it.

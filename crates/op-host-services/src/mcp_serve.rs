@@ -220,6 +220,44 @@ where
     })
 }
 
+/// Whether a JSON-RPC `/mcp` message will change the document.
+///
+/// The question the document-access gate asks before it lets a call through,
+/// and the one the shutdown write barrier asks before it admits one — answered
+/// once, here, so the two cannot disagree about which messages write.
+///
+/// The handshake and discovery methods come first because
+/// [`process_message_with_applier_profiled`] short-circuits them above the tool
+/// dispatcher: they are answered from the catalog and never reach a tool, so
+/// none of them can change anything. Treating `tools/list` as a write would
+/// refuse it to a credential that may only read — the one direction where an
+/// over-conservative answer costs a legitimate caller, and the same false
+/// positive the profile itself avoids by still advertising write tools to a
+/// read-only token (`McpAccessProfile::lists`).
+///
+/// Everything else goes through [`op_mcp::parse_tool_call`] and
+/// [`tool_profile::tool_writes`], whose unclassified default is `Write`: an
+/// unknown method is treated as a mutation rather than waved through. A body
+/// that is not a message at all answers `false`, and it cannot mutate either —
+/// the dispatch below cannot parse it into a tool call.
+pub fn message_writes_document(body: &str) -> bool {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    if matches!(
+        sniff_method(trimmed).as_deref(),
+        // Kept in step with the short-circuit in
+        // `process_message_with_applier_profiled` by `handshake_methods_never_write`,
+        // which drives each of them through the real dispatch and asserts that
+        // no command was applied.
+        Some("initialize" | "tools/list" | "notifications/initialized" | "initialized" | "ping")
+    ) {
+        return false;
+    }
+    op_mcp::parse_tool_call(trimmed).is_some_and(|call| tool_profile::tool_writes(&call.tool))
+}
+
 /// Dispatch one already-classified tool call through a caller-provided
 /// registry. Live hosts use this seam for tools whose complete snapshot is
 /// much smaller than an [`EditorState`] (for example `list_pages`) or that do

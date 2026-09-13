@@ -409,3 +409,254 @@ fn a_read_scope_token_may_still_subscribe_to_the_event_stream() {
 fn body_of(response: &str) -> serde_json::Value {
     body(response)
 }
+
+// ---------------------------------------------------------------------------
+// #33: the document tiers ask who is editing, not only what the token may do.
+// ---------------------------------------------------------------------------
+
+/// A verifier that can say what `StaticVerifier` cannot: which roles an account
+/// holds.
+///
+/// An env-injected token table has no hub behind it, so it answers "no roles"
+/// for everyone — which is enough to prove the refusal half of the roles model,
+/// and useless for the half that has to keep working (a visitor the hub made an
+/// editor). Tokens here read `user@role|role`, with the roles optional and the
+/// session cookie spelled the same way.
+struct RoleVerifier;
+
+impl IdentityVerifier for RoleVerifier {
+    fn resolve(
+        &self,
+        presented: &PresentedCredentials,
+    ) -> std::result::Result<ResolvedIdentity, OnlineAuthError> {
+        use crate::web_canvas_server::tenant_auth::IdentityVia;
+        let (credential, via) = match (&presented.bearer, &presented.session_cookie) {
+            (Some(token), _) => (token.as_str(), IdentityVia::ApiToken),
+            (None, Some(cookie)) => (cookie.as_str(), IdentityVia::SessionCookie),
+            (None, None) => return Err(OnlineAuthError::MissingCredential),
+        };
+        let (user, roles) = credential
+            .split_once('@')
+            .ok_or(OnlineAuthError::UnknownCredential)?;
+        let roles: Vec<&str> = roles.split('|').filter(|role| !role.is_empty()).collect();
+        Ok(ResolvedIdentity {
+            user_id: user.to_string(),
+            username: user.to_string(),
+            display_name: user.to_string(),
+            roles: op_editor_core::access::RoleSet::from_wire(&roles),
+            via,
+            scopes: crate::mcp_serve::tool_profile::McpScopes::FULL,
+        })
+    }
+}
+
+/// Drive one request through the online loop under [`RoleVerifier`].
+fn serve_roles(registry: &TenantRegistry, request: Request) -> String {
+    let mut stream = MockStream {
+        input: std::io::Cursor::new(request.wire().into_bytes()),
+        output: Vec::new(),
+    };
+    let barrier = crate::web_canvas_server::tenant::WriteBarrier::default();
+    serve_one_online(&mut stream, registry, &RoleVerifier, &barrier).expect("serve_one_online");
+    String::from_utf8_lossy(&stream.output).into_owned()
+}
+
+/// Address a request at another account's tenant.
+fn as_tenant(mut request: Request, owner: &'static str) -> Request {
+    request.tenant = Some(owner);
+    request
+}
+
+/// Put `target` on `owner_token`'s access list, through the real share route.
+fn grant(registry: &TenantRegistry, owner_token: &'static str, target: &str) {
+    let granted = serve_roles(
+        registry,
+        Request::json(
+            "POST",
+            op_editor_core::share_routes::GRANT,
+            &serde_json::json!({ "userId": target }).to_string(),
+        )
+        .with_bearer(owner_token),
+    );
+    assert_eq!(status_line(&granted), "HTTP/1.1 200 OK", "{granted}");
+}
+
+/// A `tools/call` message for one tool.
+fn tool_call(tool: &str, arguments: &str) -> String {
+    format!(
+        r#"{{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{{"name":"{tool}","arguments":{arguments}}}}}"#
+    )
+}
+
+#[test]
+fn an_account_writes_its_own_document_whatever_roles_the_hub_sends() {
+    // Ownership grants edit on your own document — the operator's decision, and
+    // the reason a deployment whose hub sends no roles is not read-only for the
+    // people the documents belong to.
+    let registry = registry();
+    let pushed = serve_roles(
+        &registry,
+        Request::json("POST", "/api/mcp/document", SYNC_BODY).with_bearer("userA@"),
+    );
+    assert_eq!(status_line(&pushed), "HTTP/1.1 200 OK", "{pushed}");
+
+    let read = serve_roles(
+        &registry,
+        Request::new("GET", "/api/mcp/document").with_bearer("userA@"),
+    );
+    assert!(read.contains("Tenant Rect"), "{read}");
+}
+
+#[test]
+fn a_role_less_visitor_reads_the_shared_document_but_no_write_of_its_lands() {
+    let registry = registry();
+    grant(&registry, "userA@", "userB");
+
+    // Reading is what sharing is for, and it still works.
+    let read = serve_roles(
+        &registry,
+        as_tenant(
+            Request::new("GET", "/api/mcp/document").with_bearer("userB@"),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&read), "HTTP/1.1 200 OK", "{read}");
+    assert_eq!(body(&read)["version"], 0, "{read}");
+
+    // Every route that carries a document refuses — including the AI design
+    // turn and JSON-RPC, which are dispatched ahead of the REST handler.
+    let add_page = tool_call("add_page", r#"{"name":"Nope"}"#);
+    for (method, path, payload) in [
+        ("POST", "/api/mcp/document", SYNC_BODY),
+        ("POST", "/api/mcp/sync-reset", ""),
+        ("POST", "/api/mcp/selection", r#"{"selectedIds":["n9"]}"#),
+        ("POST", "/api/ai/standard", "{}"),
+        ("POST", "/mcp", add_page.as_str()),
+    ] {
+        let response = serve_roles(
+            &registry,
+            as_tenant(
+                Request::json(method, path, payload).with_bearer("userB@"),
+                "userA",
+            ),
+        );
+        assert_eq!(
+            status_line(&response),
+            "HTTP/1.1 403 Forbidden",
+            "{method} {path}: {response}"
+        );
+        assert_eq!(
+            body(&response)["error"],
+            "read-only-role",
+            "{method} {path}: {response}"
+        );
+    }
+
+    // The reads it may still make: the catalog and a read tool.
+    let listed = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json("POST", "/mcp", TOOLS_LIST).with_bearer("userB@"),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&listed), "HTTP/1.1 200 OK", "{listed}");
+    assert!(listed.contains("add_page"), "{listed}");
+    let read_tool = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json("POST", "/mcp", &tool_call("get_document_info", "{}"))
+                .with_bearer("userB@"),
+            "userA",
+        ),
+    );
+    assert_ne!(body(&read_tool)["result"]["isError"], true, "{read_tool}");
+
+    // And not one of the refusals changed the owner's document: no version
+    // bump, no node, and not the selection the visitor tried to set.
+    let owner = serve_roles(
+        &registry,
+        Request::new("GET", "/api/mcp/document").with_bearer("userA@"),
+    );
+    assert_eq!(body(&owner)["version"], 0, "{owner}");
+    assert!(!owner.contains("Tenant Rect"), "{owner}");
+    let selection = serve_roles(
+        &registry,
+        Request::new("GET", "/api/mcp/selection").with_bearer("userA@"),
+    );
+    assert_eq!(
+        body(&selection)["selectedIds"].as_array().map(Vec::len),
+        Some(0),
+        "{selection}"
+    );
+}
+
+#[test]
+fn a_visitor_whose_roles_grant_an_edit_writes_the_shared_document() {
+    let registry = registry();
+    grant(&registry, "userA@", "userB");
+    let pushed = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json("POST", "/api/mcp/document", SYNC_BODY).with_bearer("userB@ux_ui"),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&pushed), "HTTP/1.1 200 OK", "{pushed}");
+
+    let owner = serve_roles(
+        &registry,
+        Request::new("GET", "/api/mcp/document").with_bearer("userA@"),
+    );
+    assert!(owner.contains("Tenant Rect"), "{owner}");
+    assert_eq!(body(&owner)["version"], 1, "{owner}");
+}
+
+#[test]
+fn a_visitor_is_refused_a_document_that_is_not_shared_with_them_before_its_roles() {
+    // An editing role on someone else's document: the answer is about the
+    // document, and it is the same code the tenant lease answers with.
+    let registry = registry();
+    let response = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json("POST", "/api/mcp/document", SYNC_BODY).with_bearer("userB@ux_ui"),
+            "userA",
+        ),
+    );
+    assert_eq!(
+        status_line(&response),
+        "HTTP/1.1 403 Forbidden",
+        "{response}"
+    );
+    assert_eq!(body(&response)["error"], "tenant-not-shared", "{response}");
+}
+
+#[test]
+fn a_browser_session_is_held_to_the_same_answer_as_a_token() {
+    // The hole #33 named: a session IS the account and carries every scope, so
+    // the scope gate never refused one — a role-less visitor could replace the
+    // owner's document with its own cookie.
+    let registry = registry();
+    grant(&registry, "userA@", "userB");
+    let refused = serve_roles(
+        &registry,
+        as_tenant(
+            Request::json("POST", "/api/mcp/document", SYNC_BODY)
+                .with_session("userB@")
+                .with_origin(PUBLIC_ORIGIN),
+            "userA",
+        ),
+    );
+    assert_eq!(status_line(&refused), "HTTP/1.1 403 Forbidden", "{refused}");
+    assert_eq!(body(&refused)["error"], "read-only-role", "{refused}");
+
+    // The browser's own document is still its own to write.
+    let own = serve_roles(
+        &registry,
+        Request::json("POST", "/api/mcp/document", SYNC_BODY)
+            .with_session("userA@")
+            .with_origin(PUBLIC_ORIGIN),
+    );
+    assert_eq!(status_line(&own), "HTTP/1.1 200 OK", "{own}");
+}

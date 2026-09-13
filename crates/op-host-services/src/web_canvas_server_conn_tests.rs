@@ -261,6 +261,44 @@ fn serve_one_unknown_path_is_404() {
     assert!(r.contains("404 Not Found"), "{r}");
 }
 
+/// The document gate must not narrow the single-user daemons.
+///
+/// `document_writes` classifies these as writes and asks the local operator's
+/// access for them; this drives the real connection tier under `ServeMode::Local`
+/// to prove the answer is still "yes" for every one of them, including the two
+/// tiers the gate reaches before the REST handler (JSON-RPC and `/api/ai/*`).
+#[test]
+fn serve_one_local_document_writes_are_not_refused() {
+    let state = Mutex::new(fresh_state());
+    let hub = SseHub::default();
+    let cases: &[(&str, &str, &str)] = &[
+        ("POST", "/api/mcp/document", SYNC_BODY),
+        ("POST", "/api/mcp/selection", r#"{"selectedIds":[]}"#),
+        ("POST", "/api/mcp/sync-reset", ""),
+        ("POST", "/api/file/new", ""),
+        ("POST", "/api/ai/standard", "{}"),
+        (
+            "POST",
+            "/mcp",
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add_page","arguments":{"name":"Local"}}}"#,
+        ),
+    ];
+    for (method, path, body) in cases {
+        let request = format!(
+            "{method} {path} HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\n\
+             Content-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        let mut stream = mock_stream(&request);
+        serve_one(&mut stream, &state, &hub).expect("serve_one");
+        let response = String::from_utf8_lossy(&stream.output).into_owned();
+        assert!(
+            !response.contains("403 Forbidden") && !response.contains("tenant-not-shared"),
+            "{method} {path} is the operator's own daemon: {response}"
+        );
+    }
+}
+
 #[test]
 fn sync_reset_clears_web_document_and_bumps_version() {
     use op_editor_core::PenNodeExt;

@@ -239,6 +239,27 @@ pub(super) fn dispatch<S: Read + Write>(
             return Ok(false);
         }
     }
+    // Who may change the document. The scope gate above narrows a CREDENTIAL
+    // below the account that holds it; this answers a different question — may
+    // this account write this document at all — and it is the only gate on the
+    // tiers that are dispatched before `handle_web_canvas_request`: the
+    // pre-parsed document push, JSON-RPC `/mcp`, and `/api/ai/*`. A browser
+    // session carries every scope, so without it an account whose roles grant
+    // no edit could still replace the document through any of them (#33).
+    //
+    // Its inputs — the owner, the caller and whether the owner's list admits
+    // them — are exactly the lease this request was already served against.
+    if let Some(refusal) =
+        super::document_writes::check(&req.method, &req.path, &req.body, &ctx.access)
+    {
+        crate::mcp_serve::write_mcp_http_response_with_origin(
+            stream,
+            refusal.status,
+            &refusal.body,
+            cors_origin,
+        )?;
+        return Ok(false);
+    }
     // Online account projection. The device-login proxy stays 404 (it drives
     // a process-wide device session), but the shell must be able to learn
     // which account it is showing — without this the identity epoch never
@@ -501,8 +522,10 @@ pub(super) fn dispatch<S: Read + Write>(
     // write, so the decision is made BEFORE dispatch — the alternative is
     // discovering it from an `EditorCommand` the tool has already produced,
     // which is after the point where refusing is still honest.
-    let mcp_write = op_mcp::parse_tool_call(&req.body)
-        .is_some_and(|call| crate::mcp_serve::tool_profile::tool_writes(&call.tool));
+    //
+    // The same predicate the access gate above uses, so the barrier and the
+    // gate cannot disagree about which messages write.
+    let mcp_write = crate::mcp_serve::message_writes_document(&req.body);
     let mcp_write_pass = match admit_mutation(ctx, mcp_write) {
         MutationAdmission::NotAWrite => None,
         MutationAdmission::Admitted(pass) => pass,
