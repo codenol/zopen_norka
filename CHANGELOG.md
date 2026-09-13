@@ -12,6 +12,12 @@ here at a glance.
 
 ### Added
 
+- **Document previews, server side.** Saving (or creating) a document renders
+  a preview through the same raster exporter the Export button uses — scaled to
+  the card width from the page's own bounds — stores it beside the document,
+  and serves it from \`GET /api/files/<key>/thumb\`. The index carries a
+  \`hasThumbnail\` flag, and deleting a document deletes its preview. The cards
+  paint it in a following change.
 - **"All files" in the top bar.** A button left of the file menu (and of
   Import) opens the file browser from inside the editor, on both hosts — the
   browser goes to `/files` and the desktop shows the same screen, since it has

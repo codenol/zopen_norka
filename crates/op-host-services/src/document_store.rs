@@ -31,6 +31,11 @@ pub struct DocumentEntry {
     pub created_at: u64,
     pub updated_at: u64,
     pub size: u64,
+    /// Whether a thumbnail has been rendered for this document.
+    ///
+    /// Defaulted so an index written before thumbnails existed still loads.
+    #[serde(default)]
+    pub has_thumbnail: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -179,6 +184,7 @@ fn entry_for(key: &str, name: &str, created_at: u64, updated_at: u64) -> Documen
         created_at,
         updated_at,
         size: 0,
+        has_thumbnail: false,
     }
 }
 
@@ -199,6 +205,27 @@ pub fn create(
     entries.insert(0, entry.clone());
     write_index(dir, &entries)?;
     Ok(entry)
+}
+
+/// Where a key's thumbnail lives, when one has been rendered.
+pub fn thumb_path(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> {
+    if !key_is_valid(key) {
+        return Err(DocumentStoreError::InvalidKey);
+    }
+    Ok(dir.join(format!("{key}.thumb.png")))
+}
+
+/// Record that a thumbnail now exists for `key`.
+pub fn note_thumbnail(dir: &Path, key: &str, exists: bool) -> Result<(), DocumentStoreError> {
+    let mut entries = list(dir)?;
+    let Some(entry) = entries.iter_mut().find(|entry| entry.key == key) else {
+        return Err(DocumentStoreError::NotFound);
+    };
+    if entry.has_thumbnail == exists {
+        return Ok(());
+    }
+    entry.has_thumbnail = exists;
+    write_index(dir, &entries)
 }
 
 /// Where a key's document lives on disk.
