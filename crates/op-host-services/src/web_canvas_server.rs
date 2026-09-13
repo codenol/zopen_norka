@@ -742,24 +742,20 @@ pub fn handle_web_canvas_request(
         ("GET", op_editor_core::collab_routes::STATE) => collab_routes::state(state),
         ("POST", op_editor_core::collab_routes::ACTION) => collab_routes::action(body, state),
         ("POST", op_editor_core::collab_routes::PRESENCE) => collab_routes::presence(body, state),
-        // Every stored-document route reads and writes a directory that
-        // belongs to the daemon process, not to the caller: `documents_dir()`
-        // has no tenant dimension, so in a shared deployment one account's
-        // list, preview, save or delete would address every other account's
-        // files. Refused before the handler, exactly as the local-path routes
-        // are — a per-tenant store is the real fix and it belongs with the
-        // roles work (#10, #20).
+        // Every stored-document route reads and writes a directory that belongs
+        // to the daemon process rather than to the caller. That used to be a
+        // reason to refuse the whole family in a shared deployment (#20): with
+        // no owner on a row, a role check could say who may edit without ever
+        // saying whose file it is.
         //
-        // The per-caller roles gate now sits INSIDE these two tiers
-        // (`files_routes`, `recovery_routes`), and this refusal stays in front
-        // of it because it answers the other question — whose documents an
-        // account may address at all. See `OnlineRouteRefusal::LocalFileAccess`.
-        _ if path.starts_with("/api/files") && !state.mode.allows_local_file_routes() => {
-            online_policy::refusal_reply(online_policy::OnlineRouteRefusal::LocalFileAccess)
-        }
-        _ if path.starts_with("/api/recovery") && !state.mode.allows_local_file_routes() => {
-            online_policy::refusal_reply(online_policy::OnlineRouteRefusal::LocalFileAccess)
-        }
+        // The owner column answers it now. A create records the verified
+        // caller as the owner, the list asks for that account's rows, and every
+        // per-key route resolves the row and asks
+        // `RequestAccess::reaches_stored_document` before it touches a file —
+        // so the same shared directory serves every account without becoming a
+        // way to read another one's documents. The draft slot is keyed per
+        // workspace for the same reason (`document_store::recovery_path`).
+        //
         // `/api/files*` carries a key in the path, so it is matched by prefix
         // rather than by the exact-path arms above (§ files_routes).
         _ if path.starts_with("/api/files") => {

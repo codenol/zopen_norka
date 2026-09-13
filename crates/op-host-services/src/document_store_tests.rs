@@ -11,8 +11,19 @@ use crate::document_test_dir::TempDir;
 const KEY: &str = "aaaaaaaa00000001";
 
 fn create(db: &DocumentDb, tag: &str, name: &str, body: &[u8]) -> DocumentEntry {
+    create_owned(db, tag, name, None, body)
+}
+
+/// The same, with an owner: what an online deployment's create writes.
+fn create_owned(
+    db: &DocumentDb,
+    tag: &str,
+    name: &str,
+    owner: Option<&str>,
+    body: &[u8],
+) -> DocumentEntry {
     let body = body.to_vec();
-    create_with(db, Some(name), move |path| {
+    create_with(db, Some(name), owner, move |path| {
         std::fs::write(path, &body)
             .map_err(|error| DocumentStoreError::Io(format!("write {}: {error}", path.display())))
     })
@@ -212,16 +223,111 @@ fn the_recovery_slot_is_still_a_file_beside_the_documents() {
     // unsaved work, not a record anyone lists or queries.
     let dir = TempDir::new("recovery");
     let db = dir.open();
-    assert_eq!(recovery_info(dir.path()), None);
-    std::fs::write(recovery_path(dir.path()), b"draft").expect("write draft");
-    let info = recovery_info(dir.path()).expect("info");
+    assert_eq!(recovery_info(dir.path(), None), None);
+    std::fs::write(recovery_path(dir.path(), None), b"draft").expect("write draft");
+    let info = recovery_info(dir.path(), None).expect("info");
     assert_eq!(info.size, 5);
     assert!(info.saved_at > 0);
-    clear_recovery(dir.path()).expect("clear");
-    assert_eq!(recovery_info(dir.path()), None);
-    clear_recovery(dir.path()).expect("clearing twice is not an error");
+    clear_recovery(dir.path(), None).expect("clear");
+    assert_eq!(recovery_info(dir.path(), None), None);
+    clear_recovery(dir.path(), None).expect("clearing twice is not an error");
     // And the store itself is unaffected by any of it.
     assert!(list(&db).expect("list").is_empty());
+}
+
+#[test]
+fn each_account_has_its_own_recovery_file() {
+    // The draft is a whole document's unsaved content, so one shared slot would
+    // hand account A's work to account B — the leak the per-owner slot exists
+    // to close. The operator's slot keeps the original name, so an upgrade does
+    // not orphan the draft already sitting in it.
+    let dir = TempDir::new("recovery-owners");
+    assert_eq!(
+        recovery_path(dir.path(), None),
+        dir.join("recovery.op"),
+        "the local operator's slot is the file it has always been"
+    );
+    let a = recovery_path(dir.path(), Some("userA"));
+    let b = recovery_path(dir.path(), Some("userB"));
+    assert_ne!(a, b, "two accounts, two slots");
+    assert_eq!(a.parent(), Some(dir.path()), "both stay in the store");
+    // The account id is an opaque string from the verifier: whatever it holds,
+    // it may only ever become a file NAME inside this directory.
+    for hostile in ["../../etc/passwd", "", "a/b", &"x".repeat(4096)] {
+        let path = recovery_path(dir.path(), Some(hostile));
+        assert_eq!(path.parent(), Some(dir.path()), "{hostile:?}");
+        assert!(path.to_string_lossy().contains("recovery."), "{hostile:?}");
+    }
+
+    std::fs::write(&a, b"a's work").expect("write a");
+    std::fs::write(&b, b"b's work").expect("write b");
+    assert_eq!(
+        recovery_info(dir.path(), Some("userA")).map(|i| i.size),
+        Some(8)
+    );
+    assert_eq!(
+        recovery_info(dir.path(), Some("userB")).map(|i| i.size),
+        Some(8)
+    );
+    assert_eq!(
+        recovery_info(dir.path(), None),
+        None,
+        "neither account's draft is in the operator's slot"
+    );
+    clear_recovery(dir.path(), Some("userA")).expect("clear a");
+    assert_eq!(recovery_info(dir.path(), Some("userA")), None);
+    assert!(
+        recovery_info(dir.path(), Some("userB")).is_some(),
+        "clearing one account's draft must not drop another's"
+    );
+}
+
+#[test]
+fn a_documents_owner_is_recorded_and_the_list_is_asked_for_by_owner() {
+    // The two halves of what makes a shared directory safe: a row says who it
+    // belongs to, and a list can be asked for one account's rows only.
+    let dir = TempDir::new("owners");
+    let db = dir.open();
+    let mine = create_owned(&db, "mine", "Mine", Some("userA"), b"a");
+    let theirs = create_owned(&db, "theirs", "Theirs", Some("userB"), b"b");
+    let operator = create(&db, "operator", "Operator", b"c");
+
+    assert_eq!(mine.owner_id.as_deref(), Some("userA"));
+    assert_eq!(theirs.owner_id.as_deref(), Some("userB"));
+    assert_eq!(operator.owner_id, None, "no accounts, no owner");
+
+    let for_a: Vec<String> = list_owned_by(&db, "userA")
+        .expect("list")
+        .into_iter()
+        .map(|entry| entry.key)
+        .collect();
+    assert_eq!(for_a, vec![mine.key.clone()]);
+    let for_b: Vec<String> = list_owned_by(&db, "userB")
+        .expect("list")
+        .into_iter()
+        .map(|entry| entry.key)
+        .collect();
+    assert_eq!(for_b, vec![theirs.key.clone()]);
+    assert!(
+        list_owned_by(&db, "userC").expect("list").is_empty(),
+        "an account with no documents sees an empty list, not everyone's"
+    );
+    assert_eq!(
+        list(&db).expect("list").len(),
+        3,
+        "the operator's own view of the directory keeps every row"
+    );
+
+    // The owner survives a save, and a row read back carries it: the per-key
+    // check asks the ROW, so an entry that dropped its owner would make every
+    // route answer the wrong question.
+    let touched = touch(&db, &mine.key).expect("touch");
+    assert_eq!(touched.owner_id.as_deref(), Some("userA"));
+    assert_eq!(
+        find(&db, &mine.key).expect("find").map(|e| e.owner_id),
+        Some(Some("userA".to_string()))
+    );
+    assert_eq!(find(&db, KEY).expect("find"), None, "no row, no document");
 }
 
 #[test]

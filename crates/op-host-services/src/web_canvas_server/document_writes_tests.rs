@@ -78,6 +78,29 @@ fn every_route_that_changes_the_document_names_the_edit_right() {
 }
 
 #[test]
+fn every_collaboration_action_asks_the_edit_right_not_only_undo() {
+    // Undo applies a command to this document here and now; the rest feed the
+    // session that carries the peers' commands, and two of them admit a peer to
+    // it. Asking per action would make the answer a property of a list that
+    // grows — so the route is asked whole, unknown actions included.
+    for action in [
+        r#"{"type":"requestUndo"}"#,
+        r#"{"type":"openCreate"}"#,
+        r#"{"type":"start"}"#,
+        r#"{"type":"leave"}"#,
+        r#"{"type":"approveAdmissionEditor","requestKey":"k"}"#,
+        r#"{"type":"approveAdmissionViewer","requestKey":"k"}"#,
+        r#"{"type":"not-an-action"}"#,
+    ] {
+        assert_eq!(
+            required_action("POST", "/api/collab/action", action, ServeMode::Local),
+            Some(DocumentAction::Edit),
+            "{action}"
+        );
+    }
+}
+
+#[test]
 fn a_request_that_asks_nothing_of_the_document_names_no_right() {
     // Reads, settings, auth, sharing, export and the two tiers that own finer
     // tables of their own (`files_routes`, `recovery_routes`: opening a stored
@@ -88,17 +111,26 @@ fn a_request_that_asks_nothing_of_the_document_names_no_right() {
         ("GET", "/api/mcp/selection", ""),
         ("GET", "/api/mcp/indicators", ""),
         ("GET", "/api/mcp/server", ""),
-        ("POST", "/api/mcp/server", r#"{"port":3102}"#),
         ("GET", "/api/auth/status", ""),
-        ("POST", "/api/settings/credentials", "{}"),
         ("GET", "/api/ai/models", ""),
         ("POST", "/api/ai/stream", "{}"),
         ("POST", "/api/export/pdf", "{}"),
         ("POST", "/api/export/raster", "{}"),
         ("POST", "/api/share/grant", r#"{"userId":"userB"}"#),
         ("GET", "/api/collab/state", ""),
-        // Purposely not this table's: each owns a per-route table that is
-        // finer than (method, path). A second answer here would be a second
+        // A cursor is not a command — see the table's own note on this route.
+        (
+            "POST",
+            "/api/collab/presence",
+            r#"{"cursor":{"x":1,"y":2}}"#,
+        ),
+        // The account's own configuration is the other table's question
+        // (`workspace_settings`); named here only to prove this one leaves it
+        // alone, and that the two cannot both answer.
+        ("POST", "/api/mcp/server", r#"{"port":3102}"#),
+        ("POST", "/api/settings/credentials", "{}"),
+        // Purposely not this table's either: each owns a per-route table that
+        // is finer than (method, path). A second answer here would be a second
         // policy.
         ("GET", "/api/files", ""),
         ("POST", "/api/files/abcd1234/save", ""),

@@ -68,12 +68,12 @@ pub(crate) const LOCAL_OWNER: &str = "";
 
 /// The columns a [`DocumentEntry`] is built from, in one place so every reader
 /// agrees about the order.
-const ENTRY_COLUMNS: &str = "key, name, created_at, updated_at, size, has_thumbnail";
+const ENTRY_COLUMNS: &str = "key, name, owner_id, created_at, updated_at, size, has_thumbnail";
 
 /// The same columns, qualified for the join that reads the last-opened row.
 /// Kept beside [`ENTRY_COLUMNS`] so the two cannot drift apart unnoticed.
 const JOINED_ENTRY_COLUMNS: &str =
-    "d.key, d.name, d.created_at, d.updated_at, d.size, d.has_thumbnail";
+    "d.key, d.name, d.owner_id, d.created_at, d.updated_at, d.size, d.has_thumbnail";
 
 /// `meta` key holding the schema version this database is at.
 const META_SCHEMA_VERSION: &str = "schema_version";
@@ -104,6 +104,12 @@ struct Migration {
 /// in the field have already run it. A step that cannot be expressed as SQL (a
 /// backfill that has to read the documents, say) belongs in its own function
 /// called from `open`, guarded by its own `meta` key.
+///
+/// The SQL strings are history: their text is what a field database recorded as
+/// having run, so they are not edited, comments included. A comment that has
+/// been overtaken by later work (migration 1 says every row is ownerless
+/// "today") is corrected where the behaviour lives now, not in the record of
+/// what the database was.
 const MIGRATIONS: &[Migration] = &[Migration {
     version: 1,
     sql: "
@@ -448,10 +454,13 @@ fn entry_from_row(row: &Row<'_>) -> rusqlite::Result<DocumentEntry> {
     Ok(DocumentEntry {
         key: row.get(0)?,
         name: row.get(1)?,
-        created_at: row.get(2)?,
-        updated_at: row.get(3)?,
-        size: row.get(4)?,
-        has_thumbnail: row.get(5)?,
+        // NULL is the operator's own row: no account stands behind it. See
+        // `DocumentEntry::owner_id`.
+        owner_id: row.get(2)?,
+        created_at: row.get(3)?,
+        updated_at: row.get(4)?,
+        size: row.get(5)?,
+        has_thumbnail: row.get(6)?,
     })
 }
 
@@ -464,6 +473,33 @@ pub(crate) fn list_entries(db: &DocumentDb) -> Result<Vec<DocumentEntry>, Docume
         ))
         .map_err(db_error)?;
     let rows = statement.query_map([], entry_from_row).map_err(db_error)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(db_error)
+}
+
+/// One account's documents, most recently touched first.
+///
+/// The filter is the whole point of the owner column: the directory is shared
+/// by every account of a deployment, so the list a caller sees has to be asked
+/// for BY caller. A row whose `owner_id` is NULL matches no account and is
+/// therefore in nobody's list — the fail-closed direction, and the reason the
+/// legacy import's rows do not appear online. The same index serves this query
+/// as the unfiltered list: `documents_by_recency` is scanned in order and the
+/// owner is tested per row, which for a directory of one account's documents is
+/// what it would do anyway.
+pub(crate) fn list_entries_owned_by(
+    db: &DocumentDb,
+    owner: &str,
+) -> Result<Vec<DocumentEntry>, DocumentStoreError> {
+    let conn = db.conn();
+    let mut statement = conn
+        .prepare(&format!(
+            "SELECT {ENTRY_COLUMNS} FROM documents
+             WHERE owner_id = ?1 ORDER BY updated_at DESC, key DESC"
+        ))
+        .map_err(db_error)?;
+    let rows = statement
+        .query_map(params![owner], entry_from_row)
+        .map_err(db_error)?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(db_error)
 }
 
@@ -480,6 +516,9 @@ pub(crate) fn find_entry(
 /// Written AFTER the file: a row always describes a document that exists on
 /// disk, where the reverse order would leave a list entry whose file never
 /// arrived.
+///
+/// The owner comes from the entry and is written as given: `None` becomes SQL
+/// NULL, which is the local operator's own row and matches no account.
 pub(crate) fn insert_entry(
     db: &DocumentDb,
     entry: &DocumentEntry,
@@ -488,10 +527,11 @@ pub(crate) fn insert_entry(
         .execute(
             "INSERT INTO documents
                  (key, name, owner_id, created_at, updated_at, size, has_thumbnail)
-             VALUES (?1, ?2, NULL, ?3, ?4, ?5, ?6)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 entry.key,
                 entry.name,
+                entry.owner_id,
                 entry.created_at,
                 entry.updated_at,
                 entry.size,
@@ -521,6 +561,13 @@ pub(crate) fn touch_entry(
         )
         .map_err(db_error)?;
     if changed == 0 {
+        // A row for a document that arrived outside the store keeps a NULL
+        // owner. That is not a placeholder for "somebody will claim it": the
+        // row describes a file this daemon did not make, and no account can
+        // demonstrate a right to it. Online, the routes require the row to
+        // exist before they write, so this branch is the local operator's
+        // (an `.op` dropped into their directory by hand) — where a NULL owner
+        // means exactly what it says.
         tx.execute(
             "INSERT INTO documents
                  (key, name, owner_id, created_at, updated_at, size, has_thumbnail)

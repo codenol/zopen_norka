@@ -46,6 +46,12 @@
 //! everything unlisted is not available: it would refuse the settings modal,
 //! the auth projection and every read that a client needs to mount.
 //!
+//! "Changes the document" includes the one route that changes it *through* the
+//! session owning it rather than in this process — the collaboration panel,
+//! whose undo is an editor command and whose other actions feed the channel
+//! those commands arrive on. What it can do to the document is what this table
+//! is about, so it is named here like the rest.
+//!
 //! ## Why reads are not in the table
 //!
 //! [`RequestAccess::decide`] with [`DocumentAction::View`] asks one question —

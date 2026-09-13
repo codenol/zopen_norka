@@ -3,11 +3,22 @@
 //! Autosave needs somewhere to put a document that has no server key and no
 //! path: an untitled screen the user has been working on. Writing a file the
 //! user never asked for would be wrong, and losing the work is worse — so the
-//! daemon keeps exactly one draft slot beside its documents and offers it back
-//! with a banner on the next launch (the decision recorded in issue #16).
+//! daemon keeps one draft slot per workspace beside its documents and offers it
+//! back with a banner on the next launch (the decision recorded in issue #16).
 //!
 //! The draft is deliberately not a document in the store: it has no key, it is
 //! never listed, and it is dropped the moment it is restored or refused.
+//!
+//! ## One slot per workspace, not one for the process
+//!
+//! The slot used to be a single file for the whole daemon, which is the same
+//! shape as the document directory and had the same defect: a shared deployment
+//! would have offered account A's unsaved work to account B, and `restore`
+//! would have adopted it into B's editor. The per-caller role gate cannot close
+//! that — it answers what a caller may DO, never whose file this is — so the
+//! slot is keyed by the workspace the request is served against
+//! (`document_store::recovery_path`), exactly as the access decision is. That
+//! is what lets the family be served in every mode instead of refused (#20).
 
 use super::*;
 use crate::document_store::{self, DocumentStoreError};
@@ -70,9 +81,23 @@ pub(super) fn handle(
     if let Err(refusal) = access.decide(action) {
         return request_access::refusal_reply(refusal);
     }
-    let dir = document_store::documents_dir();
+    // The draft lives in the documents directory, and the daemon has exactly
+    // one place that resolves that directory: the store. Asking for it here
+    // instead of reading the environment again is what keeps the two from
+    // drifting — and it is what makes this family testable, since a store can
+    // be installed on a state rather than read from the process environment.
+    let store = match crate::document_db::local_store(&mut state.documents) {
+        Ok(store) => store,
+        Err(error) => return store_error(error),
+    };
+    let dir = store.dir().to_path_buf();
+    // WHOSE draft. Online that is the account whose workspace this request is
+    // served against — the caller for their own, the owner's for a visitor they
+    // granted — and each one has their own file. Locally there is no account,
+    // so it is the operator's single slot under its original name.
+    let owner = access.owner_id();
     match (method, route) {
-        ("GET", RecoveryRoute::Draft) => match document_store::recovery_info(&dir) {
+        ("GET", RecoveryRoute::Draft) => match document_store::recovery_info(&dir, owner) {
             Some(info) => WebReply {
                 status: "200 OK",
                 body: serde_json::json!({
@@ -88,9 +113,9 @@ pub(super) fn handle(
                 body: serde_json::json!({ "ok": true, "exists": false }).to_string(),
             },
         },
-        ("POST", RecoveryRoute::Draft) => write_draft(body, state, &dir),
-        ("POST", RecoveryRoute::Restore) => restore_draft(state, &dir),
-        ("DELETE", RecoveryRoute::Draft) => match document_store::clear_recovery(&dir) {
+        ("POST", RecoveryRoute::Draft) => write_draft(body, state, &dir, owner),
+        ("POST", RecoveryRoute::Restore) => restore_draft(state, &dir, owner),
+        ("DELETE", RecoveryRoute::Draft) => match document_store::clear_recovery(&dir, owner) {
             Ok(()) => WebReply {
                 status: "200 OK",
                 body: serde_json::json!({ "ok": true }).to_string(),
@@ -102,8 +127,13 @@ pub(super) fn handle(
 }
 
 /// Write the draft from a request body.
-fn write_draft(body: &str, state: &WebCanvasState, dir: &std::path::Path) -> WebReply {
-    let path = document_store::recovery_path(dir);
+fn write_draft(
+    body: &str,
+    state: &WebCanvasState,
+    dir: &std::path::Path,
+    owner: Option<&str>,
+) -> WebReply {
+    let path = document_store::recovery_path(dir, owner);
     match super::save_editor_from_body(body, &state.editor, &path) {
         Ok(_) => WebReply {
             status: "200 OK",
@@ -120,7 +150,11 @@ fn write_draft(body: &str, state: &WebCanvasState, dir: &std::path::Path) -> Web
 ///
 /// The draft exists to be handed back; keeping it after restoring would offer
 /// the same recovery again on every launch.
-fn restore_draft(state: &mut WebCanvasState, dir: &std::path::Path) -> WebReply {
+fn restore_draft(
+    state: &mut WebCanvasState,
+    dir: &std::path::Path,
+    owner: Option<&str>,
+) -> WebReply {
     if let Err(refusal) = state.gate_daemon_mutation(
         op_editor_core::CollabGateAction::ReplaceDocument,
         op_editor_core::CollabEditSource::User,
@@ -135,7 +169,7 @@ fn restore_draft(state: &mut WebCanvasState, dir: &std::path::Path) -> WebReply 
             .to_string(),
         };
     }
-    let path = document_store::recovery_path(dir);
+    let path = document_store::recovery_path(dir, owner);
     if !path.exists() {
         return store_error(DocumentStoreError::NotFound);
     }
@@ -149,7 +183,7 @@ fn restore_draft(state: &mut WebCanvasState, dir: &std::path::Path) -> WebReply 
             state.editor = next;
             state.current_path = None;
             state.version += 1;
-            let _ = document_store::clear_recovery(dir);
+            let _ = document_store::clear_recovery(dir, owner);
             WebReply {
                 status: "200 OK",
                 body: serde_json::json!({ "ok": true, "version": state.version }).to_string(),

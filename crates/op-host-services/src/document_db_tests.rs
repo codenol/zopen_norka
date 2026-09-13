@@ -22,10 +22,21 @@ fn entry(
     DocumentEntry {
         key: key.to_string(),
         name: name.to_string(),
+        // Ownerless: what the import writes and what the offline daemon makes.
+        // The owned case has its own helper below.
+        owner_id: None,
         created_at,
         updated_at,
         size,
         has_thumbnail,
+    }
+}
+
+/// The same row, belonging to an account.
+fn owned_entry(key: &str, name: &str, owner: &str) -> DocumentEntry {
+    DocumentEntry {
+        owner_id: Some(owner.to_string()),
+        ..entry(key, name, 1, 1, 1, false)
     }
 }
 
@@ -320,6 +331,50 @@ fn each_owner_has_their_own_last_opened_slot() {
         Some(theirs.key)
     );
     assert_eq!(last_entry(&db, "user-2").expect("last"), None);
+}
+
+#[test]
+fn an_owner_is_written_with_the_row_and_a_list_can_be_asked_for_one_account() {
+    // The column existed from migration 1 and stayed NULL for every row; this
+    // is the layer that starts filling it, so what it writes is worth pinning
+    // as SQL rather than through an accessor.
+    let dir = TempDir::new("owned-rows");
+    let db = dir.open();
+    let mine = owned_entry("aaaaaaaa00000001", "Mine", "userA");
+    let theirs = owned_entry("aaaaaaaa00000002", "Theirs", "userB");
+    let operator = entry("aaaaaaaa00000003", "Operator", 1, 1, 1, false);
+    for document in [&mine, &theirs, &operator] {
+        insert_entry(&db, document).expect("insert");
+    }
+    {
+        let conn = Connection::open(dir.join(DB_FILE)).expect("second connection");
+        let owner: Option<String> = conn
+            .query_row(
+                "SELECT owner_id FROM documents WHERE key = ?1",
+                params![mine.key],
+                |row| row.get(0),
+            )
+            .expect("owner");
+        assert_eq!(owner.as_deref(), Some("userA"));
+    }
+    // A row carries its owner back out, and only the asked-for account's rows
+    // come back: the NULL row belongs to no account, so it is in nobody's list.
+    assert_eq!(
+        find_entry(&db, &mine.key)
+            .expect("find")
+            .map(|e| e.owner_id),
+        Some(Some("userA".to_string()))
+    );
+    let mine_keys: Vec<String> = list_entries_owned_by(&db, "userA")
+        .expect("list")
+        .into_iter()
+        .map(|entry| entry.key)
+        .collect();
+    assert_eq!(mine_keys, vec![mine.key.clone()]);
+    assert!(list_entries_owned_by(&db, "userC")
+        .expect("list")
+        .is_empty());
+    assert_eq!(list_entries(&db).expect("list").len(), 3);
 }
 
 #[test]

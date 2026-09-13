@@ -3,7 +3,7 @@
 //!
 //! The browser has no filesystem, so "the file" has to live somewhere the
 //! daemon can reach. This is that somewhere: one `.op` per document, one
-//! `.thumb.png` preview beside it, one `recovery.op` draft for work that has no
+//! `.thumb.png` preview beside it, one draft per workspace for work that has no
 //! document yet — and the accounting (name, owner, timestamps, size, thumbnail
 //! flag) in a SQLite database owned by `crate::document_db`.
 //!
@@ -13,6 +13,16 @@
 //! JSON files the accounting used to live in (`index.json`, `last.json`) are
 //! still on disk, untouched: they are the record of what this directory held
 //! before the move, and the database imported them once.
+//!
+//! ## One directory, every account — so every row names its owner
+//!
+//! The directory is per process, not per account, and a public deployment
+//! serves many accounts from one process. What a row says about who it belongs
+//! to ([`DocumentEntry::owner_id`]) is therefore what a route decides on: the
+//! list is asked for by owner, and a document addressed by key is only reached
+//! by the account that owns it or by a visitor the owner admitted. Before the
+//! column was filled, the daemon had no answer to that question and refused the
+//! whole stored-document family in a shared deployment instead (#20).
 //!
 //! Keys are short, opaque and validated before they touch a path. The address
 //! bar shows them (`/f/<key>`), people paste them into chat, so they must be
@@ -51,6 +61,21 @@ pub(crate) const LAST_DOCUMENT_FILE: &str = "last.json";
 pub struct DocumentEntry {
     pub key: String,
     pub name: String,
+    /// The account this document belongs to, or `None` when no account stands
+    /// behind it.
+    ///
+    /// `None` is what the offline daemon writes: it has no accounts, so there
+    /// is nobody to name, and every row the legacy `index.json` import brought
+    /// over arrives the same way. That is also what makes the column usable as
+    /// an authorization input — "belongs to no account" and "belongs to this
+    /// account" are different answers, and a store that could not tell them
+    /// apart is the reason a shared deployment had to refuse the whole
+    /// stored-document family (#20).
+    ///
+    /// Defaulted so an `index.json` written before this field existed still
+    /// deserializes; the import inserts an explicit NULL for those rows.
+    #[serde(default)]
+    pub owner_id: Option<String>,
     pub created_at: u64,
     pub updated_at: u64,
     pub size: u64,
@@ -167,10 +192,23 @@ pub(crate) fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-fn entry_for(key: &str, name: &str, created_at: u64, updated_at: u64, size: u64) -> DocumentEntry {
+/// The row for a document that is about to be written.
+///
+/// `owner` is the account the document belongs to — the caller's own id in an
+/// online deployment, `None` for the local operator (see
+/// [`DocumentEntry::owner_id`]).
+fn entry_for(
+    key: &str,
+    name: &str,
+    owner: Option<&str>,
+    created_at: u64,
+    updated_at: u64,
+    size: u64,
+) -> DocumentEntry {
     DocumentEntry {
         key: key.to_string(),
         name: name.to_string(),
+        owner_id: owner.map(str::to_string),
         created_at,
         updated_at,
         size,
@@ -188,9 +226,38 @@ pub fn path_for(dir: &Path, key: &str) -> Result<PathBuf, DocumentStoreError> {
     document_path(dir, key)
 }
 
-/// The file list, most recently touched first.
+/// The file list, most recently touched first — every row, whatever account it
+/// belongs to.
+///
+/// This is the operator's view of their own directory, and it is what every
+/// caller gets in a deployment that has no accounts. A deployment that HAS
+/// accounts must ask [`list_owned_by`] instead: one directory holds every
+/// account's documents, so "list everything" is exactly the statement that
+/// would show one account another's file names.
 pub fn list(db: &DocumentDb) -> Result<Vec<DocumentEntry>, DocumentStoreError> {
     document_db::list_entries(db)
+}
+
+/// The file list of one account, most recently touched first.
+///
+/// Rows with no owner are deliberately absent: nothing attributes them to
+/// `owner`, and an unattributed row handed to whoever asks for a list is the
+/// leak this function exists to close.
+pub fn list_owned_by(
+    db: &DocumentDb,
+    owner: &str,
+) -> Result<Vec<DocumentEntry>, DocumentStoreError> {
+    document_db::list_entries_owned_by(db, owner)
+}
+
+/// One stored document, when the index has a row for it.
+///
+/// The row — not the file — is what answers "is this a document of mine": a
+/// file that arrived in the directory outside the store has no owner either,
+/// and a route that trusted the file would be trusting the filesystem for an
+/// authorization decision.
+pub fn find(db: &DocumentDb, key: &str) -> Result<Option<DocumentEntry>, DocumentStoreError> {
+    document_db::find_entry(db, key)
 }
 
 /// Register a new document whose bytes someone else writes.
@@ -199,9 +266,13 @@ pub fn list(db: &DocumentDb) -> Result<Vec<DocumentEntry>, DocumentStoreError> {
 /// desktop Save uses), so the store hands out the key and the path rather than
 /// copying bytes through itself. The row follows the file: a create that fails
 /// to write leaves nothing in the list.
+///
+/// `owner` is recorded on the row and is the only thing that later attributes
+/// the document to anyone; see [`DocumentEntry::owner_id`].
 pub fn create_with<F>(
     db: &DocumentDb,
     name: Option<&str>,
+    owner: Option<&str>,
     write: F,
 ) -> Result<DocumentEntry, DocumentStoreError>
 where
@@ -215,7 +286,7 @@ where
     write(&path)?;
     let size = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
     let now = now_secs();
-    let entry = entry_for(&key, name.unwrap_or(DEFAULT_NAME), now, now, size);
+    let entry = entry_for(&key, name.unwrap_or(DEFAULT_NAME), owner, now, now, size);
     document_db::insert_entry(db, &entry)?;
     Ok(entry)
 }
@@ -297,13 +368,45 @@ pub fn last_document(db: &DocumentDb) -> Option<DocumentEntry> {
 
 /// Where the unsaved-work draft lives.
 ///
-/// One draft, not one per document: the daemon holds a single document at a
-/// time, so "the document that had no home when it was edited" is a single
-/// slot. Kept inside the documents directory so a deployment that moves the
-/// store (`NORKA_DOCUMENTS_DIR`) moves the draft with it — a recovery file on
-/// a different volume would be lost exactly when it is needed.
-pub fn recovery_path(dir: &Path) -> PathBuf {
-    dir.join("recovery.op")
+/// One draft PER OWNER, not one per process. The slot used to be a single file
+/// for the whole daemon, which was correct while there was one operator and
+/// became a leak the moment a deployment had accounts: the draft holds a whole
+/// document's unsaved content, and `GET`/`restore` would have handed account A's
+/// work to account B — the per-caller role gate cannot help, because it decides
+/// what a caller may do, never whose file this is.
+///
+/// `owner` is the account whose workspace the draft belongs to; `None` is the
+/// local operator, whose slot keeps the original name so an upgrade does not
+/// orphan the draft already sitting there. Kept inside the documents directory
+/// so a deployment that moves the store (`NORKA_DOCUMENTS_DIR`) moves the draft
+/// with it — a recovery file on a different volume would be lost exactly when
+/// it is needed.
+pub fn recovery_path(dir: &Path, owner: Option<&str>) -> PathBuf {
+    match owner {
+        None => dir.join("recovery.op"),
+        Some(account) => dir.join(owner_slot_file(account)),
+    }
+}
+
+/// The file name of one account's draft slot.
+///
+/// A digest, not the account id itself. The id comes from the identity verifier
+/// as an opaque string of unbounded length, so a name built from it directly
+/// could exceed the filesystem's component limit; and two spellings of the same
+/// slot — the digest and a sanitized id — would be two files one account could
+/// read through either. 128 bits of SHA-256 is injective in practice, and hex is
+/// path-safe by construction: no separator, no `.`-only component, no length
+/// surprise.
+fn owner_slot_file(account: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(account.as_bytes());
+    let mut name = String::with_capacity(9 + 32 + 3);
+    name.push_str("recovery.");
+    for byte in &digest[..16] {
+        name.push_str(&format!("{byte:02x}"));
+    }
+    name.push_str(".op");
+    name
 }
 
 /// What is known about a stored draft, for the banner that offers it back.
@@ -314,9 +417,9 @@ pub struct RecoveryInfo {
     pub size: u64,
 }
 
-/// Describe the draft, when one exists.
-pub fn recovery_info(dir: &Path) -> Option<RecoveryInfo> {
-    let path = recovery_path(dir);
+/// Describe `owner`'s draft, when one exists.
+pub fn recovery_info(dir: &Path, owner: Option<&str>) -> Option<RecoveryInfo> {
+    let path = recovery_path(dir, owner);
     let metadata = std::fs::metadata(&path).ok()?;
     let saved_at = metadata
         .modified()
@@ -330,9 +433,9 @@ pub fn recovery_info(dir: &Path) -> Option<RecoveryInfo> {
     })
 }
 
-/// Drop the draft — after it has been restored, or refused.
-pub fn clear_recovery(dir: &Path) -> Result<(), DocumentStoreError> {
-    match std::fs::remove_file(recovery_path(dir)) {
+/// Drop `owner`'s draft — after it has been restored, or refused.
+pub fn clear_recovery(dir: &Path, owner: Option<&str>) -> Result<(), DocumentStoreError> {
+    match std::fs::remove_file(recovery_path(dir, owner)) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(DocumentStoreError::Io(format!("remove recovery: {error}"))),

@@ -43,10 +43,36 @@ here at a glance.
   document is a different matter — there the roles decide, so a visitor given
   access without an editing role reads, and an unknown role grants nothing.
 
-  The online refusal that fronts these routes (#20) stays for now: it answers
-  a different question — *whose files may be addressed at all* — and
-  `documents_dir()` is still one flat directory for the process. A test pins
-  the refusal so lifting it has to be deliberate.
+  The online refusal that fronted these routes (#20) is gone: a document now
+  records the account that made it, the list is asked for by owner, and a
+  document addressed by key is reached only by the account that owns it or by a
+  visitor the owner admitted. See the entry below.
+
+- **A shared deployment serves the file list, and only your own rows.** Every
+  document the daemon makes now records the account that made it, and the file
+  list asks for that account's rows: one directory holds everyone's files, so
+  "list everything" would hand over names, sizes and timestamps that belong to
+  somebody else. A document addressed by key is a different question — the key
+  says nothing about whose row it is — so every per-key route resolves the row
+  and checks its owner before it touches a file: your own document, or one of
+  the workspace you were admitted to; anything else answers `tenant-not-shared`
+  rather than an empty list or somebody else's file.
+
+  What this replaced was a wholesale refusal of `/api/files*` and
+  `/api/recovery*` in a public deployment (#20), because a role check could say
+  who may edit and never whose file it was. Working online is now the same as
+  working locally: create, list, open, save, rename and delete, for the account
+  the documents belong to. A document shared with you is opened by the key its
+  link carried, not listed.
+
+  The unsaved-work draft moved with it: it is one slot per workspace rather than
+  one file for the whole process, keyed by a digest of the workspace's account
+  so an opaque hub id can never become a path. Before that, `restore` would have
+  adopted one account's unsaved work into another's editor — the per-caller role
+  gate cannot close that, because it decides what a caller may do and never
+  whose file this is. Rows with no owner at all (everything the legacy
+  `index.json` import brought over) belong to no account and are therefore in
+  nobody's list online; #46 tracks the adoption path that does not exist yet.
 - **Every role has a colour.** Golden for Admin, violet for UX/UI, sky for
   Software, yellow for Analyst, green for Frontend, grey for Backend, brown for
   QA — taken from the operator's own naming and resolved to values that stay

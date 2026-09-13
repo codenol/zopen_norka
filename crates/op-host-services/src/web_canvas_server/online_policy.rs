@@ -51,9 +51,14 @@ impl ServeMode {
         matches!(self, Self::Online)
     }
 
-    /// `/api/file/save` + `/api/file/open-recent` — they read and write
-    /// paths on the daemon host's filesystem, which in a shared process
+    /// `/api/file/save` + `/api/file/open-recent` — they take a PATH and read or
+    /// write it on the daemon host's filesystem, which in a shared process
     /// means every account writing through the service account.
+    ///
+    /// The stored-document family no longer consults this: `/api/files*` and
+    /// `/api/recovery*` address a key and a draft slot inside the daemon's own
+    /// documents directory, and the owner recorded on each row is what decides
+    /// whether a caller may address it (#20).
     pub const fn allows_local_file_routes(self) -> bool {
         !self.is_online()
     }
@@ -234,15 +239,20 @@ pub(super) fn rest_scope_required(
 /// body, in a test assertion, and in the route table above.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnlineRouteRefusal {
-    /// A route that reads or writes the daemon host's filesystem.
+    /// A route that takes a PATH and reads or writes it on the daemon host's
+    /// filesystem.
     ///
-    /// Covers `/api/file/*`, and — with its own arm in the dispatcher — the
-    /// stored-document family `/api/files*` and `/api/recovery*`, whose
-    /// directory is one flat folder for the whole process. The per-caller
-    /// roles gate the routes now run (`request_access`) answers a different
-    /// question: who may edit. It cannot answer whose file it is, which is
-    /// what lifting this needs — `documents_dir()` resolved per owner
-    /// (`<data>/files/<owner_id>`, or an owner column in the index).
+    /// This is `/api/file/*` — save to a path the caller named, reopen one from
+    /// such a path — and nothing else now. The stored-document family
+    /// (`/api/files*`, `/api/recovery*`) used to be refused here too, because
+    /// its directory is one flat folder for the whole process and no row said
+    /// whose file it was; the store records an owner per document and per draft
+    /// now, so those routes answer from the owner column instead of from the
+    /// deployment mode (#20).
+    ///
+    /// What remains is not a question about ownership: a path is not a document
+    /// of anybody's, and resolving one would put the service account's whole
+    /// filesystem behind a request from any account.
     LocalFileAccess,
     /// A collaboration action that opens a connection to something the
     /// caller named, or enumerates the host's network.

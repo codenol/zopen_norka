@@ -767,5 +767,5 @@ mod mcp_profile;
 mod share;
 
 #[cfg(test)]
-#[path = "online_files_refusal_tests.rs"]
-mod files_refusal;
+#[path = "online_files_tests.rs"]
+mod files;
