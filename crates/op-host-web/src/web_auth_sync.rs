@@ -260,7 +260,14 @@ fn fetch_status<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
                 crate::web_settings::reload_for_active_partition(&inner);
             }
             sync_account_avatar(&inner, parsed["avatar_revision"].as_str());
-            let mut b = inner.borrow_mut();
+            // Soft borrow — this path is reached from a timer callback that can
+            // land while an event holds the shell. The hard borrow panicked
+            // every 30 s and killed the wasm instance, freezing the page on its
+            // last painted frame (which is how the file list "stuck" on
+            // Loading).
+            let Ok(mut b) = inner.try_borrow_mut() else {
+                return;
+            };
             let ui = &mut b.host_mut().editor_state_mut().editor_ui;
             let available = parsed["available"].as_bool().unwrap_or(false);
             let account = if parsed["signed_in"].as_bool().unwrap_or(false) {
@@ -363,7 +370,9 @@ fn apply_login_status<C: RepaintContext + 'static>(
     parsed: &serde_json::Value,
     cells: &FlowCells,
 ) {
-    let mut b = inner.borrow_mut();
+    let Ok(mut b) = inner.try_borrow_mut() else {
+        return;
+    };
     let ui = &mut b.host_mut().editor_state_mut().editor_ui;
     if !ui.login_modal_open {
         return; // dismissed while the request was in flight
