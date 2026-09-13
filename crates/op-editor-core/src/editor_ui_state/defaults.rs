@@ -19,6 +19,8 @@ impl Default for EditorUiState {
             server_files_loading: false,
             server_files_error: None,
             server_files_query: String::new(),
+            server_files_open_request: None,
+            server_files_create_request: false,
             now_unix_ms: 0.0,
             file_key: None,
             sidebar_open: true,

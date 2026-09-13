@@ -142,6 +142,12 @@ impl WidgetHost {
         self.last_viewport_h = viewport_height;
         self.last_cursor_x = x;
         self.last_cursor_y = y;
+        // The file browser owns its screen: no editor chrome is hit-tested
+        // while it is up, and a press either picks a document or asks for a
+        // new one.
+        if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
+            return self.press_files_screen(x, y, viewport_width, viewport_height);
+        }
         // Refresh the derived paint doc once up front — every hit-test
         // below reads `&self.layout_scene`, so it must be current.
         self.refresh_layout_scene();

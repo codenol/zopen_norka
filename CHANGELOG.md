@@ -12,6 +12,11 @@ here at a glance.
 
 ### Added
 
+- **File browser actions.** A card opens its document (the daemon loads it,
+  the address becomes `/f/<key>` and the tab takes the file's name), and
+  "New file" creates a stored document and opens it. Presses are recorded on
+  the state and performed by the host on the next frame — the widget layer has
+  no transport of its own by design.
 - **File browser screen (`/files`).** A screen of its own, not a panel: title,
   search field, "New file" action and a grid of document cards with names and
   edit times, plus honest empty, loading and error states. Reached by address;

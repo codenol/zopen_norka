@@ -306,6 +306,80 @@ fn open_named_document<C: RepaintContext + 'static>(
 
 
 
+
+/// Open a stored document and put its address in the bar.
+fn open_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key: &str) {
+    let base = crate::daemon_base::daemon_base();
+    let inner_for_response = inner.clone();
+    let key = key.to_string();
+    // The closure owns the key for the state write; the request URL needs its
+    // own copy.
+    let key_for_url = key.clone();
+    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
+        let ok = serde_json::from_str::<serde_json::Value>(&response)
+            .ok()
+            .and_then(|value| value.get("ok").and_then(|ok| ok.as_bool()))
+            .unwrap_or(false);
+        if !ok {
+            if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
+                borrowed.host_mut().editor_state_mut().editor_ui.server_files_error =
+                    Some("That file could not be opened".to_string());
+                let _ = borrowed.repaint();
+            }
+            return;
+        }
+        if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
+            let state = borrowed.host_mut().editor_state_mut();
+            state.editor_ui.file_key = Some(key.clone());
+            state.editor_ui.screen = op_editor_core::AppScreen::Editor;
+            borrowed.host_mut().mark_editor_state_dirty();
+            let _ = borrowed.repaint();
+        }
+        // The document itself arrives on the version pull; the address is
+        // written on the next frame from the state the open just set.
+        crate::live_sync_glue::request_document_pull(&inner_for_response);
+    });
+    let _ = crate::live_sync::post_json(
+        &format!("{base}/api/files/{key_for_url}/open"),
+        "{}",
+        Some(on_response),
+    );
+    LAST_WRITTEN.with(|last| *last.borrow_mut() = None);
+}
+
+/// Create a stored document and open it.
+fn create_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
+    let base = crate::daemon_base::daemon_base();
+    let inner_for_response = inner.clone();
+    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
+        let key = serde_json::from_str::<serde_json::Value>(&response)
+            .ok()
+            .and_then(|value| value.get("file").cloned())
+            .and_then(|file| file.get("key").and_then(|key| key.as_str()).map(str::to_string));
+        let Some(key) = key else {
+            if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
+                borrowed.host_mut().editor_state_mut().editor_ui.server_files_error =
+                    Some("A new file could not be created".to_string());
+                let _ = borrowed.repaint();
+            }
+            return;
+        };
+        if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
+            let state = borrowed.host_mut().editor_state_mut();
+            state.editor_ui.file_key = Some(key);
+            state.editor_ui.screen = op_editor_core::AppScreen::Editor;
+            // The list shown next time must include this file.
+            state.editor_ui.server_files.clear();
+            borrowed.host_mut().mark_editor_state_dirty();
+            let _ = borrowed.repaint();
+        }
+        crate::live_sync_glue::request_document_pull(&inner_for_response);
+    });
+    if crate::live_sync::post_json(&format!("{base}/api/files"), "{}", Some(on_response)) {
+        LAST_WRITTEN.with(|last| *last.borrow_mut() = None);
+    }
+}
+
 /// Keep the file browser's list current.
 ///
 /// Called once per frame with the shell in hand: the screen can be reached by
@@ -331,6 +405,26 @@ pub(crate) fn tick_files<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
             PENDING_LIST.with(|pending| *pending.borrow_mut() = Some(arrived));
             return;
         }
+    }
+    // A click on the file screen, performed here because the widget layer has
+    // no transport of its own.
+    let (open_request, create_request) = {
+        let Ok(mut borrowed) = inner.try_borrow_mut() else {
+            return;
+        };
+        let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
+        (
+            ui.server_files_open_request.take(),
+            std::mem::take(&mut ui.server_files_create_request),
+        )
+    };
+    if let Some(key) = open_request {
+        open_stored_document(inner, &key);
+        return;
+    }
+    if create_request {
+        create_stored_document(inner);
+        return;
     }
     let (is_files, needs_list) = {
         let Ok(borrowed) = inner.try_borrow() else {
