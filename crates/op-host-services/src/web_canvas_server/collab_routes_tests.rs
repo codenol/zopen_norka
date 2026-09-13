@@ -1,19 +1,19 @@
 //! `/api/collab/*` route coverage, driven through the same
-//! `handle_web_canvas_request` entry point the connection loop uses.
+//! `handle_local_request` entry point the connection loop uses.
 
 use op_editor_core::collab_wire::{CollabStateWire, COLLAB_WIRE_VERSION};
 use op_editor_core::{
     AuthenticatedCollabSession, CollabConnectionPhase, CollabUiAction, CollabUiRole, EditorState,
 };
 
-use super::super::{handle_web_canvas_request, WebCanvasState, WebReply};
+use super::super::{handle_local_request, WebCanvasState, WebReply};
 
 fn daemon() -> WebCanvasState {
     WebCanvasState::new(EditorState::starter(), 0)
 }
 
 fn call(method: &str, path: &str, body: &str, state: &mut WebCanvasState) -> WebReply {
-    handle_web_canvas_request(method, path, body, state)
+    handle_local_request(method, path, body, state)
 }
 
 fn json(reply: &WebReply) -> serde_json::Value {

@@ -33,6 +33,15 @@ pub(super) struct ConnCtx<'a> {
     /// Admits document writes until shutdown closes it. `None` for the local
     /// and managed daemons, whose lifecycle has no flush to protect.
     pub(super) write_barrier: Option<&'a super::tenant::WriteBarrier>,
+    /// Who is asking, and what they may do with the document this connection
+    /// is served against.
+    ///
+    /// Assembled here because this is the last place that holds both halves:
+    /// the lease (the document's owner, and whether its access list admitted
+    /// the caller) and the verified identity with its roles. The route tier
+    /// receives only the decision's inputs — see
+    /// [`super::request_access`] — never the state, the hub or the lease.
+    pub(super) access: super::RequestAccess<'a>,
 }
 
 /// Handle one connection against the single-user document authority.
@@ -89,6 +98,9 @@ pub(super) fn serve_one_in_mode<S: Read + Write>(
             mcp_profile: crate::mcp_serve::tool_profile::McpAccessProfile::UNRESTRICTED,
             rest_identity: None,
             write_barrier: None,
+            // No accounts exist in these modes, so there is nothing to decide:
+            // the operator keeps the authority this daemon has always had.
+            access: super::RequestAccess::local_operator(mode),
         },
     )
 }
@@ -364,7 +376,13 @@ pub(super) fn dispatch<S: Read + Write>(
                 // The pre-parsed push installs directly; the generic handler
                 // never sees this route's body twice.
                 Some(parsed) => document_push_reply(parsed, &mut guard),
-                None => handle_web_canvas_request(&req.method, &req.path, &req.body, &mut guard),
+                None => handle_web_canvas_request(
+                    &req.method,
+                    &req.path,
+                    &req.body,
+                    &mut guard,
+                    &ctx.access,
+                ),
             };
             let reply = persist_api_settings(
                 &req.method,

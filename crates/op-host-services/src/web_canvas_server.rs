@@ -467,11 +467,15 @@ where
 /// - `POST /api/file/new` → untitled starter + Skala library, unbound path
 /// - anything else → 404 (the JSON-RPC `/mcp` path + SSE are handled by the
 ///   caller's connection loop, not here).
+///
+/// `access` is who is asking — see [`RequestAccess`]. Only the route tiers that
+/// can refuse a caller take it; the rest ignore it.
 pub fn handle_web_canvas_request(
     method: &str,
     path: &str,
     body: &str,
     state: &mut WebCanvasState,
+    access: &RequestAccess<'_>,
 ) -> WebReply {
     match (method, path) {
         ("GET", "/api/mcp/server") => WebReply {
@@ -725,6 +729,11 @@ pub fn handle_web_canvas_request(
         // files. Refused before the handler, exactly as the local-path routes
         // are — a per-tenant store is the real fix and it belongs with the
         // roles work (#10, #20).
+        //
+        // The per-caller roles gate now sits INSIDE these two tiers
+        // (`files_routes`, `recovery_routes`), and this refusal stays in front
+        // of it because it answers the other question — whose documents an
+        // account may address at all. See `OnlineRouteRefusal::LocalFileAccess`.
         _ if path.starts_with("/api/files") && !state.mode.allows_local_file_routes() => {
             online_policy::refusal_reply(online_policy::OnlineRouteRefusal::LocalFileAccess)
         }
@@ -733,10 +742,12 @@ pub fn handle_web_canvas_request(
         }
         // `/api/files*` carries a key in the path, so it is matched by prefix
         // rather than by the exact-path arms above (§ files_routes).
-        _ if path.starts_with("/api/files") => files_routes::handle(method, path, body, state),
+        _ if path.starts_with("/api/files") => {
+            files_routes::handle(method, path, body, state, access)
+        }
         // The unsaved-work draft: one slot, no key, dropped once restored.
         _ if path.starts_with("/api/recovery") => {
-            recovery_routes::handle(method, path, body, state)
+            recovery_routes::handle(method, path, body, state, access)
         }
         _ => not_found_reply(),
     }
@@ -750,6 +761,12 @@ fn not_found_reply() -> WebReply {
             .to_string(),
     }
 }
+
+/// The route tier under the local operator's access, for tests. Defined beside
+/// the decision it hands the routes, and re-exported here so the route tests
+/// that predate roles keep calling it under one name.
+#[cfg(test)]
+pub(crate) use request_access::handle_local_request;
 
 /// Whether `path` belongs to the daemon-hosted device-login proxy.
 fn is_device_login_route(path: &str) -> bool {
@@ -773,6 +790,7 @@ mod connection;
 mod connection_ai_routes;
 mod files_routes;
 mod recovery_routes;
+mod request_access;
 mod doc_routes;
 mod export_routes;
 mod hub_verifier;
@@ -796,6 +814,7 @@ pub use hub_verifier::HubVerifier;
 pub use online_policy::{OnlineRouteRefusal, ServeMode};
 pub use online_run_loop::*;
 use origin_guard::*;
+pub use request_access::{AccessRefusal, DocumentAction, RequestAccess};
 pub use run_loop::*;
 pub use serve_options::*;
 pub use share_routes::ShareError;

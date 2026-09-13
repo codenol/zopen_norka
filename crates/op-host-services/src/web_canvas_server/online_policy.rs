@@ -235,6 +235,14 @@ pub(super) fn rest_scope_required(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnlineRouteRefusal {
     /// A route that reads or writes the daemon host's filesystem.
+    ///
+    /// Covers `/api/file/*`, and — with its own arm in the dispatcher — the
+    /// stored-document family `/api/files*` and `/api/recovery*`, whose
+    /// directory is one flat folder for the whole process. The per-caller
+    /// roles gate the routes now run (`request_access`) answers a different
+    /// question: who may edit. It cannot answer whose file it is, which is
+    /// what lifting this needs — `documents_dir()` resolved per owner
+    /// (`<data>/files/<owner_id>`, or an owner column in the index).
     LocalFileAccess,
     /// A collaboration action that opens a connection to something the
     /// caller named, or enumerates the host's network.
@@ -271,17 +279,31 @@ impl std::fmt::Display for OnlineRouteRefusal {
 
 impl std::error::Error for OnlineRouteRefusal {}
 
-/// Render a refusal as the daemon's standard coded-error REST reply.
-pub(super) fn refusal_reply(refusal: OnlineRouteRefusal) -> super::WebReply {
+/// Render any coded refusal as the daemon's standard REST error reply.
+///
+/// One builder for every refusal the daemon emits — a route this deployment
+/// does not serve, a caller its roles do not admit — so the three fields
+/// (`ok`/`error`/`message`) and their spelling cannot drift between the
+/// modules that produce them, and a client needs one parser for all of them.
+pub(super) fn coded_refusal_reply(
+    status: &'static str,
+    code: &str,
+    message: &str,
+) -> super::WebReply {
     super::WebReply {
-        status: refusal.http_status(),
+        status,
         body: serde_json::json!({
             "ok": false,
-            "error": refusal.code(),
-            "message": refusal.to_string(),
+            "error": code,
+            "message": message,
         })
         .to_string(),
     }
+}
+
+/// Render a refusal as the daemon's standard coded-error REST reply.
+pub(super) fn refusal_reply(refusal: OnlineRouteRefusal) -> super::WebReply {
+    coded_refusal_reply(refusal.http_status(), refusal.code(), &refusal.to_string())
 }
 
 #[cfg(test)]

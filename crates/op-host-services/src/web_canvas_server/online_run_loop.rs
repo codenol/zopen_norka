@@ -647,6 +647,18 @@ pub(super) fn serve_one_online<S: Read + Write>(
     }
     // The lease outlives the dispatch (including a minutes-long SSE stream),
     // so the tenant these borrows point at cannot be evicted underneath them.
+    //
+    // The access decision's inputs are read off the SAME two things that
+    // admitted this request: the lease names the document's owner, and
+    // reaching this point at all means `lease_for_shared` found the caller on
+    // that owner's access list. So the flag below cannot claim a share the
+    // registry never checked — a visitor whose grant was revoked is refused
+    // here, before a route ever asks.
+    let access = RequestAccess::online(
+        lease.owner_id(),
+        &identity,
+        lease.owner_id() != identity.user_id,
+    );
     dispatch(
         stream,
         &req,
@@ -659,6 +671,7 @@ pub(super) fn serve_one_online<S: Read + Write>(
             mcp_profile: crate::mcp_serve::tool_profile::McpAccessProfile::online(identity.scopes),
             rest_identity: Some(identity.clone()),
             write_barrier: Some(write_barrier),
+            access,
         },
     )
 }

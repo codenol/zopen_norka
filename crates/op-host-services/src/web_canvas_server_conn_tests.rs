@@ -228,7 +228,7 @@ fn serve_one_post_mcp_debug_screenshot_uses_web_canvas_renderer() {
     let hub = SseHub::default();
     {
         let mut guard = state.lock().expect("state lock");
-        let seeded = handle_web_canvas_request("POST", "/api/mcp/document", SYNC_BODY, &mut guard);
+        let seeded = handle_local_request("POST", "/api/mcp/document", SYNC_BODY, &mut guard);
         assert!(seeded.status.starts_with("200"), "{}", seeded.body);
     }
 
@@ -266,7 +266,7 @@ fn sync_reset_clears_web_document_and_bumps_version() {
     use op_editor_core::PenNodeExt;
 
     let mut s = fresh_state();
-    let posted = handle_web_canvas_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
+    let posted = handle_local_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
     assert!(posted.status.starts_with("200"), "{}", posted.body);
     assert_eq!(s.version, 1);
     assert!(
@@ -277,7 +277,7 @@ fn sync_reset_clears_web_document_and_bumps_version() {
         "fixture document should be present before reset"
     );
 
-    let reset = handle_web_canvas_request("POST", "/api/mcp/sync-reset", "", &mut s);
+    let reset = handle_local_request("POST", "/api/mcp/sync-reset", "", &mut s);
     assert!(reset.status.starts_with("200"), "{}", reset.body);
     assert!(reset.body.contains(r#""ok":true"#), "{}", reset.body);
     assert!(reset.body.contains(r#""version":2"#), "{}", reset.body);
@@ -499,11 +499,11 @@ fn base_version_is_extracted_from_the_request_body() {
 #[test]
 fn sync_reset_route_reply_is_skipped_true_on_second_call() {
     let mut s = fresh_state();
-    let first = handle_web_canvas_request("POST", "/api/mcp/sync-reset", "", &mut s);
+    let first = handle_local_request("POST", "/api/mcp/sync-reset", "", &mut s);
     assert!(first.status.starts_with("200"), "{}", first.body);
     assert!(!first.body.contains(r#""skipped""#), "{}", first.body);
 
-    let second = handle_web_canvas_request("POST", "/api/mcp/sync-reset", "", &mut s);
+    let second = handle_local_request("POST", "/api/mcp/sync-reset", "", &mut s);
     assert!(second.status.starts_with("200"), "{}", second.body);
     assert!(second.body.contains(r#""skipped":true"#), "{}", second.body);
     assert!(second.body.contains(r#""version":1"#), "{}", second.body);
@@ -518,7 +518,7 @@ fn document_post_route_409s_on_stale_base_version_without_mutating() {
         r#""sourceClientId":"web","baseVersion":9999"#,
         1,
     );
-    let r = handle_web_canvas_request("POST", "/api/mcp/document", &body_with_base_version, &mut s);
+    let r = handle_local_request("POST", "/api/mcp/document", &body_with_base_version, &mut s);
     assert!(r.status.starts_with("409"), "{}", r.body);
     assert!(
         r.body.contains(r#""error":"version-conflict""#),

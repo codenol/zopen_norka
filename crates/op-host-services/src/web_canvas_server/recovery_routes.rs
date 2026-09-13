@@ -33,10 +33,43 @@ fn parse_route(path: &str) -> Option<RecoveryRoute> {
     }
 }
 
-pub(super) fn handle(method: &str, path: &str, body: &str, state: &mut WebCanvasState) -> WebReply {
+/// Which right each route asks for.
+///
+/// `None` means "no such route here" — see `files_routes::required_action` for
+/// why the gate is a table in front of the handler rather than a check inside
+/// each arm.
+///
+/// Reading the draft's metadata is a read; writing it is a write, even though
+/// the draft is not a document in the store — it is the caller's own unsaved
+/// work going to disk on the daemon's volume, and a caller whose roles do not
+/// grant an edit must not be able to leave bytes there.
+fn required_action(method: &str, route: RecoveryRoute) -> Option<DocumentAction> {
+    match (method, route) {
+        ("GET", RecoveryRoute::Draft) => Some(DocumentAction::View),
+        ("POST", RecoveryRoute::Draft) => Some(DocumentAction::Edit),
+        ("POST", RecoveryRoute::Restore) => Some(DocumentAction::Restore),
+        ("DELETE", RecoveryRoute::Draft) => Some(DocumentAction::Delete),
+        _ => None,
+    }
+}
+
+pub(super) fn handle(
+    method: &str,
+    path: &str,
+    body: &str,
+    state: &mut WebCanvasState,
+    access: &RequestAccess<'_>,
+) -> WebReply {
     let Some(route) = parse_route(path) else {
         return not_found_reply();
     };
+    let Some(action) = required_action(method, route) else {
+        return not_found_reply();
+    };
+    // The one gate, before the slot is read, written or dropped.
+    if let Err(refusal) = access.decide(action) {
+        return request_access::refusal_reply(refusal);
+    }
     let dir = document_store::documents_dir();
     match (method, route) {
         ("GET", RecoveryRoute::Draft) => match document_store::recovery_info(&dir) {
@@ -164,3 +197,10 @@ mod tests {
         }
     }
 }
+
+/// The access gate on these routes — who may read the offer, write the draft,
+/// restore it or drop it. See the sibling's module docs for why it lives
+/// beside the file rather than inside it.
+#[cfg(test)]
+#[path = "recovery_routes_access_tests.rs"]
+mod access_tests;

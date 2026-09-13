@@ -20,7 +20,7 @@ fn post_export_pdf_returns_base64_pdf_without_replacing_daemon_document() {
         .collect();
     let export_body = r##"{"document":{"version":"1.0.0","children":[{"id":"pdf-node","type":"rectangle","name":"PDF Rect","x":1,"y":2,"width":80,"height":40,"fill":[{"type":"solid","color":"#123456"}]}]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/pdf", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/pdf", export_body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let parsed: serde_json::Value = serde_json::from_str(&r.body).expect("json body");
@@ -51,7 +51,7 @@ fn post_export_pdf_returns_base64_pdf_without_replacing_daemon_document() {
 fn post_export_pdf_rejects_invalid_document_without_mutating_state() {
     let mut s = fresh_state();
 
-    let r = handle_web_canvas_request("POST", "/api/export/pdf", r#"{"document":1}"#, &mut s);
+    let r = handle_local_request("POST", "/api/export/pdf", r#"{"document":1}"#, &mut s);
 
     assert!(r.status.starts_with("400"), "{}", r.body);
     assert!(r.body.contains("export PDF"), "{}", r.body);
@@ -65,7 +65,7 @@ fn post_export_pdf_uses_request_active_page_index() {
     let mut s = fresh_state();
     let export_body = r##"{"activePageIndex":1,"document":{"version":"1.0.0","children":[],"pages":[{"id":"p1","name":"Empty","children":[]},{"id":"p2","name":"Exported","children":[{"id":"pdf-page-two","type":"rectangle","name":"PDF Page Two","x":1,"y":2,"width":80,"height":40,"fill":[{"type":"solid","color":"#123456"}]}]}]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/pdf", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/pdf", export_body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let parsed: serde_json::Value = serde_json::from_str(&r.body).expect("json body");
@@ -90,7 +90,7 @@ fn post_export_pdf_gives_a_deck_one_page_per_board() {
         {"id":"s2","type":"frame","name":"Agenda","x":400,"y":0,"width":640,"height":360,"fill":[{"type":"solid","color":"#204080"}]}
     ]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/pdf", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/pdf", export_body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let parsed: serde_json::Value = serde_json::from_str(&r.body).expect("json body");
@@ -123,7 +123,7 @@ fn post_export_pdf_honours_a_boards_filter() {
         {"id":"s3","type":"frame","name":"End","x":1200,"y":0,"width":200,"height":100,"fill":[{"type":"solid","color":"#204080"}]}
     ]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/pdf", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/pdf", export_body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let parsed: serde_json::Value = serde_json::from_str(&r.body).expect("json body");
@@ -152,7 +152,7 @@ fn post_export_pdf_with_an_empty_boards_filter_exports_nothing() {
         {"id":"s1","type":"frame","name":"Cover","x":0,"y":0,"width":320,"height":180,"fill":[{"type":"solid","color":"#204080"}]}
     ]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/pdf", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/pdf", export_body, &mut s);
 
     assert!(
         !r.status.starts_with("200"),
@@ -181,7 +181,7 @@ fn post_export_raster_returns_base64_png_without_replacing_daemon_document() {
         .collect();
     let export_body = r##"{"format":"png","scale":1,"document":{"version":"1.0.0","children":[{"id":"png-node","type":"rectangle","name":"PNG Rect","x":1,"y":2,"width":80,"height":40,"fill":[{"type":"solid","color":"#123456"}]}]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/raster", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/raster", export_body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let parsed: serde_json::Value = serde_json::from_str(&r.body).expect("json body");
@@ -211,7 +211,7 @@ fn post_export_raster_crops_to_selected_node() {
     let mut s = fresh_state();
     let export_body = r##"{"format":"png","scale":1,"selectedNodeId":"small","document":{"version":"1.0.0","children":[{"id":"small","type":"rectangle","name":"Small","x":0,"y":0,"width":10,"height":10,"fill":[{"type":"solid","color":"#123456"}]},{"id":"far","type":"rectangle","name":"Far","x":300,"y":0,"width":50,"height":50,"fill":[{"type":"solid","color":"#654321"}]}]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/raster", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/raster", export_body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let parsed: serde_json::Value = serde_json::from_str(&r.body).expect("json body");
@@ -231,7 +231,7 @@ fn post_export_raster_uses_request_active_page_index() {
     let mut s = fresh_state();
     let export_body = r##"{"format":"png","scale":1,"activePageIndex":1,"selectedNodeId":"page-two","document":{"version":"1.0.0","children":[],"pages":[{"id":"p1","name":"Empty","children":[]},{"id":"p2","name":"Exported","children":[{"id":"page-two","type":"rectangle","name":"Page Two","x":0,"y":0,"width":10,"height":10,"fill":[{"type":"solid","color":"#123456"}]}]}]}}"##;
 
-    let r = handle_web_canvas_request("POST", "/api/export/raster", export_body, &mut s);
+    let r = handle_local_request("POST", "/api/export/raster", export_body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let parsed: serde_json::Value = serde_json::from_str(&r.body).expect("json body");
@@ -256,7 +256,7 @@ fn png_dimensions(bytes: &[u8]) -> (u32, u32) {
 #[test]
 fn web_cli_and_acp_connect_routes_are_unavailable_in_both_dispatchers() {
     for path in ["/api/agents/connect", "/api/acp/connect"] {
-        let direct = handle_web_canvas_request("POST", path, "{}", &mut fresh_state());
+        let direct = handle_local_request("POST", path, "{}", &mut fresh_state());
         assert_eq!(direct.status, "404 Not Found", "path={path}");
 
         let response = serve("POST", path, "{}");
@@ -303,7 +303,7 @@ fn post_open_recent_loads_recent_path_and_bumps_version() {
     }];
 
     let body = serde_json::json!({ "path": path.to_string_lossy() }).to_string();
-    let r = handle_web_canvas_request("POST", "/api/file/open-recent", &body, &mut s);
+    let r = handle_local_request("POST", "/api/file/open-recent", &body, &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     assert!(r.body.contains(r#""ok":true"#), "{}", r.body);
@@ -345,7 +345,7 @@ fn post_open_recent_prunes_stale_recent_path_without_replacing_doc() {
         .collect();
 
     let body = serde_json::json!({ "path": missing.to_string_lossy() }).to_string();
-    let r = handle_web_canvas_request("POST", "/api/file/open-recent", &body, &mut s);
+    let r = handle_local_request("POST", "/api/file/open-recent", &body, &mut s);
 
     assert!(r.status.starts_with("400"), "{}", r.body);
     assert!(r.body.contains(r#""pruned":true"#), "{}", r.body);
@@ -363,14 +363,14 @@ fn post_open_recent_prunes_stale_recent_path_without_replacing_doc() {
 #[test]
 fn get_version_is_a_cheap_change_probe() {
     let mut s = fresh_state();
-    let r = handle_web_canvas_request("GET", "/api/mcp/version", "", &mut s);
+    let r = handle_local_request("GET", "/api/mcp/version", "", &mut s);
     assert!(r.status.starts_with("200"));
     // `collabSeq` rides along so one poll covers both document and
     // collaboration changes; `version` keeps its exact spelling and position.
     assert_eq!(r.body, r#"{"version":0,"collabSeq":0}"#);
     // A document mutation bumps the probed version.
-    let _ = handle_web_canvas_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
-    let r2 = handle_web_canvas_request("GET", "/api/mcp/version", "", &mut s);
+    let _ = handle_local_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
+    let r2 = handle_local_request("GET", "/api/mcp/version", "", &mut s);
     assert_eq!(r2.body, r#"{"version":1,"collabSeq":0}"#);
 }
 
@@ -378,13 +378,13 @@ fn get_version_is_a_cheap_change_probe() {
 fn selection_post_then_get_round_trips_ts_shape() {
     let mut s = fresh_state();
     // Initial GET: the TS `getSyncSelection()` empty shape.
-    let r = handle_web_canvas_request("GET", "/api/mcp/selection", "", &mut s);
+    let r = handle_local_request("GET", "/api/mcp/selection", "", &mut s);
     assert!(r.status.starts_with("200"));
     let v: serde_json::Value = serde_json::from_str(&r.body).expect("json");
     assert_eq!(v["selectedIds"], serde_json::json!([]));
     assert_eq!(v["activePageId"], serde_json::Value::Null);
     // Renderer push (TS selection.post.ts body shape).
-    let post = handle_web_canvas_request(
+    let post = handle_local_request(
         "POST",
         "/api/mcp/selection",
         r#"{"selectedIds":["n1","n2"],"activePageId":null,"sourceClientId":"renderer:1"}"#,
@@ -395,7 +395,7 @@ fn selection_post_then_get_round_trips_ts_shape() {
     // Selection is NOT a document mutation — version must not bump.
     assert_eq!(s.version, 0);
     // GET reflects the push; the live editor selection agrees.
-    let r2 = handle_web_canvas_request("GET", "/api/mcp/selection", "", &mut s);
+    let r2 = handle_local_request("GET", "/api/mcp/selection", "", &mut s);
     let v2: serde_json::Value = serde_json::from_str(&r2.body).expect("json");
     assert_eq!(v2["selectedIds"], serde_json::json!(["n1", "n2"]));
     assert_eq!(s.editor.selection.set.len(), 2);
@@ -410,7 +410,7 @@ fn selection_post_rejects_missing_ids_with_ts_error_text() {
         r#"{"selectedIds":"n1"}"#,
         "nope",
     ] {
-        let r = handle_web_canvas_request("POST", "/api/mcp/selection", bad, &mut s);
+        let r = handle_local_request("POST", "/api/mcp/selection", bad, &mut s);
         assert!(r.status.starts_with("400"), "{bad} → {}", r.status);
         assert!(r.body.contains("Missing selectedIds array"), "{}", r.body);
     }
@@ -423,9 +423,9 @@ fn selection_post_switches_the_active_page_when_the_id_resolves() {
         {"id":"p1","name":"One","children":[]},
         {"id":"p2","name":"Two","children":[]}
     ]}}"##;
-    let r = handle_web_canvas_request("POST", "/api/mcp/document", paged, &mut s);
+    let r = handle_local_request("POST", "/api/mcp/document", paged, &mut s);
     assert!(r.status.starts_with("200"), "{}", r.body);
-    let post = handle_web_canvas_request(
+    let post = handle_local_request(
         "POST",
         "/api/mcp/selection",
         r#"{"selectedIds":[],"activePageId":"p2"}"#,
@@ -433,11 +433,11 @@ fn selection_post_switches_the_active_page_when_the_id_resolves() {
     );
     assert!(post.status.starts_with("200"));
     assert_eq!(s.editor.ui.active_page_index, 1);
-    let get = handle_web_canvas_request("GET", "/api/mcp/selection", "", &mut s);
+    let get = handle_local_request("GET", "/api/mcp/selection", "", &mut s);
     assert!(get.body.contains(r#""activePageId":"p2""#), "{}", get.body);
     // An unknown page id is ignored (documented divergence from TS, which
     // stores the raw string): the active page stays put.
-    let _ = handle_web_canvas_request(
+    let _ = handle_local_request(
         "POST",
         "/api/mcp/selection",
         r#"{"selectedIds":[],"activePageId":"ghost"}"#,
@@ -451,9 +451,9 @@ fn selection_push_is_visible_to_the_mcp_get_selection_tool() {
     // The point of the selection sync: an external MCP client asking
     // `get_selection` over `/mcp` must see what the browser pushed.
     let mut s = fresh_state();
-    let seeded = handle_web_canvas_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
+    let seeded = handle_local_request("POST", "/api/mcp/document", SYNC_BODY, &mut s);
     assert!(seeded.status.starts_with("200"), "{}", seeded.body);
-    let post = handle_web_canvas_request(
+    let post = handle_local_request(
         "POST",
         "/api/mcp/selection",
         r#"{"selectedIds":["n9"]}"#,

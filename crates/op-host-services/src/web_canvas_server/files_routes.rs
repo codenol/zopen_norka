@@ -72,11 +72,55 @@ fn parse_route(path: &str) -> Option<FilesRoute<'_>> {
     }
 }
 
+/// Which right each route asks for.
+///
+/// `None` means "no such route here", and the caller answers 404 — the gate
+/// runs BEFORE the handler's own match, so a route arm added there without an
+/// entry here is unreachable rather than unchecked. That is the fail-closed
+/// direction: a forgotten line costs a route that stops working, never a route
+/// that starts granting.
+///
+/// The table is per (method, route) because the right is a property of what the
+/// request does, not of the path: `GET /api/files/<key>/thumb` reads and
+/// `DELETE /api/files/<key>` removes, on the same key.
+fn required_action(method: &str, route: &FilesRoute<'_>) -> Option<DocumentAction> {
+    match (method, route) {
+        ("GET", FilesRoute::List) => Some(DocumentAction::View),
+        // Creating a document is a write. `POST /api/files` is the spelling the
+        // browser sends; the parser also accepts `Create`, and both are one
+        // action here so they cannot drift apart.
+        ("POST", FilesRoute::List | FilesRoute::Create) => Some(DocumentAction::Edit),
+        ("GET", FilesRoute::Document { action: "thumb", .. }) => Some(DocumentAction::View),
+        ("POST", FilesRoute::Document { action: "open", .. }) => Some(DocumentAction::View),
+        ("POST", FilesRoute::Document {
+            action: "save" | "autosave" | "rename",
+            ..
+        }) => Some(DocumentAction::Edit),
+        ("DELETE", FilesRoute::Document { action: "", .. }) => Some(DocumentAction::Delete),
+        _ => None,
+    }
+}
+
 /// Handle every `/api/files*` request.
-pub(super) fn handle(method: &str, path: &str, body: &str, state: &mut WebCanvasState) -> WebReply {
+pub(super) fn handle(
+    method: &str,
+    path: &str,
+    body: &str,
+    state: &mut WebCanvasState,
+    access: &RequestAccess<'_>,
+) -> WebReply {
     let Some(route) = parse_route(path) else {
         return not_found_reply();
     };
+    let Some(action) = required_action(method, &route) else {
+        return not_found_reply();
+    };
+    // The one gate. It runs before anything in this file — before the key is
+    // parsed, before the store is touched — so which decision a route makes is
+    // readable from the table above instead of from its body.
+    if let Err(refusal) = access.decide(action) {
+        return request_access::refusal_reply(refusal);
+    }
     let dir = document_store::documents_dir();
     match (method, route) {
         ("GET", FilesRoute::List) => match document_store::list(&dir) {
@@ -432,3 +476,11 @@ mod tests {
         assert_eq!(json["updatedAt"], 2);
     }
 }
+
+/// The access gate on these routes: the sibling module keeps this file's own
+/// tests about parsing and serialization, and puts every caller-shaped test —
+/// who may list, open, save, rename or delete — beside the table that decides
+/// it.
+#[cfg(test)]
+#[path = "files_routes_access_tests.rs"]
+mod access_tests;

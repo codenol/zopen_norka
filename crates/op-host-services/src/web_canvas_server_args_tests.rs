@@ -216,7 +216,7 @@ fn handshake_line_is_single_line_json() {
 fn indicators_endpoint_serves_parseable_relay_json() {
     let mut s = WebCanvasState::new(EditorState::starter(), 3100);
 
-    let r = handle_web_canvas_request("GET", "/api/mcp/indicators", "", &mut s);
+    let r = handle_local_request("GET", "/api/mcp/indicators", "", &mut s);
 
     assert!(r.status.starts_with("200"), "{}", r.body);
     let remote = op_editor_core::agent_indicators::parse_relay_json(&r.body)
