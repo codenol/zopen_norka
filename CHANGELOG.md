@@ -10,6 +10,30 @@ here at a glance.
 
 ## [Unreleased]
 
+### Added
+
+- **File browser screen (`/files`).** A screen of its own, not a panel: title,
+  search field, "New file" action and a grid of document cards with names and
+  edit times, plus honest empty, loading and error states. Reached by address;
+  the editor stays open behind it. (The list is fetched but not yet rendered —
+  see the plan's progress log.)
+- **Server-side documents.** The daemon now stores documents itself — a
+  directory (`$NORKA_DOCUMENTS_DIR`, else `~/.norka/files`), an `index.json`
+  of names and timestamps, and short opaque keys — exposed as
+  `/api/files` (list, create), `/api/files/<key>/open`, `/save`, `/rename`
+  and `DELETE`. Keys are validated before they touch a path: `../` and
+  malformed keys are refused, so a pasted URL is never a filesystem request.
+  Opening a stored document binds it to its key, and Save writes back through
+  the file route instead of pushing the whole document from the browser.
+- **Address-bar routing (first step).** The editor's address now names the
+  document, the page and the selected node — `/f/<key>/<slug>?node=<id>` — with
+  the vocabulary in `op_editor_core::route` so the browser and the desktop app
+  can share it. Selecting a node or switching a page **replaces** the address
+  (history does not grow with every click); opening a link applies it, waits
+  for the document to arrive, and reveals the node. The tab title is the file
+  name. `/files` and `/f/<key>` are served the editor page by the daemon
+  instead of a 404, which is what makes a shared link work at all.
+
 ## [0.8.6] — 2026-09-11
 
 ### Added

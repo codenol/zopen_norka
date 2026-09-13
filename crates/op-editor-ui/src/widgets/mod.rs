@@ -349,6 +349,7 @@ pub mod export_menu_rows;
 pub mod export_quick_menu;
 pub mod figma_import;
 pub mod figma_import_progress;
+pub mod files_screen;
 pub mod file_drop_overlay;
 pub mod file_menu;
 pub mod git_panel;

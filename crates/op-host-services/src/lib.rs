@@ -34,6 +34,7 @@ pub mod chat_copilot;
 pub mod chat_grok_stream;
 pub mod chat_http_server;
 pub mod chat_intent;
+pub mod document_store;
 pub mod chat_provider_llm;
 pub mod chat_runtime;
 pub mod chat_spawn;

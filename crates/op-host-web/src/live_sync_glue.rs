@@ -214,7 +214,13 @@ fn poll_version<C: RepaintContext + 'static>(
     if fetch_busy.get() {
         return;
     }
-    let pair = current_pair(&*inner.borrow());
+    // Soft borrow, same reason as in `web_auth_sync`: this is called from the
+    // frame, where the shell can be legitimately busy.
+    let Ok(borrowed) = inner.try_borrow() else {
+        return;
+    };
+    let pair = current_pair(&*borrowed);
+    drop(borrowed);
     // Borrow discipline: Rust 2021 extends an `if let` scrutinee's temporary
     // borrow through the whole arm body, so a `borrow_mut()` inside the body
     // below would panic at runtime. Binding the `Option` first lets the

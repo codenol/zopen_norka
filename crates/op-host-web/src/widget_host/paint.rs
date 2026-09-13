@@ -52,6 +52,26 @@ impl WidgetHost {
         viewport_width: f32,
         viewport_height: f32,
     ) {
+        // The file browser is a screen, not an overlay: when the address says
+        // `/files`, nothing of the editor paints behind it.
+        if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
+            let screen = op_editor_ui::widgets::files_screen::FilesScreen {
+                theme: &self.theme,
+                files: &self.editor_state.editor_ui.server_files,
+                loading: self.editor_state.editor_ui.server_files_loading,
+                error: self.editor_state.editor_ui.server_files_error.as_deref(),
+                query: &self.editor_state.editor_ui.server_files_query,
+            };
+            let mut cx = op_editor_ui::widgets::PaintCx { backend };
+            screen.paint(
+                &mut cx,
+                op_editor_ui::Rect {
+                    origin: op_editor_ui::Point2D::new(0.0, 0.0),
+                    size: op_editor_ui::Point2D::new(viewport_width, viewport_height),
+                },
+            );
+            return;
+        }
         self.image_input_geometry = None;
         // Rotate the transcript-cache owner if the active chat session changed,
         // BEFORE any resolve stores under it (mirrors native paint).

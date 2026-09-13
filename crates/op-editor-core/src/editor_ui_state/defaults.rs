@@ -14,7 +14,13 @@ use std::collections::HashSet;
 impl Default for EditorUiState {
     fn default() -> Self {
         Self {
+            screen: crate::editor_ui_state::AppScreen::Editor,
+            server_files: Vec::new(),
+            server_files_loading: false,
+            server_files_error: None,
+            server_files_query: String::new(),
             now_unix_ms: 0.0,
+            file_key: None,
             sidebar_open: true,
             layer_panel_width: 240.0,
             property_panel_width: 256.0,

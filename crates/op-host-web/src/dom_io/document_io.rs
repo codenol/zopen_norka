@@ -288,6 +288,17 @@ fn start_daemon_save<C: RepaintContext + 'static>(
     };
 
     let base = crate::daemon_base::daemon_base();
+    // A document with a server key is saved through its file route: the daemon
+    // owns the bytes and the key, so the browser sends no payload at all. The
+    // local-path route stays for a daemon holding an operator's own file.
+    let file_key = {
+        let b = inner.borrow();
+        b.host().editor_state().editor_ui.file_key.clone()
+    };
+    let (url, body) = match file_key {
+        Some(key) => (format!("{base}/api/files/{key}/save"), String::new()),
+        None => (format!("{base}/api/file/save"), body),
+    };
     let inner_for_response = inner.clone();
     let on_response: Rc<dyn Fn(String)> = Rc::new(move |response| {
         match file_actions::parse_save_response(&response) {
@@ -336,8 +347,7 @@ fn start_daemon_save<C: RepaintContext + 'static>(
         }
         finish_daemon_save();
     });
-    let started =
-        crate::live_sync::post_json(&format!("{base}/api/file/save"), &body, Some(on_response));
+    let started = crate::live_sync::post_json(&url, &body, Some(on_response));
     if !started {
         // XHR did not capture the request. Release this whole-document string
         // before constructing the canonical browser fallback.

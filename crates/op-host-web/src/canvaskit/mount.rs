@@ -5,6 +5,7 @@
 use wasm_bindgen::prelude::*;
 
 use super::backend::init_backend;
+use crate::repaint_ctx::RepaintContext;
 use super::inner::{
     dispatch_a11y_dom_event, run_late_init_recovery, start_bootstrap_reset, CkInner,
     BOOTSTRAP_RESET_RETRIES,
@@ -142,6 +143,10 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
         // First frame paints synchronously so the shell is visible immediately
         // (no one-frame blank). Subsequent input-driven repaints coalesce
         // through the rAF installed below.
+        // The router reads the address before the first paint: a pasted link
+        // must not be overwritten by a frame that has not seen it.
+        let (vw, vh) = b.viewport_size();
+        crate::route_sync::install(&inner, b.host_mut(), (vw, vh));
         b.repaint();
     }
     // Route every input-driven repaint through one rAF (see `repaint_coalescer`):
@@ -173,6 +178,9 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // is never touched still has to start blinking once the
                 // build crosses the three-minute mark.
                 crate::build_stamp_pump::ensure(&inner_for_paint);
+                // The file browser fetches its list from the frame: reached by
+                // address or by a click, this is the one path both share.
+                crate::route_sync::tick_files(&inner_for_paint);
             } else {
                 crate::repaint_coalescer::request();
             }
@@ -186,6 +194,13 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
     // one-shot modal that would otherwise report every bundled family missing.
     // A page that is never touched must still start the blink cycle.
     crate::build_stamp_pump::ensure(&inner);
+    // Read the address before the first user interaction: a link may name a
+    // node, and Back/Forward has to keep working from here on.
+    {
+        let mut b = inner.borrow_mut();
+        let (vw, vh) = b.viewport_size();
+        crate::route_sync::install(&inner, b.host_mut(), (vw, vh));
+    }
     if let Ok(mut b) = inner.try_borrow_mut() {
         b.host.begin_bundled_font_loading();
     }
