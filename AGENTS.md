@@ -48,3 +48,25 @@ a feature that ships without them is an unfinished feature.
   second). Read that stamp before debugging "my change does nothing" — the kit
   manifest is `include_str!`-embedded, so config edits need a rebuild, and a
   browser tab can hold an older bundle.
+
+## Findings become issues, immediately
+
+Anything discovered while working — a defect, a design flaw, a security
+asymmetry, a piece of debt, an idea worth keeping — is filed as a GitHub issue
+**in the same turn it is found**, on `codenol/zopen_norka`. Not in a report, not
+in a commit message, not in a comment on another issue, and not "later".
+
+The reason is not bookkeeping. Findings in prose get lost the moment the
+conversation moves on, and this project has already paid for that twice: two
+silent failures (edits above the sync ceiling never reaching the daemon, and
+writes that reported success while saving a stale document) were each noticed,
+described, and then forgotten for days because nothing tracked them.
+
+- One issue per finding, titled so it can be understood without reading the
+  conversation.
+- Say how it was found and what is known, enough that someone else could pick
+  it up cold. Note what is *not* known as plainly as what is.
+- Note what it blocks or relates to, and link the tracking issue from the PR
+  that touches the same area.
+- Close it only when it is actually done — a workaround is a comment on the
+  issue, not a close.
