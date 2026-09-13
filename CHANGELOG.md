@@ -122,6 +122,27 @@ here at a glance.
 
 ### Fixed
 
+- **The rights reached the routes that actually edit the document.** The gates
+  added for the file routes covered saving a document; they did not cover
+  *editing* one, and the browser edits through `POST /api/mcp/document`. An
+  account with no editing role could therefore still change a document by
+  editing it — the gate guarded the door next to the open window.
+
+  One table now answers "does this request change the document" for every tier,
+  and one gate checks it in front of all of them: the document push, the MCP
+  tools by what the call does rather than by its path, `sync-reset`, selection,
+  and two routes found on the way that changed the document in the same way —
+  `POST /api/ai/standard` (an AI turn applies commands) and `POST /api/file/new`
+  (which replaced the document with a fresh starter, and in online mode was not
+  even behind the local-file refusal).
+
+  The gate sits ahead of every branch, the way the token-scope gate already
+  does and for the same reason: a check inside one branch leaves the others as
+  a way round with the same effect. A read-only visitor keeps everything that
+  reads — the tool list and read-only tools included — and is refused every
+  write. Local and managed daemons answer as before, proven by a unit test and
+  by a run through the real connection loop.
+
 - **The three red tests (#19).** Two of them pinned behaviour from before the
   kit owned the chrome — the sidebar they expected the scaffold to author is now
   cloned from the kit — and were retargeted at what actually holds today. The
