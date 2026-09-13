@@ -215,6 +215,36 @@ pub enum ProductRole {
     Qa,
 }
 
+/// The colour a role is shown in.
+///
+/// A role has to be recognisable before it can be useful: the first thing a
+/// team needs is to see at a glance who said or did something, and colour is
+/// how that reads without a label. These are the operator's names for the
+/// roles — golden, violet, sky, yellow, green, grey, brown — resolved to hex
+/// values that stay distinguishable on the dark chrome, including the two
+/// warm ones: Admin's gold is saturated and deep, the Analyst's yellow is
+/// light, so the pair reads as two colours rather than two shades.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RoleColour {
+    /// `#RRGGBB`, uppercase.
+    pub hex: &'static str,
+}
+
+impl ProductRole {
+    /// The colour this role is shown in.
+    pub const fn colour(self) -> RoleColour {
+        match self {
+            Self::Admin => RoleColour { hex: "#E0A800" },
+            Self::UxUi => RoleColour { hex: "#8B5CF6" },
+            Self::Software => RoleColour { hex: "#38BDF8" },
+            Self::Analyst => RoleColour { hex: "#FDE047" },
+            Self::Frontend => RoleColour { hex: "#22C55E" },
+            Self::Backend => RoleColour { hex: "#94A3B8" },
+            Self::Qa => RoleColour { hex: "#A16207" },
+        }
+    }
+}
+
 impl ProductRole {
     /// Every role, in the operator's own order.
     pub const ALL: [Self; 7] = [
