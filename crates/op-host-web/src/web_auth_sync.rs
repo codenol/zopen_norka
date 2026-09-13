@@ -508,7 +508,12 @@ fn sync_account_avatar<C: RepaintContext + 'static>(
             ACCOUNT_AVATAR_INSTALLED.with(|installed| {
                 *installed.borrow_mut() = Some(expected.clone());
             });
-            let mut context = inner.borrow_mut();
+            // Soft borrow: this fires from an image load, which can land while
+            // an event holds the shell. The avatar simply installs on the next
+            // frame instead of taking the instance down with it.
+            let Ok(mut context) = inner.try_borrow_mut() else {
+                return;
+            };
             context.host_mut().mark_editor_state_dirty();
             let _ = context.repaint();
         }),

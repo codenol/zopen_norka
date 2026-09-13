@@ -34,6 +34,13 @@ pub struct FileCard {
 /// The file browser's pieces.
 pub struct FilesScreen<'a> {
     pub theme: &'a Theme,
+    /// Wall clock in Unix milliseconds, from the host.
+    ///
+    /// Passed in, never read here: the browser has no system clock, and
+    /// `SystemTime::now()` on wasm panics — which is what killed the page
+    /// (the file screen raised `time not implemented on this platform` on its
+    /// first paint and the wasm instance never recovered).
+    pub now_unix_ms: f64,
     pub files: &'a [ServerFile],
     pub loading: bool,
     pub error: Option<&'a str>,
@@ -220,7 +227,7 @@ impl FilesScreen<'_> {
         );
         cx.backend.restore();
 
-        let meta = updated_label(file.updated_at);
+        let meta = updated_label(file.updated_at, self.now_unix_ms);
         let meta_layout = TextLayout::single_run(
             &meta,
             "system-ui",
@@ -256,11 +263,11 @@ impl FilesScreen<'_> {
 ///
 /// Deliberately coarse: the file browser answers "which one was I working on",
 /// and a minute-accurate timestamp answers nothing the name does not.
-pub fn updated_label(updated_at: u64) -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+pub fn updated_label(updated_at: u64, now_unix_ms: f64) -> String {
+    if now_unix_ms <= 0.0 {
+        return "Edited recently".to_string();
+    }
+    let now = (now_unix_ms / 1000.0) as u64;
     if updated_at == 0 || now == 0 || updated_at > now {
         return "Edited recently".to_string();
     }
@@ -310,6 +317,7 @@ mod tests {
     fn cards_are_laid_out_in_a_grid_without_overlap() {
         let files = files(5);
         let screen = FilesScreen {
+            now_unix_ms: 1_800_000_000_000.0,
             theme: &Theme::default(),
             files: &files,
             loading: false,
@@ -329,6 +337,7 @@ mod tests {
     fn cards_below_the_viewport_are_not_clickable() {
         let files = files(40);
         let screen = FilesScreen {
+            now_unix_ms: 1_800_000_000_000.0,
             theme: &Theme::default(),
             files: &files,
             loading: false,
@@ -356,14 +365,14 @@ mod tests {
 
     #[test]
     fn the_label_reads_as_a_person_would_say_it() {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        assert_eq!(updated_label(now - 10), "Edited just now");
-        assert_eq!(updated_label(now - 600), "Edited 10 min ago");
-        assert_eq!(updated_label(now - 7_200), "Edited 2 h ago");
-        assert_eq!(updated_label(now - 172_800), "Edited 2 d ago");
-        assert_eq!(updated_label(0), "Edited recently");
+        // A fixed clock: the label is a pure function of the two timestamps.
+        let now = 1_800_000_000u64;
+        let now_ms = now as f64 * 1000.0;
+        assert_eq!(updated_label(now - 10, now_ms), "Edited just now");
+        assert_eq!(updated_label(now - 600, now_ms), "Edited 10 min ago");
+        assert_eq!(updated_label(now - 7_200, now_ms), "Edited 2 h ago");
+        assert_eq!(updated_label(now - 172_800, now_ms), "Edited 2 d ago");
+        assert_eq!(updated_label(0, now_ms), "Edited recently");
+        assert_eq!(updated_label(now - 10, 0.0), "Edited recently");
     }
 }
