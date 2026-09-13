@@ -259,6 +259,39 @@ impl<'a> RequestAccess<'a> {
         }
     }
 
+    /// May this caller change the account's own configuration — the AI provider
+    /// credentials and the MCP server settings?
+    ///
+    /// A different question from [`Self::decide`], and deliberately so. Being
+    /// allowed to edit a document someone shared with you must not hand over
+    /// the keys that account pays for, so the right that answers here is not
+    /// "may you write" but "is this workspace yours to configure": the owner,
+    /// and whoever the operator's matrix gives the account list to
+    /// ([`Rights::can_manage_users`], which today only the admin role sets).
+    ///
+    /// Refused as [`AccessRefusal::ReadOnly`] rather than `NotShared`: a shared
+    /// visitor is not a stranger — the document is theirs to read — it simply
+    /// holds no right over this workspace's configuration. A carrier with no
+    /// owner or no verified caller answers `NotShared`, because then there is
+    /// no workspace to attribute at all; that is the fail-closed direction and
+    /// keeps [`Self::local_operator`] handed `Online` refusing rather than
+    /// granting.
+    pub fn decide_workspace_settings(&self) -> Result<(), AccessRefusal> {
+        // A deployment with no accounts configures itself the way it always
+        // has: one operator, one settings file, nothing to decide.
+        if !self.mode.is_online() {
+            return Ok(());
+        }
+        if self.owner_id.is_none() || self.caller.is_none() {
+            return Err(AccessRefusal::NotShared);
+        }
+        if self.is_owner() || self.rights().can_manage_users() {
+            Ok(())
+        } else {
+            Err(AccessRefusal::ReadOnly)
+        }
+    }
+
     /// Whether the caller owns the document being served.
     fn is_owner(&self) -> bool {
         match (self.owner_id, self.caller) {
