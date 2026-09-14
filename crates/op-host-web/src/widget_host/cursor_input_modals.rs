@@ -63,20 +63,15 @@ impl WidgetHost {
         {
             return Some(true);
         }
-        // Sign-in modal — owns the cursor while open (native parity).
-        if self.editor_state.editor_ui.account_ui_available
-            && self.editor_state.editor_ui.login_modal_open
+        // Account entry form — owns the cursor while it is up. It has no
+        // hover state of its own (the caret marks the focused field), so this
+        // tier exists to STOP the move: the rows it covers must not light up
+        // under a scrim the visitor cannot click through.
+        if self
+            .account_entry_form(self.last_viewport_w, self.last_viewport_h)
+            .is_some()
         {
-            let changed = hover_flow::login_modal_hover(
-                &mut self.editor_state,
-                self.last_viewport_w,
-                self.last_viewport_h,
-                Point2D::new(x, y),
-            );
-            if changed {
-                self.mark_dirty();
-            }
-            return Some(changed);
+            return Some(false);
         }
         // Signed-in account dropdown — owns the cursor while open.
         if self.editor_state.editor_ui.account_ui_available

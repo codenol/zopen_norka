@@ -1,67 +1,54 @@
-//! Drive the daemon's device-login proxy from the web shell.
+//! The browser's account session: who this tab is, and how it becomes somebody.
 //!
-//! The wasm bundle ships no auth code. In a standalone tab, the SignIn press
-//! opens a same-origin loading popup and fires `POST /api/auth/login/begin`
-//! immediately (both inside the click's user-activation window); the daemon
-//! holds that request until the pairing's verification URI is known, and the
-//! response callback navigates the popup to it. In a VS Code embed, the URI is
-//! instead held behind the managed-daemon bridge proof and opened by the
-//! extension host. The interval tick then polls `GET /api/auth/login/status`
-//! for approval progress and folds it into the same `login_modal_status` /
-//! `account` fields the desktop host uses, so the login modal renders
-//! identically on both hosts.
+//! The wasm bundle ships no identity code. It asks the daemon
+//! (`GET /api/auth/status`) who the request belongs to, shows a password form
+//! when the answer is "nobody, but this deployment signs people in", and sends
+//! the credentials to `POST /api/auth/login` or `POST /api/auth/invite/accept`.
+//! A session lives in an HttpOnly cookie the daemon sets, so nothing in this
+//! module ever holds a token — and nothing here holds a password either after
+//! the request that carries it has been built
+//! (`op_editor_core::account_entry_state`).
 //!
-//! On startup one `GET /api/auth/status` seeds `account_ui_available`
-//! and (when the daemon restored a shared session) the signed-in state;
-//! it re-runs every ~30 s as a session health check.
+//! ## Why this is a poll, not a socket
+//!
+//! A session can end somewhere this tab cannot see: a sign-out from the desktop
+//! app, a revocation by an operator, or an expiry. The interval tick re-reads
+//! the status every ~30 s so the tab stops pretending to be signed in; between
+//! those reads, a sign-in or sign-out this tab performed re-reads immediately.
+//!
+//! ## What the daemon decides, and what this module decides
+//!
+//! Every credential check belongs to the daemon's account store. This module
+//! decides only what the ANSWER means for the shell: `200` with the caller's own
+//! identity projection becomes `AccountState`, and anything else becomes a typed
+//! [`AccountEntryError`] the form paints. It deliberately never guesses which
+//! half of a credential pair was wrong — the daemon refuses to say, and a client
+//! that inferred it would rebuild the enumeration oracle the store refuses to be.
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use op_editor_core::{auth_routes, AccountState, LoginFlowError, LoginFlowStatus};
+use op_editor_core::account_entry_state::{AccountEntryState, InviteAcceptance, SignInRequest};
+use op_editor_core::{auth_routes, AccountEntryError, AccountState};
 
 use crate::live_sync;
 use crate::repaint_ctx::RepaintContext;
-use crate::widget_host::PendingAuthAction;
+use crate::widget_host::PendingSessionAction;
 
-/// Poll cadence while idle; each tick is a queue drain (usually empty)
-/// plus, only during a login flow, one status GET.
+/// Poll cadence: each tick drains queued session actions, and every
+/// [`STATUS_REFRESH_TICKS`] of them re-reads `/api/auth/status`.
 const AUTH_POLL_INTERVAL_MS: i32 = 600;
 /// Steady-state session health check — every N ticks (~30 s) re-fetch
 /// `/api/auth/status` so a session revoked or expired daemon-side (or a
-/// sign-in/out from the desktop GUI or another tab) reaches this shell
-/// without a reload. Network failures change nothing (the callback
-/// simply never fires), so an offline blip can't sign the user out.
+/// sign-in/out from the desktop GUI or another tab) reaches this shell without
+/// a reload. Network failures change nothing (the callback simply never fires),
+/// so an offline blip cannot sign the user out.
 const STATUS_REFRESH_TICKS: u32 = 50;
-/// Consecutive `idle` login-status answers tolerated before the flow is
-/// declared dead. The begin request may still be in flight daemon-side,
-/// so a single `idle` MUST be treated as transient — resetting on it
-/// immediately was the original "first click opens only a blank window"
-/// bug.
-const MAX_IDLE_STREAK: u32 = 5;
 
 thread_local! {
-    /// Popup opened synchronously inside the SignIn click (the only
-    /// moment `window.open` is reliably allowed). It shows the
-    /// same-origin `/auth/loading` interstitial until navigated.
-    static PENDING_POPUP: RefCell<Option<web_sys::Window>> = const { RefCell::new(None) };
-    /// The popup has been pointed at a verification page for the
-    /// current flow — both the begin response and the status poll can
-    /// learn the URI, whichever lands first navigates, the other skips.
-    static POPUP_NAVIGATED: Cell<bool> = const { Cell::new(false) };
-    /// The begin POST is in flight — status polls are suppressed so they
-    /// can't observe the daemon's pre-begin `idle` state.
-    static BEGIN_INFLIGHT: Cell<bool> = const { Cell::new(false) };
-    /// Opaque avatar revision requested by the latest authenticated status.
-    static ACCOUNT_AVATAR_DESIRED: RefCell<Option<String>> = const { RefCell::new(None) };
-    /// Revision currently installed in the bounded profile-avatar cache.
-    static ACCOUNT_AVATAR_INSTALLED: RefCell<Option<String>> = const { RefCell::new(None) };
-    /// At most one request per revision; a changed revision may supersede an
-    /// older in-flight request, whose callback is discarded.
-    static ACCOUNT_AVATAR_IN_FLIGHT: RefCell<Option<String>> = const { RefCell::new(None) };
     /// Orders `/api/auth/status` requests. Only the newest request may project
-    /// its response into editor state, so a slow pre-token request cannot hide
-    /// the account UI after a newer authenticated request has succeeded.
+    /// its response into editor state, so a slow pre-sign-in request cannot
+    /// hide the account UI after a newer authenticated request has succeeded.
     static STATUS_REQUEST_GATE: StatusRequestGate = const { StatusRequestGate::new() };
 }
 
@@ -96,117 +83,18 @@ impl StatusRequestGate {
     }
 }
 
-/// Shared latches for the interval tick.
-#[derive(Clone)]
-struct FlowCells {
-    /// One status request in flight at a time.
-    busy: Rc<Cell<bool>>,
-    /// Consecutive transient `idle` answers observed.
-    idle_streak: Rc<Cell<u32>>,
-}
-
-/// Called synchronously from the SignIn press: open the loading popup
-/// and fire the begin request whose response carries the verification
-/// URI to navigate it to.
-pub(crate) fn begin_login_now() {
-    let base = crate::daemon_base::daemon_base();
-    // A nested VS Code iframe cannot reliably create or later navigate a
-    // browser popup. In that embed the verification URL is held until a
-    // token-authenticated managed-daemon probe authorizes the relay to the
-    // locked extension origin. Standalone web keeps the synchronous
-    // loading-popup path so browser popup blockers remain satisfied.
-    let opened = if crate::web_clipboard::is_vscode_embed() {
-        None
-    } else {
-        web_sys::window()
-            .and_then(|window| {
-                window
-                    .open_with_url_and_target(
-                        &format!("{base}{}", auth_routes::LOADING_PAGE),
-                        "_blank",
-                    )
-                    .ok()
-            })
-            .flatten()
-    };
-    PENDING_POPUP.with(|slot| *slot.borrow_mut() = opened);
-    POPUP_NAVIGATED.set(false);
-    BEGIN_INFLIGHT.set(true);
-    let ok = live_sync::post_json(
-        &format!("{base}{}", auth_routes::LOGIN_BEGIN),
-        "{}",
-        Some(Rc::new(move |body: String| {
-            BEGIN_INFLIGHT.set(false);
-            let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
-                close_login_popup_placeholder();
-                return;
-            };
-            if !parsed["ok"].as_bool().unwrap_or(false) {
-                // Refused (stub daemon build / non-loopback bind) — the
-                // status poll shows the failure note; drop the popup.
-                close_login_popup_placeholder();
-                return;
-            }
-            if let Some(url) = parsed["verification_uri"].as_str() {
-                if !url.is_empty() && !POPUP_NAVIGATED.get() {
-                    POPUP_NAVIGATED.set(true);
-                    navigate_login_popup(url);
-                }
-            }
-        })),
-    );
-    if !ok {
-        BEGIN_INFLIGHT.set(false);
-        close_login_popup_placeholder();
-    }
-}
-
-/// Close a still-pending loading popup (flow canceled or failed before
-/// the verification page was known).
-pub(crate) fn close_login_popup_placeholder() {
-    PENDING_POPUP.with(|slot| {
-        if let Some(popup) = slot.borrow_mut().take() {
-            let _ = popup.close();
-        }
-    });
-}
-
-/// Point the loading popup at the verification page. A VS Code embed consumes
-/// the navigation into its proof-gated host relay. Standalone web falls back to
-/// a direct open when its loading popup is missing; that may be blocked outside
-/// a gesture, but approval also works from any logged-in browser tab.
-fn navigate_login_popup(url: &str) {
-    if crate::web_clipboard::post_open_external_to_parent(url) {
-        return;
-    }
-    let pending = PENDING_POPUP.with(|slot| slot.borrow_mut().take());
-    match pending {
-        Some(popup) => {
-            let _ = popup.location().set_href(url);
-        }
-        None => {
-            if let Some(window) = web_sys::window() {
-                let _ = window.open_with_url_and_target(url, "_blank");
-            }
-        }
-    }
-}
-
-/// Wire the auth relay onto the mounted shell. Called once from mount;
+/// Wire the account session onto the mounted shell. Called once from mount;
 /// the interval runs for the page lifetime.
 pub(crate) fn start<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let base = crate::daemon_base::daemon_base();
+    read_invite_route(inner);
     refresh_status(inner);
 
-    let cells = FlowCells {
-        busy: Rc::new(Cell::new(false)),
-        idle_streak: Rc::new(Cell::new(0)),
-    };
     let ticks = Rc::new(Cell::new(0u32));
     let inner = inner.clone();
     let tick: Rc<dyn Fn()> = Rc::new(move || {
-        drain_actions(&inner, &base);
-        maybe_poll_login(&inner, &base, &cells);
+        drain_pending_credentials(&inner);
+        drain_session_actions(&inner, &base);
         let count = ticks.get() + 1;
         if count >= STATUS_REFRESH_TICKS {
             ticks.set(0);
@@ -218,14 +106,50 @@ pub(crate) fn start<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let _ = live_sync::start_interval(AUTH_POLL_INTERVAL_MS, tick);
 }
 
+/// Read an invitation out of the address, once, at mount.
+///
+/// Once: the link is a page, not a mode, and re-reading it every frame would
+/// fight the form's own state (a submit clears the token, and a re-read would
+/// put it straight back).
+fn read_invite_route<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
+    let token = web_sys::window()
+        .and_then(|window| window.location().pathname().ok())
+        .and_then(|path| op_editor_core::route::invite_token(&path).map(str::to_string));
+    let Some(token) = token else {
+        return;
+    };
+    let Ok(mut borrowed) = inner.try_borrow_mut() else {
+        return;
+    };
+    borrowed
+        .host_mut()
+        .editor_state_mut()
+        .editor_ui
+        .set_invite_token(Some(token));
+}
+
+/// The tab is showing an invitation, so the address belongs to it.
+///
+/// The router must not rewrite `/invite/<token>` into the editor's own address
+/// before the invitation has been accepted: the link would be gone from the
+/// address bar (and from a refresh) while the form that needs it is still on
+/// screen.
+pub(crate) fn invitation_address_active(host: &crate::widget_host::WidgetHost) -> bool {
+    host.editor_state()
+        .editor_ui
+        .account_entry
+        .invite_token
+        .is_some()
+}
+
 /// Refresh the account capability/session projection immediately.
 ///
 /// Managed embeds can receive their bridge token after the first bootstrap
 /// request has already left without authentication. Waiting for the regular
 /// ~30 s health check in that case leaves the account button missing even
-/// though the daemon has a working auth backend. The bridge calls this once
-/// when it installs a new token; repeated host init messages with the same
-/// token remain no-ops at that layer.
+/// though the daemon has a working auth backend. The bridge calls this once when
+/// it installs a new token; repeated host init messages with the same token
+/// remain no-ops at that layer.
 pub(crate) fn refresh_status<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let base = crate::daemon_base::daemon_base();
     fetch_status(inner, &base);
@@ -242,9 +166,6 @@ fn fetch_status<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
             if !should_apply {
                 return;
             }
-            let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
-                return;
-            };
             // Identity first: everything below paints for an account, so the
             // account has to be settled before any of it runs.
             let observation = crate::identity_epoch::observe_subject(
@@ -255,11 +176,10 @@ fn fetch_status<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
             }
             if observation.requires_storage_reload() {
                 // The shell loaded settings and credentials under `anon` at
-                // mount; the account's own partition is a different key, so
-                // what is in memory belongs to the wrong one until re-read.
+                // mount; the account's own partition is a different key, so what
+                // is in memory belongs to the wrong one until re-read.
                 crate::web_settings::reload_for_active_partition(&inner);
             }
-            sync_account_avatar(&inner, parsed["avatar_revision"].as_str());
             // Soft borrow — this path is reached from a timer callback that can
             // land while an event holds the shell. The hard borrow panicked
             // every 30 s and killed the wasm instance, freezing the page on its
@@ -268,23 +188,10 @@ fn fetch_status<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
             let Ok(mut b) = inner.try_borrow_mut() else {
                 return;
             };
+            let account = account_from_status(&body);
             let ui = &mut b.host_mut().editor_state_mut().editor_ui;
-            let available = parsed["available"].as_bool().unwrap_or(false);
-            let account = if parsed["signed_in"].as_bool().unwrap_or(false) {
-                signed_in_account(&parsed)
-            } else {
-                AccountState::Anonymous
-            };
-            // Don't clobber mid-flow UI: while a login flow runs the
-            // login-status poll owns the account fields.
-            let flow_active = ui.login_modal_open && ui.login_modal_status.is_some();
-            let changed =
-                ui.account_ui_available != available || (!flow_active && ui.account != account);
-            if changed {
-                ui.account_ui_available = available;
-                if !flow_active {
-                    ui.account = account;
-                }
+            if apply_status_body(ui, &body) {
+                ui.account = account;
                 b.host_mut().mark_editor_state_dirty();
                 let _ = b.repaint();
             }
@@ -292,17 +199,167 @@ fn fetch_status<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
     );
 }
 
-fn signed_in_account(payload: &serde_json::Value) -> AccountState {
+/// Fold a `GET /api/auth/status` body into the chrome state.
+///
+/// Returns whether anything changed. The account itself is written by the
+/// caller so the identity epoch (which must run before any of this) keeps
+/// owning the ordering.
+fn apply_status_body(ui: &mut op_editor_core::EditorUiState, body: &str) -> bool {
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) else {
+        return false;
+    };
+    let available = parsed["available"].as_bool().unwrap_or(false);
+    let needs_first_admin = parsed["needs_first_admin"].as_bool().unwrap_or(false);
+    let entry = &mut ui.account_entry;
+    let changed = ui.account_ui_available != available
+        || entry.needs_first_admin != needs_first_admin
+        || !entry.status_received
+        || ui.account != account_from_status(body);
+    ui.account_ui_available = available;
+    entry.needs_first_admin = needs_first_admin;
+    entry.status_received = true;
+    changed
+}
+
+/// The account a status (or sign-in) body describes.
+pub(crate) fn account_from_status(body: &str) -> AccountState {
+    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) else {
+        return AccountState::Anonymous;
+    };
+    if !parsed["signed_in"].as_bool().unwrap_or(false) {
+        return AccountState::Anonymous;
+    }
     AccountState::signed_in_profile(
-        payload["display_name"]
+        parsed["display_name"]
             .as_str()
             .unwrap_or_default()
             .to_string(),
-        payload["username"].as_str().map(str::to_string),
+        parsed["username"].as_str().map(str::to_string),
     )
 }
 
-fn drain_actions<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str) {
+/// Send a name and a password to the daemon.
+///
+/// The request owns the secret for exactly as long as it takes to serialize the
+/// body — see `op_editor_core::account_entry_state` — and the form's password
+/// field is already empty by the time this is called.
+pub(crate) fn sign_in<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, request: SignInRequest) {
+    let base = crate::daemon_base::daemon_base();
+    let inner_for_response = inner.clone();
+    let ok = live_sync::post_json_with_status(
+        &format!("{base}{}", auth_routes::LOGIN),
+        &request.body(),
+        Rc::new(move |status, body| {
+            apply_credential_answer(&inner_for_response, status, &body);
+        }),
+    );
+    if !ok {
+        fail_entry(inner, AccountEntryError::Unavailable);
+    }
+}
+
+/// Send an invitation acceptance to the daemon.
+pub(crate) fn accept_invitation<C: RepaintContext + 'static>(
+    inner: &Rc<RefCell<C>>,
+    acceptance: InviteAcceptance,
+) {
+    let base = crate::daemon_base::daemon_base();
+    let inner_for_response = inner.clone();
+    let ok = live_sync::post_json_with_status(
+        &format!("{base}{}", auth_routes::INVITE_ACCEPT),
+        &acceptance.body(),
+        Rc::new(move |status, body| {
+            apply_credential_answer(&inner_for_response, status, &body);
+        }),
+    );
+    if !ok {
+        fail_entry(inner, AccountEntryError::Unavailable);
+    }
+}
+
+/// Fold a sign-in or acceptance answer into the chrome.
+///
+/// `200` means the daemon has set the session cookie, so the answer itself is
+/// the new identity — no second round trip, and no window in which the tab is
+/// signed in but paints as signed out. Everything else is a refusal with a
+/// reason, and the form says which.
+fn apply_credential_answer<C: RepaintContext + 'static>(
+    inner: &Rc<RefCell<C>>,
+    status: u16,
+    body: &str,
+) {
+    if status == 200 {
+        // The subject changed, so anything keyed to the previous account has to
+        // go before the new one is painted — the same rule the status poll
+        // follows, and the reason a sign-out then sign-in in one tab cannot
+        // inherit the previous account's document.
+        let observation = crate::identity_epoch::observe_subject(
+            crate::identity_epoch::subject_from_status(body).as_deref(),
+        );
+        if observation.requires_reset() {
+            crate::live_sync_glue::reset_for_new_identity(inner);
+        }
+        if observation.requires_storage_reload() {
+            crate::web_settings::reload_for_active_partition(inner);
+        }
+        let account = account_from_status(body);
+        let Ok(mut b) = inner.try_borrow_mut() else {
+            return;
+        };
+        let ui = &mut b.host_mut().editor_state_mut().editor_ui;
+        ui.account = account;
+        ui.account_entry.succeed();
+        ui.account_ui_available = true;
+        ui.account_entry.status_received = true;
+        b.host_mut().mark_editor_state_dirty();
+        let _ = b.repaint();
+        // The daemon's session is the authority on everything else the tab
+        // shows (roles, the MCP-token row, the account menu gate), and reading
+        // it now keeps this shell from guessing at any of it.
+        refresh_status(inner);
+        return;
+    }
+    fail_entry(inner, AccountEntryError::from_response(status, body));
+}
+
+/// Show a refusal on the form.
+fn fail_entry<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, error: AccountEntryError) {
+    let Ok(mut b) = inner.try_borrow_mut() else {
+        return;
+    };
+    b.host_mut()
+        .editor_state_mut()
+        .editor_ui
+        .account_entry
+        .fail(error);
+    b.host_mut().mark_editor_state_dirty();
+    let _ = b.repaint();
+}
+
+/// Send the credentials a submit collected, if any.
+///
+/// Called from the post-press / post-keypress drain in the mount (immediately,
+/// so a sign-in does not wait for the poll tick) and from the tick itself (so a
+/// submit that arrived while the shell was borrowed is still sent).
+pub(crate) fn drain_pending_credentials<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
+    let Ok(mut borrowed) = inner.try_borrow_mut() else {
+        return;
+    };
+    let pending = borrowed.host_mut().take_pending_credential_request();
+    drop(borrowed);
+    match pending {
+        Some(crate::widget_host::PendingCredentialRequest::SignIn(request)) => {
+            sign_in(inner, request)
+        }
+        Some(crate::widget_host::PendingCredentialRequest::Invite(acceptance)) => {
+            accept_invitation(inner, acceptance)
+        }
+        None => {}
+    }
+}
+
+/// Drain the session actions a press queued.
+fn drain_session_actions<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str) {
     // `try_borrow_mut`, not `borrow_mut`: this runs from the frame, where the
     // shell may legitimately be borrowed by an event in flight. The panic that
     // `borrow_mut` raised here ("already mutably borrowed") killed the whole
@@ -310,239 +367,50 @@ fn drain_actions<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str
     let Ok(mut borrowed) = inner.try_borrow_mut() else {
         return;
     };
-    let actions = borrowed.host_mut().take_pending_auth_actions();
+    let actions = borrowed.host_mut().take_pending_session_actions();
     drop(borrowed);
     for action in actions {
-        let path = match action {
-            PendingAuthAction::CancelLogin => {
-                close_login_popup_placeholder();
-                auth_routes::LOGIN_CANCEL
-            }
-            PendingAuthAction::SignOut => {
-                clear_account_avatar_sync_state();
-                auth_routes::LOGOUT
-            }
-        };
-        let _ = live_sync::post_json(&format!("{base}{path}"), "{}", None);
+        match action {
+            PendingSessionAction::SignOut => sign_out(inner, base),
+        }
     }
 }
 
-fn maybe_poll_login<C: RepaintContext + 'static>(
-    inner: &Rc<RefCell<C>>,
-    base: &str,
-    cells: &FlowCells,
-) {
-    {
-        // Soft borrow: this runs from the frame, and an event in flight may
-        // hold the shell. A hard borrow here panicked and took the whole wasm
-        // instance with it (nothing on the page updated afterwards).
-        let Ok(b) = inner.try_borrow() else {
-            return;
-        };
-        let ui = &b.host().editor_state().editor_ui;
-        let flow_active = ui.login_modal_open && ui.login_modal_status.is_some();
-        // While the begin POST is in flight the daemon may not have the
-        // flow yet — a poll now would observe a misleading `idle`.
-        if !flow_active || cells.busy.get() || BEGIN_INFLIGHT.get() {
-            return;
-        }
-    }
-    cells.busy.set(true);
-    let inner = inner.clone();
-    let cells_cb = cells.clone();
-    let ok = live_sync::get(
-        &format!("{base}{}", auth_routes::LOGIN_STATUS),
-        Rc::new(move |body: String| {
-            cells_cb.busy.set(false);
-            let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
-                return;
-            };
-            apply_login_status(&inner, &parsed, &cells_cb);
-        }),
-    );
-    if !ok {
-        cells.busy.set(false);
-    }
-}
-
-fn apply_login_status<C: RepaintContext + 'static>(
-    inner: &Rc<RefCell<C>>,
-    parsed: &serde_json::Value,
-    cells: &FlowCells,
-) {
-    let Ok(mut b) = inner.try_borrow_mut() else {
-        return;
-    };
-    let ui = &mut b.host_mut().editor_state_mut().editor_ui;
-    if !ui.login_modal_open {
-        return; // dismissed while the request was in flight
-    }
-    let previous = ui.login_modal_status;
-    if parsed["state"].as_str() != Some("idle") {
-        cells.idle_streak.set(0);
-    }
-    match parsed["state"].as_str().unwrap_or_default() {
-        "starting" => ui.login_modal_status = Some(LoginFlowStatus::WaitingBrowser),
-        "waiting_approval" => {
-            ui.login_modal_status = Some(LoginFlowStatus::WaitingApproval);
-            // Fallback navigation when the begin response missed the URI
-            // (daemon-side wait timed out under a slow sso round-trip).
-            if !POPUP_NAVIGATED.get() {
-                if let Some(url) = parsed["verification_uri"].as_str() {
-                    if !url.is_empty() {
-                        POPUP_NAVIGATED.set(true);
-                        navigate_login_popup(url);
-                    }
-                }
-            }
-        }
-        "exchanging" => ui.login_modal_status = Some(LoginFlowStatus::Exchanging),
-        "signed_in" => {
-            sync_account_avatar(inner, parsed["avatar_revision"].as_str());
-            ui.account = signed_in_account(parsed);
-            ui.login_modal_status = None;
-            ui.login_modal_open = false;
-            ui.login_modal_hover = None;
-        }
-        "error" => {
-            close_login_popup_placeholder();
-            ui.login_modal_status = Some(LoginFlowStatus::Failed(
-                match parsed["code"].as_str().unwrap_or_default() {
-                    "denied" => LoginFlowError::Denied,
-                    "expired" => LoginFlowError::Expired,
-                    _ => LoginFlowError::Unavailable,
-                },
-            ));
-        }
-        "idle" => {
-            // Transient while the just-begun flow races our poll; only a
-            // sustained streak means the flow is really gone (daemon
-            // restarted, or another tab finished it).
-            let streak = cells.idle_streak.get() + 1;
-            cells.idle_streak.set(streak);
-            if streak >= MAX_IDLE_STREAK {
-                close_login_popup_placeholder();
-                ui.login_modal_status = None;
-            }
-        }
-        // "canceled": another tab or the daemon finished the flow out
-        // from under us — reset the note, keep the modal.
-        _ => {
-            close_login_popup_placeholder();
-            ui.login_modal_status = None;
-        }
-    }
-    if ui.login_modal_status != previous || !ui.login_modal_open {
-        b.host_mut().mark_editor_state_dirty();
-        let _ = b.repaint();
-    }
-}
-
-fn sync_account_avatar<C: RepaintContext + 'static>(
-    inner: &Rc<RefCell<C>>,
-    revision: Option<&str>,
-) {
-    let revision = revision
-        .filter(|value| {
-            !value.is_empty()
-                && value.len() <= 128
-                && value
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
-        })
-        .map(str::to_owned);
-    ACCOUNT_AVATAR_DESIRED.with(|desired| *desired.borrow_mut() = revision.clone());
-    let Some(revision) = revision else {
-        clear_account_avatar_sync_state();
-        return;
-    };
-    if account_avatar_revision_active(&revision) {
-        return;
-    }
-
-    ACCOUNT_AVATAR_INSTALLED.with(|installed| installed.borrow_mut().take());
-    let _ = op_editor_ui::collab_avatar_runtime::register_account_avatar_url(None);
-    ACCOUNT_AVATAR_IN_FLIGHT.with(|in_flight| {
-        *in_flight.borrow_mut() = Some(revision.clone());
-    });
-    let expected = revision.clone();
-    let inner = inner.clone();
-    let url = format!(
-        "{}{}",
-        crate::daemon_base::daemon_base(),
-        auth_routes::AVATAR
-    );
-    let started = live_sync::post_json_with_status(
-        &url,
+/// End this session on the daemon, then re-read who the tab is.
+///
+/// The re-read is the point: the cookie is gone, but everything else the shell
+/// derived from the session (roles, the settings partition) is not, and the
+/// status answer is what moves the tab back to the anonymous partition through
+/// the identity epoch.
+fn sign_out<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str) {
+    let inner_for_response = inner.clone();
+    let _ = live_sync::post_json_with_status(
+        &format!("{base}{}", auth_routes::LOGOUT),
         "{}",
-        Rc::new(move |status, body| {
-            ACCOUNT_AVATAR_IN_FLIGHT.with(|in_flight| {
-                if in_flight.borrow().as_deref() == Some(expected.as_str()) {
-                    in_flight.borrow_mut().take();
-                }
-            });
-            let still_desired = ACCOUNT_AVATAR_DESIRED
-                .with(|desired| desired.borrow().as_deref() == Some(expected.as_str()));
-            if status != 200 || !still_desired {
-                return;
-            }
-            let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
-                return;
-            };
-            if parsed["revision"].as_str() != Some(expected.as_str()) {
-                return;
-            }
-            use base64::Engine as _;
-            let Some(encoded) = parsed["encoded"].as_str().and_then(|value| {
-                base64::engine::general_purpose::STANDARD
-                    .decode(value.as_bytes())
-                    .ok()
-            }) else {
-                return;
-            };
-            if !op_editor_ui::collab_avatar_runtime::install_account_avatar_bytes(
-                &expected, encoded,
-            ) {
-                return;
-            }
-            ACCOUNT_AVATAR_INSTALLED.with(|installed| {
-                *installed.borrow_mut() = Some(expected.clone());
-            });
-            // Soft borrow: this fires from an image load, which can land while
-            // an event holds the shell. The avatar simply installs on the next
-            // frame instead of taking the instance down with it.
-            let Ok(mut context) = inner.try_borrow_mut() else {
-                return;
-            };
-            context.host_mut().mark_editor_state_dirty();
-            let _ = context.repaint();
+        Rc::new(move |_status, _body| {
+            // Whatever the answer, the question "who am I now" is worth asking:
+            // a failed sign-out leaves the session in place, and the status
+            // answer says so instead of the shell assuming either way.
+            refresh_status(&inner_for_response);
         }),
     );
-    if !started {
-        ACCOUNT_AVATAR_IN_FLIGHT.with(|in_flight| in_flight.borrow_mut().take());
-    }
 }
 
-fn clear_account_avatar_sync_state() {
-    clear_account_avatar_revision_latches();
-    let _ = op_editor_ui::collab_avatar_runtime::register_account_avatar_url(None);
-}
-
-fn clear_account_avatar_revision_latches() {
-    ACCOUNT_AVATAR_DESIRED.with(|desired| desired.borrow_mut().take());
-    ACCOUNT_AVATAR_INSTALLED.with(|installed| installed.borrow_mut().take());
-    ACCOUNT_AVATAR_IN_FLIGHT.with(|in_flight| in_flight.borrow_mut().take());
-}
-
-fn account_avatar_revision_active(revision: &str) -> bool {
-    ACCOUNT_AVATAR_INSTALLED.with(|installed| installed.borrow().as_deref() == Some(revision))
-        || ACCOUNT_AVATAR_IN_FLIGHT
-            .with(|in_flight| in_flight.borrow().as_deref() == Some(revision))
+/// Forget what the tab typed for an account.
+///
+/// Called when a session ends: a password half-typed for an account this tab
+/// is no longer signed in as has no reason to be on screen, and the form must
+/// not be holding a secret while nobody is looking at it.
+pub(crate) fn clear_entry_state(entry: &mut AccountEntryState) {
+    entry.drop_secrets();
+    entry.submitting = false;
+    entry.error = None;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use op_editor_core::EditorUiState;
 
     #[test]
     fn auth_status_gate_rejects_stale_success_after_a_newer_request_starts() {
@@ -567,58 +435,145 @@ mod tests {
     }
 
     #[test]
-    fn account_payload_prefers_username_and_never_uses_email_as_a_handle() {
-        let with_username = serde_json::json!({
-            "display_name": "Kay Shen",
-            "username": "kayshen_7",
-            "primary_email": "wrong-handle@example.com",
-        });
-        assert_eq!(
-            signed_in_account(&with_username),
-            AccountState::SignedIn {
-                display_name: "Kay Shen".to_string(),
-                username: "kayshen_7".to_string(),
-            }
-        );
+    fn an_anonymous_status_answer_opens_the_sign_in_form() {
+        let mut ui = EditorUiState::default();
+        let body = r#"{"available":true,"signed_in":false,"subject":null,"username":null,
+                       "display_name":null,"roles":[],"needs_first_admin":false}"#;
 
-        for payload in [
-            serde_json::json!({
-                "display_name": "Kay Shen",
-                "primary_email": "wrong-handle@example.com",
-            }),
-            serde_json::json!({
-                "display_name": "Kay Shen",
-                "username": "",
-                "primary_email": "wrong-handle@example.com",
-            }),
-        ] {
-            assert_eq!(
-                signed_in_account(&payload),
-                AccountState::SignedIn {
-                    display_name: "Kay Shen".to_string(),
-                    username: "Kay Shen".to_string(),
-                }
-            );
-        }
+        assert!(apply_status_body(&mut ui, body), "the answer changes state");
+        ui.account = account_from_status(body);
+
+        assert!(ui.account_ui_available);
+        assert!(!ui.account_entry.needs_first_admin);
+        assert_eq!(
+            ui.account_entry_mode(),
+            op_editor_core::AccountEntryMode::SignIn
+        );
     }
 
     #[test]
-    fn sign_out_latches_allow_same_revision_to_be_fetched_after_relogin() {
-        const REVISION: &str = "same-account-revision";
-        ACCOUNT_AVATAR_DESIRED.with(|desired| {
-            *desired.borrow_mut() = Some(REVISION.to_string());
-        });
-        ACCOUNT_AVATAR_INSTALLED.with(|installed| {
-            *installed.borrow_mut() = Some(REVISION.to_string());
-        });
-        ACCOUNT_AVATAR_IN_FLIGHT.with(|in_flight| {
-            *in_flight.borrow_mut() = Some(REVISION.to_string());
-        });
-        assert!(account_avatar_revision_active(REVISION));
+    fn a_local_deployment_answer_never_opens_a_form() {
+        let mut ui = EditorUiState::default();
+        let body = r#"{"available":false,"signed_in":false,"needs_first_admin":false}"#;
 
-        clear_account_avatar_revision_latches();
+        assert!(apply_status_body(&mut ui, body));
+        assert_eq!(
+            ui.account_entry_mode(),
+            op_editor_core::AccountEntryMode::Hidden
+        );
+    }
 
-        assert!(!account_avatar_revision_active(REVISION));
-        ACCOUNT_AVATAR_DESIRED.with(|desired| assert!(desired.borrow().is_none()));
+    #[test]
+    fn an_unprovisioned_deployment_shows_the_explanation_instead() {
+        let mut ui = EditorUiState::default();
+        let body = r#"{"available":true,"signed_in":false,"needs_first_admin":true}"#;
+
+        assert!(apply_status_body(&mut ui, body));
+        assert_eq!(
+            ui.account_entry_mode(),
+            op_editor_core::AccountEntryMode::Unprovisioned
+        );
+    }
+
+    #[test]
+    fn a_signed_in_answer_closes_the_form_and_names_the_account() {
+        let mut ui = EditorUiState::default();
+        let body = r#"{"available":true,"signed_in":true,"subject":"u1","username":"kay",
+                       "display_name":"Kay Shen","roles":["admin"],"needs_first_admin":false}"#;
+
+        assert!(apply_status_body(&mut ui, body));
+        ui.account = account_from_status(body);
+
+        assert_eq!(
+            ui.account_entry_mode(),
+            op_editor_core::AccountEntryMode::Hidden
+        );
+        assert_eq!(
+            ui.account,
+            AccountState::SignedIn {
+                display_name: "Kay Shen".to_string(),
+                username: "kay".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_repeat_of_the_same_answer_is_not_a_change() {
+        // The status poll runs every 30 s; a repeated answer must not churn the
+        // chrome dirty flag (or, worse, reset the document through the epoch).
+        let mut ui = EditorUiState::default();
+        let body = r#"{"available":true,"signed_in":true,"subject":"u1","username":"kay",
+                       "display_name":"Kay Shen","needs_first_admin":false}"#;
+        assert!(apply_status_body(&mut ui, body));
+        ui.account = account_from_status(body);
+
+        assert!(!apply_status_body(&mut ui, body), "no change to project");
+    }
+
+    #[test]
+    fn an_unparseable_answer_leaves_the_shell_alone() {
+        let mut ui = EditorUiState::default();
+        assert!(!apply_status_body(&mut ui, "not json"));
+        assert!(!ui.account_entry.status_received);
+        assert_eq!(
+            ui.account_entry_mode(),
+            op_editor_core::AccountEntryMode::Hidden
+        );
+    }
+
+    #[test]
+    fn a_signed_in_body_without_a_display_name_still_names_the_account() {
+        let account = account_from_status(r#"{"signed_in":true,"username":"kay"}"#);
+        assert_eq!(
+            account,
+            AccountState::SignedIn {
+                display_name: String::new(),
+                username: "kay".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_signed_out_body_is_anonymous_even_when_it_carries_a_stale_handle() {
+        assert_eq!(
+            account_from_status(r#"{"signed_in":false,"username":"kay"}"#),
+            AccountState::Anonymous
+        );
+    }
+
+    #[test]
+    fn a_tab_on_an_invitation_declares_its_address_for_the_router() {
+        // The router must not write the editor's own address over
+        // `/invite/<token>` before the invitation has been accepted: the link is
+        // the credential the form is about to send, and rewriting the address
+        // would throw it away (and lose it on a refresh).
+        let mut host = crate::widget_host::WidgetHost::new();
+        assert!(!invitation_address_active(&host));
+
+        host.editor_state_mut()
+            .editor_ui
+            .set_invite_token(Some("tok-1".to_string()));
+        assert!(invitation_address_active(&host));
+
+        // Accepting it clears the token, and the address stops belonging to the
+        // invitation — which is what lets the next router tick move the tab to
+        // the editor it just signed into.
+        host.editor_state_mut().editor_ui.account_entry.succeed();
+        assert!(!invitation_address_active(&host));
+    }
+
+    #[test]
+    fn signing_out_forgets_a_half_typed_password() {
+        let mut entry = AccountEntryState {
+            status_received: true,
+            password: "karta-mosta-42".to_string(),
+            submitting: true,
+            error: Some(AccountEntryError::Rejected),
+            ..AccountEntryState::default()
+        };
+        clear_entry_state(&mut entry);
+        assert_eq!(entry.password, "");
+        assert!(!entry.submitting);
+        assert_eq!(entry.error, None);
     }
 }

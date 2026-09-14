@@ -96,27 +96,18 @@ impl WidgetHost {
             dlg.paint(&mut *backend, &self.theme, &self.editor_state.editor_ui);
         }
 
-        // Sign-in modal — full-viewport scrim + centred card (native §10e).
-        if ui.account_ui_available && ui.login_modal_open {
-            use op_editor_ui::widgets::login_modal::LoginModal;
-            backend.fill_rect(
-                Rect {
-                    origin: Point2D::new(0.0, 0.0),
-                    size: Point2D::new(viewport_width, viewport_height),
-                },
-                op_editor_ui::Color {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 0.45,
-                },
-            );
-            let modal = LoginModal::for_editor(&self.editor_state);
-            let modal_rect = modal.rect(viewport_width, viewport_height);
+        // Account entry — the password form, the invitation form, or the
+        // explanation a deployment with no accounts gets instead of one. The
+        // widget paints its own full-viewport scrim and decides for itself when
+        // it exists at all (see `EditorUiState::account_entry_mode`), so this
+        // is one call with no condition of its own to get wrong.
+        if let Some(form) = self.account_entry_form(viewport_width, viewport_height) {
+            use op_editor_ui::widgets::Widget;
+            let form_rect = form.rect();
             let mut cx = PaintCx {
                 backend: &mut *backend,
             };
-            modal.paint(&mut cx, modal_rect);
+            form.paint(&mut cx, form_rect);
         }
 
         // Signed-in account dropdown — anchored under the TopBar avatar

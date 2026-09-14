@@ -3,10 +3,7 @@ use op_editor_core::{
     CollabAvailability, CollabConnectionPhase, CollabPanelHover, CollabPanelView, CollabUiAction,
     EditorState, NodeId, PathAnchorMenuState, PenNodeExt,
 };
-use op_editor_ui::widgets::{
-    login_modal::{LoginModal, LoginModalHit},
-    CollabPanel, TopBar, TOP_BAR_HEIGHT,
-};
+use op_editor_ui::widgets::{CollabPanel, TopBar, TOP_BAR_HEIGHT};
 use op_editor_ui::{Point2D, Rect};
 
 const TWO_RECTS: &str = r#"{"version":"1.0.0","children":[
@@ -209,11 +206,14 @@ fn web_path_context_menu_keeps_hover_priority_over_collab_panel() {
 }
 
 #[test]
-fn web_collab_sign_in_hands_press_ownership_to_modal() {
+fn web_collab_sign_in_row_cannot_open_the_native_popup_modal() {
     let (viewport_w, viewport_h) = (1200.0, 800.0);
     let mut host = WidgetHost::new();
     let ui = &mut host.editor_state.editor_ui;
     ui.account_ui_available = true;
+    // The daemon has answered: this deployment signs people in and this tab is
+    // not one of them, so the password form is on screen and is the gate.
+    ui.account_entry.status_received = true;
     ui.collab.availability = CollabAvailability::SignInRequired;
     ui.collab.panel.open = true;
 
@@ -233,21 +233,48 @@ fn web_collab_sign_in_hands_press_ownership_to_modal() {
         panel.hit_test(panel_rect, sign_in),
         Some(op_editor_ui::widgets::CollabPanelHit::OpenSignIn)
     ));
-    assert!(host.apply_press(sign_in.x, sign_in.y, viewport_w, viewport_h));
-    assert!(host.editor_state.editor_ui.login_modal_open);
-    assert!(!host.editor_state.editor_ui.collab.panel.open);
 
-    host.editor_state.editor_ui.collab.panel.open = true;
-    let modal = LoginModal::for_editor(&host.editor_state);
-    let modal_rect = modal.rect(viewport_w, viewport_h);
-    let close = Point2D::new(
-        modal_rect.origin.x + modal_rect.size.x - 31.0,
-        modal_rect.origin.y + 31.0,
+    assert!(host.apply_press(sign_in.x, sign_in.y, viewport_w, viewport_h));
+
+    // The form is painted above the panel and consumes every press, scrim
+    // included, so the panel neither takes the click nor loses its state.
+    assert!(
+        !host.editor_state.editor_ui.login_modal_open,
+        "the web host has no popup sign-in modal to open"
     );
-    assert_eq!(modal.hit_test(modal_rect, close), LoginModalHit::Close);
-    assert!(host.apply_press(close.x, close.y, viewport_w, viewport_h));
-    assert!(!host.editor_state.editor_ui.login_modal_open);
+    assert!(host.editor_state.editor_ui.login_modal_status.is_none());
     assert!(host.editor_state.editor_ui.collab.panel.open);
+}
+
+#[test]
+fn a_requested_sign_in_surface_becomes_the_caret_in_the_form() {
+    // The shared chrome (the collaboration panel and the settings modal's
+    // Account tab) asks for a sign-in surface by setting the native host's
+    // `login_modal_open`. In the web host that surface is the password form,
+    // which is already on screen, so the request is answered by pointing at the
+    // field — and never by leaving a flag nothing paints.
+    let mut host = WidgetHost::new();
+    let ui = &mut host.editor_state.editor_ui;
+    ui.account_ui_available = true;
+    ui.account_entry.status_received = true;
+    ui.login_modal_open = true;
+
+    host.absorb_sign_in_request_into_entry_form();
+
+    assert!(!host.editor_state.editor_ui.login_modal_open);
+    assert_eq!(
+        host.editor_state.editor_ui.account_entry.focus,
+        Some(op_editor_core::AccountField::Username)
+    );
+
+    // Before the daemon has answered there is no form to point at, and the flag
+    // is still dropped: a surface that does not exist cannot be requested.
+    let mut early = WidgetHost::new();
+    early.editor_state.editor_ui.account_ui_available = true;
+    early.editor_state.editor_ui.login_modal_open = true;
+    early.absorb_sign_in_request_into_entry_form();
+    assert!(!early.editor_state.editor_ui.login_modal_open);
+    assert_eq!(early.editor_state.editor_ui.account_entry.focus, None);
 }
 
 #[test]

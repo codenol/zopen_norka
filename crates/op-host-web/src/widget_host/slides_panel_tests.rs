@@ -211,7 +211,7 @@ fn the_footer_button_enters_preview() {
         .property_input
         .set_composition("ni", 2, 0);
     let document_before = host.editor_state.doc.clone();
-    let auth_actions_before = host.pending_auth_actions.clone();
+    let auth_actions_before = host.pending_session_actions.clone();
     let button = {
         let slides = host.slides_panel_frame(VW, VH).expect("slides tab");
         Point2D::new(
@@ -233,7 +233,7 @@ fn the_footer_button_enters_preview() {
     assert_eq!(host.editor_state.doc, document_before);
     assert!(host.editor_state.editor_ui.login_modal_open);
     assert!(host.editor_state.editor_ui.prompt_center.open);
-    assert_eq!(host.pending_auth_actions, auth_actions_before);
+    assert_eq!(host.pending_session_actions, auth_actions_before);
     assert_eq!(
         host.editor_state.editor_ui.preview.warnings,
         vec!["preview: CanvasKit not initialized".to_string()]

@@ -15,6 +15,12 @@ impl WidgetHost {
     /// Push a typed character into the focused chat / settings input.
     /// Returns true if anything changed.
     pub fn apply_text(&mut self, c: char) -> bool {
+        // The account entry form is a gate: while it is on screen nothing else
+        // may take the keystroke, or a bare letter would switch the canvas tool
+        // behind the form somebody is typing into.
+        if self.apply_account_entry_text(c) {
+            return true;
+        }
         // The comment field owns the keystroke while it has focus — checked
         // before every other arm, because a bare letter would otherwise switch
         // the tool behind a comment somebody is typing.
@@ -155,6 +161,9 @@ impl WidgetHost {
     }
 
     pub fn apply_backspace(&mut self) -> bool {
+        if self.apply_account_entry_backspace() {
+            return true;
+        }
         if self.comment_backspace() {
             return true;
         }
@@ -294,6 +303,11 @@ impl WidgetHost {
     }
 
     pub fn apply_send(&mut self) -> bool {
+        // Enter walks the account entry form, and submits it from its last
+        // field. Above everything else: the form is a gate.
+        if self.apply_account_entry_send() {
+            return true;
+        }
         // Enter in the comment field sends the comment. Above the rename
         // commit below, because the composer only takes the keyboard while it
         // is focused and a rename menu is not open at the same time.

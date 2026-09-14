@@ -70,6 +70,12 @@ impl WidgetHost {
             }
         }
         self.finish_agent_settings_press(outcome);
+        // The settings modal's Account tab asks for a sign-in surface the same
+        // way the collaboration panel does (by setting the NATIVE host's
+        // `login_modal_open`). In this host that surface is the account entry
+        // form, so the request becomes the caret in it — see
+        // `absorb_sign_in_request_into_entry_form`.
+        self.absorb_sign_in_request_into_entry_form();
         let after_mcp = {
             let mcp = self.editor_state.editor_ui.agent_settings.mcp_server;
             (mcp.running, mcp.port)
@@ -103,8 +109,14 @@ impl WidgetHost {
                 }
             }
             SettingsPress::SignOut => {
-                self.pending_auth_actions
-                    .push(crate::widget_host::PendingAuthAction::SignOut);
+                // The display state is already anonymous (the shared flow did
+                // that); what is left is the daemon's session and anything the
+                // entry form was holding for it.
+                crate::web_auth_sync::clear_entry_state(
+                    &mut self.editor_state.editor_ui.account_entry,
+                );
+                self.pending_session_actions
+                    .push(crate::widget_host::PendingSessionAction::SignOut);
             }
         }
         if outcome.refresh_fonts {

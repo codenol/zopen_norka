@@ -287,6 +287,9 @@ pub(super) fn register_keyboard_listeners(
             crate::web_image_panel::drain_image_jobs(&inner);
             // Cmd+S queues its save here; run it now that the borrow is gone.
             crate::dom_io::drain_pending_file_action(&inner);
+            // Enter on the last field of the account entry form queues its
+            // credentials.
+            crate::web_auth_sync::drain_pending_credentials(&inner);
             crate::web_builtin_model_discovery::drain_pending_builtin_model_discovery(&inner);
         })?;
     }

@@ -211,8 +211,12 @@ impl WidgetHost {
                             self.editor_state.editor_ui.account_menu_open = true;
                             self.editor_state.editor_ui.account_menu_hover = None;
                         } else {
-                            self.editor_state.editor_ui.login_modal_open = true;
-                            self.editor_state.editor_ui.login_modal_hover = None;
+                            // Signed out in an online deployment: the entry form
+                            // is already on screen (it is the gate), so the
+                            // honest answer to pressing the avatar is to put the
+                            // caret in it rather than to open the older
+                            // browser-popup modal on top of it.
+                            self.focus_account_entry_field(op_editor_core::AccountField::Username);
                         }
                     }
                 }
