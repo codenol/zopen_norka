@@ -332,6 +332,17 @@ pub struct CommentsUiState {
     /// composer has to say when it is the one being typed into — the join field
     /// and the property inputs each carry the same flag for the same reason.
     pub composer_focused: bool,
+    /// The stored document [`Self::threads`] is the conversation of.
+    ///
+    /// The daemon files a conversation under the document's key
+    /// (`/api/files/<key>/comments`), so the key is what makes the list and the
+    /// document the same subject. It is written when a list answer is installed
+    /// — by the answer's own key, not by whatever key is open a frame later —
+    /// and read by [`Self::clear_for_document`], which is the only thing that
+    /// may now throw the list away. `None` means "this list belongs to no
+    /// document", which is the honest state after a wipe and for a host that has
+    /// never read anything.
+    document_key: Option<String>,
     /// Writes and reads the host has yet to perform.
     pending: Vec<CommentRequest>,
 }
@@ -340,67 +351,6 @@ impl CommentsUiState {
     /// Note which account this client is, for "is this mine" questions.
     pub fn set_viewer_id(&mut self, viewer_id: Option<String>) {
         self.viewer_id = viewer_id;
-    }
-
-    /// Forget everything that belongs to the previous document.
-    ///
-    /// Called from `clear_document_derived`, because a thread is about a node of
-    /// one document and painting the previous document's conversation over the
-    /// next one is the kind of "my change does nothing" that is really "your
-    /// change is about something that no longer exists".
-    pub fn clear_for_document(&mut self) {
-        self.threads.clear();
-        self.loading = false;
-        self.error = None;
-        self.open_thread = None;
-        self.reply_draft.clear();
-        self.new_draft.clear();
-        self.pin_mode = false;
-        self.pending_pin = None;
-        self.composer_focused = false;
-        // `viewer_id` is deliberately kept: it is who this client is, not
-        // something the document said.
-        // `pin_mode` is NOT kept, unlike the old panel flag: the mode is
-        // attached to the page a click landed on, and the next document's
-        // coordinate space is not that one. A reviewer who wants the comment
-        // rail back picks the tool again, which is one click and unambiguous.
-        self.pending.clear();
-    }
-
-    /// Replace the list with a freshly read answer.
-    ///
-    /// Closes the popover when its thread is no longer in the answer rather than
-    /// leaving it painting a thread the server has forgotten.
-    pub fn install_threads(&mut self, threads: Vec<CommentThread>) {
-        self.threads = threads;
-        self.loading = false;
-        self.error = None;
-        if let Some(open) = self.open_thread {
-            if self.thread(open).is_none() {
-                self.open_thread = None;
-                self.reply_draft.clear();
-            }
-        }
-    }
-
-    pub fn set_loading(&mut self) {
-        self.loading = true;
-        self.error = None;
-    }
-
-    /// End an in-flight read without touching the list or the error.
-    ///
-    /// Separate from [`Self::install_threads`] because the two are different
-    /// outcomes of the same request: this one says "the wait is over" and
-    /// nothing else, which is what a request that could not be sent at all
-    /// needs.
-    pub fn set_loading_done(&mut self) {
-        self.loading = false;
-    }
-
-    pub fn set_error(&mut self, error: impl Into<String>) {
-        self.loading = false;
-        self.error = Some(error.into());
     }
 
     /// Install one thread the server just answered with.
@@ -779,6 +729,12 @@ impl CommentsUiState {
         !self.pending.is_empty()
     }
 }
+
+// Which document a held conversation belongs to, and when it stops belonging.
+// A sibling file rather than a directory, like the test module below: the crate
+// convention keeps the split flat and the import paths unchanged.
+#[path = "comments_document.rs"]
+mod comments_document;
 
 #[cfg(test)]
 #[path = "comments_tests.rs"]

@@ -1,15 +1,391 @@
 //! Reading the daemon's comment answers, and turning its refusals into
 //! something the chrome can show.
 //!
-//! Everything here is pure: a status and a body in, a typed result out. The XHR
+//! Most of it is pure: a status and a body in, a typed result out. The XHR
 //! plumbing around it (`fetch_threads` / `post_thread`) is deliberately not
 //! exercised — a browser test would be testing XmlHttpRequest, and the part
 //! that has ever been wrong is the decoding: a null `authorRole`, an empty
 //! `authorName`, a thread with no comments, a pin whose `pageId`/`x`/`y` are
 //! `null` because the daemon migrated it from the old element-keyed format, and
 //! a 403 that is an answer rather than a malfunction.
+//!
+//! The frame itself is exercised, though: `tick` is where a document open turns
+//! into a read (issue #70), and the count of those reads — one, not one per
+//! frame — is the property that matters. `hold_wire` lets the real frame path
+//! run on the host target, where `web_sys` cannot be called at all.
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use wasm_bindgen::JsValue;
+
+use crate::repaint_ctx::RepaintContext;
+use crate::widget_host::WidgetHost;
 
 use super::*;
+
+/// The smallest shell `tick` runs against: a host, and a repaint tally.
+struct Frame {
+    host: WidgetHost,
+    repaints: usize,
+}
+
+impl RepaintContext for Frame {
+    fn host(&self) -> &WidgetHost {
+        &self.host
+    }
+
+    fn host_mut(&mut self) -> &mut WidgetHost {
+        &mut self.host
+    }
+
+    fn viewport_size(&self) -> (f32, f32) {
+        (1440.0, 900.0)
+    }
+
+    fn register_system_font(&mut self, _family: &str, _bytes: &[u8]) -> bool {
+        false
+    }
+
+    fn register_imported_font(&mut self, _family: &str, _bytes: &[u8]) -> bool {
+        false
+    }
+
+    fn register_imported_font_from_bytes(&mut self, _bytes: &[u8]) -> Option<String> {
+        None
+    }
+
+    fn imported_family_list(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    fn remove_imported_font(&mut self, _family: &str) {}
+
+    fn repaint(&mut self) -> Result<(), JsValue> {
+        self.repaints += 1;
+        Ok(())
+    }
+}
+
+/// A tab with the daemon's comment client, on `key`.
+///
+/// The wire is held before the caller's first frame: every `web_sys` call is a
+/// wasm import that panics on the host target, so a test that let a request
+/// through would take the process down rather than fail an assertion.
+fn open_document(key: Option<&str>) -> Rc<RefCell<Frame>> {
+    hold_wire::hold();
+    let mut host = WidgetHost::new();
+    {
+        let ui = &mut host.editor_state_mut().editor_ui;
+        ui.file_key = key.map(str::to_string);
+        ui.comments.transport = true;
+    }
+    // Each test drives one tab, and the identity epoch is a thread-local the
+    // tests below move deliberately.
+    crate::identity_epoch::reset_for_test();
+    Rc::new(RefCell::new(Frame { host, repaints: 0 }))
+}
+
+fn frame(inner: &Rc<RefCell<Frame>>) -> usize {
+    tick(inner);
+    hold_wire::reads().len()
+}
+
+/// The document the tab is showing, as the router would set it on an open.
+fn set_open_key(inner: &Rc<RefCell<Frame>>, key: &str) {
+    let mut borrowed = inner.borrow_mut();
+    borrowed.host_mut().editor_state_mut().editor_ui.file_key = Some(key.to_string());
+}
+
+fn a_thread(id: i64, page: &str) -> CommentThread {
+    CommentThread {
+        id,
+        anchor: Some(CommentAnchor::new(page, 10.0, 20.0)),
+        comments: vec![Comment::default()],
+        ..CommentThread::default()
+    }
+}
+
+#[test]
+fn opening_a_document_asks_for_its_conversation() {
+    let inner = open_document(Some("key1"));
+
+    frame(&inner);
+    assert_eq!(
+        hold_wire::reads(),
+        vec!["key1"],
+        "a document with a conversation must not be painted as one without"
+    );
+    assert_eq!(
+        hold_wire::sent(),
+        vec![(CommentRequest::Reload, "key1".to_string())]
+    );
+
+    // And the state knows the read is in flight, which is what the rail's
+    // spinner reads when the reviewer opens the tool before the answer lands.
+    assert!(
+        inner
+            .borrow()
+            .host
+            .editor_state()
+            .editor_ui
+            .comments
+            .loading
+    );
+}
+
+#[test]
+fn the_same_document_is_not_read_again_frame_after_frame() {
+    let inner = open_document(Some("key1"));
+
+    for _ in 0..5 {
+        frame(&inner);
+    }
+
+    assert_eq!(
+        hold_wire::reads(),
+        vec!["key1"],
+        "one request per document open, not one per frame"
+    );
+}
+
+#[test]
+fn another_document_is_read_again() {
+    let inner = open_document(Some("key1"));
+    frame(&inner);
+
+    set_open_key(&inner, "key2");
+    frame(&inner);
+
+    assert_eq!(hold_wire::reads(), vec!["key1", "key2"]);
+}
+
+#[test]
+fn reopening_the_same_document_after_another_one_is_read_again() {
+    // The tab keeps one key, not a set: a reviewer who navigated away and back
+    // gets a fresh answer rather than the one from before the detour.
+    let inner = open_document(Some("key1"));
+    frame(&inner);
+    set_open_key(&inner, "key2");
+    frame(&inner);
+    set_open_key(&inner, "key1");
+    frame(&inner);
+
+    assert_eq!(hold_wire::reads(), vec!["key1", "key2", "key1"]);
+}
+
+#[test]
+fn the_same_document_under_another_account_is_read_again() {
+    // The daemon answers a conversation per caller — a document not shared with
+    // this account is a 403 — so the same key under a new account is a new
+    // answer, and the tab must not present the previous account's read as it.
+    let inner = open_document(Some("key1"));
+    crate::identity_epoch::observe_subject(Some("alice"));
+    frame(&inner);
+
+    crate::identity_epoch::observe_subject(Some("bob"));
+    frame(&inner);
+
+    assert_eq!(hold_wire::reads(), vec!["key1", "key1"]);
+}
+
+#[test]
+fn a_document_with_no_key_has_no_conversation_to_read() {
+    let inner = open_document(None);
+    frame(&inner);
+    frame(&inner);
+
+    assert!(hold_wire::sent().is_empty());
+}
+
+#[test]
+fn a_host_without_the_comment_client_never_asks() {
+    let inner = open_document(Some("key1"));
+    inner
+        .borrow_mut()
+        .host_mut()
+        .editor_state_mut()
+        .editor_ui
+        .comments
+        .transport = false;
+
+    frame(&inner);
+
+    assert!(
+        hold_wire::sent().is_empty(),
+        "the tool is not even offered without a transport, so a read for a rail nobody can open is a request nobody asked for"
+    );
+}
+
+#[test]
+fn the_tool_turning_on_does_not_read_a_second_time() {
+    // The widget layer queues the same reload when the tool is activated. Both
+    // wishes land in the one queue the frame drains, so a document open with a
+    // click on the tool in the same frame is still one request.
+    let inner = open_document(Some("key1"));
+    inner
+        .borrow_mut()
+        .host_mut()
+        .editor_state_mut()
+        .editor_ui
+        .comments
+        .toggle_pin_mode();
+
+    frame(&inner);
+
+    assert_eq!(hold_wire::reads(), vec!["key1"]);
+}
+
+#[test]
+fn a_write_is_still_followed_by_a_fresh_read() {
+    let inner = open_document(Some("key1"));
+    frame(&inner);
+
+    inner
+        .borrow_mut()
+        .host_mut()
+        .editor_state_mut()
+        .editor_ui
+        .comments
+        .resolve(7);
+    frame(&inner);
+
+    assert_eq!(
+        hold_wire::sent().into_iter().skip(1).collect::<Vec<_>>(),
+        vec![
+            (CommentRequest::Resolve { thread_id: 7 }, "key1".to_string()),
+            (CommentRequest::Reload, "key1".to_string()),
+        ],
+        "the answer to a write is one thread; the rest of the conversation has no live signal"
+    );
+}
+
+#[test]
+fn the_answer_to_the_read_at_open_survives_the_document_arriving_after_it() {
+    // The order the browser actually sees: the open adopts the key, the frame
+    // asks for the conversation, the small answer lands — and only then does the
+    // document itself arrive and replace the whole document-derived state. If
+    // that install wiped the list, the markers would be invisible again and the
+    // read would have been pointless.
+    let inner = open_document(Some("key1"));
+    frame(&inner);
+
+    park(
+        AnswerKind::List,
+        Some("key1".to_string()),
+        Ok(Answer::Threads(vec![a_thread(1, "p1")])),
+    );
+    frame(&inner);
+    assert_eq!(
+        inner
+            .borrow()
+            .host
+            .editor_state()
+            .editor_ui
+            .comments
+            .thread_ids(),
+        vec![1]
+    );
+
+    {
+        let mut borrowed = inner.borrow_mut();
+        let host = borrowed.host_mut();
+        let doc = op_editor_core::EditorState::starter().doc;
+        host.editor_state_mut().replace_document(doc);
+    }
+
+    let borrowed = inner.borrow();
+    let comments = &borrowed.host().editor_state().editor_ui.comments;
+    assert_eq!(
+        comments.thread_ids(),
+        vec![1],
+        "the same document replaced is the same conversation"
+    );
+    assert_eq!(comments.document_key(), Some("key1"));
+}
+
+#[test]
+fn a_read_for_another_document_does_not_claim_the_key_that_is_open() {
+    // A late answer for the document the reviewer just left. It is installed
+    // under the key it was ASKED about: claiming it for the open one would make
+    // the next replacement of that key keep a conversation that is not its own.
+    let inner = open_document(Some("key2"));
+    park(
+        AnswerKind::List,
+        Some("key1".to_string()),
+        Ok(Answer::Threads(vec![a_thread(1, "p1")])),
+    );
+    frame(&inner);
+
+    assert_eq!(
+        inner
+            .borrow()
+            .host
+            .editor_state()
+            .editor_ui
+            .comments
+            .document_key(),
+        Some("key1")
+    );
+}
+
+#[test]
+fn a_list_answer_without_a_key_writes_no_key_into_the_state() {
+    let inner = open_document(Some("key1"));
+    apply(
+        &mut inner
+            .borrow_mut()
+            .host_mut()
+            .editor_state_mut()
+            .editor_ui
+            .comments,
+        None,
+        AnswerKind::List,
+        Ok(Answer::Threads(vec![a_thread(1, "p1")])),
+    );
+    assert_eq!(
+        inner
+            .borrow()
+            .host
+            .editor_state()
+            .editor_ui
+            .comments
+            .document_key(),
+        None,
+        "an answer that names no document must not claim one"
+    );
+}
+
+#[test]
+fn the_open_read_rule_is_a_pair_of_key_and_identity() {
+    // The rule on its own, without a frame: what `tick` asks, and when it stops
+    // asking. Every branch here is a request that is or is not sent.
+    let read = OpenedRead {
+        key: "key1".to_string(),
+        epoch: 3,
+    };
+    assert_eq!(
+        opened_read_wanted(None, Some("key1"), 3, true),
+        Some(read.clone())
+    );
+    assert_eq!(opened_read_wanted(Some(&read), Some("key1"), 3, true), None);
+    assert_eq!(
+        opened_read_wanted(Some(&read), Some("key1"), 4, true),
+        Some(OpenedRead {
+            key: "key1".to_string(),
+            epoch: 4
+        })
+    );
+    assert_eq!(
+        opened_read_wanted(Some(&read), Some("key2"), 3, true),
+        Some(OpenedRead {
+            key: "key2".to_string(),
+            epoch: 3
+        })
+    );
+    assert_eq!(opened_read_wanted(Some(&read), None, 3, true), None);
+    assert_eq!(opened_read_wanted(None, Some("key1"), 3, false), None);
+}
 
 #[test]
 fn a_list_answer_becomes_threads() {
@@ -278,6 +654,7 @@ fn a_list_answer_installs_and_a_written_thread_is_upserted() {
 
     apply(
         &mut ui,
+        Some("key1".to_string()),
         AnswerKind::List,
         Ok(Answer::Threads(vec![thread(1, 10.0), thread(2, 20.0)])),
     );
@@ -285,6 +662,7 @@ fn a_list_answer_installs_and_a_written_thread_is_upserted() {
 
     apply(
         &mut ui,
+        None,
         AnswerKind::Written,
         Ok(Answer::Thread(Box::new(thread(1, 10.0)))),
     );
@@ -303,6 +681,7 @@ fn the_thread_a_canvas_click_created_opens_once_the_server_answers() {
 
     apply(
         &mut ui,
+        None,
         AnswerKind::Written,
         Ok(Answer::Thread(Box::new(CommentThread {
             id: 12,
@@ -343,6 +722,7 @@ fn a_background_answer_does_not_take_the_panel_away_from_another_thread() {
     ui.open(2);
     apply(
         &mut ui,
+        None,
         AnswerKind::Written,
         Ok(Answer::Thread(Box::new(CommentThread {
             id: 1,
@@ -358,7 +738,12 @@ fn a_background_answer_does_not_take_the_panel_away_from_another_thread() {
 fn a_failed_list_leaves_a_message_and_no_spinner() {
     let mut ui = CommentsUiState::default();
     ui.set_loading();
-    apply(&mut ui, AnswerKind::List, Err(CommentApiError::Http(502)));
+    apply(
+        &mut ui,
+        Some("key1".to_string()),
+        AnswerKind::List,
+        Err(CommentApiError::Http(502)),
+    );
     assert!(!ui.loading);
     assert_eq!(ui.error.as_deref(), Some("comments.error.transport"));
 }

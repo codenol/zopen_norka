@@ -521,7 +521,7 @@ fn the_local_operator_is_an_author_without_an_account() {
 #[test]
 fn a_document_change_forgets_the_conversation_and_the_tool() {
     let mut state = state_with_transport();
-    state.install_threads(vec![thread(1, "p1", &["first"])]);
+    state.install_threads_for_key(Some("key1".to_string()), vec![thread(1, "p1", &["first"])]);
     state.open(1);
     state.reply_draft = "half typed".to_string();
     state.toggle_pin_mode();
@@ -529,7 +529,9 @@ fn a_document_change_forgets_the_conversation_and_the_tool() {
     state.error = Some("stale".to_string());
     state.take_requests();
 
-    state.clear_for_document();
+    // Another document: a different key is a different conversation, and a pin
+    // dropped on this one would land on a page that is not its page.
+    state.clear_for_document(Some("key2"));
 
     assert!(state.threads.is_empty());
     assert!(state.open_thread.is_none());
@@ -541,8 +543,57 @@ fn a_document_change_forgets_the_conversation_and_the_tool() {
     assert!(state.error.is_none());
     assert!(!state.loading);
     assert!(!state.has_pending());
+    assert_eq!(state.document_key(), None);
     // What the host is, rather than what the document said, survives.
     assert!(state.transport);
+}
+
+#[test]
+fn the_same_document_replaced_keeps_its_conversation() {
+    // The whole point of the key: an AI turn, an external MCP write or a
+    // collaboration commit replaces the DOCUMENT, not the conversation. Wiping
+    // here is what made a marker disappear between the read at open and the
+    // document arriving a round trip later.
+    let mut state = state_with_transport();
+    state.install_threads_for_key(Some("key1".to_string()), vec![thread(1, "p1", &["first"])]);
+    state.open(1);
+
+    state.clear_for_document(Some("key1"));
+
+    assert_eq!(state.thread_ids(), vec![1]);
+    assert!(state.is_open(1), "the reviewer's thread stays open");
+    assert_eq!(state.document_key(), Some("key1"));
+}
+
+#[test]
+fn a_document_that_was_never_read_is_not_the_same_as_an_empty_one() {
+    // No key has been read yet, so nothing may be kept: an install of the same
+    // "no key" would otherwise leave the previous document's threads in place.
+    let mut state = state_with_transport();
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
+
+    state.clear_for_document(None);
+
+    assert!(state.threads.is_empty());
+    assert_eq!(state.document_key(), None);
+}
+
+#[test]
+fn an_account_change_forgets_the_conversation_whatever_the_document_is() {
+    // The daemon answers a conversation per account, so the key matching is not
+    // enough: a tab that has just stopped speaking for the account whose words
+    // it holds must not paint them for the account that replaced it.
+    let mut state = state_with_transport();
+    state.install_threads_for_key(Some("key1".to_string()), vec![thread(1, "p1", &["first"])]);
+
+    state.forget_threads();
+
+    assert!(state.threads.is_empty());
+    assert_eq!(
+        state.document_key(),
+        None,
+        "and the next replacement of key1 must not keep an empty list as if it were read"
+    );
 }
 
 #[test]
@@ -649,9 +700,49 @@ fn the_viewer_id_survives_a_document_change() {
     let mut state = CommentsUiState::default();
     state.set_viewer_id(Some("u1".to_string()));
     state.install_threads(vec![thread(1, "p1", &["first"])]);
-    state.clear_for_document();
+    state.clear_for_document(None);
     // Identity is not something the document said.
     assert_eq!(state.viewer_id.as_deref(), Some("u1"));
+}
+
+#[test]
+fn a_document_replaced_under_the_same_key_keeps_its_conversation() {
+    // Through the real install path, not the state method: opening a document
+    // adopts the key first and the content arrives a round trip later, and the
+    // small comment list is normally answered before the document it belongs to.
+    // If the install wiped the list, that answer would be lost and the markers
+    // would stay invisible until the tool was opened — the bug this exists for.
+    let mut editor = crate::EditorState::starter();
+    editor.editor_ui.file_key = Some("key1".to_string());
+    editor
+        .editor_ui
+        .comments
+        .install_threads_for_key(Some("key1".to_string()), vec![thread(1, "p1", &["first"])]);
+
+    editor.replace_document(crate::EditorState::starter().doc);
+
+    assert_eq!(editor.editor_ui.comments.thread_ids(), vec![1]);
+    assert_eq!(editor.editor_ui.comments.document_key(), Some("key1"));
+}
+
+#[test]
+fn a_document_replaced_under_another_key_leaves_its_conversation_behind() {
+    let mut editor = crate::EditorState::starter();
+    editor
+        .editor_ui
+        .comments
+        .install_threads_for_key(Some("key1".to_string()), vec![thread(1, "p1", &["first"])]);
+    // The open of another document: the route adopts the new key, then the
+    // content lands.
+    editor.editor_ui.file_key = Some("key2".to_string());
+
+    editor.replace_document(crate::EditorState::starter().doc);
+
+    assert!(
+        editor.editor_ui.comments.threads.is_empty(),
+        "one document's pins must never be painted over another's pages"
+    );
+    assert_eq!(editor.editor_ui.comments.document_key(), None);
 }
 
 #[test]

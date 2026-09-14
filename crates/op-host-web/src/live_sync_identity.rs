@@ -58,6 +58,15 @@ pub(crate) fn reset_for_new_identity<C: RepaintContext + 'static>(inner: &Rc<Ref
         // Back to the same starter a fresh tab paints, so nothing of the
         // previous account survives on screen.
         state.replace_document(op_editor_core::EditorState::starter().doc);
+        // The conversation is account-scoped — the daemon answers a document's
+        // threads per caller, and the authors are account ids — so it does not
+        // belong to this tab any more even though the document key is unchanged.
+        // `replace_document` alone would keep it: the list survives a
+        // replacement of the same key deliberately (see
+        // `CommentsUiState::clear_for_document`), and the next read is a round
+        // trip away. Dropping it here is what keeps the previous account's words
+        // off the new account's screen for that round trip.
+        state.editor_ui.comments.forget_threads();
         state.editor_ui.collab = op_editor_core::CollabUiState::default();
         // A toast describes something that happened to the PREVIOUS account's
         // document. Leaving it up would show one user a sentence about another
