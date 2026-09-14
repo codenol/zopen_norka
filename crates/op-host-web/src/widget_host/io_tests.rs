@@ -263,6 +263,12 @@ fn drain_design_md_auto_generate_consumes_empty_document_request() {
 #[test]
 fn open_recent_success_response_touches_local_recent_entry() {
     let mut host = WidgetHost::new();
+    // A tab showing a stored document that asks the daemon to open a PATH: the
+    // document it ends up with is that file, so the stored document's key must
+    // not survive it (issue #92).
+    host.editor_state
+        .editor_ui
+        .set_document_key(Some("oldkey".to_string()));
     host.editor_state.editor_ui.recent_files = vec![
         RecentFile {
             path: "/tmp/a.op".to_string(),
@@ -291,6 +297,11 @@ fn open_recent_success_response_touches_local_recent_entry() {
     assert_eq!(
         host.editor_state.editor_ui.file_name_display.as_deref(),
         Some("b.op")
+    );
+    assert_eq!(
+        host.editor_state().editor_ui.file_key,
+        None,
+        "the open document is now the daemon's local file, not the stored one"
     );
 }
 
@@ -465,4 +476,111 @@ fn export_svg_document_uses_single_selection() {
 
     assert!(svg.contains("n11"), "selected node missing: {svg}");
     assert!(!svg.contains("n13"), "unselected sibling leaked: {svg}");
+}
+
+/// One comment thread, enough to see whether a conversation survived an install.
+fn a_thread() -> op_editor_core::editor_ui_state::CommentThread {
+    use op_editor_core::editor_ui_state::{Comment, CommentAnchor, CommentThread};
+    CommentThread {
+        id: 1,
+        anchor: Some(CommentAnchor::new("p1", 10.0, 20.0)),
+        comments: vec![Comment::default()],
+        ..CommentThread::default()
+    }
+}
+
+/// A tab showing the stored document `key1`, with a conversation and a name.
+fn tab_on_a_stored_document() -> WidgetHost {
+    let mut host = WidgetHost::new();
+    {
+        let ui = &mut host.editor_state_mut().editor_ui;
+        ui.set_document_key(Some("key1".to_string()));
+        ui.file_name_display = Some("server.op".to_string());
+        ui.comments
+            .install_threads_for_key(Some("key1".to_string()), vec![a_thread()]);
+    }
+    host
+}
+
+#[test]
+fn installing_a_local_file_drops_the_previous_server_key() {
+    // Issue #92. The document's server key names what Save, autosave and the
+    // comment routes address (`/api/files/<key>/…`), so a document read from the
+    // user's disk must not inherit the key of the stored document it replaced —
+    // otherwise its contents are written into a file the user never opened.
+    let mut host = tab_on_a_stored_document();
+    assert_eq!(
+        op_editor_core::route::file_from_key(host.editor_state()),
+        op_editor_core::route::RouteFile::Key("key1".to_string()),
+        "the tab starts out as the stored document"
+    );
+
+    host.install_ingested_state(op_editor_core::EditorState::starter());
+
+    assert_eq!(
+        host.editor_state().editor_ui.file_key,
+        None,
+        "a local document has no server identity to inherit"
+    );
+    // The address bar is derived from the same state, so this is also what stops
+    // the tab advertising `/f/<old key>` — a reload of that link would open a
+    // document the user is not editing.
+    assert_eq!(
+        op_editor_core::route::file_from_key(host.editor_state()),
+        op_editor_core::route::RouteFile::Untitled
+    );
+}
+
+#[test]
+fn installing_a_local_file_leaves_the_replaced_documents_conversation_behind() {
+    // Same rule, one step further out: a thread is anchored to a node of ONE
+    // document, so the replaced document's pins must not be painted over the
+    // local file's pages — and, with no key left, there is no route to read or
+    // write them under either.
+    let mut host = tab_on_a_stored_document();
+    assert_eq!(host.editor_state().editor_ui.comments.thread_ids(), vec![1]);
+
+    host.install_ingested_state(op_editor_core::EditorState::starter());
+
+    let comments = &host.editor_state().editor_ui.comments;
+    assert!(
+        comments.threads.is_empty(),
+        "the previous document's conversation is not this document's"
+    );
+    assert_eq!(comments.document_key(), None);
+}
+
+#[test]
+fn an_import_into_a_tab_showing_a_stored_document_also_drops_the_key() {
+    // Every import seam is the same seam: `install_unsaved_ingested_state`
+    // (Figma / HTML) goes through the install above, so an import cannot keep a
+    // server identity either — an imported document has no server file at all.
+    let mut host = tab_on_a_stored_document();
+
+    host.install_unsaved_ingested_state(op_editor_core::EditorState::starter());
+
+    assert_eq!(host.editor_state().editor_ui.file_key, None);
+    assert!(host.editor_state().editor_ui.comments.threads.is_empty());
+}
+
+#[test]
+fn a_daemon_apply_of_the_open_document_keeps_its_key() {
+    // The other half of the rule, and the reason the key is NOT cleared in
+    // `clear_document_derived`: the daemon re-installs its own copy of the same
+    // document on every version bump (an AI turn, an MCP write), and the tab
+    // must stay the same document across all of them.
+    let mut host = tab_on_a_stored_document();
+
+    host.replace_document_from_sync(op_editor_core::EditorState::starter().doc, false);
+
+    assert_eq!(
+        host.editor_state().editor_ui.file_key.as_deref(),
+        Some("key1"),
+        "a live-sync apply of the same document must not erase its identity"
+    );
+    assert_eq!(
+        host.editor_state().editor_ui.comments.thread_ids(),
+        vec![1],
+        "and the conversation filed under that key is still its own"
+    );
 }

@@ -12,9 +12,12 @@
 //!   not write thirty times;
 //! - **never more often than a floor interval**, so a long editing session
 //!   cannot turn into a disk-and-CPU stampede;
-//! - **only for a stored document** — one with a server key. A document with
-//!   no key has nowhere to go, and inventing a file for it is a product
-//!   decision, not a background task's;
+//! - **to the document's own destination** — a stored document to
+//!   `/api/files/<key>/autosave`, a document with no server key to the daemon's
+//!   draft slot (`/api/recovery`), which is where the issue #16 decision put it.
+//!   A document with no key is never written under a key: the key belongs to
+//!   the document, and a stale one is how a local file's contents reached a
+//!   stored document (issue #92);
 //! - **never on the file-browser screen**, where there is nothing being edited.
 //!
 //! The acknowledgement is the one the manual save already uses
@@ -34,6 +37,48 @@ const DEBOUNCE_MS: u64 = 3_000;
 
 /// Floor between two autosave attempts, however busy the editing is.
 const MIN_INTERVAL_MS: u64 = 15_000;
+
+/// Where one autosave goes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum AutosaveTarget {
+    /// The stored document this tab is showing.
+    Document(String),
+    /// The daemon's one draft slot.
+    Draft,
+}
+
+/// Decide where a document's autosave goes, from its server key and nothing
+/// else.
+///
+/// The key belongs to the DOCUMENT (see
+/// `EditorUiState::set_document_key`), so this reads it off the document being
+/// edited: a document with a key writes to that document's file, and a document
+/// with no key has no file of its own to write to — it goes to the daemon's
+/// draft slot, the decision recorded in issue #16 (a draft lives on the server
+/// and is offered back, rather than inventing a file the user never asked for).
+///
+/// The case this deliberately cannot express is the defect of issue #92: a
+/// document with no key being written under some OTHER document's key. Making
+/// the destination a function of the key alone means the only way to reach a
+/// keyed route is to hold that key, which is what "the key belongs to the
+/// document" means in code.
+pub(crate) fn autosave_target(key: Option<&str>) -> AutosaveTarget {
+    match key {
+        Some(key) => AutosaveTarget::Document(key.to_string()),
+        None => AutosaveTarget::Draft,
+    }
+}
+
+/// The route one target writes to.
+///
+/// Pure, so a test can assert which document an autosave will address without a
+/// network — or a browser.
+pub(crate) fn autosave_url(base: &str, target: &AutosaveTarget) -> String {
+    match target {
+        AutosaveTarget::Document(key) => format!("{base}/api/files/{key}/autosave"),
+        AutosaveTarget::Draft => format!("{base}/api/recovery"),
+    }
+}
 
 #[derive(Default)]
 struct AutosaveState {
@@ -124,14 +169,14 @@ pub(crate) fn tick<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         return;
     }
     STATE.with(|state| state.borrow_mut().attempted_at_ms = now_ms);
-    match key {
+    match autosave_target(key.as_deref()) {
         // A stored document goes to its own file.
-        Some(key) => write(inner, &key),
-        // A document with no key has no file, and inventing one would be a
-        // file the user never asked for. It goes to the daemon's draft slot
-        // instead — the decision recorded in issue #16: drafts live on the
-        // server, and are offered back rather than restored silently.
-        None => write_draft(inner),
+        AutosaveTarget::Document(key) => write(inner, &key),
+        // A document with no key has no file, and inventing one would be a file
+        // the user never asked for. It goes to the daemon's draft slot instead —
+        // the decision recorded in issue #16: drafts live on the server, and are
+        // offered back rather than restored silently.
+        AutosaveTarget::Draft => write_draft(inner),
     }
 }
 
@@ -186,7 +231,7 @@ fn write_draft<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         }
     });
     let started = crate::live_sync::post_json_with_status(
-        &format!("{base}/api/recovery"),
+        &autosave_url(&base, &AutosaveTarget::Draft),
         &body,
         on_response,
     );
@@ -254,11 +299,62 @@ fn write<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key: &str) {
     let on_response_with_status: Rc<dyn Fn(u16, String)> =
         Rc::new(move |_status, body| on_response(body));
     let started = crate::live_sync::post_json_with_status(
-        &format!("{base}/api/files/{key}/autosave"),
+        &autosave_url(&base, &AutosaveTarget::Document(key.to_string())),
         &body,
         on_response_with_status,
     );
     if !started {
         STATE.with(|state| state.borrow_mut().in_flight = false);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::widget_host::WidgetHost;
+
+    const BASE: &str = "http://127.0.0.1:9";
+
+    /// The route an autosave for `key` takes, as `tick` decides it.
+    fn route_of(key: Option<&str>) -> String {
+        autosave_url(BASE, &autosave_target(key))
+    }
+
+    #[test]
+    fn a_stored_document_autosaves_into_its_own_file() {
+        assert_eq!(
+            route_of(Some("key1")),
+            "http://127.0.0.1:9/api/files/key1/autosave"
+        );
+    }
+
+    #[test]
+    fn a_document_with_no_key_never_addresses_a_stored_document() {
+        // A document with no home on the server has no `/api/files/<key>/…`
+        // route to use: the daemon's draft slot is the only destination, and
+        // nothing in this request names a document at all.
+        assert_eq!(route_of(None), "http://127.0.0.1:9/api/recovery");
+        assert!(!route_of(None).contains("/api/files/"));
+    }
+
+    #[test]
+    fn a_local_file_installed_over_a_server_document_moves_autosave_off_it() {
+        // Issue #92, at the seam the frame reads its decision from: the tab had
+        // a stored document open, then installed one it read from the user's
+        // disk. Autosave must follow the DOCUMENT, so it must stop naming the
+        // document that was replaced — otherwise the local file's contents are
+        // written into somebody else's stored document.
+        let mut host = WidgetHost::new();
+        host.editor_state_mut().editor_ui.file_key = Some("oldkey".to_string());
+
+        host.install_ingested_state(op_editor_core::EditorState::starter());
+
+        let key = host.editor_state().editor_ui.file_key.clone();
+        assert_eq!(key, None, "a local file carries no server key");
+        assert_eq!(
+            route_of(key.as_deref()),
+            "http://127.0.0.1:9/api/recovery",
+            "autosave must not address the document this tab used to show"
+        );
     }
 }

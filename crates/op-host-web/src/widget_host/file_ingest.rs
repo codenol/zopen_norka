@@ -17,18 +17,28 @@ impl WidgetHost {
         self.zoom_to_fit(viewport_w, viewport_h);
     }
 
-    /// Replace the editor state with an ingested document (Figma
-    /// import) while preserving the live chrome state — port of the
-    /// native `install_imported_state`. The whole live `editor_ui` is
-    /// carried over (theme / locale / agent settings / open panels);
-    /// the import-progress flag clears and the imported state's
+    /// Replace the editor state with an ingested document (a `.op` / `.pen`
+    /// read from the user's disk, or a Figma/HTML import) while preserving the
+    /// live chrome state — port of the native `install_imported_state`. The
+    /// whole live `editor_ui` is carried over (theme / locale / agent settings /
+    /// open panels); the import-progress flag clears and the imported state's
     /// `file_name_display` + `preserve_authored_geometry` win.
+    ///
+    /// The document's server key does NOT carry over, and that is the point of
+    /// the `set_document_key(None)` below: the key names the document the daemon
+    /// stores, this seam installs a document the daemon does not have, and Save
+    /// / autosave / comments all address `/api/files/<key>/…`. Inheriting the
+    /// replaced document's key is how a local file was written into somebody
+    /// else's stored document (issue #92). A document the daemon DID open never
+    /// reaches this seam: `route_sync` adopts its key and the content arrives
+    /// through the live-sync apply.
     pub fn install_ingested_state(&mut self, mut state: op_editor_core::EditorState) {
         let mut preserved = self.editor_state.editor_ui.clone();
         let preserved_chat = self.editor_state.chat.clone();
         preserved.figma_import_in_progress = false;
         preserved.file_name_display = state.editor_ui.file_name_display.take();
         preserved.preserve_authored_geometry = state.editor_ui.preserve_authored_geometry;
+        preserved.set_document_key(None);
         state.editor_ui = preserved;
         // Chat sessions and the discovered model catalogue are app chrome, not
         // document contents. Importing HTML/Figma must not silently replace

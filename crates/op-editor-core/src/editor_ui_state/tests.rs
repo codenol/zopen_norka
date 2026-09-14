@@ -401,3 +401,70 @@ fn host_locale_override_changes_only_the_effective_locale() {
     ui.set_host_locale_override(None);
     assert_eq!(ui.effective_locale(), Locale::ZhCn);
 }
+
+/// One thread, enough for a test that only asks whether it is still there.
+fn one_thread() -> CommentThread {
+    CommentThread {
+        id: 1,
+        anchor: Some(CommentAnchor::new("p1", 10.0, 20.0)),
+        comments: vec![Comment::default()],
+        ..CommentThread::default()
+    }
+}
+
+#[test]
+fn a_local_document_has_no_server_key_and_no_conversation() {
+    // The shape of a tab that had a stored document open and then installed one
+    // it read from a local file: the key, and the conversation filed under it,
+    // belong to the document that was replaced (issue #92).
+    let mut ui = EditorUiState::default();
+    ui.set_document_key(Some("key1".to_string()));
+    ui.comments
+        .install_threads_for_key(Some("key1".to_string()), vec![one_thread()]);
+
+    ui.set_document_key(None);
+
+    assert_eq!(ui.file_key, None);
+    assert!(
+        ui.comments.threads.is_empty(),
+        "the replaced document's pins must not be painted over a local file's pages"
+    );
+    assert_eq!(ui.comments.document_key(), None);
+}
+
+#[test]
+fn a_document_the_daemon_reinstalls_keeps_the_key_it_was_opened_with() {
+    // Live-sync applies the daemon's copy of the SAME document through
+    // `replace_document`, so the key must survive a whole-document replacement —
+    // which is why moving it lives in `set_document_key` and not in
+    // `clear_document_derived`.
+    let mut editor = crate::EditorState::starter();
+    editor.editor_ui.set_document_key(Some("key1".to_string()));
+    editor
+        .editor_ui
+        .comments
+        .install_threads_for_key(Some("key1".to_string()), vec![one_thread()]);
+
+    editor.replace_document(crate::EditorState::starter().doc);
+
+    assert_eq!(editor.editor_ui.file_key.as_deref(), Some("key1"));
+    assert_eq!(editor.editor_ui.comments.thread_ids(), vec![1]);
+}
+
+#[test]
+fn adopting_another_documents_key_drops_the_list_before_its_content_arrives() {
+    // Opening a stored document is two steps: the key is adopted when the
+    // daemon accepts the open, the content lands a round trip later. The old
+    // conversation must be gone from the moment the identity moves, not only
+    // when the new document's content happens to land.
+    let mut ui = EditorUiState::default();
+    ui.set_document_key(Some("key1".to_string()));
+    ui.comments
+        .install_threads_for_key(Some("key1".to_string()), vec![one_thread()]);
+
+    ui.set_document_key(Some("key2".to_string()));
+
+    assert_eq!(ui.file_key.as_deref(), Some("key2"));
+    assert!(ui.comments.threads.is_empty());
+    assert_eq!(ui.comments.document_key(), None);
+}

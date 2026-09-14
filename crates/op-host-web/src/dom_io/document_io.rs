@@ -175,6 +175,13 @@ pub(super) fn new_document<C: RepaintContext + 'static>(inner: &InnerRc<C>) {
     file_actions::preserve_app_preferences(b.host().editor_state(), &mut state);
     op_pen_loader::ensure_skala_session(&mut state);
     state.editor_ui.file_name_display = None;
+    // File → New is a local, unsaved document: no key, and no conversation
+    // inherited from the document it replaces. `starter()` already carries
+    // neither — stated here so a future addition to
+    // `preserve_app_preferences` (which carries preferences, not identity)
+    // cannot quietly reintroduce a server identity on a brand-new document
+    // (issue #92).
+    state.editor_ui.set_document_key(None);
     b.host_mut().replace_editor_state(state);
     let (w, h) = b.viewport_size();
     b.host_mut().fit_content_to_viewport(w, h);

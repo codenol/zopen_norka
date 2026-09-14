@@ -264,7 +264,9 @@ fn open_named_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, host
             .map(str::to_string);
         if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
             let state = borrowed.host_mut().editor_state_mut();
-            state.editor_ui.file_key = Some(key_for_response.clone());
+            state
+                .editor_ui
+                .set_document_key(Some(key_for_response.clone()));
             if name.is_some() {
                 state.editor_ui.file_name_display = name;
             }
@@ -314,7 +316,7 @@ fn open_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key
         }
         if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
             let state = borrowed.host_mut().editor_state_mut();
-            state.editor_ui.file_key = Some(key.clone());
+            state.editor_ui.set_document_key(Some(key.clone()));
             state.editor_ui.screen = op_editor_core::AppScreen::Editor;
             borrowed.host_mut().mark_editor_state_dirty();
             let _ = borrowed.repaint();
@@ -357,7 +359,7 @@ fn create_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         };
         if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
             let state = borrowed.host_mut().editor_state_mut();
-            state.editor_ui.file_key = Some(key);
+            state.editor_ui.set_document_key(Some(key));
             state.editor_ui.screen = op_editor_core::AppScreen::Editor;
             // The list shown next time must include this file.
             state.editor_ui.server_files.clear();

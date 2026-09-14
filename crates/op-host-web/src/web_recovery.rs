@@ -155,6 +155,16 @@ fn restore<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         if status != 200 {
             return;
         }
+        // The daemon adopted a draft, and a draft has no key — that is what
+        // makes it a draft (`restore_draft` clears the daemon's key and its
+        // bound path). So this tab stops being the server document it was
+        // showing: keeping the key would point Save / autosave / comments at a
+        // stored document that no longer holds this content (issue #92).
+        if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
+            adopt_restored_draft(borrowed.host_mut().editor_state_mut());
+            borrowed.host_mut().mark_editor_state_dirty();
+            let _ = borrowed.repaint();
+        }
         // The daemon replaced the open document; the tab is still showing the
         // one it had. The pull is the same one the file screen uses after
         // `/api/files/{key}/open`.
@@ -171,6 +181,16 @@ fn restore<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
 fn discard<C: RepaintContext + 'static>(_inner: &Rc<RefCell<C>>) {
     let url = format!("{}/api/recovery", crate::daemon_base::daemon_base());
     let _ = crate::live_sync::delete_json(&url, None);
+}
+
+/// What a successful restore means for the tab's own state.
+///
+/// The restored document is the daemon's draft — key-less by construction —
+/// so the tab drops the server identity it had. Split out from the response
+/// closure so the rule is testable without a wire (the same reason the comment
+/// transport keeps its decoding separate).
+pub(crate) fn adopt_restored_draft(state: &mut op_editor_core::EditorState) {
+    state.editor_ui.set_document_key(None);
 }
 
 #[cfg(test)]
@@ -322,5 +342,21 @@ mod tests {
             })
         );
         assert!(PENDING_PROBE.with(|pending| pending.borrow().is_none()));
+    }
+
+    #[test]
+    fn a_restored_draft_is_not_the_server_document_it_replaced() {
+        // Issue #92, on the recovery path: the banner can be answered while a
+        // stored document is open, and the daemon's draft it adopts has no key.
+        // A tab that kept its old key would autosave the draft's contents into
+        // that stored document.
+        let mut host = WidgetHost::new();
+        host.editor_state_mut()
+            .editor_ui
+            .set_document_key(Some("key1".to_string()));
+
+        adopt_restored_draft(host.editor_state_mut());
+
+        assert_eq!(host.editor_state().editor_ui.file_key, None);
     }
 }

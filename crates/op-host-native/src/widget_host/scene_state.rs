@@ -269,6 +269,12 @@ impl WidgetHostNative {
         self.editor_state.replace_document(document);
         op_pen_loader::apply_editor_meta_or_legacy_fallback(&mut self.editor_state, editor_meta);
         self.editor_state.editor_ui.file_name_display = file_name;
+        // A file the user opened from disk is not the server document the
+        // previous state may have been: the key travels with the document
+        // (issue #92). `replace_document` preserves it on purpose — the
+        // live-sync apply of the SAME document must keep its identity — so the
+        // seam that knows this is a local file clears it here.
+        self.editor_state.editor_ui.set_document_key(None);
         self.editor_state.editor_ui.mobile_sheet = None;
         self.editor_state.editor_ui.pending_file_action = None;
         self.editor_state.editor_ui.exit_preview();
@@ -322,6 +328,13 @@ impl WidgetHostNative {
         // replaced document's scenario would leave the editor presenting an
         // import as though it were the deck the user had open before.
         preserved.scenario = state.editor_ui.scenario;
+        // Same family, same reason: the server key names the DOCUMENT the
+        // daemon stores (Save / autosave / comments address
+        // `/api/files/<key>/…`), and this seam installs a document the server
+        // does not have. Native never adopts a key today — this is the seam
+        // that would leak one if it ever did, and it must not inherit the
+        // replaced document's identity (issue #92).
+        preserved.set_document_key(None);
         // Dirty/saved state belongs to the incoming document. The rest of the
         // live shell UI is intentionally retained, but inheriting this flag
         // from the replaced editor would make a saved import appear dirty (or
