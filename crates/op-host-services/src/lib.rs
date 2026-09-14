@@ -18,6 +18,10 @@
 //! `openpencil-docs/superpowers/plans/2026-06-19-op-web-daemon-extraction.md`).
 
 // Migrated headless modules (Phases 2-5), kept alphabetical.
+/// The account store in SQLite: users, sessions, one-time tokens and invites
+/// (#55). Public because the layer that reads it is the next step and lives in
+/// this crate's web server; nothing in the daemon opens it yet.
+pub mod accounts;
 pub mod acp_agent_probe_host;
 pub mod ai_proxy;
 pub mod ai_proxy_error;

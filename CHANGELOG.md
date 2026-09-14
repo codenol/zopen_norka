@@ -10,6 +10,20 @@ here at a glance.
 
 ## [Unreleased]
 
+### Added
+
+- **The foundation of our own accounts.** A store of its own — users, sessions,
+  invitations and one-time tokens — in a database beside the deployment's data
+  rather than beside its documents, because accounts belong to a deployment and
+  documents to a folder. Passwords are Argon2id and only the hash is kept;
+  tokens are 32 random bytes of which the database holds **only a SHA-256**, so
+  a copy of the file is not a set of working credentials. The tests assert that
+  by scanning the database and its write-ahead log for the plaintext.
+
+  Nothing reads it yet: no route, no verifier, no daemon. This is the floor the
+  sign-in work stands on, landed first so that the visible half is a change to
+  behaviour rather than a change to storage.
+
 ### Changed
 
 - **A comment is placed by coordinates instead of being pinned to an element.**
