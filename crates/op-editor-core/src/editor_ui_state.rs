@@ -14,6 +14,7 @@
 
 pub mod chrome;
 pub mod comments;
+pub mod comments_page_counts;
 mod defaults;
 mod exports;
 pub mod git_panel;

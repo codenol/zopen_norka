@@ -11,6 +11,7 @@ use crate::widgets::layer_panel_metrics::{
     add_page_target, collapse_target, glyph_rect_in, layer_action_targets, layer_drag_target,
     layer_node_icon_x, LayerPanelMetrics,
 };
+use crate::widgets::layer_panel_page_comments::page_comment_counts;
 use crate::widgets::layer_panel_walkers::{
     apply_layer_rename, components_from_state, icon_for_node, kind_label, layer_regions,
     layers_content_width, pages_content_width, pages_from_state, visible_row_range, walk,
@@ -83,6 +84,14 @@ pub struct LayerPanel {
     /// Shipped recipes — one row per ready-made composition document.
     pub recipes: Rc<Vec<PageItem>>,
     pub items: Rc<Vec<LayerItem>>,
+    /// Open comment threads pinned on each document page, indexed by
+    /// `PageItem::page_index` — the number a page row's marker shows.
+    ///
+    /// A live overlay rather than part of the cached row model, for the reason
+    /// `layer_panel_page_comments` states: a comment arriving or being resolved
+    /// does not touch the document revision the row cache keys on, so a count
+    /// baked into the rows would go stale without anything to invalidate it.
+    pub page_comments: Rc<Vec<usize>>,
     pub theme: Theme,
     pub(crate) metrics: LayerPanelMetrics,
     pub pages_label: &'static str,
@@ -188,6 +197,7 @@ impl LayerPanel {
             components,
             recipes,
             items,
+            page_comments: page_comment_counts(state),
             theme: theme_for(&state.editor_ui),
             metrics,
             pages_label: t(&state.editor_ui, "pages.title"),
@@ -317,6 +327,7 @@ impl LayerPanel {
             components: Rc::new(Vec::new()),
             recipes: Rc::new(Vec::new()),
             items: Rc::new(Vec::new()),
+            page_comments: Rc::new(Vec::new()),
             theme: Theme::dark(),
             metrics: LayerPanelMetrics::DESKTOP,
             // No editor state (and therefore no locale) is reachable in
@@ -519,6 +530,7 @@ impl Widget for LayerPanel {
             &self.theme,
             rect,
             &self.pages,
+            Some(&self.page_comments),
             r.pages_rows_top,
             r.pages_view_h,
             r.pages.offset,
@@ -554,6 +566,11 @@ impl Widget for LayerPanel {
                 &self.theme,
                 rect,
                 &self.components,
+                // A component-store page is a document page like any other, so a
+                // conversation pinned on one is shown on its row: the row is
+                // where a reviewer looks for the page, whichever section holds
+                // it.
+                Some(&self.page_comments),
                 r.components_rows_top,
                 r.components_view_h,
                 r.components.offset,
@@ -611,6 +628,10 @@ impl Widget for LayerPanel {
                 &self.theme,
                 rect,
                 &recipe_rows,
+                // Recipes are shipped kit compositions, not pages of this
+                // document: there is no page for a comment to be pinned on, so
+                // the section carries no counts at all.
+                None,
                 r.recipes_rows_top,
                 r.recipes_view_h,
                 r.recipes.offset,

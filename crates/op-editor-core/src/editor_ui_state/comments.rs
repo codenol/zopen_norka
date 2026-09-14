@@ -490,11 +490,14 @@ impl CommentsUiState {
     /// The badge counts what pressing it opens, so it includes the pin-less
     /// threads for the reason the list does; anything else would be a number
     /// that disagrees with the first thing the reviewer sees.
+    ///
+    /// Both this and the per-page marker a page list paints are answered by
+    /// [`Self::page_comment_counts`] — one count with two readings, never two
+    /// counts of the same page. That function's notes say why the marker shows
+    /// strictly fewer threads than this in a document whose comments predate
+    /// coordinates.
     pub fn open_count_on_page(&self, page_id: &str) -> usize {
-        self.threads_on_page(page_id)
-            .iter()
-            .filter(|thread| !thread.resolved)
-            .count()
+        self.page_comment_counts(page_id).listed()
     }
 
     /// Open threads pinned on pages other than `page_id`.

@@ -7,6 +7,11 @@
 //! `measure_text` is intentionally left at the trait default (the width
 //! heuristic in `jian_widgets::painter`), so tests measure the same way a
 //! font-less environment does.
+//!
+//! `fill_oval` is deliberately not overridden either: the trait default routes
+//! it through `fill_round_rect`, so a circle lands in `round_fills` with a
+//! circular radius — which is how a test tells a badge's ring and its circle
+//! apart from the rounded rows around them.
 
 use crate::{Color, Point2D, Rect, RenderBackend, TextLayout};
 
