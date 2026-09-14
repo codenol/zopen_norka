@@ -189,3 +189,31 @@ fn active_page_matches_full_builder_with_refs_variables_and_both_layout_modes() 
         assert_eq!(active.pages[1], full.pages[1]);
     }
 }
+
+#[test]
+fn the_scene_names_its_page_by_the_shared_page_identity() {
+    // The canvas, the comment pins and the comment rail are all keyed on the
+    // scene's page id, and the client's own page-scoped writes are keyed on
+    // `active_page_identity`. Read through the same rule rather than through a
+    // second copy of it: a synthesized single-page id that drifted would file a
+    // comment under a page nobody could look at.
+    let single = state_from(
+        r#"{"version":"1.0.0","name":"Untitled","children":[
+            {"type":"rectangle","id":"n1","x":0,"y":0,"width":10,"height":10}
+        ]}"#,
+    );
+    let scene = editor_state_to_active_page_layout_scene(&single);
+    assert_eq!(
+        scene.active_page().map(|page| page.id.as_str()),
+        Some(single.active_page_identity().0.as_str())
+    );
+    assert_eq!(single.active_page_identity().0, "page-1");
+
+    let multi =
+        state_from(r#"{"version":"1.0.0","pages":[{"id":"only","name":"Only","children":[]}]}"#);
+    let scene = editor_state_to_active_page_layout_scene(&multi);
+    assert_eq!(
+        scene.active_page().map(|page| page.id.as_str()),
+        Some(multi.active_page_identity().0.as_str())
+    );
+}
