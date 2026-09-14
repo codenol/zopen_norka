@@ -1,0 +1,257 @@
+//! `op admin create` — make this deployment's first administrator.
+//!
+//! ## Why a prompt and not a flag
+//!
+//! `op admin create --password hunter2` would put the password in the shell
+//! history and in the process table, so it is asked for, twice, and not echoed.
+//! The same act from a container (where nobody is sitting at a terminal) is the
+//! `NORKA_ADMIN_USERNAME` / `NORKA_ADMIN_PASSWORD` pair the daemon reads at
+//! start-up; both paths go through
+//! [`AccountsDb::create_first_admin`](op_host_services::accounts::AccountsDb::create_first_admin),
+//! so "who the first admin is" and "is this store fresh" are one decision with
+//! two front doors.
+//!
+//! ## Why this command talks to the database and not to a server
+//!
+//! It has to work before there is anything to talk to: a deployment with no
+//! accounts has nobody who could be authorized to create one over HTTP, and the
+//! operator may be provisioning a stopped container. So it opens the same
+//! `accounts.db` the daemon opens, in the same data directory, and the command
+//! accepts the same `OPENPENCIL_ONLINE_DATA_DIR` the daemon reads (or
+//! `--data-dir`, for an operator who would rather be explicit).
+//!
+//! ## What it prints
+//!
+//! The name, the status, and which database was written. Never the password —
+//! not a length, not a hash, not a hint. A password that appears once in a log
+//! has to be treated as compromised, so it does not appear at all.
+
+use std::io::{BufRead, Write};
+use std::path::Path;
+
+use op_host_services::accounts::{check_password_strength, AccountsDb, FirstAdmin};
+
+use crate::cli_error::CliError;
+use crate::command_helpers::flag_value;
+use crate::{Command, Flags};
+
+/// Map `op admin ...` onto its command.
+pub(crate) fn map_admin(positionals: &[String], flags: &Flags) -> Result<Command, CliError> {
+    let subcommand = positionals.first().map(String::as_str).unwrap_or("");
+    match subcommand {
+        "create" => Ok(Command::AdminCreate {
+            data_dir: flag_value(flags, "data-dir"),
+        }),
+        "" => Err(CliError::usage("Usage: op admin create [--data-dir DIR]")),
+        other => Err(CliError::usage(format!(
+            "unknown admin subcommand {other:?}; the only one is `op admin create`"
+        ))),
+    }
+}
+
+/// Run the interactive flow against the real terminal.
+pub(crate) fn run_create(data_dir: Option<&str>) -> Result<String, CliError> {
+    let store = open_store(data_dir)?;
+    let mut stdin = std::io::stdin().lock();
+    let mut stdout = std::io::stdout();
+    let mut read_secret = read_secret_from_terminal;
+    let summary = create_admin(&store, &mut stdin, &mut stdout, &mut read_secret)?;
+    Ok(summary)
+}
+
+/// The store this command writes, and the path it came from.
+///
+/// `--data-dir` first, then the daemon's own variable: the command is run
+/// beside a deployment more often than inside one, so an explicit path has to
+/// win, and a deployment that configured itself in its environment should not
+/// have to repeat it here.
+pub(crate) fn open_store(data_dir: Option<&str>) -> Result<AccountsDb, CliError> {
+    match data_dir.map(str::trim).filter(|dir| !dir.is_empty()) {
+        Some(dir) => AccountsDb::open(Path::new(dir))
+            .map_err(|error| CliError::Io(format!("cannot open {dir}: {error}"))),
+        None => match AccountsDb::open_from_env() {
+            Ok(Some(store)) => Ok(store),
+            Ok(None) => Err(CliError::usage(format!(
+                "no deployment data directory: pass --data-dir DIR, or set {}",
+                op_host_services::accounts::DATA_DIR_ENV
+            ))),
+            Err(error) => Err(CliError::Io(format!(
+                "cannot open the account store: {error}"
+            ))),
+        },
+    }
+}
+
+/// Ask for a name and a password, and create the admin.
+///
+/// The readable and writable halves are arguments so the flow can be driven by
+/// a test: what is being checked is which questions are asked, in what order,
+/// and what a refusal does to the session — none of which needs a terminal.
+/// `read_secret` is separate because a password is read without echo, which is
+/// a property of the terminal rather than of the input stream.
+pub(crate) fn create_admin(
+    store: &AccountsDb,
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+    read_secret: &mut impl FnMut() -> Result<String, CliError>,
+) -> Result<String, CliError> {
+    // Refused before a single question: an operator who runs this on a live
+    // deployment should not type a password in order to be told no, and the
+    // rule is the store's (it is the same call the daemon's environment
+    // bootstrap makes).
+    let accounts = store
+        .count_users()
+        .map_err(|error| CliError::Io(format!("cannot read the account store: {error}")))?;
+    if accounts > 0 {
+        return Err(CliError::usage(format!(
+            "this deployment already has {accounts} account(s); `op admin create` only makes the \
+             FIRST administrator — issue an invitation from the running deployment instead"
+        )));
+    }
+
+    let username = ask(input, output, "Username: ")?;
+    if username.trim().is_empty() {
+        return Err(CliError::usage("a username must not be empty"));
+    }
+    let username = username.trim().to_string();
+
+    let password = loop {
+        let password = read_secret()?;
+        // The same policy the store applies, asked here so a weak password is
+        // answered with a reason and another question rather than with a
+        // failure after the confirmation.
+        if let Err(weak) = check_password_strength(&password, &username) {
+            writeln!(output, "  {weak}").map_err(io_error)?;
+            continue;
+        }
+        let repeated = read_secret()?;
+        if repeated != password {
+            writeln!(output, "  the two passwords do not match").map_err(io_error)?;
+            continue;
+        }
+        break password;
+    };
+
+    match store
+        .create_first_admin(&username, &password, op_host_services::accounts::now_secs())
+        .map_err(|error| CliError::Io(format!("cannot write the account store: {error}")))?
+    {
+        FirstAdmin::Created(user) => Ok(format!(
+            "created the administrator `{}` ({}), with the role `{}`, in {}",
+            user.username,
+            user.status.as_str(),
+            op_host_services::accounts::FIRST_ADMIN_ROLE,
+            store.dir().join("accounts.db").display()
+        )),
+        // Unreachable — the count above was zero a moment ago — but reported
+        // rather than assumed away: another process may have created an
+        // account in between, and saying so is better than printing a success
+        // that did not happen.
+        FirstAdmin::AlreadyProvisioned { accounts } => Err(CliError::usage(format!(
+            "another process created this deployment's first account ({accounts} now); nothing \
+             was written"
+        ))),
+        FirstAdmin::WeakPassword(weak) => Err(CliError::usage(weak.to_string())),
+    }
+}
+
+/// Ask one question and read one answer.
+fn ask(
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+    prompt: &str,
+) -> Result<String, CliError> {
+    write!(output, "{prompt}").map_err(io_error)?;
+    output.flush().map_err(io_error)?;
+    let mut line = String::new();
+    if input.read_line(&mut line).map_err(io_error)? == 0 {
+        return Err(CliError::usage(
+            "no input on stdin: `op admin create` is interactive — for a container, set \
+             NORKA_ADMIN_USERNAME and NORKA_ADMIN_PASSWORD instead",
+        ));
+    }
+    Ok(line.trim_end_matches(['\n', '\r']).to_string())
+}
+
+/// Read a password from the terminal without echoing it.
+///
+/// Two attempts, honestly labelled: the first and its confirmation are the two
+/// reads a caller makes, and a mismatch re-asks both. A read that hits end of
+/// input is the non-interactive case, and it stops the loop rather than
+/// spinning.
+fn read_secret_from_terminal() -> Result<String, CliError> {
+    let _echo = EchoOff::engage();
+    ask_prompt("Password (not echoed): ")?;
+    let first = read_line_raw()?;
+    println!();
+    Ok(first)
+}
+
+/// Say one line, then read.
+fn ask_prompt(prompt: &str) -> Result<(), CliError> {
+    let mut stdout = std::io::stdout();
+    write!(stdout, "{prompt}").map_err(io_error)?;
+    stdout.flush().map_err(io_error)
+}
+
+fn read_line_raw() -> Result<String, CliError> {
+    let mut line = String::new();
+    if std::io::stdin()
+        .lock()
+        .read_line(&mut line)
+        .map_err(io_error)?
+        == 0
+    {
+        return Err(CliError::usage(
+            "no input on stdin: `op admin create` is interactive",
+        ));
+    }
+    Ok(line.trim_end_matches(['\n', '\r']).to_string())
+}
+
+/// Turns the terminal's echo off for as long as it lives.
+///
+/// `stty` rather than a crate: this is the only place in the product that needs
+/// a password read without echo, and a password that appears on the screen
+/// while it is typed is a password in a screenshot, a screen share, or a
+/// shoulder. Where `stty` is not there (Windows, a terminal that refuses), the
+/// password is still read — with a warning, because reading it silently would
+/// be worse than saying so.
+struct EchoOff {
+    engaged: bool,
+}
+
+impl EchoOff {
+    fn engage() -> Self {
+        let engaged = std::process::Command::new("stty")
+            .arg("-echo")
+            .stdin(std::process::Stdio::inherit())
+            .status()
+            .is_ok_and(|status| status.success());
+        if !engaged {
+            eprintln!(
+                "op: cannot turn off terminal echo; the password will be visible as you type"
+            );
+        }
+        Self { engaged }
+    }
+}
+
+impl Drop for EchoOff {
+    fn drop(&mut self) {
+        if self.engaged {
+            let _ = std::process::Command::new("stty")
+                .arg("echo")
+                .stdin(std::process::Stdio::inherit())
+                .status();
+        }
+    }
+}
+
+fn io_error(error: std::io::Error) -> CliError {
+    CliError::Io(format!("cannot read or write the terminal: {error}"))
+}
+
+#[cfg(test)]
+#[path = "admin_cli_tests.rs"]
+mod tests;

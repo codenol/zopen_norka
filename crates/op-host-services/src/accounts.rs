@@ -58,23 +58,35 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::{params, Connection, OptionalExtension};
 
+mod accounts_bootstrap;
 mod accounts_error;
 mod accounts_invites;
 mod accounts_migrations;
 mod accounts_model;
 mod accounts_password;
+mod accounts_password_strength;
+mod accounts_policy;
 mod accounts_secret;
 mod accounts_sessions;
+mod accounts_signin;
 mod accounts_tokens;
 mod accounts_users;
 
+pub use accounts_bootstrap::FirstAdmin;
 pub use accounts_error::AccountsError;
 pub use accounts_model::{
     Invite, IssuedInvite, IssuedSession, IssuedToken, NewInvite, NewSession, NewUser,
     OneTimePurpose, OneTimeToken, Session, User, UserStatus,
 };
 pub use accounts_password::{hash_password, verify_password, HASH_ALGO_ARGON2ID};
+pub use accounts_password_strength::{
+    check_password_strength, WeakPasswordReason, FIRST_ADMIN_ROLE, MIN_PASSWORD_CHARS,
+};
+pub use accounts_policy::{
+    EMAIL_VERIFY_TTL_SECS, INVITE_TTL_SECS, PASSWORD_RESET_TTL_SECS, SESSION_TTL_SECS,
+};
 pub use accounts_secret::{hash_token, issue_token, token_hash_eq};
+pub use accounts_signin::SignInOutcome;
 
 use accounts_migrations::{Migration, MIGRATIONS};
 

@@ -71,13 +71,6 @@ impl ServeMode {
         !self.is_online()
     }
 
-    /// The device-login proxy (`/api/auth/*`). The bridge runtime holds ONE
-    /// device session per process, so proxying it in a shared deployment
-    /// would sign every visitor in as whoever the service account is.
-    pub const fn allows_device_login_proxy(self) -> bool {
-        !self.is_online()
-    }
-
     /// `GET /api/mcp/indicators`. The agent-indicator registry is a
     /// process-global table with no tenant dimension, so relaying it would
     /// show one account the shape of another account's design run.
@@ -325,7 +318,6 @@ mod tests {
         for mode in [ServeMode::Local, ServeMode::Managed] {
             assert!(mode.allows_local_file_routes(), "{mode:?}");
             assert!(mode.allows_settings_persistence(), "{mode:?}");
-            assert!(mode.allows_device_login_proxy(), "{mode:?}");
             assert!(mode.allows_agent_indicator_relay(), "{mode:?}");
             assert!(mode.allows_root_jsonrpc_alias(), "{mode:?}");
             assert!(mode.allows_generic_shutdown(), "{mode:?}");
@@ -344,7 +336,6 @@ mod tests {
         assert!(mode.is_online());
         assert!(!mode.allows_local_file_routes());
         assert!(!mode.allows_settings_persistence());
-        assert!(!mode.allows_device_login_proxy());
         assert!(!mode.allows_agent_indicator_relay());
         assert!(!mode.allows_root_jsonrpc_alias());
         assert!(!mode.allows_generic_shutdown());

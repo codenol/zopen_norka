@@ -41,7 +41,7 @@ fn an_invited_account_has_no_password_and_says_it_is_invited() {
     assert_eq!(user.password_hash, None);
     assert!(!user.has_password());
     assert_eq!(
-        db.create_user(&NewUser::invited("u2", "carol", "Carol"), NOW)
+        db.create_user(&NewUser::invited("carol", "Carol").with_id("u2"), NOW)
             .expect("create")
             .status,
         UserStatus::Invited
@@ -54,8 +54,11 @@ fn a_username_is_unique_whatever_case_it_is_typed_in() {
     active_user(&db, "u1", "alice");
 
     assert_eq!(
-        db.create_user(&NewUser::active("u2", "ALICE", "Other", PASSWORD), NOW)
-            .expect_err("a second account with the same name"),
+        db.create_user(
+            &NewUser::active("ALICE", "Other", PASSWORD).with_id("u2"),
+            NOW
+        )
+        .expect_err("a second account with the same name"),
         AccountsError::UsernameTaken {
             username: "ALICE".to_string()
         },
@@ -74,14 +77,18 @@ fn a_username_is_unique_whatever_case_it_is_typed_in() {
 fn an_address_is_unique_whatever_case_it_is_typed_in() {
     let (_dir, db) = store();
     db.create_user(
-        &NewUser::active("u1", "alice", "Alice", PASSWORD).with_email("Alice@Example.COM"),
+        &NewUser::active("alice", "Alice", PASSWORD)
+            .with_id("u1")
+            .with_email("Alice@Example.COM"),
         NOW,
     )
     .expect("create");
 
     assert_eq!(
         db.create_user(
-            &NewUser::active("u2", "bob", "Bob", PASSWORD).with_email("alice@example.com"),
+            &NewUser::active("bob", "Bob", PASSWORD)
+                .with_id("u2")
+                .with_email("alice@example.com"),
             NOW
         )
         .expect_err("a second account with the same address"),
@@ -115,7 +122,9 @@ fn an_account_is_found_by_id_by_name_or_by_address() {
     let (_dir, db) = store();
     let user = db
         .create_user(
-            &NewUser::active("u1", "alice", "Alice", PASSWORD).with_email("alice@example.com"),
+            &NewUser::active("alice", "Alice", PASSWORD)
+                .with_id("u1")
+                .with_email("alice@example.com"),
             NOW,
         )
         .expect("create");
@@ -139,12 +148,8 @@ fn a_page_of_accounts_is_ordered_and_bounded() {
     let (_dir, db) = store();
     for index in 0..5 {
         db.create_user(
-            &NewUser::active(
-                &format!("u{index}"),
-                &format!("user{index}"),
-                "Person",
-                PASSWORD,
-            ),
+            &NewUser::active(&format!("user{index}"), "Person", PASSWORD)
+                .with_id(&format!("u{index}")),
             NOW + index as i64,
         )
         .expect("create");
@@ -260,7 +265,9 @@ fn an_address_can_only_be_verified_when_there_is_one() {
     let (_dir, db) = store();
     active_user(&db, "u1", "alice");
     db.create_user(
-        &NewUser::active("u2", "bob", "Bob", PASSWORD).with_email("bob@example.com"),
+        &NewUser::active("bob", "Bob", PASSWORD)
+            .with_id("u2")
+            .with_email("bob@example.com"),
         NOW,
     )
     .expect("create");
@@ -325,23 +332,29 @@ fn a_value_that_could_not_be_found_again_is_refused() {
     // up by the value that was written, which is the one thing a store must not
     // do quietly.
     assert_eq!(
-        db.create_user(&NewUser::active("u1", "   ", "Alice", PASSWORD), NOW)
-            .expect_err("a blank name"),
+        db.create_user(
+            &NewUser::active("   ", "Alice", PASSWORD).with_id("u1"),
+            NOW
+        )
+        .expect_err("a blank name"),
         AccountsError::InvalidText {
             field: "username",
             reason: "is empty"
         }
     );
     assert_eq!(
-        db.create_user(&NewUser::active("u1", "al\u{0}ice", "Alice", PASSWORD), NOW)
-            .expect_err("a control character"),
+        db.create_user(
+            &NewUser::active("al\u{0}ice", "Alice", PASSWORD).with_id("u1"),
+            NOW
+        )
+        .expect_err("a control character"),
         AccountsError::InvalidText {
             field: "username",
             reason: "contains a control character"
         }
     );
     assert_eq!(
-        db.create_user(&NewUser::active("u1", "alice", "", PASSWORD), NOW)
+        db.create_user(&NewUser::active("alice", "", PASSWORD).with_id("u1"), NOW)
             .expect_err("a blank display name"),
         AccountsError::InvalidText {
             field: "display_name",
@@ -349,8 +362,11 @@ fn a_value_that_could_not_be_found_again_is_refused() {
         }
     );
     assert_eq!(
-        db.create_user(&NewUser::active("", "alice", "Alice", PASSWORD), NOW)
-            .expect_err("a blank id"),
+        db.create_user(
+            &NewUser::active("alice", "Alice", PASSWORD).with_id(""),
+            NOW
+        )
+        .expect_err("a blank id"),
         AccountsError::InvalidText {
             field: "id",
             reason: "is empty"
@@ -358,7 +374,9 @@ fn a_value_that_could_not_be_found_again_is_refused() {
     );
     assert_eq!(
         db.create_user(
-            &NewUser::active("u1", "alice", "Alice", PASSWORD).with_roles(&["a,b"]),
+            &NewUser::active("alice", "Alice", PASSWORD)
+                .with_id("u1")
+                .with_roles(&["a,b"]),
             NOW
         )
         .expect_err("a comma in a role"),
@@ -369,7 +387,7 @@ fn a_value_that_could_not_be_found_again_is_refused() {
     );
     assert_eq!(
         db.create_user(
-            &NewUser::active("u1", &"a".repeat(65), "Alice", PASSWORD),
+            &NewUser::active(&"a".repeat(65), "Alice", PASSWORD).with_id("u1"),
             NOW
         )
         .expect_err("a name past the ceiling"),
@@ -379,7 +397,7 @@ fn a_value_that_could_not_be_found_again_is_refused() {
         }
     );
     assert_eq!(
-        db.create_user(&NewUser::active("u1", "alice", "Alice", ""), NOW)
+        db.create_user(&NewUser::active("alice", "Alice", "").with_id("u1"), NOW)
             .expect_err("an empty password"),
         AccountsError::EmptyPassword,
         "an empty password is one that verifies, so it is refused rather than hashed"
@@ -396,7 +414,7 @@ fn an_account_id_is_the_callers_choice_and_a_duplicate_is_a_database_fault() {
     // the named identity failures — it is the database refusing a write, and it
     // says so with the column it refused.
     let error = db
-        .create_user(&NewUser::active("u1", "bob", "Bob", PASSWORD), NOW)
+        .create_user(&NewUser::active("bob", "Bob", PASSWORD).with_id("u1"), NOW)
         .expect_err("a duplicate id");
     assert!(
         matches!(error, AccountsError::Database(_)),
@@ -406,12 +424,43 @@ fn an_account_id_is_the_callers_choice_and_a_duplicate_is_a_database_fault() {
 }
 
 #[test]
+fn an_account_whose_id_the_caller_does_not_supply_gets_one_from_the_store() {
+    let (_dir, db) = store();
+
+    // A deployment with no identity provider to take an id from. The store
+    // mints one, and mints a different one each time — which is the property
+    // that makes "no id given" safe to leave to a default rather than to every
+    // call site.
+    let first = db
+        .create_user(&NewUser::active("alice", "Alice", PASSWORD), NOW)
+        .expect("create");
+    let second = db
+        .create_user(&NewUser::invited("bob", "Bob"), NOW)
+        .expect("create");
+
+    assert!(!first.id.is_empty() && !second.id.is_empty());
+    assert_ne!(first.id, second.id);
+    assert!(
+        first.id.starts_with("u_"),
+        "a minted id is recognisable in a log line: {}",
+        first.id
+    );
+    // It IS the row's key: the account is reachable by it, and by nothing else
+    // it was not given.
+    assert_eq!(
+        db.find_user_by_id(&first.id).expect("find"),
+        Some(first.clone())
+    );
+    assert_eq!(db.count_users().expect("count"), 2);
+}
+
+#[test]
 fn a_trimmed_name_is_what_is_stored() {
     let (_dir, db) = store();
 
     let user = db
         .create_user(
-            &NewUser::active(" u1 ", "  alice  ", "  Alice  ", PASSWORD),
+            &NewUser::active("  alice  ", "  Alice  ", PASSWORD).with_id(" u1 "),
             NOW,
         )
         .expect("create");

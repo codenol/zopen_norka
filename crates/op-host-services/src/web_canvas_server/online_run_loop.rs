@@ -34,9 +34,13 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use super::account_routes::AccountAuth;
+use super::online_identity_tier::{
+    report_first_admin, resolve_identity_tier, write_account_reply, IdentityTier,
+};
 use super::online_policy::ServeMode;
 use super::tenant::{now_unix, TenantLimits, TenantRegistry};
-use super::tenant_auth::{IdentityVerifier, PresentedCredentials, StaticVerifier};
+use super::tenant_auth::{IdentityVerifier, PresentedCredentials};
 use super::*;
 
 /// How long a controlled shutdown waits for in-flight requests before it
@@ -170,7 +174,16 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
             super::origin_guard::WEB_ALLOWED_ORIGINS_ENV
         );
     }
-    let verifier = resolve_verifier();
+    let IdentityTier { verifier, accounts } = resolve_identity_tier();
+    // The deployment's first administrator, from the environment, once: see
+    // `account_admin`. Run here — after the store opened and before the
+    // listener binds — so that the answer is known by the time the first
+    // request can ask the status route who exists.
+    if let Some(accounts) = accounts.as_ref() {
+        report_first_admin(super::account_admin::ensure_first_admin_from_env(
+            accounts.db(),
+        ));
+    }
 
     let listener = TcpListener::bind((host.as_str(), port))
         .map_err(|e| WebCanvasError::Config(format!("bind {host}:{port}: {e}")))?;
@@ -234,6 +247,7 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
         conn_count.fetch_add(1, Ordering::AcqRel);
         let registry = Arc::clone(&registry);
         let verifier = Arc::clone(&verifier);
+        let accounts = accounts.clone();
         let conns = Arc::clone(&conn_count);
         let write_barrier = Arc::clone(&write_barrier);
         let shutdown_flag = Arc::clone(&shutdown);
@@ -247,6 +261,7 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
                     &mut s,
                     registry.as_ref(),
                     verifier.as_ref(),
+                    accounts.as_ref(),
                     write_barrier.as_ref(),
                 ) {
                     Ok(true) => {
@@ -447,62 +462,6 @@ pub(super) const fn sweep_interval_secs(idle_evict_secs: u64) -> u64 {
     }
 }
 
-/// Pick the identity verifier this deployment runs.
-///
-/// The hub is the production answer. `StaticVerifier` stays reachable so the
-/// M1 development smoke still works with no hub in sight, and so a
-/// misconfigured hub URL does not silently downgrade to it — a hub that is
-/// configured but unbuildable is a hard failure, not a fallback.
-fn resolve_verifier() -> Arc<dyn IdentityVerifier> {
-    match super::hub_verifier::HubVerifier::from_env() {
-        Ok(Some(verifier)) => {
-            eprintln!(
-                "openpencil --serve-web --online: verifying identities against the hub at {}",
-                std::env::var(crate::hub_auth_client::HUB_BASE_URL_ENV).unwrap_or_default()
-            );
-            if crate::hub_auth_client::internal_auth_from_env().is_none() {
-                eprintln!(
-                    "openpencil --serve-web --online: no {} configured; API-token \
-                     introspection will be refused and only browser sessions will work",
-                    crate::hub_auth_client::HUB_INTERNAL_AUTH_FILE_ENV
-                );
-            }
-            return Arc::new(verifier);
-        }
-        Ok(None) => {}
-        Err(error) => {
-            // Configured but unusable. Serving with the development verifier
-            // here would mean a production deployment quietly accepting an
-            // env token table instead of real accounts.
-            eprintln!(
-                "openpencil --serve-web --online: {} is set but unusable ({error}); every \
-                 authenticated route will answer 503",
-                crate::hub_auth_client::HUB_BASE_URL_ENV
-            );
-            return Arc::new(StaticVerifier::parse(""));
-        }
-    }
-    let static_verifier = StaticVerifier::from_env();
-    if static_verifier.is_empty() {
-        // Fail loud but keep serving: every request answers 503
-        // `verifier-unavailable`, which is a diagnosable state. Serving
-        // requests with NO verifier would be the unsafe alternative.
-        eprintln!(
-            "openpencil --serve-web --online: no identity verifier configured (set {} for a \
-             hub deployment, or {} for development); every authenticated route will answer 503",
-            crate::hub_auth_client::HUB_BASE_URL_ENV,
-            super::tenant_auth::STATIC_IDENTITIES_ENV
-        );
-    } else {
-        eprintln!(
-            "openpencil --serve-web --online: using the DEVELOPMENT static identity table; \
-             set {} for a real deployment",
-            crate::hub_auth_client::HUB_BASE_URL_ENV
-        );
-    }
-    Arc::new(static_verifier)
-}
-
 /// Serve one online connection: anonymous prefix, then verify, then dispatch
 /// against the caller's own tenant.
 ///
@@ -512,6 +471,7 @@ pub(super) fn serve_one_online<S: Read + Write>(
     stream: &mut S,
     registry: &TenantRegistry,
     verifier: &dyn IdentityVerifier,
+    accounts: Option<&AccountAuth>,
     write_barrier: &super::tenant::WriteBarrier,
 ) -> Result<bool> {
     let req = crate::mcp_serve::read_http_request(stream)?;
@@ -519,6 +479,21 @@ pub(super) fn serve_one_online<S: Read + Write>(
     let cors_origin = online_policy::online_cors_origin(allow_origins, req.origin.as_deref());
     if let Some(done) = serve_anonymous_prefix(stream, &req, cors_origin.as_deref())? {
         return Ok(done);
+    }
+    // The account tier, AHEAD of the identity check: signing in is precisely
+    // the request that cannot present a session, and the status route has to
+    // answer "nobody" rather than refuse — see `account_routes`. Every route
+    // it serves is either anonymous by nature (sign in, accept an invitation)
+    // or gated on the credential it carries (sign out, status).
+    //
+    // With no account store there is nothing to sign in to, and this is
+    // skipped whole: `resolve` below then refuses every request with 503 or
+    // resolves it against the development table, exactly as before.
+    if let Some(accounts) = accounts {
+        if let Some(reply) = accounts.handle(&req, allow_origins) {
+            write_account_reply(stream, &reply, cors_origin.as_deref())?;
+            return Ok(false);
+        }
     }
     // The tenant key comes from here and nowhere else. Note that the request
     // body has not been looked at yet, and never contributes.

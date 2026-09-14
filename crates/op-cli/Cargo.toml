@@ -20,6 +20,11 @@ op-config-store = { path = "../op-config-store" }
 op-editor-core = { path = "../op-editor-core" }
 jian-ops-schema = { path = "../../vendor/jian/crates/jian-ops-schema" }
 op-figma = { path = "../op-figma" }
+# The account store, for `op admin create`: the first administrator has to be
+# creatable before there is a daemon to ask, so the command opens the same
+# `accounts.db` the deployment does. (This is the daemon's whole library
+# closure — see the note in `admin_cli` about what that costs.)
+op-host-services = { path = "../op-host-services" }
 op-html = { path = "../op-html" }
 op-pen-loader = { path = "../op-pen-loader", default-features = false }
 op-process-io = { path = "../op-process-io" }

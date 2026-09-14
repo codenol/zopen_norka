@@ -42,19 +42,18 @@ fn a_non_bearer_authorization_header_presents_no_credential() {
 
 #[test]
 fn the_session_cookie_is_picked_out_of_a_multi_cookie_header() {
-    let presented = PresentedCredentials::from_request(&request_with(
-        None,
-        Some("theme=dark; op_hub_session=sessA; other=1"),
-    ));
+    // Built from the constant rather than spelled out: the name has moved once
+    // already (the hub's cookie to ours), and a fixture that hard-coded it
+    // would have kept passing while every real browser sent the other name.
+    let header = format!("theme=dark; {SESSION_COOKIE_NAME}=sessA; other=1");
+    let presented = PresentedCredentials::from_request(&request_with(None, Some(&header)));
     assert_eq!(presented.session_cookie.as_deref(), Some("sessA"));
 }
 
 #[test]
 fn a_cookie_whose_name_merely_contains_the_session_name_is_not_the_session() {
-    let presented = PresentedCredentials::from_request(&request_with(
-        None,
-        Some("not_op_hub_session=evil; op_hub_session_backup=evil2"),
-    ));
+    let header = format!("not_{SESSION_COOKIE_NAME}=evil; {SESSION_COOKIE_NAME}_backup=evil2");
+    let presented = PresentedCredentials::from_request(&request_with(None, Some(&header)));
     assert_eq!(presented.session_cookie, None);
 }
 

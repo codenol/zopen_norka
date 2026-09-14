@@ -3,6 +3,7 @@
 
 use std::collections::BTreeMap;
 
+mod admin_cli;
 mod app_control_cli;
 mod cli_conversion;
 mod cli_error;
@@ -92,6 +93,7 @@ fn run(args: &[String]) -> Result<String, CliError> {
             host.as_deref(),
         )?,
         Command::StopMcp => app_control_cli::run_stop()?,
+        Command::AdminCreate { data_dir } => admin_cli::run_create(data_dir.as_deref())?,
         Command::SkillExport { name, out_dir } => {
             skill_export_cli::run_export(&name, out_dir.as_deref())?
         }
@@ -207,6 +209,14 @@ enum Command {
         host: Option<String>,
     },
     StopMcp,
+    /// `op admin create` — the deployment's first administrator, asked for at
+    /// a terminal. Does not need a server: a deployment with no accounts has
+    /// nobody who could authorize the request over HTTP.
+    AdminCreate {
+        /// `--data-dir`: the deployment's data directory. Falls back to
+        /// `OPENPENCIL_ONLINE_DATA_DIR`, which is what the daemon reads.
+        data_dir: Option<String>,
+    },
     SkillExport {
         name: String,
         out_dir: Option<String>,
@@ -391,6 +401,7 @@ fn command_from_positionals(positionals: &[String], flags: &Flags) -> Result<Com
             })
         }
         "stop" => Ok(Command::StopMcp),
+        "admin" => admin_cli::map_admin(&positionals[1..], flags),
         "export" => export_cli::map_export(flags),
         "export-deck" => export_cli::map_export_deck(flags),
         "templates" => template_cli::map_templates(flags),

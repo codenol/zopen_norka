@@ -111,6 +111,17 @@ impl UserStatus {
             }),
         }
     }
+
+    /// Whether an account in this state may sign in.
+    ///
+    /// A method on the status rather than a match in the sign-in path, because
+    /// the answer is a property of the state: `disabled` means "may not sign
+    /// in" wherever it is read, and a second copy of that list would be the one
+    /// that forgot `orphan`. What the status does NOT decide — what a signed-in
+    /// account may then do — stays with the request, not here.
+    pub const fn may_sign_in(self) -> bool {
+        matches!(self, Self::Active)
+    }
 }
 
 /// An account, as the database holds it.
@@ -166,6 +177,39 @@ impl User {
     }
 }
 
+/// An id for an account this deployment invents.
+///
+/// ## Why the store mints it and not the caller
+///
+/// An account id is the one value every other table and every document's
+/// `owner_id` refers to, so the rule about it has to live in one place or it
+/// lives nowhere: a route that built an id from the username and a CLI that
+/// built one from a counter would produce two accounts for one person the first
+/// time somebody used both. Here, "no id given" means one thing.
+///
+/// ## Why random rather than derived
+///
+/// Derived ids collide: two deployments both naming their first account
+/// `admin` is not a mistake, it is Tuesday, and a rename would move every
+/// reference. 128 random bits do not collide, and they say nothing about the
+/// person — an id ends up in log lines, in a tenant directory's name and in a
+/// bug report, and `alice@example.com` printed in all three is a privacy leak
+/// that a random string is not.
+///
+/// NOT a secret: it is an identifier, not a credential, so it is hex rather
+/// than a token, and it is allowed to be read out of the database. The `u_`
+/// prefix only makes a locally minted id recognisable in a log line beside an
+/// id that came from somewhere else.
+pub(super) fn new_account_id() -> Result<String, AccountsError> {
+    let bytes = super::accounts_secret::random_bytes::<16>()?;
+    let mut id = String::with_capacity(2 + bytes.len() * 2);
+    id.push_str("u_");
+    for byte in bytes {
+        id.push_str(&format!("{byte:02x}"));
+    }
+    Ok(id)
+}
+
 /// An account about to be created.
 ///
 /// The status is not a field. It follows from whether a password was given:
@@ -174,10 +218,17 @@ impl User {
 /// NULL — an account the store says may sign in and that no password can ever
 /// open — and no reader would be able to tell that from one that simply has not
 /// been given a password yet.
+///
+/// The id is not a field either, for the same reason: a caller that has one
+/// attaches it with [`Self::with_id`], and a caller that has none gets one
+/// minted by the store ([`new_account_id`]). Making it required would mean
+/// every deployment that has no external identity provider inventing ids of its
+/// own — which is how two of them end up inventing the same format, or none at
+/// all and a colliding timestamp.
 #[derive(Debug, Clone)]
 pub struct NewUser<'a> {
-    /// The id to write. Chosen by the caller: see [`User::id`].
-    pub id: &'a str,
+    /// The id to write, or `None` to have one minted.
+    pub id: Option<&'a str>,
     /// The sign-in name.
     pub username: &'a str,
     /// The name to show.
@@ -193,14 +244,9 @@ pub struct NewUser<'a> {
 
 impl<'a> NewUser<'a> {
     /// An account that can sign in.
-    pub fn active(
-        id: &'a str,
-        username: &'a str,
-        display_name: &'a str,
-        password: &'a str,
-    ) -> Self {
+    pub fn active(username: &'a str, display_name: &'a str, password: &'a str) -> Self {
         Self {
-            id,
+            id: None,
             username,
             display_name,
             email: None,
@@ -211,15 +257,29 @@ impl<'a> NewUser<'a> {
 
     /// An account created from an invite: it exists, it has no password, and
     /// its status says so.
-    pub fn invited(id: &'a str, username: &'a str, display_name: &'a str) -> Self {
+    pub fn invited(username: &'a str, display_name: &'a str) -> Self {
         Self {
-            id,
+            id: None,
             username,
             display_name,
             email: None,
             password: None,
             roles: &[],
         }
+    }
+
+    /// The same account under an id this deployment already uses for it.
+    ///
+    /// For an account the deployment did not invent: a hub, a directory, a
+    /// migration names the person already, and an id minted here would be a
+    /// second name for one account — the document index and the tenant store
+    /// would then know them by the other one.
+    ///
+    /// The value is taken exactly as given (see [`checked_opaque`]): an id is
+    /// asserted by a machine, not typed by a person, so it is not trimmed.
+    pub fn with_id(mut self, id: &'a str) -> Self {
+        self.id = Some(id);
+        self
     }
 
     /// The same account with an address.

@@ -13,8 +13,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use super::accounts_error::AccountsError;
 use super::accounts_model::{
-    checked_display_name, checked_email, checked_id, checked_username, encode_roles, user_from_row,
-    NewUser, User, UserStatus, USER_COLUMNS,
+    checked_display_name, checked_email, checked_id, checked_username, encode_roles, new_account_id,
+    user_from_row, NewUser, User, UserStatus, USER_COLUMNS,
 };
 use super::accounts_password::{hash_password, HASH_ALGO_ARGON2ID};
 use super::AccountsDb;
@@ -33,8 +33,16 @@ impl AccountsDb {
     /// The status follows from whether a password was given — see [`NewUser`] —
     /// so an `active` account always has something to sign in with and an
     /// `invited` one never claims to.
+    ///
+    /// The id follows the caller: an account the deployment already has a name
+    /// for keeps it ([`NewUser::with_id`]), and one it does not gets an id
+    /// minted here, so that "no id given" means one thing rather than each
+    /// caller inventing a scheme.
     pub fn create_user(&self, new: &NewUser<'_>, now: i64) -> Result<User, AccountsError> {
-        let id = checked_id(new.id)?;
+        let id = match new.id {
+            Some(id) => checked_id(id)?,
+            None => new_account_id()?,
+        };
         let username = checked_username(new.username)?;
         let display_name = checked_display_name(new.display_name)?;
         let email = checked_email(new.email)?;
@@ -144,10 +152,21 @@ impl AccountsDb {
 
     /// Replace an account's password.
     ///
-    /// Does not touch `status`. An invited person setting their first password
-    /// is a transition the acceptance flow owns, and it knows things this call
-    /// does not — that the invite was valid, that the address was proved. This
-    /// writes the credential and nothing else.
+    /// ## The one status this touches
+    ///
+    /// An account that was `invited` becomes `active`, and nothing else about
+    /// its status moves. `invited` means "exists, has no password yet" — the
+    /// two facts are the same fact — so an invited row that has just been given
+    /// a password would be describing a state that cannot exist, and leaving it
+    /// that way is a person who accepted an invitation and still cannot sign
+    /// in. The acceptance flow does not have to remember this, and a flow that
+    /// forgot would look like a wrong password forever.
+    ///
+    /// A `disabled` or `orphan` account is left exactly as it is. Setting a
+    /// password is not a way back in: re-enabling an account is an operator's
+    /// decision, and a reset link that silently un-disabled one would make the
+    /// disable button a decoration. This is the negative half of the rule
+    /// above, and it is the half that matters.
     ///
     /// Also rewrites `hash_algo`: the column names how the NEW string was
     /// produced, and after this call the old name would be a lie about the row.
@@ -161,7 +180,10 @@ impl AccountsDb {
         let hash = hash_password(password)?;
         let conn = self.conn();
         let changed = conn.execute(
-            "UPDATE users SET password_hash = ?2, hash_algo = ?3, updated_at = ?4 WHERE id = ?1",
+            "UPDATE users
+                SET password_hash = ?2, hash_algo = ?3, updated_at = ?4,
+                    status = CASE WHEN status = 'invited' THEN 'active' ELSE status END
+              WHERE id = ?1",
             params![user_id, hash, HASH_ALGO_ARGON2ID, now],
         )?;
         require_row(changed, user_id)

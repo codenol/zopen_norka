@@ -39,7 +39,8 @@ struct Request {
     body: String,
     token: Option<&'static str>,
     content_type: Option<&'static str>,
-    cookie: Option<&'static str>,
+    /// The session cookie's value, when the request carries one.
+    cookie: Option<String>,
     origin: Option<&'static str>,
     /// Addresses the request at another account's tenant, as the browser does
     /// with `?tenant=` on the page URL.
@@ -73,9 +74,10 @@ impl Request {
         self
     }
 
-    /// Present the deployment's session cookie, as a browser would.
-    fn with_session(mut self, session: &'static str) -> Self {
-        self.cookie = Some(session);
+    /// Present the deployment's session cookie, as a browser would. Takes the
+    /// value, so a token a sign-in just handed back is presented the same way.
+    fn with_session(mut self, session: &str) -> Self {
+        self.cookie = Some(session.to_string());
         self
     }
 
@@ -95,7 +97,13 @@ impl Request {
             .unwrap_or_default();
         let cookie = self
             .cookie
-            .map(|c| format!("Cookie: op_hub_session={c}\r\n"))
+            .as_deref()
+            .map(|c| {
+                format!(
+                    "Cookie: {}={c}\r\n",
+                    super::super::tenant_auth::SESSION_COOKIE_NAME
+                )
+            })
             .unwrap_or_default();
         let origin = self
             .origin
@@ -129,13 +137,28 @@ fn registry() -> TenantRegistry {
 
 /// Drive one request through the online loop and return the raw response.
 fn serve(registry: &TenantRegistry, verifier: &StaticVerifier, request: Request) -> String {
+    serve_as(registry, verifier, None, request)
+}
+
+/// The same, with this deployment's own accounts behind it.
+///
+/// The account tier is passed in the shape the accept loop passes it, so a
+/// request that reaches it is dispatched by exactly the code a deployment runs
+/// — including the fact that it is reached BEFORE the identity check.
+fn serve_as(
+    registry: &TenantRegistry,
+    verifier: &dyn IdentityVerifier,
+    accounts: Option<&super::super::account_routes::AccountAuth>,
+    request: Request,
+) -> String {
     let mut stream = MockStream {
         input: std::io::Cursor::new(request.wire().into_bytes()),
         output: Vec::new(),
     };
     // An open barrier: the shutdown path is exercised by its own tests.
     let barrier = crate::web_canvas_server::tenant::WriteBarrier::default();
-    serve_one_online(&mut stream, registry, verifier, &barrier).expect("serve_one_online");
+    serve_one_online(&mut stream, registry, verifier, accounts, &barrier)
+        .expect("serve_one_online");
     String::from_utf8_lossy(&stream.output).into_owned()
 }
 
@@ -769,3 +792,8 @@ mod share;
 #[cfg(test)]
 #[path = "online_files_tests.rs"]
 mod files;
+
+/// The account tier driven through the loop: the tier's whole point is WHERE it
+/// runs, and only an end-to-end request can show that. See the file's docs.
+#[path = "online_account_tests.rs"]
+mod account_tests;
