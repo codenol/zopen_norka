@@ -231,6 +231,13 @@ pub fn apply_open_recent_response(
         .unwrap_or(false);
     if ok {
         state.editor_ui.file_name_display = Some(path_file_name(path).to_string());
+        // `/api/file/open-recent` asked the daemon to read a PATH on its own
+        // disk, so what is open now is that local file — not the server
+        // document this tab was showing. Its identity moves with the document
+        // (issue #92): keeping the old key would send this file's contents to
+        // `/api/files/<old key>/save`, and would keep the old document's
+        // comment pins on the new one's pages.
+        state.editor_ui.set_document_key(None);
         state
             .editor_ui
             .touch_recent_file(path.to_string(), now_secs);

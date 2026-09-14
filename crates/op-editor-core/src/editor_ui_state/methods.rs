@@ -578,6 +578,43 @@ impl EditorUiState {
         })
     }
 
+    /// Adopt the open document's server identity — the key the daemon files it
+    /// under, or `None` when this document has no home on the server at all.
+    ///
+    /// ## The key belongs to the document, not to the tab
+    ///
+    /// Everything the key addresses is about the DOCUMENT it names: Save
+    /// (`/api/files/<key>/save`), autosave (`…/autosave`) and the comment
+    /// conversation (`…/comments`). A tab is only ever a view of one document at
+    /// a time, so every seam that replaces the document has to move this with
+    /// it — an open the daemon accepted adopts its key, and every seam that
+    /// installs a document the server does not hold (a file read in the
+    /// browser, an import, a new untitled document) clears it. Keeping the
+    /// previous document's key is how a local file's contents were once written
+    /// into somebody else's stored document (issue #92).
+    ///
+    /// The conversation moves in the same call because the daemon files threads
+    /// under the key too: a different key is a different conversation, so the
+    /// replaced document's pins must not be painted over its successor — and a
+    /// document with no key has no conversation to show at all.
+    ///
+    /// ## Why this is not part of `clear_document_derived`
+    ///
+    /// That runs on *every* document replacement, including the live-sync apply
+    /// that re-installs the very same server document the tab already had
+    /// (`EditorState::replace_document_from_sync`). Clearing the key there would
+    /// erase a tab's identity every time the daemon's copy of it landed, which
+    /// is the opposite of the rule above. So the key is moved by the seam that
+    /// knows WHERE the document came from, not by the one that only knows a
+    /// document was replaced.
+    pub fn set_document_key(&mut self, key: Option<String>) {
+        self.file_key = key;
+        // `clear_for_document` keeps the list when the key is unchanged — the
+        // daemon files threads under the key, so the same key is the same
+        // conversation however many times its content is replaced.
+        self.comments.clear_for_document(self.file_key.as_deref());
+    }
+
     /// Clear transient UI state that references specific document nodes/pages
     /// or the (now-cleared) selection, so a wholesale document replacement
     /// ([`crate::EditorState::replace_document`]) can't leave hover highlights,

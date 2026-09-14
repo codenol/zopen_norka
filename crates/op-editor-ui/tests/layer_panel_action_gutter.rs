@@ -2,7 +2,11 @@ use op_editor_core::{EditorState, NodeId};
 use op_editor_ui::widgets::{LayerPanel, LayerPanelHit, PaintCx, Widget};
 use op_editor_ui::{Color, Point2D, Rect, RenderBackend, TextLayout};
 
-const PANEL_RECT: Rect = Rect::xywh(0.0, 0.0, 180.0, 168.0);
+// Tall enough to hold the sections that come before the layer list. The kit's
+// Recipes section sits above it, and at 168 px every layer row landed outside
+// the panel — a real finding, filed as #66, and not what this test measures.
+// What it measures is the horizontal gutter the row's actions sit in.
+const PANEL_RECT: Rect = Rect::xywh(0.0, 0.0, 180.0, 600.0);
 const LAYER_ROW_HEIGHT: f32 = 28.0;
 const ROW_FONT: f32 = 13.0;
 const MEASURED_CHAR_WIDTH: f32 = 5.2;
