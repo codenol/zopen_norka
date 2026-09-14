@@ -637,7 +637,11 @@ impl EditorUiState {
         // node of ONE document, and the threads the daemon answers for the next
         // key are a different conversation entirely. Keeping them would paint
         // pins on elements that inherited an id and described by somebody else.
-        self.comments.clear_for_document();
+        //
+        // The open key is passed so a replacement of the SAME document keeps its
+        // conversation — see `clear_for_document`, which is also what lets the
+        // read issued at open survive the document arriving after it.
+        self.comments.clear_for_document(self.file_key.as_deref());
     }
 }
 

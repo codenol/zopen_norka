@@ -33,6 +33,30 @@
 //! thread; everything else (somebody else's new thread, somebody else's reply)
 //! is only visible by asking again. So every write is followed by a re-read,
 //! and opening the panel or the popover asks for one too.
+//!
+//! ## Why opening a document asks for one
+//!
+//! A conversation read at open is the difference between a marker that answers
+//! "is there something here" and one that appears only after the tool is
+//! already on. Until this, the client held the list only while the comment tool
+//! was active, so a document full of open threads looked like a document nobody
+//! had ever discussed: the chrome said "no comments" when it meant "not asked",
+//! which is the one thing a marker must never say.
+//!
+//! The trigger is the (document key, identity epoch) pair, evaluated once per
+//! frame in [`tick`]. The key is what the daemon files a conversation under, so
+//! a different key is a different conversation; a different account changes what
+//! the daemon answers — and whether it answers at all. One read per document,
+//! never one per frame: see [`opened_read_wanted`] for the rule and [`OPENED`]
+//! for what it remembers.
+//!
+//! Deliberately NOT a trigger: saving and autosaving. A save cannot change a
+//! conversation (the threads are stored beside the document, not inside its
+//! version), so a read there would be a request that can only answer what is
+//! already held — and autosave fires every fifteen seconds during editing, which
+//! is a stream. The one save that does change what is addressable is the one
+//! that binds a document to a new key, and that arrives here as a key change,
+//! which is already a trigger.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -52,6 +76,59 @@ thread_local! {
     /// would apply an older thread over a newer one.
     static PENDING: RefCell<Option<Answered>> = const { RefCell::new(None) };
 
+    /// The document whose conversation this tab has already asked for.
+    ///
+    /// One slot rather than a set: the open document is one document, and a tab
+    /// that kept every key it had ever read would grow a string per document
+    /// open for the life of the page. Re-opening a document is therefore a
+    /// second read, which is correct — the reviewer navigated away and back, and
+    /// the conversation may well have moved while they were elsewhere.
+    ///
+    /// Not cleared when a document is closed, only overwritten: an empty value
+    /// would make the frame re-ask for the document that is still open.
+    static OPENED: RefCell<Option<OpenedRead>> = const { RefCell::new(None) };
+}
+
+/// What a document open was read under, so the same one is not read twice.
+///
+/// The identity epoch is part of the identity of a conversation, not decoration:
+/// the daemon answers threads per account (the same key is a 403 for an account
+/// the document is not shared with), so the same key under a different account is
+/// a different answer and has to be asked for again.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OpenedRead {
+    key: String,
+    epoch: u64,
+}
+
+/// Whether the document now open is one whose conversation has not been read.
+///
+/// Pure, so the rule — which is the whole of "one request per document" — can be
+/// asserted without a window. `Some(read)` means "ask for this, and remember it";
+/// `None` means "nothing to do this frame".
+///
+/// The three refusals are deliberate:
+/// - no transport: a host without the daemon's comment client has no
+///   conversation to read (see `CommentsUiState::transport`);
+/// - no key: a document that was never stored has no conversation and no
+///   address to ask about;
+/// - already read: the same key under the same identity, which is every frame
+///   after the first.
+pub(crate) fn opened_read_wanted(
+    already: Option<&OpenedRead>,
+    key: Option<&str>,
+    epoch: u64,
+    transport: bool,
+) -> Option<OpenedRead> {
+    if !transport {
+        return None;
+    }
+    let key = key?;
+    let wanted = OpenedRead {
+        key: key.to_string(),
+        epoch,
+    };
+    (already != Some(&wanted)).then_some(wanted)
 }
 
 /// What one request was, so its answer can be applied in the right way.
@@ -68,6 +145,14 @@ pub(crate) enum AnswerKind {
 #[derive(Debug)]
 struct Answered {
     kind: AnswerKind,
+    /// The document the request was issued for.
+    ///
+    /// Carried with the answer rather than read from the state when it lands:
+    /// a list that arrives after the reviewer opened another document still
+    /// describes the document it was asked about, and installing it under the
+    /// now-open key would make the next replacement of that key keep a
+    /// conversation that is not its own.
+    key: Option<String>,
     result: Result<Answer, CommentApiError>,
 }
 
@@ -330,22 +415,28 @@ fn comments_url(key: &str, suffix: &str) -> String {
 }
 
 /// Park an answer for the next frame.
-fn park(kind: AnswerKind, result: Result<Answer, CommentApiError>) {
-    PENDING.with(|pending| *pending.borrow_mut() = Some(Answered { kind, result }));
+fn park(kind: AnswerKind, key: Option<String>, result: Result<Answer, CommentApiError>) {
+    PENDING.with(|pending| *pending.borrow_mut() = Some(Answered { kind, key, result }));
 }
 
 /// Read the document's conversation again.
 fn fetch_threads(key: String) {
     let url = comments_url(&key, "");
+    let key_for_answer = key.clone();
     let on_response: Rc<dyn Fn(u16, String)> = Rc::new(move |status, body| {
         park(
             AnswerKind::List,
+            Some(key_for_answer.clone()),
             decode_threads(status, &body).map(Answer::Threads),
         );
         crate::repaint_coalescer::request();
     });
     if !crate::live_sync::get_with_status(&url, on_response) {
-        park(AnswerKind::List, Err(CommentApiError::RequestFailed));
+        park(
+            AnswerKind::List,
+            Some(key),
+            Err(CommentApiError::RequestFailed),
+        );
         crate::repaint_coalescer::request();
     }
 }
@@ -356,6 +447,9 @@ fn post_thread(key: &str, suffix: &str, body: Option<String>) {
     let on_response: Rc<dyn Fn(u16, String)> = Rc::new(move |status, body| {
         park(
             AnswerKind::Written,
+            // A write answers one thread, not a list: it does not say what
+            // document the held list is about, so it does not claim to.
+            None,
             decode_thread(status, &body).map(|thread| Answer::Thread(Box::new(thread))),
         );
         crate::repaint_coalescer::request();
@@ -365,13 +459,26 @@ fn post_thread(key: &str, suffix: &str, body: Option<String>) {
     // 400 there rather than a body-less success.
     let body = body.unwrap_or_else(|| "{}".to_string());
     if !crate::live_sync::post_json_with_status(&url, &body, on_response) {
-        park(AnswerKind::Written, Err(CommentApiError::RequestFailed));
+        park(
+            AnswerKind::Written,
+            None,
+            Err(CommentApiError::RequestFailed),
+        );
         crate::repaint_coalescer::request();
     }
 }
 
 /// Perform one queued request against `key`.
 fn dispatch(request: CommentRequest, key: &str) {
+    // The host target has no `window`: every `web_sys` call is a wasm import
+    // that panics off wasm32, so a native test cannot let a request reach the
+    // XHR. It stops at this seam instead, which is where "the frame put this on
+    // the wire" is the question being asked — see `tests::hold_wire`.
+    #[cfg(test)]
+    if hold_wire::holding() {
+        hold_wire::record(&request, key);
+        return;
+    }
     match request {
         CommentRequest::Reload => fetch_threads(key.to_string()),
         CommentRequest::Create { anchor, text } => {
@@ -411,8 +518,8 @@ fn note_failure(ui: &mut CommentsUiState, error: &CommentApiError) {
     ui.note_write_error(error.to_write_error());
 }
 
-/// One frame of comment traffic: install what arrived, then send what the
-/// widget layer asked for.
+/// One frame of comment traffic: install what arrived, note a document that has
+/// not been read yet, then send what is queued.
 ///
 /// A request that cannot be sent this frame is not taken from the state at all
 /// — the drain happens under a borrow this function took, and a borrow it could
@@ -425,13 +532,36 @@ pub(crate) fn tick<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let mut dirty = false;
 
     // 1. Install an answer that arrived while the shell was borrowed.
-    if let Some(Answered { kind, result }) = PENDING.with(|pending| pending.borrow_mut().take()) {
+    if let Some(Answered { kind, key, result }) =
+        PENDING.with(|pending| pending.borrow_mut().take())
+    {
         let editor = borrowed.host_mut().editor_state_mut();
-        apply(&mut editor.editor_ui.comments, kind, result);
+        apply(&mut editor.editor_ui.comments, key, kind, result);
         dirty = true;
     }
 
-    // 2. Send what the widget layer queued.
+    // 2. A document can become open with a conversation nobody has read (see the
+    //    module notes). The request goes through the same queue and the same
+    //    drain below as one the widget layer asked for, so there is still
+    //    exactly one read per document open however many surfaces want it.
+    {
+        let epoch = crate::identity_epoch::epoch();
+        let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
+        let wanted = OPENED.with(|opened| {
+            opened_read_wanted(
+                opened.borrow().as_ref(),
+                ui.file_key.as_deref(),
+                epoch,
+                ui.comments.transport,
+            )
+        });
+        if let Some(read) = wanted {
+            OPENED.with(|opened| *opened.borrow_mut() = Some(read));
+            ui.comments.request_reload();
+        }
+    }
+
+    // 3. Send what the widget layer queued.
     let (key, requests) = {
         let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
         let requests = ui.comments.take_requests();
@@ -488,9 +618,14 @@ pub(crate) fn tick<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
 }
 
 /// Fold one answer into the state.
-fn apply(ui: &mut CommentsUiState, kind: AnswerKind, result: Result<Answer, CommentApiError>) {
+fn apply(
+    ui: &mut CommentsUiState,
+    key: Option<String>,
+    kind: AnswerKind,
+    result: Result<Answer, CommentApiError>,
+) {
     match (kind, result) {
-        (_, Ok(Answer::Threads(threads))) => ui.install_threads(threads),
+        (_, Ok(Answer::Threads(threads))) => ui.install_threads_for_key(key, threads),
         (_, Ok(Answer::Thread(thread))) => {
             let id = thread.id;
             let open = ui.open_thread;
@@ -510,6 +645,58 @@ fn apply(ui: &mut CommentsUiState, kind: AnswerKind, result: Result<Answer, Comm
             }
         }
         (_, Err(error)) => note_failure(ui, &error),
+    }
+}
+
+/// Recording in place of sending, for the tests that assert what a frame sends.
+///
+/// A host-target test cannot use the transport at all: `web_sys` is a set of
+/// wasm imports and every one of them panics off wasm32, so `XmlHttpRequest`
+/// is not something a native test can call. Holding the wire lets the REAL frame
+/// path run — the open-document gate, the widget queue, the drain, the write's
+/// follow-up read — and asserts on what it would have sent, which is the part
+/// that can be wrong: a read that never happens, a second read for the same
+/// document, a read for the wrong key.
+#[cfg(test)]
+pub(crate) mod hold_wire {
+    use std::cell::{Cell, RefCell};
+
+    use op_editor_core::editor_ui_state::CommentRequest;
+
+    thread_local! {
+        static HOLDING: Cell<bool> = const { Cell::new(false) };
+        static SENT: RefCell<Vec<(CommentRequest, String)>> = const { RefCell::new(Vec::new()) };
+    }
+
+    /// Start holding, and forget what a previous hold recorded.
+    ///
+    /// There is no counterpart: a test never hands the wire back, because the
+    /// transport cannot run on this target at all.
+    pub(crate) fn hold() {
+        HOLDING.with(|holding| holding.set(true));
+        SENT.with(|sent| sent.borrow_mut().clear());
+    }
+
+    pub(crate) fn holding() -> bool {
+        HOLDING.with(Cell::get)
+    }
+
+    pub(crate) fn record(request: &CommentRequest, key: &str) {
+        SENT.with(|sent| sent.borrow_mut().push((request.clone(), key.to_string())));
+    }
+
+    /// Everything the frames since `hold` asked to send, in order.
+    pub(crate) fn sent() -> Vec<(CommentRequest, String)> {
+        SENT.with(|sent| sent.borrow().clone())
+    }
+
+    /// Just the reads, which is what most of these tests are about.
+    pub(crate) fn reads() -> Vec<String> {
+        sent()
+            .into_iter()
+            .filter(|(request, _)| *request == CommentRequest::Reload)
+            .map(|(_, key)| key)
+            .collect()
     }
 }
 
