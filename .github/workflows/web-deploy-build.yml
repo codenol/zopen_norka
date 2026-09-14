@@ -1,0 +1,447 @@
+name: Web deploy build (daemon binary + web bundle)
+
+# Issue #74 — the release binary used to be built ON the production server, next
+# to the mail server and five sites, on a box where the compiler and those
+# services fight over six cores. This workflow builds the two halves of a web
+# deployment on a GitHub runner instead and hands them over as artifacts:
+#
+#   1. `op-host-web-server` — the headless `--serve-web` daemon, Linux x86_64.
+#   2. `web-bundle/`       — the CanvasKit wasm bundle (`crates/op-host-web/pkg`
+#                            plus the vendored `canvaskit/`), the directory the
+#                            daemon resolves as `<exe_dir>/web-bundle`.
+#
+# Publishing is deliberately out of scope: both are plain run artifacts, never
+# release assets. How they reach a server is a human decision.
+#
+# ── Why this is NOT `cargo build --workspace` ────────────────────────────────
+# DO NOT "simplify" either job into a workspace build. The workspace also holds
+# the desktop host (winit + accesskit + a GL-linked skia), the mobile hosts and
+# the engine FFI/JNI crates; none of them is deployed to the web server, and
+# building them here costs tens of minutes of runner time — the exact cost this
+# issue exists to remove from the production box. The two `-p` selections below
+# are the whole deliverable. The full-workspace lanes already exist and stay
+# where they are: `rust-multiplatform.yml` (push/PR compile guard) and
+# `rust-release.yml` (tagged desktop installers; it needs the protected
+# `release-production` environment and publishes a GitHub release).
+#
+# ── Relationship to the existing web workflows (no duplicated recipes) ───────
+# `wasm-bundle-build.yml` already gates the CanvasKit bundle on push/PR and
+# uploads an `op-web-bundle` artifact with the same layout. This workflow does
+# not re-implement that recipe: it calls the SAME single source of truth,
+# `tools/check-wasm-bundle.sh` (cargo build `--features canvaskit` ->
+# `wasm-bindgen --target web` -> `tools/stage-web-assets.sh` -> 0-env-import
+# assert -> `wasm-opt -Oz` -> gzip ceiling), and the same headless-boundary and
+# browser-smoke guards. What it adds over that gate is the pairing: a tagged or
+# dispatched run here yields the daemon AND the bundle it was built against, so
+# a deployment is one download from one run rather than two workflows.
+# `wasm-bundle-check.yml` is untouched and keeps its wasm32 cargo-check /
+# cargo-deny focus.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  # PR: prove the DEPLOY RECIPE still works, but publish nothing (the upload
+  # steps below are gated on the event name, and the smoke job needs the
+  # artifacts, so it stands down for pull requests too).
+  #
+  # This overlaps `rust-multiplatform.yml` on purpose. That lane proves the
+  # crates still compile; it cannot notice that this lane's own assumptions
+  # rotted — a Cargo.lock bump of wasm-bindgen against the pinned 0.2.117 CLI, a
+  # skia-safe bump against the digest-pinned archive key, an apt list that lost
+  # a library the linker needs. Left to the tag, those break on release day.
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+      - 'vendor/jian/**'
+      - 'tools/check-wasm-bundle.sh'
+      - 'tools/check-web-server-headless.sh'
+      - 'tools/check-web-browser-smoke.sh'
+      - 'tools/stage-web-assets.sh'
+      - 'tools/pinned-release-tools.sh'
+      - '.github/workflows/web-deploy-build.yml'
+
+# Least privilege: nothing here reads or writes anything beyond the checkout,
+# and there are no secrets in this file.
+permissions:
+  contents: read
+
+concurrency:
+  # Ref-scoped, so a tag run is never cancelled by a branch run.
+  group: web-deploy-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-server:
+    name: op-host-web-server (x86_64-unknown-linux-gnu)
+    # ubuntu-24.04 matches the Linux lane of `rust-release.yml`, which is the
+    # floor the project already ships. It is also a glibc floor: a binary built
+    # here needs glibc >= 2.39 on the machine that runs it, which is printed
+    # into the run summary below so whoever deploys can compare it with
+    # `ldd --version` on the server before replacing anything. If the server
+    # turns out to be older (Debian 12 is 2.36), move this job into the
+    # `rust:1.94-bookworm` container `Dockerfile.web-rust` builds the daemon in
+    # — do not "fix" it by adding a static-link flag nobody has tested.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # vendor/jian, vendor/casement, vendor/agent are submodules; the
+          # daemon's graph reaches jian through op-editor-ui/op-host-services,
+          # so an unchecked-out submodule is a build failure, not a warning.
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.94'
+          targets: x86_64-unknown-linux-gnu
+
+      # Keyed on Cargo.lock: a dependency bump produces a cold build, anything
+      # else restores the previous one through `restore-keys`. `target/` carries
+      # both the release artifacts and skia-bindings' extracted archive.
+      # (The rest of `.github/workflows/` uses Swatinem/rust-cache; swap the one
+      # `uses:` line if the repo would rather have a single cache action.)
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-op-host-web-server-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-op-host-web-server-
+
+      # The daemon is GL-free, but it still links skia-bindings (raster + PDF
+      # export), so a bare runner fails at link time without these:
+      #   pkg-config          -> openssl-sys build script
+      #   libssl-dev          -> OpenSSL, linked for SDK / native-tls deps
+      #   libfreetype-dev     -> skia's textlayout: FreeType
+      #   libfontconfig1-dev  -> skia's textlayout: FontConfig
+      # (The first build on the server died on exactly freetype/fontconfig.)
+      #
+      # Deliberately NOT installed, though a desktop build needs them:
+      #   libgl1-mesa-dev / libx11-dev — no `gl`/`egl`/`vulkan` feature is
+      #     enabled anywhere in this graph; `op-host-services` takes skia-safe
+      #     with `binary-cache,jpeg,pdf,textlayout` only, so nothing links
+      #     libGL/libX11. The step right below fails the job if that ever
+      #     changes, which is why the GL packages are absent rather than
+      #     merely unnecessary.
+      #   libsqlite3-dev — the daemon's rusqlite is declared with `bundled`
+      #     (crates/op-host-services/Cargo.toml), so SQLite is compiled from the
+      #     crate's own amalgamation and no system libsqlite3 is consulted.
+      - name: Install link-time prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(pkg-config libssl-dev libfreetype-dev libfontconfig1-dev)
+          for attempt in 1 2 3 4; do
+            if sudo env DEBIAN_FRONTEND=noninteractive apt-get \
+                -o Acquire::ForceIPv4=true \
+                -o Acquire::Retries=3 \
+                -o Acquire::http::Timeout=30 \
+                update && \
+              sudo env DEBIAN_FRONTEND=noninteractive apt-get \
+                -o Acquire::ForceIPv4=true \
+                -o Acquire::Retries=3 \
+                -o Acquire::http::Timeout=30 \
+                install --yes "${packages[@]}"; then
+              break
+            fi
+            if [[ "$attempt" == 4 ]]; then
+              echo "::error::apt prerequisites failed after $attempt attempts"
+              exit 1
+            fi
+            sleep $((attempt * 20))
+          done
+
+      # The repo's own guard, not a new one: it walks the feature-resolved
+      # dependency graph and fails if winit/glutin/casement/muda/accesskit
+      # adapters or a `gl` skia-safe edge leaked into the daemon. Cheap and it
+      # fails before the expensive build, so a leak costs seconds, not minutes.
+      - name: Verify the headless (GL-free) boundary
+        run: bash tools/check-web-server-headless.sh
+
+      # skia-bindings 0.97.2 can either compile Skia from source (tens of
+      # minutes, needs the full Skia toolchain) or consume a prebuilt archive.
+      # `pinned-skia-binaries` turns on `skia-safe/no-compile`, and this step
+      # stages the digest-verified archive the Rust web image already uses
+      # (`Dockerfile.web-rust`, same key + same SHA-256) and exports
+      # SKIA_BINARIES_URL for the build step. `no-compile` also means a wrong
+      # archive is a loud failure instead of a silent multi-hour fallback. The
+      # `web` profile is the reviewed one for this target precisely because the
+      # daemon links no GL.
+      - name: Stage digest-pinned Skia archive
+        shell: bash
+        run: |
+          tools/pinned-release-tools.sh skia web x86_64-unknown-linux-gnu \
+            "$RUNNER_TEMP/openpencil-skia-x86_64-unknown-linux-gnu"
+
+      # Exactly the binary `Dockerfile.web-rust` builds for production, with one
+      # explicit `--target` because an artifact is cross-checked against a named
+      # triple. `--locked` keeps Cargo.lock authoritative.
+      - name: Build op-host-web-server (release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p op-host-web-server \
+            --target x86_64-unknown-linux-gnu \
+            --release --locked \
+            --features pinned-skia-binaries
+
+      - name: Stage + smoke-check the binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          install -m 0755 \
+            target/x86_64-unknown-linux-gnu/release/op-host-web-server \
+            dist/op-host-web-server
+
+          file dist/op-host-web-server
+          ls -l dist/op-host-web-server
+          echo "linked libraries:"
+          ldd dist/op-host-web-server || true
+
+          # Running the binary proves the ELF actually loads on a clean runner —
+          # a missing shared library fails here, as a dynamic-linker error,
+          # rather than on the server. With no argument it is a usage error
+          # (exit != 0, "missing mode"), which is the cheapest possible smoke.
+          smoke="$RUNNER_TEMP/op-host-web-server-smoke.log"
+          if dist/op-host-web-server >"$smoke" 2>&1; then
+            echo "::error::the daemon accepted an empty command line"
+            exit 1
+          fi
+          grep -q 'missing mode' "$smoke" || {
+            echo "::error::unexpected daemon output (missing library?)"
+            cat "$smoke"
+            exit 1
+          }
+
+          sha256sum dist/op-host-web-server | tee "$RUNNER_TEMP/sha256.txt"
+          {
+            echo "### op-host-web-server (x86_64-unknown-linux-gnu)"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/sha256.txt"
+            ls -l dist/op-host-web-server
+            # The glibc floor of this artifact, next to its hash: a deployment
+            # is "replace the binary and restart", so the target machine's
+            # `ldd --version` has to be at least this.
+            ldd --version | head -n1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload daemon binary
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: op-host-web-server-x86_64-unknown-linux-gnu
+          path: dist/op-host-web-server
+          if-no-files-found: error
+          retention-days: 14
+
+  web-bundle:
+    name: CanvasKit web bundle (wasm32-unknown-unknown)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.94'
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-op-host-web-wasm-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-op-host-web-wasm-
+
+      # wasm-bindgen's JS glue and the linked runtime are version-coupled: a CLI
+      # that differs from the `wasm-bindgen` crate in Cargo.lock fails with a
+      # schema-version panic at mount time. The version is read from Cargo.lock
+      # and installed through the repo's digest-pinned installer — the same
+      # route `rust-release.yml` and `Dockerfile.web-rust` take — rather than
+      # with a hand-written `cargo install`.
+      - name: Install digest-pinned wasm-bindgen-cli (locked version)
+        shell: bash
+        run: |
+          version="$(awk '/^name = "wasm-bindgen"$/{found=1; next} found && /^version = /{gsub(/[" ]/,"",$3); print $3; exit}' Cargo.lock)"
+          if [ -z "$version" ]; then
+            echo "::error::could not resolve wasm-bindgen from Cargo.lock"
+            exit 1
+          fi
+          # `pinned-release-tools.sh` carries a reviewed build of 0.2.117 only,
+          # so a lockfile bump has to be re-pinned there too — that is the
+          # point of the guard, not an obstacle to work around.
+          if [ "$version" != 0.2.117 ]; then
+            echo "::error::Cargo.lock wasm-bindgen must match the reviewed 0.2.117 CLI"
+            exit 1
+          fi
+          echo "wasm-bindgen-cli $version (matches Cargo.lock)"
+          tools/pinned-release-tools.sh cargo-cli wasm-bindgen-cli \
+            "$RUNNER_TEMP/wasm-bindgen-cli-0.2.117"
+          # By absolute path, not by name: the installer exports its bin dir via
+          # GITHUB_PATH, which GitHub applies to the NEXT step, not this one.
+          # Later steps (the gate script) do get it by name.
+          pinned="$RUNNER_TEMP/wasm-bindgen-cli-0.2.117/bin/wasm-bindgen"
+          reported="$("$pinned" --version)"
+          echo "$reported"
+          if [ "$reported" != "wasm-bindgen $version" ]; then
+            echo "::error::installed wasm-bindgen CLI reports '$reported', expected 'wasm-bindgen $version'"
+            exit 1
+          fi
+
+      # Ubuntu's apt binaryen is v108 (2022) and rejects rustc 1.94's wasm
+      # feature set; the same digest-pinned release_123 the bundle gate uses.
+      - name: Install digest-pinned Binaryen (wasm-opt)
+        shell: bash
+        run: tools/pinned-release-tools.sh binaryen "$GITHUB_WORKSPACE"
+
+      # Single source of truth: cargo build `--features canvaskit` ->
+      # wasm-bindgen --target web --out-dir crates/op-host-web/pkg ->
+      # stage-web-assets.sh -> 0-env-import assert -> wasm-opt -Oz -> gzip
+      # ceiling. `node` + `gzip` (both on the runner) are its only other needs.
+      - name: Build + gate the CanvasKit bundle
+        run: bash tools/check-wasm-bundle.sh
+
+      # Assemble the layout `crates/op-host-services/src/web_static.rs` actually
+      # resolves: `<exe_dir>/web-bundle` holds the wasm-bindgen `pkg/` contents
+      # (staged at its root, so `/pkg/<file>` maps onto them) plus the vendored
+      # CanvasKit under `canvaskit/`. Identical to the Rust web image and to
+      # `wasm-bundle-build.yml`.
+      - name: Assemble deployable web-bundle/
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf web-bundle
+          mkdir -p web-bundle
+          cp -R crates/op-host-web/pkg/. web-bundle/
+          cp -R crates/op-host-web/assets/canvaskit web-bundle/canvaskit
+
+          # `snippets/` is generated by wasm-bindgen for the hand-written inline
+          # JS modules (op_ck_bridge / op_ck_image_cache / figma_temp_worker).
+          # A bundle shipped without it answers 404 for those modules and the
+          # editor never mounts — it has happened once already, so it is a hard
+          # gate here rather than a footnote.
+          test -s web-bundle/op_host_web_bg.wasm \
+            || { echo "::error::web-bundle is missing op_host_web_bg.wasm"; exit 1; }
+          test -s web-bundle/op_host_web.js \
+            || { echo "::error::web-bundle is missing the wasm-bindgen JS glue"; exit 1; }
+          if [ ! -d web-bundle/snippets ] || [ -z "$(find web-bundle/snippets -type f -print -quit)" ]; then
+            echo "::error::web-bundle/snippets is missing or empty — the page would 404 on the JS snippet modules"
+            exit 1
+          fi
+          test -s web-bundle/canvaskit/canvaskit.js \
+            || { echo "::error::web-bundle is missing canvaskit/canvaskit.js"; exit 1; }
+
+          # Runtime product assets the browser fetches from `/pkg/assets/…`;
+          # without them previews degrade to placeholders and the icon panel
+          # stays empty.
+          for required in assets/prompt_center_previews assets/scene_template_previews \
+                          assets/scene_templates assets/iconify-catalog-core.json; do
+            test -e "web-bundle/$required" \
+              || { echo "::error::web-bundle is missing $required"; exit 1; }
+          done
+
+          echo "web-bundle contents:"
+          find web-bundle -maxdepth 2 | sort
+          echo "snippets:"
+          find web-bundle/snippets -type f | sort
+          echo "staged runtime assets: $(find web-bundle/assets -type f | wc -l) files"
+
+          du -sh web-bundle | tee "$RUNNER_TEMP/bundle-size.txt"
+          {
+            echo "### CanvasKit web bundle"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/bundle-size.txt"
+            ( cd web-bundle && sha256sum op_host_web_bg.wasm )
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload web bundle
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: op-web-bundle
+          path: web-bundle
+          if-no-files-found: error
+          retention-days: 14
+
+  # The two artifacts above are the deliverable and are published whether or not
+  # this job passes. This one is the honest check that they are a working PAIR:
+  # it runs the daemon against the bundle it was built with and mounts the page
+  # in headless Chrome, which is the only way the `/pkg/snippets/...` route
+  # (the historical 404) is actually exercised. Browser smokes are the flakiest
+  # thing in this repo, so a red here means "look before deploying", not "the
+  # artifacts are missing".
+  smoke:
+    name: Mount the published pair in a browser
+    needs: [web-server, web-bundle]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the published artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: op-host-web-server-x86_64-unknown-linux-gnu
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: op-web-bundle
+          path: web-bundle
+
+      # Runtime counterparts of the build-time packages: the daemon loads
+      # OpenSSL + fontconfig/freetype at start-up.
+      - name: Install runtime libraries + fonts
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=(libssl3 libfreetype6 libfontconfig1 fonts-noto-cjk)
+          for attempt in 1 2 3; do
+            if sudo env DEBIAN_FRONTEND=noninteractive apt-get \
+                -o Acquire::ForceIPv4=true \
+                -o Acquire::Retries=3 \
+                update && \
+              sudo env DEBIAN_FRONTEND=noninteractive apt-get \
+                -o Acquire::ForceIPv4=true \
+                -o Acquire::Retries=3 \
+                install --yes "${packages[@]}"; then
+              break
+            fi
+            if [[ "$attempt" == 3 ]]; then
+              echo "::error::apt runtime prerequisites failed after $attempt attempts"
+              exit 1
+            fi
+            sleep $((attempt * 20))
+          done
+
+      - name: Browser-smoke the daemon + bundle
+        shell: bash
+        env:
+          # Both halves are already built and downloaded; the script must not
+          # rebuild either (a bare `cargo build -p op-host-web-server` here
+          # would compile Skia from source).
+          OPENPENCIL_SKIP_WASM_BUILD: '1'
+          OPENPENCIL_SKIP_SERVER_BUILD: '1'
+          OPENPENCIL_WEB_SERVER_BIN: ${{ github.workspace }}/dist/op-host-web-server
+          OPENPENCIL_WEB_BUNDLE_DIR: ${{ github.workspace }}/web-bundle
+          OPENPENCIL_CANVASKIT_DIR: ${{ github.workspace }}/web-bundle/canvaskit
+        run: |
+          set -euo pipefail
+          chmod +x dist/op-host-web-server
+          google-chrome --version || chromium --version
+          bash tools/check-web-browser-smoke.sh

@@ -12,6 +12,13 @@ here at a glance.
 
 ### Added
 
+- **The release binary is built in CI, not on the production server.** A new
+  `Web deploy build` workflow (on demand, on a `v*` tag, and on pull requests
+  without publishing) builds `op-host-web-server` for
+  `x86_64-unknown-linux-gnu` together with the CanvasKit web bundle, and hands
+  both over as run artifacts. Nothing is published: how an artifact reaches a
+  server stays a human decision.
+
 - **Signing in to a deployment, with the deployment's own accounts.** The
   online daemon resolves every request against the account store that landed in
   the previous change: a session cookie (`norka_session`, `HttpOnly`,
