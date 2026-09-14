@@ -255,9 +255,15 @@ fn resolve_design_thinking(model: Option<&str>, chat_default: ThinkingMode) -> T
 ///
 /// Mirrors `launch_if_pending`'s builtin chat branch but uses the
 /// design toolset and a section-batch-sized per-turn budget.
+///
+/// `attachments` is the turn's already-drained set (the launch path drains
+/// `pending_attachments` once, before any route is built — issue #64). The
+/// built-in tool loop cannot open a local file, so the prompt names each
+/// attachment the model did not receive rather than letting it describe one.
 pub(super) fn launch_design_loop_turn(
     host: &mut WidgetHostNative,
     user_text: String,
+    attachments: &super::chat_turn_attachments::TurnAttachments,
     current_chat: &mut Option<ChatSession>,
     current_design: &mut Option<DesignSession>,
 ) -> bool {
@@ -293,7 +299,9 @@ pub(super) fn launch_design_loop_turn(
     let agent_team_size = host.editor_state().chat.agent_team_size;
     let chat = &mut host.editor_state_mut().chat;
     let effort = chat.effort_level;
-    let attachments = std::mem::take(&mut chat.pending_attachments);
+    // Already drained by the launch path for this turn — see the module docs
+    // of `chat_turn_attachments` (issue #64).
+    let attachments = attachments.for_chat();
     // Protocol base + prompt-matched domain depth (dashboard density floors,
     // mobile three-section architecture, …) — the same content supply the
     // orchestrator injects per subtask. Without it the loop model designs

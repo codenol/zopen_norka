@@ -26,35 +26,63 @@ use super::ChatSession;
 mod chat_design_request;
 use chat_design_request::build_design_request;
 
+// The turn's staged attachments, drained once by `launch_if_pending` and
+// handed to every route — see the module docs (issue #64).
+#[path = "chat_turn_attachments.rs"]
+mod chat_turn_attachments;
+use chat_turn_attachments::TurnAttachments;
+
 /// Build the model-aware request while the live chat selection is still
 /// attached, then take the narrowed worker snapshot.
 ///
 /// `narrowed_snapshot` deliberately detaches `EditorState::chat`; reversing
 /// these two operations therefore erases the selected builtin/ACP identity
 /// and makes the orchestrator resolve `model=None` as Full tier.
+///
+/// `attachments` is the turn's already-drained set (see
+/// [`TurnAttachments`]). This function must NOT drain the chat state itself:
+/// doing so is what left the chat and modify routes of the same turn with an
+/// empty list and lost the user's picture without a word (issue #64).
 fn prepare_design_request_and_snapshot(
     host: &mut WidgetHostNative,
     prompt: String,
     append_context: Option<op_orchestrator::AppendContext>,
+    attachments: &TurnAttachments,
 ) -> (op_orchestrator::DesignRequest, EditorState) {
-    let reference_attachments = std::mem::take(&mut host.editor_state_mut().chat.pending_attachments)
-        .into_iter()
-        .filter(|a| a.is_image())
-        .map(|a| op_orchestrator::ReferenceAttachment {
-            name: a.name,
-            media_type: a.media_type,
-            data: a.data,
-        })
-        .collect();
-    let request = build_design_request(
+    let mut request = build_design_request(
         prompt,
         host.editor_state(),
         append_context,
-        reference_attachments,
+        attachments.for_design(),
     );
+    // The reference channel is typed as an image, so a staged document cannot
+    // ride it. Say so in the prompt rather than letting the planner describe a
+    // file it never received.
+    request.prompt.push_str(&attachments.design_omission_note());
     let initial_state =
         op_editor_core::request_snapshot::narrowed_snapshot(host.editor_state_mut());
     (request, initial_state)
+}
+
+/// Tell the person when the design turn about to run leaves staged files
+/// behind. Only the routes this module picks synchronously can say it — the
+/// same note rides the design prompt for the asynchronously classified CLI
+/// route, where the UI thread does not yet know whether the design route is
+/// the one that will run.
+fn note_design_attachment_omissions(host: &mut WidgetHostNative, attachments: &TurnAttachments) {
+    let Some(note) = attachments.design_omission_chat_note() else {
+        return;
+    };
+    let chat = &mut host.editor_state_mut().chat;
+    if let Some(msg) = chat
+        .messages
+        .iter_mut()
+        .rev()
+        .find(|m| m.role == op_editor_core::chat::ChatRole::User)
+    {
+        msg.content.push_str(&note);
+        host.mark_editor_state_dirty();
+    }
 }
 
 // Design-agent-loop helpers (flag gate + provider builder + turn launcher)
@@ -91,6 +119,11 @@ pub fn launch_if_pending(
     let Some(user_text) = host.editor_state_mut().chat.pending_send.take() else {
         return false;
     };
+    // One drain per turn, before ANY route's request is built. The staged
+    // attachments belong to the turn that is about to run, whichever route the
+    // classifier picks, so every candidate request below reads this same value
+    // and none of them may take from the chat state again (issue #64).
+    let attachments = TurnAttachments::drain(host.editor_state_mut());
     host.mark_editor_state_dirty();
     let effective_user_text = resolve_turn_user_text(host.editor_state(), &user_text);
     // TS parity (ai-chat-handlers.ts:560-679): builtin / ACP entries
@@ -103,13 +136,25 @@ pub fn launch_if_pending(
         .map(|entry| entry.builtin_provider_id.is_some() || entry.acp_agent_id().is_some())
         .unwrap_or(false);
     if !is_builtin_or_acp {
-        if launch_cli_standard_turn(host, &effective_user_text, current_chat, current_design) {
+        if launch_cli_standard_turn(
+            host,
+            &effective_user_text,
+            &attachments,
+            current_chat,
+            current_design,
+        ) {
             return true;
         }
         // CLI transport construction failed — fall through to the
         // honest-error path below.
     } else if should_launch_direct_modify(host.editor_state(), &effective_user_text) {
-        if launch_direct_modify_turn(host, &effective_user_text, current_chat, current_design) {
+        if launch_direct_modify_turn(
+            host,
+            &effective_user_text,
+            &attachments,
+            current_chat,
+            current_design,
+        ) {
             return true;
         }
     } else if !op_host_services::chat_intent::is_non_request_text(&effective_user_text)
@@ -126,6 +171,7 @@ pub fn launch_if_pending(
         if launch_design_loop_turn(
             host,
             effective_user_text.clone(),
+            &attachments,
             current_chat,
             current_design,
         ) {
@@ -156,7 +202,13 @@ pub fn launch_if_pending(
                 host,
                 effective_user_text.clone(),
                 append_context,
+                &attachments,
             );
+            // The design route is the one that runs — say so when it had to
+            // leave a staged file behind. (The asynchronously classified CLI
+            // route cannot know yet, and only the model-facing note rides
+            // there; see `note_design_attachment_omissions`.)
+            note_design_attachment_omissions(host, &attachments);
             // Narrowed clone — this becomes the design worker's
             // `RemoteDocSink` mirror, which is only ever read through
             // `DocSink::state()` (`active_children` / `doc` / `components`).
@@ -211,7 +263,6 @@ pub fn launch_if_pending(
         let thinking = launch_design::design_turn_thinking_mode(host);
         let chat = &mut host.editor_state_mut().chat;
         let effort = chat.effort_level;
-        let attachments = std::mem::take(&mut chat.pending_attachments);
         let req = ChatRequest {
             system_prompt,
             user_message: effective_user_text.clone(),
@@ -219,7 +270,11 @@ pub fn launch_if_pending(
             max_output_tokens: 4096,
             thinking,
             effort,
-            attachments,
+            // The turn's staged attachments, drained once at the top of this
+            // function. The tool-executing builtin loop cannot open a local
+            // file, and says so in the prompt instead of accepting the picture
+            // in silence (`chat_attachment::prompt_with_undelivered_attachments`).
+            attachments: attachments.for_chat(),
             // Built-in entries carry their model inside the provider's
             // own config — see `selected_cli_model_id`.
             model: None,
@@ -243,48 +298,46 @@ pub fn launch_if_pending(
         super::finalize_design_session_if_needed(host, current_chat, "teardown-backstop");
         *current_chat = None;
         let name = selected_provider_label(host);
+        // The attachments are already out of `pending_attachments` (drained at
+        // the top of this function), so this error is the only place left that
+        // can tell the person they did not go anywhere (issue #64).
+        let unsent = attachments.unsent_note();
         let chat = &mut host.editor_state_mut().chat;
         if let Some(msg) = chat.messages.last_mut() {
             msg.content = format!(
                 "error: {name} chat is not available — no transport \
                  could be built for this selection. Pick another agent \
-                 via the model chip."
+                 via the model chip.{unsent}"
             );
             // The turn is aborted — `begin_send` created this bubble
             // as `streaming`; clear it so the panel doesn't keep
             // animating a stream that will never arrive.
             msg.streaming = false;
         }
-        // This turn consumed the staged attachments (they are already
-        // copied into the user message); drop them so they don't leak
-        // into the next send.
-        chat.pending_attachments.clear();
         host.mark_editor_state_dirty();
         // No session started; report the transcript change so the
         // caller repaints the error.
         return true;
     };
-    // Thread the per-turn knobs the chat panel carries into the
-    // request, then clear the staged attachments — they belong to
-    // this turn only. Every turn now carries the context-rich chat
-    // system prompt (TS buildChatSystemPrompt port) — CLI transports
-    // fold it (plus a history digest) into their prompt string.
+    // Thread the per-turn knobs the chat panel carries into the request;
+    // the attachments were drained once at the top of this function.
+    // Every turn now carries the context-rich chat system prompt (TS
+    // buildChatSystemPrompt port) — CLI transports fold it (plus a
+    // history digest) into their prompt string.
     let system_prompt = build_chat_system_prompt(host.editor_state(), &effective_user_text);
     let model = selected_cli_model_id(host);
     let chat = &mut host.editor_state_mut().chat;
     let thinking = chat.thinking_mode;
     let effort = chat.effort_level;
-    let attachments = std::mem::take(&mut chat.pending_attachments);
-    let req = ChatRequest {
+    let req = chat_turn_attachments::plain_chat_request(
         system_prompt,
-        user_message: effective_user_text,
+        effective_user_text,
         history,
-        max_output_tokens: 4096,
         thinking,
         effort,
-        attachments,
         model,
-    };
+        &attachments,
+    );
     super::finalize_design_session_if_needed(host, current_chat, "teardown-backstop");
     *current_chat = Some(ChatSession::start(provider, req));
     true
@@ -357,9 +410,18 @@ fn should_launch_direct_modify(state: &EditorState, user_text: &str) -> bool {
         && op_host_services::chat_intent::build_modify_plan(state, user_text).is_some()
 }
 
+/// The selection-scoped `generateDesignModification` turn (builtin / ACP
+/// selection with a modify-shaped prompt — the CLI selection routes the same
+/// request through `launch_cli_standard_turn`'s plan instead).
+///
+/// `attachments` is the turn's already-drained set: an attached reference must
+/// reach this turn as well, or "make it look like this picture" edits here
+/// while the model sees nothing (issue #64). The transport reports the files
+/// it cannot carry, and the plain-streaming built-in body inlines the rest.
 fn launch_direct_modify_turn(
     host: &mut WidgetHostNative,
     user_text: &str,
+    attachments: &TurnAttachments,
     current_chat: &mut Option<ChatSession>,
     current_design: &mut Option<DesignSession>,
 ) -> bool {
@@ -371,19 +433,17 @@ fn launch_direct_modify_turn(
     else {
         return false;
     };
-    let target_frame_ids = plan.target_frame_ids;
-    let request = ChatRequest {
-        system_prompt: plan.system_prompt,
-        user_message: plan.user_message,
-        max_output_tokens: 8192,
-        model: selected_cli_model_id(host),
-        // Structured-JSON turn: reasoning models (MiniMax-M3, GLM-5.x)
-        // burn the whole output budget inside <think> and emit zero
-        // nodes (measured: an M3 modify turn died in analysis prose).
-        // Same policy as the orchestrator's design subtasks.
-        thinking: op_ai::chat_provider::ThinkingMode::Disabled,
-        ..Default::default()
-    };
+    let target_frame_ids = plan.target_frame_ids.clone();
+    // Structured-JSON turn: reasoning models (MiniMax-M3, GLM-5.x) burn the
+    // whole output budget inside <think> and emit zero nodes (measured: an M3
+    // modify turn died in analysis prose). Same policy as the orchestrator's
+    // design subtasks.
+    let request = chat_turn_attachments::modify_request(
+        plan,
+        selected_cli_model_id(host),
+        op_ai::chat_provider::ThinkingMode::Disabled,
+        attachments,
+    );
     let (chat_tx, chat_rx) = mpsc::channel::<ChatDelta>();
     let (executor, tool_rx) = chat_tool_channel();
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -427,6 +487,7 @@ fn launch_direct_modify_turn(
 fn launch_cli_standard_turn(
     host: &mut WidgetHostNative,
     user_text: &str,
+    attachments: &TurnAttachments,
     current_chat: &mut Option<ChatSession>,
     current_design: &mut Option<DesignSession>,
 ) -> bool {
@@ -470,8 +531,12 @@ fn launch_cli_standard_turn(
     let system_prompt = build_chat_system_prompt(state, user_text);
     let modify_plan = op_host_services::chat_intent::build_modify_plan(state, user_text);
     let append_context = op_host_services::chat_intent::detect_append_intent(state, user_text);
-    let (design_request, initial_state) =
-        prepare_design_request_and_snapshot(host, user_text.to_string(), append_context);
+    let (design_request, initial_state) = prepare_design_request_and_snapshot(
+        host,
+        user_text.to_string(),
+        append_context,
+        attachments,
+    );
     // Narrowed clone — `CliTurnPlan::initial_state` ends up as the design
     // worker's `RemoteDocSink` mirror, read only through `DocSink::state()`.
     // See `op_editor_core::request_snapshot` for the field audit. Preparation
@@ -489,25 +554,27 @@ fn launch_cli_standard_turn(
     let chat = &mut host.editor_state_mut().chat;
     let thinking = chat.thinking_mode;
     let effort = chat.effort_level;
-    let attachments = std::mem::take(&mut chat.pending_attachments);
-    let chat_request = ChatRequest {
+    // Every route in the plan below carries the turn's staged attachments (see
+    // `plain_chat_request` / `modify_request` / `prepare_design_request_and_
+    // snapshot`): the classifier picks the route on the worker, AFTER these
+    // requests are built, so a route left without them can only answer about a
+    // picture it never received (issue #64).
+    let chat_request = chat_turn_attachments::plain_chat_request(
         system_prompt,
-        user_message: user_text.to_string(),
+        user_text.to_string(),
         history,
-        max_output_tokens: 4096,
         thinking,
         effort,
+        model.clone(),
         attachments,
-        model: model.clone(),
-    };
-    // TS generateDesignModification: fresh single-shot request — no
-    // history, no attachments, provider-default thinking.
-    let modify_request = modify_plan.map(|plan| ChatRequest {
-        system_prompt: plan.system_prompt,
-        user_message: plan.user_message,
-        max_output_tokens: 8192,
-        model: model.clone(),
-        ..Default::default()
+    );
+    let modify_request = modify_plan.map(|plan| {
+        chat_turn_attachments::modify_request(
+            plan,
+            model.clone(),
+            op_ai::chat_provider::ThinkingMode::Adaptive,
+            attachments,
+        )
     });
 
     // Channels for all three routes; the worker drops the unused
@@ -695,6 +762,10 @@ use providers::{chat_provider_for_selected_model, selected_provider_label};
 #[cfg(test)]
 #[path = "chat_session_launch_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chat_turn_attachment_wire_tests.rs"]
+mod attachment_wire_tests;
 
 #[cfg(test)]
 #[path = "chat_session_launch_selection_tests.rs"]

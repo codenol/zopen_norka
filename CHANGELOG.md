@@ -46,6 +46,28 @@ here at a glance.
   host an operator is sitting at. Writes the same `accounts.db` the daemon
   writes, in `OPENPENCIL_ONLINE_DATA_DIR` unless `--data-dir` says otherwise.
 
+- **An invitation can now actually be issued.** Accepting one worked and
+  issuing one had no front door at all, so a deployment could describe an
+  account it had no way to make. `POST /api/auth/admin/invites` now hands out
+  the link — returned once and stored nowhere but as a SHA-256, exactly as the
+  store already held it — and `GET /api/auth/admin/invites` is the list an
+  operator needs when somebody says the link does not work: who issued it, when
+  it was issued, when it stops being accepted, and whether anybody used it.
+  `POST /api/auth/admin/invites/revoke` withdraws one by the id the listing
+  gives it. `GET /api/auth/admin/users` is who is in the deployment, with their
+  roles, status and last sighting, and `POST /api/auth/admin/users/roles` +
+  `POST /api/auth/admin/users/status` change it. All of it is for an account
+  whose roles carry the account list — a guest or an ordinary contributor gets
+  the daemon's usual `403 {error:"admin-role-required"}`, and a caller with no
+  session gets `401`.
+
+  **`op admin invite [--roles a,b] [--email ADDR] [--origin URL]`** does the
+  same from a shell and prints the link, for the deployment whose operator has
+  no browser and for the script that makes one link per person. Roles are this
+  build's own vocabulary and are folded onto their wire spellings; a role the
+  build does not have is refused before anything is written, rather than stored
+  as a role that would silently grant nothing.
+
 - **The foundation of our own accounts.** A store of its own — users, sessions,
   invitations and one-time tokens — in a database beside the deployment's data
   rather than beside its documents, because accounts belong to a deployment and
@@ -142,6 +164,29 @@ here at a glance.
   the `NORKA_ADMIN_*` pair or `op admin create`.
 
 ### Fixed
+
+- **On the desktop, an attached image no longer disappears.** If a turn ran as a
+  chat or a modify request rather than a design request, the attachment had been
+  taken into the design request and was simply gone: the assistant answered as
+  if nothing had been attached, and the person was told nothing. The attachment
+  now goes to whichever route actually runs, and a turn that cannot start says
+  so — including that the attachment was not sent.
+
+  Where a route genuinely cannot carry a file, the model is told in the prompt
+  and the person is told in the transcript, instead of either being left to
+  assume it arrived.
+
+
+- **A local file can no longer be saved into somebody else's stored document.**
+  The tab kept the server key of the document it had open before, so opening a
+  `.op` file from disk left it holding the previous document's identity: Save
+  and autosave posted the local file's contents to `/api/files/<old key>/save`,
+  and the comment tool read and wrote the wrong document's conversation. The key
+  now belongs to the document and moves with it — every seam that installs a
+  document the server does not hold (open from disk, drag-and-drop, Figma/HTML
+  import, Open Recent, File → New, restoring a recovery draft) drops it, and the
+  seams that adopt a stored document's key set it. With no key, autosave goes to
+  the daemon's draft slot and the comment tool sends nothing at all.
 
 - **An attached screenshot now reaches the model — and the brief stops being
   invented when it does not.** The built-in API-key providers posted the turn's
