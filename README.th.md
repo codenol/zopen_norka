@@ -335,7 +335,6 @@ cat design.dsl | op design - # Pipe จาก stdin
 - Scene template center — แคตตาล็อกที่เรียกดูได้ของเทมเพลต 58 แบบใน 6 ฉาก เปิดจาก File ▸ New from template
 - Prompt center พร้อมรายการ web, dashboard, component และ modify พร้อมตัวอย่างพรีวิว prompt แบบภาพ
 - Asset center — แกลเลอรีแบบ responsive เต็มหน้าต่างพร้อมเทมเพลตแบบ dual-action และการนำเข้าสไตล์ DESIGN.md
-- [ส่วนขยาย Chrome web-capture](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — สแนปช็อตหน้าเว็บใดก็ได้เข้าสู่ OpenPencil พร้อมการจับ HTML / layout อย่างเที่ยงตรง; สแนปช็อตจะถูกส่งไปยัง inbox ของบัญชีคุณบน hub หรือดาวน์โหลดเป็นไฟล์ `.op` ที่พร้อมเปิดแบบออฟไลน์
 
 **การเชื่อมต่อ Git**
 
@@ -525,7 +524,6 @@ tools/check-version-sync.sh                        # Verify all managed versions
 - [x] การแก้ไขร่วมกัน — P2P ที่ยืนยันตัวตน, public relay และ hub ประจำภูมิภาค
 - [x] เด็คงานนำเสนอ — เทมเพลต, ตัวนำเสนอสไลด์โชว์ และการส่งออก PDF/HTML/PPTX/video
 - [x] Device login และการโฮสต์เว็บแบบ multi-tenant ออนไลน์
-- [x] ส่วนขยาย Chrome web-capture พร้อมการนำเข้า HTML / browser-snapshot
 - [ ] ระบบปลั๊กอิน
 
 ## ผู้มีส่วนร่วม

@@ -1,8 +1,8 @@
 //! Canonical color normalization for extension design evidence.
 //!
 //! Page background alpha is composited over white first. Every other
-//! foreground token is then composited over that opaque page background,
-//! matching `op-chrome-extension-core::design_md_palette::opaque_hex`.
+//! foreground token is then composited over that opaque page background, so no
+//! token carries partial alpha into the generated guide.
 
 pub(crate) fn normalize_design_color_evidence(root: &mut serde_json::Value) {
     let Some(object) = root.as_object_mut() else {

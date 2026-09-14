@@ -336,7 +336,6 @@ Prend en charge les chaînes en ligne, `@filepath` et stdin (`-`). Fonctionne av
 - Centre de modèles de scène — un catalogue parcourable de 58 modèles répartis sur six scènes, ouvert depuis Fichier ▸ Nouveau depuis un modèle
 - Centre de prompts avec des entrées web, dashboard, composant et modification, et des aperçus visuels de prompts
 - Centre d'assets — une galerie responsive plein écran avec des modèles à double action et l'import de style DESIGN.md
-- [Extension Chrome de capture web](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — capturez n'importe quelle page web dans OpenPencil avec une capture fidèle du HTML / de la mise en page ; les instantanés sont livrés dans la boîte de réception de votre compte sur le hub, ou téléchargés hors ligne sous forme de fichier `.op` prêt à ouvrir
 
 **Intégration Git**
 

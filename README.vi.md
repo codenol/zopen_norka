@@ -335,7 +335,6 @@ Hỗ trợ chuỗi inline, `@filepath` và stdin (`-`). Hoạt động với ứ
 - Trung tâm mẫu cảnh — danh mục có thể duyệt gồm 58 mẫu trên sáu cảnh, mở từ File ▸ New from template
 - Trung tâm prompt với các mục web, dashboard, component và modify cùng bản xem trước prompt trực quan
 - Trung tâm tài nguyên — thư viện responsive toàn cửa sổ với mẫu hành động kép và nhập kiểu DESIGN.md
-- [Tiện ích thu thập web Chrome](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — chụp nhanh bất kỳ trang web nào vào OpenPencil với thu thập HTML / layout trung thực; ảnh chụp nhanh được gửi đến hộp thư đến của tài khoản bạn trên hub, hoặc tải xuống dưới dạng tệp `.op` sẵn sàng để mở khi ngoại tuyến
 
 **Tích hợp Git**
 

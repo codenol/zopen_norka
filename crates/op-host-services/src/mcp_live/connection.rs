@@ -173,7 +173,7 @@ pub(super) fn serve_connection<S: std::io::Read + std::io::Write>(
         // REST route answers `{ok,error}`, not JSON-RPC.
         return serve_document_sync(stream, req_tx, wake_ui, stateful_lock, &req.body);
     }
-    // Content-free design-token evidence from the Chrome extension. This
+    // Content-free design-token evidence from an extension-origin caller. This
     // route queues an asynchronous LLM request only; it never snapshots or
     // mutates the live document and therefore does not take `stateful_lock`.
     if design_md_route::is_design_md_path(&req.path) {

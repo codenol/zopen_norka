@@ -337,7 +337,6 @@ Unterstützt Inline-Strings, `@filepath` und stdin (`-`). Funktioniert mit Deskt
 - Szenen-Vorlagenzentrum — ein durchsuchbarer Katalog von 58 Vorlagen über sechs Szenen, geöffnet über Datei ▸ Neu aus Vorlage
 - Prompt-Zentrum mit Einträgen für Web, Dashboard, Komponente und Modifikation sowie visuellen Prompt-Vorschauen
 - Asset-Zentrum — eine fensterfüllende responsive Galerie mit Dual-Action-Vorlagen und DESIGN.md-Stilimport
-- [Chrome-Web-Erfassungs-Erweiterung](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — jede Webseite mit originalgetreuer HTML-/Layout-Erfassung als Snapshot in OpenPencil übernehmen; Snapshots werden an den Posteingang Ihres Kontos im Hub geliefert oder offline als sofort öffenbare `.op`-Datei heruntergeladen
 
 **Git-Integration**
 

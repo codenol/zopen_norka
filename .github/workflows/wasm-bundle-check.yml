@@ -32,8 +32,6 @@ jobs:
             -p op-collab --no-default-features
           cargo check --target wasm32-unknown-unknown \
             -p op-host-web --no-default-features --features web
-          cargo check --target wasm32-unknown-unknown \
-            -p op-chrome-extension-core
 
   wasm32-deny:
     name: cargo-deny --target wasm32-unknown-unknown check bans

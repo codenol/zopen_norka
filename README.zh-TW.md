@@ -334,7 +334,6 @@ cat design.dsl | op design - # 從 stdin 管道輸入
 - 場景範本中心 — 一個可瀏覽的目錄，涵蓋六大場景下的 58 個範本，從「檔案 ▸ 從範本新增」開啟
 - 提示詞中心，包含 web、儀表板、元件與修改項目及視覺化提示詞預覽
 - 素材中心 — 全視窗響應式圖庫，配有雙動作範本與 DESIGN.md 風格匯入
-- [Chrome 網頁擷取擴充功能](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — 將任意網頁快照到 OpenPencil，支援高保真的 HTML / 版面擷取；快照會送達你帳號在 hub 上的收件匣，或在離線時下載為一個可直接開啟的 `.op` 檔案
 
 **Git 整合**
 

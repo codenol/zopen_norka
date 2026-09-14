@@ -348,20 +348,6 @@ validate_package_versions() {
     fi
 }
 
-validate_chrome_extension_manifest_version() {
-    manifest=packages/op-chrome-extension/manifest.json
-    if [[ ! -f "$manifest" ]]; then
-        report_missing "$manifest" \
-            'Chrome extension manifest is missing; it must exist and carry the Cargo workspace version'
-        return
-    fi
-    manifest_version=$(jq -r '.version' "$manifest")
-    if [[ "$manifest_version" != "$current_version" ]]; then
-        report_missing "$manifest" \
-            "Chrome extension manifest version ${manifest_version} must match Cargo workspace version ${current_version}; edit the \"version\" field (scripts/sync-version.sh does not rewrite this file — see packages/op-chrome-extension/README.md)"
-    fi
-}
-
 validate_android_version_metadata() {
     android_script=scripts/android-version.sh
     android_gradle=packaging/android/app/build.gradle.kts
@@ -504,7 +490,6 @@ validate_rust_product_version_producers() {
 
 validate_workspace_package_versions
 validate_package_versions
-validate_chrome_extension_manifest_version
 validate_android_version_metadata
 validate_release_tag
 validate_cli_bundle_version_template

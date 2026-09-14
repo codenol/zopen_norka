@@ -336,7 +336,6 @@ cat design.dsl | op design - # stdin からパイプ入力
 - シーンテンプレートセンター — 6 シーンにわたる 58 テンプレートを閲覧できるカタログ、ファイル ▸ テンプレートから新規作成 で開く
 - Web、ダッシュボード、コンポーネント、修正のエントリとビジュアルプロンプトプレビューを備えたプロンプトセンター
 - アセットセンター — デュアルアクションテンプレートと DESIGN.md スタイルインポートを備えた全画面レスポンシブギャラリー
-- [Chrome Web キャプチャ拡張機能](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — 任意の Web ページを忠実な HTML / レイアウトキャプチャで OpenPencil にスナップショット；スナップショットはハブ上のアカウントの受信トレイに配信されるか、オフラインではすぐに開ける `.op` ファイルとしてダウンロード
 
 **Git 統合**
 

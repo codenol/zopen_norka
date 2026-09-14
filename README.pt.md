@@ -336,7 +336,6 @@ Suporta strings inline, `@filepath` e stdin (`-`). Funciona com o app desktop, s
 - Central de modelos de cena — um catálogo navegável de 58 modelos em seis cenas, aberto em Arquivo ▸ Novo a partir de modelo
 - Central de prompts com entradas de web, dashboard, componente e modificação e prévias visuais de prompt
 - Central de assets — uma galeria responsiva de janela cheia com modelos de ação dupla e importação de estilo DESIGN.md
-- [Extensão Chrome de captura web](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — faça snapshot de qualquer página web para o OpenPencil com captura fiel de HTML / layout; os snapshots são entregues à caixa de entrada da sua conta no hub, ou baixados como um arquivo `.op` pronto para abrir offline
 
 **Integração com Git**
 

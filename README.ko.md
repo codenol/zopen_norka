@@ -335,7 +335,6 @@ cat design.dsl | op design - # stdin에서 파이프 입력
 - 씬 템플릿 센터 — 6개 씬에 걸친 58개 템플릿을 둘러볼 수 있는 카탈로그, 파일 ▸ 템플릿에서 새로 만들기로 열기
 - Web, 대시보드, 컴포넌트, 수정 항목과 비주얼 프롬프트 미리보기를 갖춘 프롬프트 센터
 - 에셋 센터 — 듀얼 액션 템플릿과 DESIGN.md 스타일 가져오기를 갖춘 전체 창 반응형 갤러리
-- [Chrome Web 캡처 확장](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — 어떤 웹페이지든 충실한 HTML / 레이아웃 캡처로 OpenPencil에 스냅샷; 스냅샷은 허브의 계정 받은 편지함으로 전달되거나, 오프라인에서는 바로 열 수 있는 `.op` 파일로 다운로드
 
 **Git 통합**
 
