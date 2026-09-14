@@ -49,12 +49,12 @@ pub fn run_web_canvas(options: ServeWebOptions) -> Result<()> {
         credential_persistence,
         crate::settings_io::save_checked,
     )?;
-    // Device-login proxy: init the shared auth runtime and restore the
-    // session the desktop GUI may already have persisted. Never on a
-    // non-loopback bind outside managed mode — the proxy session belongs
-    // to the daemon owner, not to whoever can reach the port.
-    let loopback_bind = matches!(host.as_str(), "127.0.0.1" | "localhost" | "::1");
-    crate::web_auth::init(&mut editor, managed || loopback_bind);
+    // No account store is opened here. `--serve-web` is one operator and one
+    // document; the accounts belong to the online deployment
+    // (`run_online_web_canvas`), which is also where its first administrator is
+    // created. Its status route therefore answers "this deployment has no
+    // accounts", which is what the shell needs to hear to hide an account UI
+    // that would have nothing behind it.
     let listener = TcpListener::bind((host.as_str(), port))
         .map_err(|e| WebCanvasError::Config(format!("bind {host}:{port}: {e}")))?;
     let local_addr = listener

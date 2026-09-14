@@ -104,9 +104,6 @@ pub struct WebCanvasState {
     /// no-op `{"ok":true,"skipped":true,"version":<current>}` reply instead
     /// of touching the document again.
     pub(crate) reset_consumed: bool,
-    /// In-flight browser device-login flow driven through the auth proxy
-    /// endpoints (`/api/auth/login/*`); `None` when no login is running.
-    pub(crate) auth_login_handle: Option<u64>,
     /// Collaboration runtime + its projection sequence. Idle until a browser
     /// posts a start/join action.
     pub(crate) collab: collab_state::WebCollabState,
@@ -174,7 +171,6 @@ impl WebCanvasState {
             managed_token: None,
             allow_origins: Vec::new(),
             reset_consumed: false,
-            auth_login_handle: None,
             collab: collab_state::WebCollabState::default(),
             mode: ServeMode::Local,
             documents: None,
@@ -721,22 +717,26 @@ pub fn handle_web_canvas_request(
                 }
             }
         }
-        // Device-login proxy: the wasm bundle ships no auth code and
-        // drives the flow through the daemon's op-auth-bridge runtime.
-        // (`POST /api/auth/login/begin` is a streaming-tier route — it
-        // waits for the verification URI off the state lock.)
+        // The account routes are NOT served here. They live in the online
+        // accept loop's own anonymous prefix (`account_routes`), ahead of
+        // identity resolution, because sign-in is the one request that must
+        // work without a credential. What reaches this table is a daemon with
+        // no account store at all — `--serve-web` and `--serve-web --managed`,
+        // where the operator IS the deployment — and the two answers below are
+        // the honest ones: this deployment has no accounts, and there is
+        // nothing here to sign in to.
         //
-        // The bridge holds ONE device session per process, so online the
-        // routes fall through to the 404 arm: an account signs in to the
-        // hub, not to this daemon, and proxying the service account's
-        // session would sign every visitor in as it.
-        (_, path) if !state.mode.allows_device_login_proxy() && is_device_login_route(path) => {
-            not_found_reply()
-        }
-        ("GET", op_editor_core::auth_routes::STATUS) => crate::web_auth::status(state),
-        ("GET", op_editor_core::auth_routes::LOGIN_STATUS) => crate::web_auth::login_status(state),
-        ("POST", op_editor_core::auth_routes::LOGIN_CANCEL) => crate::web_auth::login_cancel(state),
-        ("POST", op_editor_core::auth_routes::LOGOUT) => crate::web_auth::logout(state),
+        // The device-login proxy that used to live on `/api/auth/*` is gone
+        // with the identity service it proxied. Its routes are simply not
+        // found now, which is also what an online deployment answered for them
+        // before — but for a different reason: online refused them because one
+        // process-wide device session must not sign in every visitor, and here
+        // they do not exist.
+        ("GET", op_editor_core::auth_routes::STATUS) => WebReply {
+            status: "200 OK",
+            body: tenant_auth::anonymous_auth_status_json(false, false),
+        },
+        (_, path) if path.starts_with(op_editor_core::auth_routes::API_PREFIX) => not_found_reply(),
         // Collaboration: the runtime lives in this daemon, the panel in the
         // browser. See `web_canvas_server/collab_routes.rs`.
         ("GET", op_editor_core::collab_routes::STATE) => collab_routes::state(state),
@@ -784,11 +784,10 @@ fn not_found_reply() -> WebReply {
 #[cfg(test)]
 pub(crate) use request_access::handle_local_request;
 
-/// Whether `path` belongs to the daemon-hosted device-login proxy.
-fn is_device_login_route(path: &str) -> bool {
-    path.starts_with(op_editor_core::auth_routes::API_PREFIX)
-}
-
+mod account_admin;
+mod account_cookie;
+mod account_routes;
+mod account_verifier;
 mod collab_driver;
 mod document_push;
 #[cfg(test)]
@@ -809,8 +808,8 @@ mod doc_routes;
 mod document_writes;
 mod export_routes;
 mod files_routes;
-mod hub_verifier;
-pub mod online_policy;
+pub mod online_identity_tier;
+mod online_policy;
 mod online_run_loop;
 mod origin_guard;
 mod recovery_routes;
@@ -825,11 +824,12 @@ mod tool_scopes;
 mod workspace_settings;
 
 pub use collab_state::{DaemonMutationRefusal, IngestOutcome};
+pub use account_routes::{AccountAuth, AccountReply};
+pub use account_verifier::AccountVerifier;
 pub use connect_routes::*;
 use connection::*;
 use doc_routes::*;
 use export_routes::*;
-pub use hub_verifier::HubVerifier;
 pub use online_policy::{OnlineRouteRefusal, ServeMode};
 pub use online_run_loop::*;
 use origin_guard::*;

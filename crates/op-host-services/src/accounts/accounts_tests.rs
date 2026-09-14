@@ -45,14 +45,20 @@ fn reopen(dir: &TempDir) -> AccountsDb {
 
 /// An account that can sign in.
 fn active_user(db: &AccountsDb, id: &str, username: &str) -> User {
-    db.create_user(&NewUser::active(id, username, "Test Person", PASSWORD), NOW)
-        .expect("create an active account")
+    db.create_user(
+        &NewUser::active(username, "Test Person", PASSWORD).with_id(id),
+        NOW,
+    )
+    .expect("create an active account")
 }
 
 /// An account created from an invite: it exists and cannot sign in yet.
 fn invited_user(db: &AccountsDb, id: &str, username: &str) -> User {
-    db.create_user(&NewUser::invited(id, username, "Invited Person"), NOW)
-        .expect("create an invited account")
+    db.create_user(
+        &NewUser::invited(username, "Invited Person").with_id(id),
+        NOW,
+    )
+    .expect("create an invited account")
 }
 
 /// Every object the schema holds, by name.
@@ -136,7 +142,9 @@ fn stored_invite_hash(db: &AccountsDb) -> Vec<u8> {
 
 mod invites;
 mod passwords;
+mod policy;
 mod schema;
 mod sessions;
+mod signin;
 mod tokens;
 mod users;

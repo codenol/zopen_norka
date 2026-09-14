@@ -6,9 +6,13 @@
 //! never name the account it wants. A request body, a query string, or a
 //! header the browser controls are all equally untrusted here.
 //!
-//! [`IdentityVerifier`] is the seam. M1 ships [`StaticVerifier`], an
-//! env-injected token table for development and tests; M2 adds the hub
-//! client that verifies a session cookie or introspects an API token.
+//! [`IdentityVerifier`] is the seam. [`AccountVerifier`] is the one
+//! implementation a deployment runs — it resolves a session against this
+//! deployment's own account store — and [`StaticVerifier`] is the
+//! operator-written token table tests and local development use, which no
+//! deployment may reach (see the online run loop's start-up check).
+//!
+//! [`AccountVerifier`]: super::account_verifier::AccountVerifier
 
 use std::collections::HashMap;
 
@@ -22,13 +26,19 @@ use crate::mcp_serve::HttpRequest;
 /// See [`StaticVerifier`] for why this is not a production credential path.
 pub const STATIC_IDENTITIES_ENV: &str = "OPENPENCIL_ONLINE_STATIC_IDENTITIES";
 
-/// Session cookie the hub sets on the shared origin (M2 consumes it).
-pub const SESSION_COOKIE_NAME: &str = "op_hub_session";
+/// The cookie a signed-in browser holds.
+///
+/// Defined with the rest of the cookie's rules in
+/// [`super::account_cookie`], and re-exported here because this is the module
+/// that READS it: the request parser below is the only thing that needs the
+/// name on the way in, and keeping one constant means the name a route sets
+/// and the name a verifier looks for cannot drift apart.
+pub use super::account_cookie::SESSION_COOKIE_NAME;
 
 /// Longest credential this layer will even look at. Both forms are short
 /// opaque tokens; a longer one is a client bug or an attempt to make the
 /// verifier allocate.
-const MAX_CREDENTIAL_CHARS: usize = 4096;
+pub(super) const MAX_CREDENTIAL_CHARS: usize = 4096;
 
 /// How an identity was established.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,25 +57,25 @@ pub struct ResolvedIdentity {
     pub user_id: String,
     pub username: String,
     pub display_name: String,
-    /// The product roles the hub says this account holds (#10).
+    /// The product roles this account holds (#10).
     ///
     /// Carried here so the decision points downstream — the REST routes, and
-    /// later the chrome — read the verified identity instead of asking the
-    /// hub again or trusting the request. The hub HAS always sent these on
-    /// `GET /api/v1/session`; before this field existed they were parsed and
-    /// thrown away, which is what made every account the same account.
+    /// later the chrome — read the verified identity instead of asking again
+    /// or trusting the request. They come from the account row, parsed through
+    /// [`op_editor_core::access::ProductRole::from_wire`], which is what makes
+    /// a role change in the store reach the route checks.
     ///
     /// Empty is normal and means "no roles", never "no access": see
     /// [`op_editor_core::access::RoleSet::rights`], which floors at view-only
-    /// for its own workspace. Nothing enforces these rights yet — the route
-    /// checks belong to the step that also knows who owns a document.
+    /// for its own workspace.
     pub roles: RoleSet,
     pub via: IdentityVia,
     /// What this credential may drive over MCP.
     ///
-    /// A browser session is the account itself and carries full authority; an
-    /// API token carries whatever the hub issued it. Enforced in the MCP
-    /// dispatch, where the tool being called is known — see
+    /// A browser session is the account itself and carries full authority; a
+    /// narrower credential — an API token scoped to part of the product —
+    /// carries whatever the issuer gave it. Enforced in the MCP dispatch,
+    /// where the tool being called is known — see
     /// `crate::mcp_serve::tool_profile`.
     pub scopes: McpScopes,
 }
@@ -153,40 +163,84 @@ impl PresentedCredentials {
 }
 
 impl ResolvedIdentity {
-    /// The `/api/auth/status` projection for an online deployment.
+    /// The `/api/auth/status` projection for a signed-in caller.
     ///
     /// The shell's account layer polls this route to learn WHO it is showing;
     /// online used to 404 it wholesale, which left the identity epoch — and
-    /// therefore the account-switch reset — permanently dormant. So the route
-    /// answers here instead of through the device-login proxy.
+    /// therefore the account-switch reset — permanently dormant.
     ///
-    /// Only a verified connection reaches this: the online loop resolves the
-    /// credential before dispatch, so there is no anonymous caller to leak to.
-    /// It is a strictly READ-ONLY projection of the caller's own identity —
-    /// the sign-in and sign-out routes stay 404, because they drive the
-    /// process-wide device session that an online deployment must not expose.
+    /// It is a strictly READ-ONLY projection of the caller's own identity.
+    /// Signing in and out are [`super::account_routes`]' business, and they are
+    /// anonymous routes: a request that carries no session is exactly the
+    /// request that has to be able to ask for one.
     pub fn auth_status_json(&self) -> String {
         serde_json::json!({
             // The account UI is meaningful: this deployment has accounts.
             "available": true,
             "signed_in": true,
             // The STABLE account key — the same value the tenant registry
-            // keys on. The shell partitions its storage by this, not by
-            // `username`: a username is a display handle a hub may let a user
-            // change, and a rename would silently move the tab to a new
-            // partition (losing its settings) or, worse, collide with another
-            // account that later takes the old handle.
+            // keys on, and the value the account row is identified by. The
+            // shell partitions its storage by this, not by `username`: a
+            // username is a handle an operator may change, and a rename would
+            // silently move the tab to a new partition (losing its settings)
+            // or, worse, collide with another account that later takes the old
+            // handle.
             "subject": self.user_id,
             // Display only.
             "username": self.username,
             "display_name": self.display_name,
-            // Not projected: the hub owns the address, and the shell only uses
-            // it for display. Absent is honest rather than fabricated.
+            // The roles the account holds, in the store's own spelling — see
+            // [`role_wire_names`]. Carried because the shell has to draw the
+            // chrome an account's rights imply, and because a role this build
+            // does not recognise must be visible to whoever debugs the
+            // mismatch rather than dropped on the way out.
+            "roles": role_wire_names(&self.roles),
+            // Not projected: whether the account has an address is not
+            // something the shell needs, and the store's avatar support is a
+            // later step. Absent is honest rather than fabricated.
             "primary_email": serde_json::Value::Null,
             "avatar_revision": serde_json::Value::Null,
         })
         .to_string()
     }
+}
+
+/// The `/api/auth/status` projection for a caller with no identity.
+///
+/// Answered with `200` rather than `401` because the shell only applies a
+/// status answer that succeeded (`web_auth_sync::StatusRequestGate`), and the
+/// whole point of polling this route is to find out that nobody is signed in.
+/// A `401` here would leave the account UI in whatever state it was already
+/// in — including the previous account's.
+///
+/// `available` says this deployment HAS an account store and can sign people
+/// in; `needs_first_admin` says it has one and it is empty, which is the state
+/// a fresh deployment is in until its operator runs `op admin create` or sets
+/// the `NORKA_ADMIN_*` pair. The two are different answers to different
+/// questions, and a sign-in form that could not tell them apart would offer
+/// credentials it cannot check.
+pub fn anonymous_auth_status_json(available: bool, needs_first_admin: bool) -> String {
+    serde_json::json!({
+        "available": available,
+        "signed_in": false,
+        "needs_first_admin": needs_first_admin,
+    })
+    .to_string()
+}
+
+/// A role set as the role strings the store wrote.
+///
+/// Recognised roles come back in their canonical spelling and unrecognised
+/// ones are passed through as they were found: [`RoleSet`] keeps both, and a
+/// projection that printed only the first would hide the second — which is the
+/// failure #10 was about, one layer out.
+fn role_wire_names(roles: &RoleSet) -> Vec<&str> {
+    roles
+        .roles()
+        .iter()
+        .map(|role| role.as_wire())
+        .chain(roles.unrecognized().iter().map(String::as_str))
+        .collect()
 }
 
 /// Turns a presented credential into a verified account.
@@ -204,10 +258,12 @@ pub trait IdentityVerifier: Send + Sync {
 ///
 /// **Development and tests only.** The tokens are compared in plain text,
 /// live in the process environment, and carry no expiry, no revocation and
-/// no scopes. It exists so the multi-tenant plumbing can be exercised end
-/// to end before the hub client (M2) is available; a deployment that starts
-/// with `--online` and no real verifier is a misconfiguration, and the
-/// online run loop says so on stderr at start-up.
+/// no scopes. It exists so the multi-tenant plumbing — and the ~200 route
+/// tests written against this seam — can be exercised without an account
+/// store. It is OUR code and it stays; what must never happen is a deployment
+/// reaching it by accident, so the online run loop only falls back to it when
+/// no account store is configured, says so on stderr, and its start-up check
+/// is asserted by tests.
 pub struct StaticVerifier {
     /// token → (user id, scopes).
     entries: HashMap<String, (String, McpScopes)>,
@@ -226,11 +282,12 @@ impl StaticVerifier {
     /// Parse a `token=user[,token2=user2:read][,token3=user3:none]` table.
     ///
     /// The optional suffix narrows the credential so the scope paths can be
-    /// exercised without a hub: `:read` mints a read-only token and `:none` a
-    /// scopeless one (what a hub token that names no `mcp:*` scope resolves
-    /// to). A bare `user` is full authority — the operator wrote this table by
-    /// hand, so that is their explicit intent. Any other suffix is rejected
-    /// rather than silently granting write: a typo must not widen authority.
+    /// exercised without an account store: `:read` mints a read-only token and
+    /// `:none` a scopeless one (what a credential that names no `mcp:*` scope
+    /// resolves to). A bare `user` is full authority — the operator wrote this
+    /// table by hand, so that is their explicit intent. Any other suffix is
+    /// rejected rather than silently granting write: a typo must not widen
+    /// authority.
     ///
     /// Malformed pairs are skipped rather than failing the whole table: the
     /// failure mode of a dropped entry is "that token does not authenticate",
@@ -292,11 +349,11 @@ impl IdentityVerifier for StaticVerifier {
             username: user_id.clone(),
             display_name: user_id.clone(),
             // This table has no roles to give: it is an operator-written
-            // `token=user` list for development, with no hub behind it. An
-            // empty set is the honest answer and it must not narrow anything
-            // — `RoleSet::rights` floors at view-only, so a static deployment
-            // keeps working exactly as it did before roles existed. The
-            // credential's real narrowing axis here stays `scopes`.
+            // `token=user` list for development, with no account store behind
+            // it. An empty set is the honest answer and it must not narrow
+            // anything — `RoleSet::rights` floors at view-only, so a static
+            // deployment keeps working exactly as it did before roles existed.
+            // The credential's real narrowing axis here stays `scopes`.
             roles: RoleSet::empty(),
             via,
             // A browser session is the account itself, so it carries full

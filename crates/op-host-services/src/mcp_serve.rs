@@ -679,12 +679,36 @@ pub(crate) fn write_mcp_http_response_with_origin<S: std::io::Write>(
     body: &str,
     cors_origin: Option<&str>,
 ) -> Result<(), McpServeError> {
+    write_mcp_http_response_with_headers(stream, status, body, cors_origin, &[])
+}
+
+/// Like [`write_mcp_http_response_with_origin`], and additionally emits the
+/// given headers verbatim.
+///
+/// Exists for exactly one reason: `Set-Cookie`. Every other response header
+/// this daemon sends is fixed, and everything a route has to say travels in
+/// the JSON body — but a session cannot be handed to a browser in a body, and
+/// two writers for one response format is how the fixed half and the variable
+/// half drift apart. So there is one formatter, and this is the parameter that
+/// keeps the cookie out of a second copy of it.
+pub(crate) fn write_mcp_http_response_with_headers<S: std::io::Write>(
+    stream: &mut S,
+    status: &str,
+    body: &str,
+    cors_origin: Option<&str>,
+    headers: &[(&str, &str)],
+) -> Result<(), McpServeError> {
     let cors_line = cors_origin
         .map(|origin| format!("Access-Control-Allow-Origin: {origin}\r\n"))
         .unwrap_or_default();
+    let extra: String = headers
+        .iter()
+        .map(|(name, value)| format!("{name}: {value}\r\n"))
+        .collect();
     let http = format!(
         "HTTP/1.1 {status}\r\n\
          {cors_line}\
+         {extra}\
          Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n\
          Access-Control-Allow-Headers: Content-Type, mcp-session-id, X-OpenPencil-Token, Authorization\r\n\
          Access-Control-Expose-Headers: mcp-session-id\r\n\

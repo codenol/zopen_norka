@@ -157,25 +157,15 @@ pub(super) fn dispatch<S: Read + Write>(
         )?;
         return Ok(false);
     }
-    if is_sensitive_browser_post(req) && !credential_request_origin_allowed(req) {
+    // The sensitive-POST gate (Origin, then content type) in one call, because
+    // the account tier — dispatched before this function ever runs — applies
+    // the same one to the routes that cannot wait for a verified identity. See
+    // `origin_guard::sensitive_post_refusal`.
+    if let Some((status, message)) = sensitive_post_refusal(req, &allow_origins) {
         crate::mcp_serve::write_mcp_http_response_with_origin(
             stream,
-            "403 Forbidden",
-            &crate::mcp_serve::rest_error_body("cross-origin sensitive request is forbidden"),
-            cors_origin,
-        )?;
-        return Ok(false);
-    }
-    // Sensitive JSON routes refuse CORS "simple request" content types
-    // (text/plain, form-encoded, or none): a drive-by page can fire those
-    // without a preflight, and unmanaged daemons have no token gate.
-    if is_sensitive_browser_post(req) && !content_type_is_json(req.content_type.as_deref()) {
-        crate::mcp_serve::write_mcp_http_response_with_origin(
-            stream,
-            "415 Unsupported Media Type",
-            &crate::mcp_serve::rest_error_body(
-                "this route requires Content-Type: application/json",
-            ),
+            status,
+            &crate::mcp_serve::rest_error_body(message),
             cors_origin,
         )?;
         return Ok(false);
@@ -190,22 +180,6 @@ pub(super) fn dispatch<S: Read + Write>(
             return crate::web_static::write_static_response(stream, &reply, cors_origin)
                 .map(|()| false);
         }
-    }
-    // Sign-in popup interstitial — same auth-exempt static surface as the
-    // bundle routes above (it renders a spinner and nothing else). It only
-    // exists to host the daemon's device-login proxy, so a deployment with no
-    // proxy has no interstitial either.
-    if req.method == "GET"
-        && req.path == op_editor_core::auth_routes::LOADING_PAGE
-        && ctx.mode.allows_device_login_proxy()
-    {
-        let reply = crate::web_static::StaticReply {
-            status: "200 OK",
-            content_type: "text/html; charset=utf-8",
-            body: crate::web_auth::LOADING_PAGE_HTML.as_bytes().to_vec(),
-        };
-        return crate::web_static::write_static_response(stream, &reply, cors_origin)
-            .map(|()| false);
     }
     // There is deliberately no managed-mode request-token gate here. Managed
     // is a single-tenant child process whose authority comes from the local
@@ -260,10 +234,12 @@ pub(super) fn dispatch<S: Read + Write>(
         )?;
         return Ok(false);
     }
-    // Online account projection. The device-login proxy stays 404 (it drives
-    // a process-wide device session), but the shell must be able to learn
-    // which account it is showing — without this the identity epoch never
-    // fires and an account switch leaks the previous account's document.
+    // The account projection for a connection that ALREADY has an identity.
+    // The routes that establish one are served further up, in the online
+    // accept loop's anonymous prefix (`account_routes`) — this branch is what
+    // remains for a deployment running the development identity table, whose
+    // status answers from the connection's verified identity. Where there is
+    // no identity at all the route table below answers, saying so.
     if req.method == "GET" && req.path == op_editor_core::auth_routes::STATUS {
         if let Some(identity) = ctx.rest_identity.as_ref() {
             crate::mcp_serve::write_mcp_http_response_with_origin(
@@ -274,22 +250,6 @@ pub(super) fn dispatch<S: Read + Write>(
             )?;
             return Ok(false);
         }
-    }
-    // Current-account avatar proxy: performs bounded public HTTPS I/O on this
-    // connection thread, never while holding the editor-state mutex. Part of
-    // the device-login proxy, so it is off wherever that is.
-    if req.method == "POST"
-        && req.path == op_editor_core::auth_routes::AVATAR
-        && ctx.mode.allows_device_login_proxy()
-    {
-        let reply = crate::web_auth::avatar();
-        crate::mcp_serve::write_mcp_http_response_with_origin(
-            stream,
-            reply.status,
-            &reply.body,
-            cors_origin,
-        )?;
-        return Ok(false);
     }
     // Collaboration participant avatar proxy: same shape as the account proxy
     // above — bounded public HTTPS I/O on this connection thread, off the
@@ -302,23 +262,6 @@ pub(super) fn dispatch<S: Read + Write>(
         && ctx.mode.allows_relay_collaboration()
     {
         let reply = crate::collab_avatar_proxy::avatar(&req.body);
-        crate::mcp_serve::write_mcp_http_response_with_origin(
-            stream,
-            reply.status,
-            &reply.body,
-            cors_origin,
-        )?;
-        return Ok(false);
-    }
-    // Device-login begin: waits (per-connection thread, off the state
-    // lock) for the pairing's verification URI so the popup can navigate
-    // straight from this response — handled here rather than in the
-    // whole-body REST tier, which runs under the state mutex.
-    if req.method == "POST"
-        && req.path == op_editor_core::auth_routes::LOGIN_BEGIN
-        && ctx.mode.allows_device_login_proxy()
-    {
-        let reply = crate::web_auth::login_begin_and_wait(state);
         crate::mcp_serve::write_mcp_http_response_with_origin(
             stream,
             reply.status,

@@ -4245,6 +4245,7 @@ dependencies = [
  "op-config-store",
  "op-editor-core",
  "op-figma",
+ "op-host-services",
  "op-html",
  "op-pen-loader",
  "op-process-io",

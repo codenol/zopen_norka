@@ -5,8 +5,7 @@
 //! `op-collab-host`'s roster projection and must never reach the browser, so
 //! the wasm shell asks for one participant's bytes by the opaque
 //! `participantKey` it already holds and the daemon does the fetching with its
-//! public-only HTTPS client. Same split as the account proxy in
-//! [`crate::web_auth::avatar`].
+//! public-only HTTPS client.
 //!
 //! The desktop pumps the same registry from its frame loop
 //! (`op-host-desktop/src/collab_avatar_host.rs`, worker threads + `pump`); the

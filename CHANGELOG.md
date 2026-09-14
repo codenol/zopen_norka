@@ -12,6 +12,33 @@ here at a glance.
 
 ### Added
 
+- **Signing in to a deployment, with the deployment's own accounts.** The
+  online daemon resolves every request against the account store that landed in
+  the previous change: a session cookie (`norka_session`, `HttpOnly`,
+  `SameSite=Lax`, `Secure` everywhere except a browser on this machine) names an
+  account, and the roles on that account reach the route checks that already
+  existed. Nothing outside the daemon asserts who anybody is any more.
+
+  The routes are `POST /api/auth/login`, `POST /api/auth/logout` (with
+  `{"all":true}` for "sign out everywhere"), `GET /api/auth/status` — which now
+  answers an anonymous caller `200 {signed_in:false}` instead of refusing, so
+  the shell can tell "signed out" from "unreachable" — and
+  `POST /api/auth/invite/accept`, where an invitation becomes an active account
+  with the roles the invite carried and a session. A `disabled` account cannot
+  sign in, and an invitation cannot be accepted twice.
+
+- **The first administrator is a deliberate act.** Either `NORKA_ADMIN_USERNAME`
+  and `NORKA_ADMIN_PASSWORD` on the deployment's first start — obeyed only when
+  the store holds **no accounts at all**, so a deployment that already has one
+  is never given a second administrator by a leftover variable — or
+  `op admin create`, which asks for a name and a password twice, refuses a weak
+  one, and prints neither. A deployment with no administrator still serves, and
+  its status route says the administrator is missing.
+
+- **`op admin create [--data-dir DIR]`** — the first administrator, from the
+  host an operator is sitting at. Writes the same `accounts.db` the daemon
+  writes, in `OPENPENCIL_ONLINE_DATA_DIR` unless `--data-dir` says otherwise.
+
 - **The foundation of our own accounts.** A store of its own — users, sessions,
   invitations and one-time tokens — in a database beside the deployment's data
   rather than beside its documents, because accounts belong to a deployment and
@@ -47,6 +74,20 @@ here at a glance.
   leaves it, as with every other tool — and the list takes the rail the
   inspector uses, so the canvas keeps its width and nothing sits on the design.
   Threads are listed for the page being edited, with a count of the rest.
+
+### Removed
+
+- **The hub, and the device-login proxy that fronted it.** Identities are this
+  deployment's own, so the hub client, its error type and its verifier are
+  gone, along with `OPENPENCIL_HUB_BASE_URL` and the `op_hub_session` cookie.
+  The daemon's device-login routes (`/api/auth/login/*`, `/api/auth/avatar`,
+  `/auth/loading`) are gone with the SSO they proxied; a request for one is not
+  found. The `op-auth-bridge` library itself stays until the mobile hosts are
+  ported off it.
+
+  A deployment that previously set `OPENPENCIL_HUB_BASE_URL` now needs
+  `OPENPENCIL_ONLINE_DATA_DIR` (which `--online` already required) and either
+  the `NORKA_ADMIN_*` pair or `op admin create`.
 
 ### Fixed
 
