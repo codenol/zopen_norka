@@ -11,9 +11,10 @@ use jian_core::text_input::TextInputState;
 use super::layer_panel::{LayerItem, PageItem};
 use super::layer_panel_metrics::{
     delete_page_target, glyph_rect_in, layer_action_targets, layer_drag_target, layer_node_icon_x,
-    LayerPanelMetrics,
+    page_label_x, page_row_rect, page_row_tail, LayerPanelMetrics,
 };
 use super::layer_panel_walkers::visible_row_range;
+use crate::widgets::comment_paint;
 
 pub(super) const ROW_FONT: f32 = 13.0;
 /// Heuristic avg-char-width factor for system-ui at the row font.
@@ -337,11 +338,19 @@ pub(super) fn paint_section_header_with_metrics(
 
 /// Clipped page/component rows. `show_delete` is Pages-only; Components
 /// store pages cannot be removed from the rail.
+///
+/// `page_comments` is the open-thread count per `PageItem::page_index`, or
+/// `None` for a section whose rows are not document pages (the shipped recipes,
+/// which are kit documents with no page to hang a conversation on). A count of
+/// zero paints nothing and reserves nothing, so an unreviewed document's rows
+/// read exactly as they did before markers existed.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn paint_page_rows(
     cx: &mut PaintCx<'_>,
     theme: &Theme,
     rect: Rect,
     pages: &[PageItem],
+    page_comments: Option<&[usize]>,
     rows_top: f32,
     view_h: f32,
     offset: f32,
@@ -359,24 +368,21 @@ pub(super) fn paint_page_rows(
     for index in visible_row_range(pages.len(), offset, view_h, metrics.page_row_height) {
         let page = &pages[index];
         let y = rows_top - offset + index as f32 * metrics.page_row_height;
-        let row = Rect {
-            origin: Point2D::new(rect.origin.x + 6.0, y + 2.0),
-            size: Point2D::new(rect.size.x - 12.0, metrics.page_row_height - 4.0),
-        };
+        let row = page_row_rect(rect, y, metrics);
         let page_hovered = hovered_page == Some(page.page_index);
         if page.active {
             cx.backend.fill_round_rect(row, 6.0, theme.row_selected);
         } else if page_hovered {
             cx.backend.fill_round_rect(row, 6.0, theme.button_hover);
         }
-        let label_x = row.origin.x + 12.0;
+        let count = page_comments
+            .and_then(|counts| counts.get(page.page_index))
+            .copied()
+            .unwrap_or(0);
+        let tail = page_row_tail(rect, y, metrics, count, show_delete);
+        let label_x = page_label_x(row);
         let delete_target = delete_page_target(rect, y, metrics);
-        let label_max_x = if metrics.touch && show_delete {
-            delete_target.origin.x - 4.0
-        } else {
-            rect.origin.x + rect.size.x - metrics.row_pad_x - 18.0
-        };
-        let available_w = (label_max_x - label_x).max(0.0);
+        let available_w = (tail.label_right - label_x).max(0.0);
         if page.renaming {
             paint_rename_input_with_metrics(
                 cx,
@@ -389,7 +395,12 @@ pub(super) fn paint_page_rows(
                 metrics,
             );
         } else {
-            let display = truncate_to_fit(&page.label, metrics.row_font, available_w);
+            // Measured rather than estimated: the name is ellipsized against the
+            // room the marker left it, and an estimate that ran wide would put
+            // the name under the badge — the one collision this row's geometry
+            // exists to prevent.
+            let display =
+                truncate_to_fit_measured(cx.backend, &page.label, metrics.row_font, available_w);
             let label = TextLayout::single_run(
                 &display,
                 "system-ui",
@@ -409,6 +420,12 @@ pub(super) fn paint_page_rows(
             };
             cx.backend
                 .draw_text(&label, Point2D::new(label_x, baseline));
+        }
+        // The same badge the toolbar paints for the active page, in the slot this
+        // row reserved for it (`comment_paint::count_badge_at` paints nothing at
+        // zero, so the reservation and the ink always agree).
+        if let Some(slot) = tail.badge {
+            comment_paint::count_badge_at(cx, theme, slot, count);
         }
         if show_delete && (page_hovered || metrics.touch) {
             let close = glyph_rect_in(delete_target, metrics.glyph_size);

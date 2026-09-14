@@ -192,6 +192,12 @@ pub(crate) fn chip_width(cx: &mut PaintCx<'_>, label: &str) -> f32 {
 pub const BADGE_DIAMETER: f32 = 15.0;
 /// Font size inside the badge.
 const BADGE_FONT: f32 = 10.0;
+/// How far the badge's ring reaches outside the circle it rings.
+///
+/// Part of the badge's geometry rather than a local constant of the painter: a
+/// row that places a badge beside a name has to leave room for the ring, and a
+/// gutter measured against the circle alone would be 1.5 px short of the truth.
+pub(crate) const BADGE_RING: f32 = 1.5;
 
 /// How many open threads a badge says before it stops counting.
 ///
@@ -206,26 +212,30 @@ pub fn badge_label(count: usize) -> String {
     }
 }
 
-/// A count badge pinned to the top-right corner of `anchor`.
+/// The area a badge actually covers: its circle plus the ring under it.
+pub(crate) fn badge_ink(slot: Rect) -> Rect {
+    inflate(slot, BADGE_RING)
+}
+
+/// A count badge drawn inside `slot`, filling it.
 ///
-/// The ring in the surface colour under it is what makes a 15 px badge legible
-/// over an 18 px icon drawn in the same corner: without it the glyph and the
-/// badge's edge touch, and the number reads as part of the icon. Nothing is
-/// painted at `0` — a "0" badge claims there is something to look at.
-pub(crate) fn count_badge(cx: &mut PaintCx<'_>, theme: &Theme, anchor: Rect, count: usize) {
+/// The single painter behind every count the chrome shows. The two callers pass
+/// different slots and nothing else: the toolbar icon's corner badge
+/// ([`count_badge`]) and a page row's marker. Keeping one painter is what makes
+/// "the same number looks the same wherever it appears" a property of the code
+/// rather than of two painters that happen to agree today — the fill order, the
+/// ring in the surface colour under the circle, and the ring's colour all come
+/// from here.
+///
+/// Nothing is painted at `0`: a "0" badge claims there is something to look at.
+pub(crate) fn count_badge_at(cx: &mut PaintCx<'_>, theme: &Theme, slot: Rect, count: usize) {
     if count == 0 {
         return;
     }
     let label = badge_label(count);
-    let badge = Rect::xywh(
-        anchor.origin.x + anchor.size.x - BADGE_DIAMETER * 0.62,
-        anchor.origin.y - BADGE_DIAMETER * 0.28,
-        BADGE_DIAMETER,
-        BADGE_DIAMETER,
-    );
     cx.backend
-        .fill_oval(inflate(badge, 1.5), theme.popover.with_alpha(0.95));
-    cx.backend.fill_oval(badge, theme.primary);
+        .fill_oval(badge_ink(slot), theme.popover.with_alpha(0.95));
+    cx.backend.fill_oval(slot, theme.primary);
     let width = text_metrics::measure_chrome_weighted(cx.backend, &label, BADGE_FONT, 700);
     text(
         cx,
@@ -233,11 +243,32 @@ pub(crate) fn count_badge(cx: &mut PaintCx<'_>, theme: &Theme, anchor: Rect, cou
         BADGE_FONT,
         theme.primary_foreground,
         Point2D::new(
-            badge.origin.x + (badge.size.x - width) / 2.0,
-            jian_widgets::centered_text_baseline_y(badge, BADGE_FONT),
+            slot.origin.x + (slot.size.x - width) / 2.0,
+            jian_widgets::centered_text_baseline_y(slot, BADGE_FONT),
         ),
         700,
     );
+}
+
+/// A count badge pinned to the top-right corner of `anchor`.
+///
+/// The ring in the surface colour under it is what makes a 15 px badge legible
+/// over an 18 px icon drawn in the same corner: without it the glyph and the
+/// badge's edge touch, and the number reads as part of the icon. A surface that
+/// has room of its own for the badge (a page row, whose tail is reserved for it)
+/// passes that slot to [`count_badge_at`] instead of borrowing this corner.
+pub(crate) fn count_badge(cx: &mut PaintCx<'_>, theme: &Theme, anchor: Rect, count: usize) {
+    count_badge_at(cx, theme, corner_badge_slot(anchor), count);
+}
+
+/// Where a corner badge sits over `anchor` — the toolbar's icon rect.
+fn corner_badge_slot(anchor: Rect) -> Rect {
+    Rect::xywh(
+        anchor.origin.x + anchor.size.x - BADGE_DIAMETER * 0.62,
+        anchor.origin.y - BADGE_DIAMETER * 0.28,
+        BADGE_DIAMETER,
+        BADGE_DIAMETER,
+    )
 }
 
 fn inflate(rect: Rect, by: f32) -> Rect {
