@@ -159,6 +159,14 @@ impl EditorState {
     /// layouts where that tab is available; a retained Compact Code value is
     /// treated as Design.
     pub fn property_panel_visible(&self) -> bool {
+        // The rail has one occupant. While the comment tool is active the
+        // conversation is what the rail is for, so the inspector stands down —
+        // asked here rather than at each of the paint / press / hover / IME
+        // call sites, because a second answer to "is the inspector on screen"
+        // is how a hidden panel keeps eating clicks.
+        if self.editor_ui.comments.rail_visible() {
+            return false;
+        }
         if self.editor_ui.effective_property_tab() == crate::PropertyTab::Code {
             return true;
         }
@@ -172,10 +180,15 @@ impl EditorState {
         })
     }
 
-    /// True when a selection inspector or selection-independent Code panel
-    /// occupies the right rail.
+    /// True when a selection inspector, selection-independent Code panel, or the
+    /// comment rail occupies the right rail.
+    ///
+    /// Drives `canvas_region`, so the canvas' right edge follows whichever
+    /// occupant the rail has: with the comment tool active the page keeps the
+    /// same width it had for the inspector instead of sliding under a panel
+    /// that is now painted over it.
     pub fn right_rail_visible(&self) -> bool {
-        self.property_panel_visible()
+        self.editor_ui.comments.rail_visible() || self.property_panel_visible()
     }
 
     /// Union of `aggregate_bounds` across the selected nodes.

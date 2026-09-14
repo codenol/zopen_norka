@@ -17,13 +17,13 @@
 //! These tests drive that rule directly, without a DOM.
 
 use super::WidgetHost;
-use op_editor_core::editor_ui_state::{Comment, CommentAuthor, CommentThread};
+use op_editor_core::editor_ui_state::{Comment, CommentAnchor, CommentAuthor, CommentThread};
 use op_editor_core::Tool;
 
-fn thread(id: i64, node: &str, name: &str) -> CommentThread {
+fn thread(id: i64, page: &str, name: &str) -> CommentThread {
     CommentThread {
         id,
-        node_id: node.to_string(),
+        anchor: Some(CommentAnchor::new(page, 100.0, 200.0)),
         created_at: 1_700_000_000,
         resolved: false,
         resolved_at: None,
@@ -42,9 +42,14 @@ fn thread(id: i64, node: &str, name: &str) -> CommentThread {
     }
 }
 
-/// A host with one thread about `n1`, ready to open its composer.
+/// A host with one thread ready to open its composer.
+///
+/// The thread is placed on the page the host's own document names — read from
+/// the state rather than spelled, because that id is what the canvas and the
+/// rail both key on.
 fn host_with_thread() -> WidgetHost {
     let mut host = WidgetHost::new();
+    let page = host.editor_state().active_page_identity().0;
     let state = host.editor_state_mut();
     state.editor_ui.locale = op_editor_core::editor_ui_state::Locale::EnUs;
     state.editor_ui.now_unix_ms = 1_700_000_600_000.0;
@@ -52,7 +57,7 @@ fn host_with_thread() -> WidgetHost {
     state
         .editor_ui
         .comments
-        .install_threads(vec![thread(1, "n1", "Kay")]);
+        .install_threads(vec![thread(1, &page, "Kay")]);
     host
 }
 

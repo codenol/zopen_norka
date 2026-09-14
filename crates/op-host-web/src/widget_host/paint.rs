@@ -381,22 +381,39 @@ impl WidgetHost {
             }
         }
 
+        // 5a. Right rail. One occupant: the inspector, or — while the comment
+        //     tool is active — the document's conversations. The two share the
+        //     same rect because they are the same surface in the same slot, and
+        //     the builder stands the inspector down rather than painting it
+        //     under the list (see `EditorState::property_panel_visible`).
+        let rail_rect = canvas_geometry::property_panel_rect(
+            &self.editor_state,
+            viewport_width,
+            viewport_height,
+        );
+        let page_id = self.active_page_id();
         let property_panel = PropertyPanel::for_selection_at_with_scene(
             &self.editor_state,
             &self.layout_scene,
             self.now_ms,
         );
         if let Some(panel) = property_panel.as_ref() {
-            let property_rect = canvas_geometry::property_panel_rect(
-                &self.editor_state,
-                viewport_width,
-                viewport_height,
-            );
             let mut cx = PaintCx {
                 backend: &mut *backend,
             };
-            panel.paint(&mut cx, property_rect);
+            panel.paint(&mut cx, rail_rect);
         }
+        self.comments_panel_rect = {
+            let mut cx = PaintCx {
+                backend: &mut *backend,
+            };
+            op_editor_ui::widgets::comments_flow::paint_panel(
+                &mut cx,
+                &self.editor_state,
+                rail_rect,
+                &page_id,
+            )
+        };
 
         // 5b. VariablesPanel — mirrors TS' `{}` toolbar toggle as a
         //     floating canvas overlay next to the toolbar (#21: same
@@ -614,10 +631,10 @@ impl WidgetHost {
             )
         };
 
-        // Comment threads: the pins paint inside the canvas (they belong to the
-        // document), the thread list and the open thread's popover paint here —
-        // the same band as the recovery banner, above the canvas and below every
-        // dropdown, modal and floating panel. The rects are cached for the press
+        // The open thread's popover: a box that hangs off its pin, so it paints
+        // in the same band as the recovery banner — above the canvas (and above
+        // the rail, which it may overlap near the right edge) and below every
+        // dropdown, modal and floating panel. Its rect is cached for the press
         // arm, exactly as the banner's is.
         {
             let canvas_rect = op_editor_ui::widgets::host_canvas_geometry::canvas_rect(
@@ -625,41 +642,26 @@ impl WidgetHost {
                 viewport_width,
                 viewport_height,
             );
-            let scene = &self.layout_scene;
-            let node_exists = |node_id: &str| {
-                scene
-                    .active_page()
-                    .is_some_and(|page| page.find(node_id).is_some())
-            };
-            // The popover hangs from the pin of its own thread, so it needs the
+            let page_id = self.active_page_id();
+            let canvas =
+                op_editor_ui::widgets::comments_flow::CommentCanvas::new(canvas_rect, &page_id);
+            // The popover hangs from the pin of its own thread — or from the
+            // point a comment being written will be pinned to — so it needs the
             // markers the canvas just placed.
             let pins = {
-                let mut canvas =
+                let mut viewport =
                     CanvasViewport::from_editor(&self.editor_state, &self.layout_scene);
-                canvas.now_ms = self.now_ms;
-                canvas.comment_pins(canvas_rect)
+                viewport.now_ms = self.now_ms;
+                viewport.comment_pins(canvas_rect)
             };
             let mut cx = PaintCx {
                 backend: &mut *backend,
             };
-            self.comments_panel_rect = op_editor_ui::widgets::comments_flow::paint_panel(
-                &mut cx,
-                &self.editor_state,
-                canvas_rect,
-                &node_exists,
-            );
             self.comments_popover_rect = op_editor_ui::widgets::comments_flow::paint_popover(
                 &mut cx,
                 &self.editor_state,
-                canvas_rect,
+                canvas,
                 &pins,
-            );
-            // The pill is the panel's collapsed form: painted only while the
-            // panel is shut, and in the corner the panel opens into.
-            self.comments_toggle_rect = op_editor_ui::widgets::comments_flow::paint_toggle(
-                &mut cx,
-                &self.editor_state,
-                canvas_rect,
             );
         }
 

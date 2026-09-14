@@ -5,8 +5,9 @@
 //! plumbing around it (`fetch_threads` / `post_thread`) is deliberately not
 //! exercised — a browser test would be testing XmlHttpRequest, and the part
 //! that has ever been wrong is the decoding: a null `authorRole`, an empty
-//! `authorName`, a thread with no comments, a 403 that is an answer rather than
-//! a malfunction.
+//! `authorName`, a thread with no comments, a pin whose `pageId`/`x`/`y` are
+//! `null` because the daemon migrated it from the old element-keyed format, and
+//! a 403 that is an answer rather than a malfunction.
 
 use super::*;
 
@@ -17,7 +18,10 @@ fn a_list_answer_becomes_threads() {
         "threads": [
             {
                 "id": 7,
-                "nodeId": "n1",
+                "pageId": "p1",
+                "x": 120.5,
+                "y": -40.25,
+                "anchorHint": null,
                 "createdAt": 1_700_000_000,
                 "resolved": false,
                 "resolvedAt": null,
@@ -40,7 +44,12 @@ fn a_list_answer_becomes_threads() {
     let threads = decode_threads(200, &body).unwrap();
     assert_eq!(threads.len(), 1);
     assert_eq!(threads[0].id, 7);
-    assert_eq!(threads[0].node_id, "n1");
+    // The place, at full precision: a document pixel is wider than a screen
+    // pixel past zoom 1, so a rounded coordinate would move the pin.
+    assert_eq!(
+        threads[0].anchor,
+        Some(CommentAnchor::new("p1", 120.5, -40.25))
+    );
     assert!(!threads[0].resolved);
     assert_eq!(threads[0].comments[0].author.id.as_deref(), Some("u1"));
     assert_eq!(threads[0].comments[0].author.name, "Kay");
@@ -55,7 +64,9 @@ fn a_null_role_stays_null_and_an_empty_name_stays_empty() {
         "ok": true,
         "threads": [{
             "id": 1,
-            "nodeId": "n1",
+            "pageId": "p1",
+            "x": 10.0,
+            "y": 20.0,
             "createdAt": 1_700_000_000,
             "resolved": false,
             "resolvedAt": null,
@@ -87,7 +98,9 @@ fn an_unknown_role_travels_through_untouched() {
         "ok": true,
         "threads": [{
             "id": 1,
-            "nodeId": "n1",
+            "pageId": "p1",
+            "x": 10.0,
+            "y": 20.0,
             "createdAt": 0,
             "resolved": false,
             "comments": [{
@@ -109,7 +122,7 @@ fn a_thread_with_no_comments_is_kept_rather_than_dropped() {
     // The daemon's list is a LEFT JOIN: this shape is reachable.
     let body = serde_json::json!({
         "ok": true,
-        "threads": [{ "id": 5, "nodeId": "n9", "createdAt": 1, "resolved": false, "comments": [] }],
+        "threads": [{ "id": 5, "pageId": "p1", "x": 1.0, "y": 2.0, "createdAt": 1, "resolved": false, "comments": [] }],
     })
     .to_string();
     let threads = decode_threads(200, &body).unwrap();
@@ -122,9 +135,9 @@ fn a_resolved_thread_carries_its_resolver_and_a_nameless_one_drops_the_name() {
     let body = serde_json::json!({
         "ok": true,
         "threads": [
-            { "id": 1, "nodeId": "n1", "createdAt": 1, "resolved": true, "resolvedAt": 42,
+            { "id": 1, "pageId": "p1", "x": 1.0, "y": 1.0, "createdAt": 1, "resolved": true, "resolvedAt": 42,
               "resolvedBy": "u2", "resolvedByName": "Ada", "comments": [] },
-            { "id": 2, "nodeId": "n2", "createdAt": 1, "resolved": true, "resolvedAt": 43,
+            { "id": 2, "pageId": "p1", "x": 2.0, "y": 2.0, "createdAt": 1, "resolved": true, "resolvedAt": 43,
               "resolvedBy": null, "resolvedByName": "", "comments": [] },
         ],
     })
@@ -141,7 +154,7 @@ fn a_write_answer_becomes_one_thread() {
     let body = serde_json::json!({
         "ok": true,
         "thread": {
-            "id": 9, "nodeId": "n2", "createdAt": 1_700_000_500, "resolved": false,
+            "id": 9, "pageId": "p1", "x": 9.0, "y": 9.0, "createdAt": 1_700_000_500, "resolved": false,
             "resolvedAt": null, "resolvedBy": null, "resolvedByName": null,
             "comments": [{ "id": 90, "authorId": "u1", "authorName": "Kay",
                            "authorRole": "admin", "body": "answered", "createdAt": 1_700_000_500 }],
@@ -207,7 +220,7 @@ fn a_thread_without_an_id_is_not_a_thread() {
     // malformed answer rather than a degraded one.
     let body = serde_json::json!({
         "ok": true,
-        "threads": [{ "nodeId": "n1", "createdAt": 1, "comments": [] }],
+        "threads": [{ "pageId": "p1", "x": 1.0, "y": 1.0, "createdAt": 1, "comments": [] }],
     })
     .to_string();
     assert_eq!(decode_threads(200, &body).unwrap().len(), 0);
@@ -224,8 +237,8 @@ fn each_wire_failure_becomes_the_message_the_reviewer_reads() {
         CommentWriteError::Gone
     );
     assert_eq!(
-        CommentApiError::Rejected("Missing nodeId string".to_string()).to_write_error(),
-        CommentWriteError::Rejected("Missing nodeId string".to_string())
+        CommentApiError::Rejected("Missing pageId string".to_string()).to_write_error(),
+        CommentWriteError::Rejected("Missing pageId string".to_string())
     );
     for transport in [
         CommentApiError::RequestFailed,
@@ -256,9 +269,9 @@ fn a_refusal_does_not_ask_for_a_reload_but_a_missing_thread_does() {
 #[test]
 fn a_list_answer_installs_and_a_written_thread_is_upserted() {
     let mut ui = CommentsUiState::default();
-    let thread = |id: i64, node: &str| CommentThread {
+    let thread = |id: i64, x: f64| CommentThread {
         id,
-        node_id: node.to_string(),
+        anchor: Some(CommentAnchor::new("p1", x, 0.0)),
         comments: vec![Comment::default()],
         ..CommentThread::default()
     };
@@ -266,36 +279,34 @@ fn a_list_answer_installs_and_a_written_thread_is_upserted() {
     apply(
         &mut ui,
         AnswerKind::List,
-        Ok(Answer::Threads(vec![thread(1, "n1"), thread(2, "n2")])),
+        Ok(Answer::Threads(vec![thread(1, 10.0), thread(2, 20.0)])),
     );
     assert_eq!(ui.thread_ids(), vec![1, 2]);
 
     apply(
         &mut ui,
         AnswerKind::Written,
-        Ok(Answer::Thread(Box::new(thread(1, "n1")))),
+        Ok(Answer::Thread(Box::new(thread(1, 10.0)))),
     );
     assert_eq!(ui.thread_ids(), vec![1, 2], "replaced, not appended");
 }
 
 #[test]
-fn the_thread_a_pin_click_created_opens_once_the_server_answers() {
+fn the_thread_a_canvas_click_created_opens_once_the_server_answers() {
     let mut ui = CommentsUiState::default();
+    ui.transport = true;
     ui.toggle_pin_mode();
-    ui.begin_thread_on("n4");
+    ui.begin_thread_at(CommentAnchor::new("p1", 412.0, 88.0));
     ui.new_draft = "too tight".to_string();
     ui.send();
     assert_eq!(ui.composer(), None);
-    // The composer is gone while the write is in flight; the pin click left the
-    // element behind for the answer to open.
-    ui.pin_node = Some("n4".to_string());
 
     apply(
         &mut ui,
         AnswerKind::Written,
         Ok(Answer::Thread(Box::new(CommentThread {
             id: 12,
-            node_id: "n4".to_string(),
+            anchor: Some(CommentAnchor::new("p1", 412.0, 88.0)),
             comments: vec![Comment::default()],
             ..CommentThread::default()
         }))),
@@ -303,6 +314,12 @@ fn the_thread_a_pin_click_created_opens_once_the_server_answers() {
     assert!(
         ui.is_open(12),
         "the written thread is the one being looked at"
+    );
+    // And it opened at the point the click recorded, so the field the reviewer
+    // typed into and the pin under it are the same place.
+    assert_eq!(
+        ui.thread(12).and_then(|thread| thread.anchor.clone()),
+        Some(CommentAnchor::new("p1", 412.0, 88.0))
     );
 }
 
@@ -312,13 +329,13 @@ fn a_background_answer_does_not_take_the_panel_away_from_another_thread() {
     ui.install_threads(vec![
         CommentThread {
             id: 1,
-            node_id: "n1".to_string(),
+            anchor: Some(CommentAnchor::new("p1", 10.0, 10.0)),
             comments: vec![Comment::default()],
             ..CommentThread::default()
         },
         CommentThread {
             id: 2,
-            node_id: "n2".to_string(),
+            anchor: Some(CommentAnchor::new("p1", 20.0, 20.0)),
             comments: vec![Comment::default()],
             ..CommentThread::default()
         },
@@ -329,7 +346,7 @@ fn a_background_answer_does_not_take_the_panel_away_from_another_thread() {
         AnswerKind::Written,
         Ok(Answer::Thread(Box::new(CommentThread {
             id: 1,
-            node_id: "n1".to_string(),
+            anchor: Some(CommentAnchor::new("p1", 10.0, 10.0)),
             comments: vec![Comment::default()],
             ..CommentThread::default()
         }))),
@@ -344,6 +361,95 @@ fn a_failed_list_leaves_a_message_and_no_spinner() {
     apply(&mut ui, AnswerKind::List, Err(CommentApiError::Http(502)));
     assert!(!ui.loading);
     assert_eq!(ui.error.as_deref(), Some("comments.error.transport"));
+}
+
+#[test]
+fn a_null_placement_is_a_thread_with_no_pin_not_a_pin_at_the_origin() {
+    // What the daemon answers for a thread it migrated from the old
+    // element-keyed format. Reading the nulls with a `"" / 0.0` fallback would
+    // paint that conversation in the top-left corner of every page and claim the
+    // reviewer left it there.
+    let body = serde_json::json!({
+        "ok": true,
+        "threads": [{
+            "id": 4,
+            "pageId": null,
+            "x": null,
+            "y": null,
+            "anchorHint": "n7",
+            "createdAt": 1_700_000_000,
+            "resolved": false,
+            "comments": [{ "id": 40, "authorName": "Kay", "body": "old thread", "createdAt": 1 }],
+        }],
+    })
+    .to_string();
+    let threads = decode_threads(200, &body).unwrap();
+    assert_eq!(threads.len(), 1, "the conversation is still there to read");
+    assert!(threads[0].anchor.is_none(), "and it has no pin");
+}
+
+#[test]
+fn an_empty_page_id_is_no_page_rather_than_a_page_called_empty() {
+    // The other shape the wire can carry for "no pin": coordinates with an empty
+    // page. A coordinate needs a page to be in, so this is the same answer.
+    let body = serde_json::json!({
+        "ok": true,
+        "threads": [
+            { "id": 1, "pageId": "", "x": 5.0, "y": 6.0, "createdAt": 1, "comments": [] },
+            { "id": 2, "pageId": "p1", "x": 5.0, "y": 6.0, "createdAt": 1, "comments": [] },
+            { "id": 3, "pageId": "p1", "x": null, "y": 6.0, "createdAt": 1, "comments": [] },
+        ],
+    })
+    .to_string();
+    let threads = decode_threads(200, &body).unwrap();
+    assert!(threads[0].anchor.is_none(), "an empty page is not a page");
+    assert!(threads[1].anchor.is_some(), "a named page with a point is");
+    // Half a coordinate is not a place either: the pair is what the daemon
+    // stores and what a marker needs.
+    assert!(threads[2].anchor.is_none());
+}
+
+#[test]
+fn a_coordinate_outside_the_range_the_daemon_stores_is_no_pin() {
+    // The write route refuses these, so a read that carried one is a hand-edited
+    // database or another client: it is a thread with no drawable pin rather
+    // than a marker at an absurd position.
+    let body = serde_json::json!({
+        "ok": true,
+        "threads": [
+            { "id": 1, "pageId": "p1", "x": 1.0e9, "y": 0.0, "createdAt": 1, "comments": [] },
+            { "id": 2, "pageId": "p1", "x": 0.0, "y": 0.0, "createdAt": 1, "comments": [] },
+        ],
+    })
+    .to_string();
+    let threads = decode_threads(200, &body).unwrap();
+    assert!(threads[0].anchor.is_none());
+    // The origin is a perfectly good place to have left a comment, which is the
+    // distinction the null-handling exists to preserve.
+    assert_eq!(threads[1].anchor, Some(CommentAnchor::new("p1", 0.0, 0.0)));
+}
+
+#[test]
+fn a_create_request_carries_the_page_and_the_point_and_no_node() {
+    // The daemon answers 400 for a body with `nodeId` — deliberately, so a
+    // client that still believes a pin belongs to an element learns it from the
+    // response. This is the shape it accepts.
+    //
+    // The body is built by `dispatch`, which also performs the request, so the
+    // assertion is on the JSON the wire contract names rather than on an HTTP
+    // call this unit test has no window for.
+    let anchor = CommentAnchor::new("p1", 12.5, -8.75);
+    let body = serde_json::json!({
+        "pageId": anchor.page_id,
+        "x": anchor.x,
+        "y": anchor.y,
+        "text": "looks off",
+    });
+    assert_eq!(
+        body,
+        serde_json::json!({ "pageId": "p1", "x": 12.5, "y": -8.75, "text": "looks off" })
+    );
+    assert!(body.get("nodeId").is_none());
 }
 
 #[test]

@@ -36,6 +36,16 @@ impl WidgetHost {
                 self.mark_dirty();
                 true
             }
+            ToolbarAction::ToggleComments => {
+                // The mode switch is the state's: the rail's occupant, the
+                // button's active fill and the canvas click that drops a pin are
+                // all read from `pin_mode`, so nothing here decides anything.
+                // Turning it on also asks for the conversation (see
+                // `CommentsUiState::begin_mode`).
+                self.editor_state.editor_ui.comments.toggle_pin_mode();
+                self.mark_dirty();
+                true
+            }
         }
     }
 }

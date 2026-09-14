@@ -869,6 +869,10 @@ pub fn set_active_tool(state: &mut EditorState, tool: Tool) {
     // Leaving Select must drop the hover outline immediately — cursor
     // moves stop updating it for other tools.
     state.editor_ui.canvas_hover_node = None;
+    // One tool at a time, comment tool included: every tool path (the toolbar,
+    // the key shortcuts, the command router) funnels through here, so leaving
+    // the comment mode belongs here too rather than in each host.
+    state.editor_ui.comments.end_mode();
     state.tool = tool;
     if matches!(
         tool,

@@ -7,7 +7,9 @@
 
 use super::*;
 use crate::widgets::test_capture_backend::CaptureBackend;
-use op_editor_core::editor_ui_state::{Comment, CommentAuthor, CommentThread, CommentsUiState};
+use op_editor_core::editor_ui_state::{
+    Comment, CommentAnchor, CommentAuthor, CommentThread, CommentsUiState,
+};
 
 fn canvas() -> Rect {
     Rect::xywh(240.0, 40.0, 800.0, 600.0)
@@ -30,7 +32,7 @@ fn thread_ui(comments: Vec<Comment>) -> CommentsUiState {
     let mut ui = CommentsUiState::default();
     ui.install_threads(vec![CommentThread {
         id: 1,
-        node_id: "n1".to_string(),
+        anchor: Some(CommentAnchor::new("p1", 120.0, 80.0)),
         created_at: 1_700_000_000,
         resolved: false,
         resolved_at: None,
@@ -254,8 +256,9 @@ fn sending_needs_text_and_stays_within_the_servers_ceiling() {
 #[test]
 fn a_thread_being_written_has_no_resolve_button_and_its_own_placeholder() {
     let mut ui = CommentsUiState::default();
+    ui.transport = true;
     ui.toggle_pin_mode();
-    ui.begin_thread_on("n4");
+    ui.begin_thread_at(CommentAnchor::new("p1", 400.0, 300.0));
     let model = CommentPopoverModel::for_comments(&ui, Locale::EnUs, None, true).unwrap();
     assert!(model.thread_id().is_none());
     assert!(!model.reply_placeholder);

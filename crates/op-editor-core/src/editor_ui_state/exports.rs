@@ -6,8 +6,8 @@ pub use super::chrome::{
     RECENT_FILE_CAP, SERVER_FILE_CAP,
 };
 pub use super::comments::{
-    Comment, CommentAuthor, CommentComposer, CommentRequest, CommentThread, CommentWriteError,
-    CommentsUiState, MAX_COMMENT_CHARS,
+    Comment, CommentAnchor, CommentAuthor, CommentComposer, CommentRequest, CommentThread,
+    CommentWriteError, CommentsUiState, MAX_COMMENT_CHARS, MAX_COMMENT_COORDINATE,
 };
 pub use super::git_panel::{
     CloneField, CloneFormState, CommitDiffPatch, CommitDiffSummary, CommitDiffView,

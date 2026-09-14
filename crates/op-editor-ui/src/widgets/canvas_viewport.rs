@@ -134,13 +134,15 @@ pub struct CanvasViewport<'a> {
     /// below the local selection overlay, so local edit affordances remain
     /// visually authoritative.
     pub(super) collab_presence: Vec<crate::widgets::canvas_collab_presence::CollabPresencePaint>,
-    /// Comment threads as pin sources, in the document's own order.
+    /// The page's comment threads, as pin sources, numbered.
     ///
-    /// Only the sources: an element's screen position is a property of the
-    /// scene and the viewport, which this widget already owns, so the markers
-    /// are placed during paint (and again on a hit-test) rather than frozen at
-    /// construction — a pin that did not follow a pan would be worse than no
-    /// pin at all.
+    /// Already filtered to this page's pinned threads by the builder (see
+    /// [`crate::widgets::comment_pins::threads_for_page`]): a thread with no pin
+    /// has no marker, and another page's coordinates cannot be placed on this
+    /// one. Only the sources are held — a thread's screen position follows from
+    /// its document point, the canvas region and the viewport, all read per
+    /// frame, so the markers are placed during paint (and again on a hit-test)
+    /// rather than frozen at construction.
     pub(super) comment_threads: Vec<crate::widgets::comment_pins::CommentPinThread>,
     /// The marker under the cursor, for its hover ring. Paint-only.
     pub(super) comment_pin_hover: Option<i64>,
@@ -167,15 +169,12 @@ impl CanvasViewport<'_> {
     /// the same call a press makes, so a click can never land where a marker is
     /// not (see [`super::comment_pins`]).
     pub fn comment_pins(&self, canvas_rect: Rect) -> Vec<super::comment_pins::CommentPin> {
-        let Some(page) = self.scene.active_page() else {
+        // A scene with no page is a canvas with nothing on it, and a marker
+        // placed over that would hang in a void.
+        if self.scene.active_page().is_none() {
             return Vec::new();
-        };
-        super::comment_pins::scene_pins(
-            &self.comment_threads,
-            &page.children,
-            canvas_rect,
-            &self.viewport,
-        )
+        }
+        super::comment_pins::place_pins(&self.comment_threads, canvas_rect, &self.viewport)
     }
 
     /// The thread a click at `point` opens, if it landed on a marker.

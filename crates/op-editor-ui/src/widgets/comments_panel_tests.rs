@@ -1,20 +1,23 @@
-//! List panel geometry, rows and paint.
+//! The rail's thread list: rows, page scoping, geometry and paint.
 //!
 //! What a reviewer can be wrong about here: clicking the row they aimed at,
-//! losing a thread because its element is gone, and the panel calling an
-//! element pinned when there is nothing on the canvas to jump to.
+//! reading a page's list as the whole document's, and the rail's occupant being
+//! ambiguous between the inspector and this.
 
 use super::*;
 use crate::widgets::test_capture_backend::CaptureBackend;
-use op_editor_core::editor_ui_state::{Comment, CommentAuthor, CommentThread, CommentsUiState};
+use op_editor_core::editor_ui_state::{
+    Comment, CommentAnchor, CommentAuthor, CommentThread, CommentsUiState,
+};
 
-fn canvas() -> Rect {
-    Rect::xywh(240.0, 40.0, 800.0, 600.0)
+/// The rail's own rect — the same slot the property panel occupies.
+fn rail() -> Rect {
+    Rect::xywh(1040.0, 40.0, 240.0, 600.0)
 }
 
 fn thread(
     id: i64,
-    node: &str,
+    page: &str,
     name: &str,
     role: Option<&str>,
     body: &str,
@@ -22,7 +25,7 @@ fn thread(
 ) -> CommentThread {
     CommentThread {
         id,
-        node_id: node.to_string(),
+        anchor: Some(CommentAnchor::new(page, id as f64 * 30.0, id as f64 * 40.0)),
         created_at: 1_699_999_700,
         resolved,
         resolved_at: None,
@@ -41,15 +44,15 @@ fn thread(
     }
 }
 
-fn panel(ui: &CommentsUiState, now: f64, node_exists: impl Fn(&str) -> bool) -> CommentsPanel {
+fn panel(ui: &CommentsUiState, now: f64, page: &str) -> CommentsPanel {
     CommentsPanel::new(
         Theme::dark(),
         Locale::EnUs,
-        rows(ui, Locale::EnUs, None, node_exists),
-        ui.pin_mode,
+        rows(ui, Locale::EnUs, None, page),
         ui.loading,
         ui.error.clone(),
         now,
+        ui.open_count_elsewhere(page),
     )
 }
 
@@ -61,25 +64,37 @@ fn center(rect: Rect) -> Point2D {
 }
 
 #[test]
-fn a_thread_without_its_element_is_a_row_and_not_a_pin() {
+fn the_list_holds_one_pages_threads_and_numbers_them_from_one() {
     let mut ui = CommentsUiState::default();
     ui.install_threads(vec![
-        thread(
-            1,
-            "n1",
-            "Kay",
-            Some("ux_ui"),
-            "too close to the edge",
-            false,
-        ),
-        thread(2, "gone", "Ada", None, "this one lost its element", false),
+        thread(1, "p1", "Kay", None, "one", false),
+        thread(2, "p2", "Ada", None, "other page", false),
+        thread(3, "p1", "Cy", None, "three", false),
     ]);
-    let listed = rows(&ui, Locale::EnUs, None, |id| id == "n1");
+    let listed = rows(&ui, Locale::EnUs, None, "p1");
     assert_eq!(listed.len(), 2);
-    assert!(listed[0].pinned);
-    // The thread is still listed — that is the whole point — and says so.
-    assert!(!listed[1].pinned);
-    assert_eq!(listed[1].author, "Ada");
+    assert_eq!(
+        listed.iter().map(|row| row.thread_id).collect::<Vec<_>>(),
+        vec![1, 3]
+    );
+    // The ordinals are this page's, matching the pins drawn on it.
+    assert_eq!(listed[0].ordinal, Some(1));
+    assert_eq!(listed[1].ordinal, Some(2));
+}
+
+#[test]
+fn the_rest_of_the_review_is_counted_rather_than_listed() {
+    let mut ui = CommentsUiState::default();
+    let mut closed = thread(4, "p2", "Ada", None, "done", true);
+    closed.resolved = true;
+    ui.install_threads(vec![
+        thread(1, "p1", "Kay", None, "here", false),
+        thread(2, "p2", "Ada", None, "elsewhere", false),
+        closed,
+    ]);
+    let list = panel(&ui, 0.0, "p1");
+    // Only p2's OPEN thread counts: a resolved one is not outstanding work.
+    assert_eq!(list.elsewhere(), 1);
 }
 
 #[test]
@@ -87,7 +102,7 @@ fn a_row_carries_the_author_the_first_line_the_count_and_the_state() {
     let mut ui = CommentsUiState::default();
     let mut with_replies = thread(
         1,
-        "n1",
+        "p1",
         "Kay",
         Some("admin"),
         "first line\nsecond line",
@@ -104,8 +119,8 @@ fn a_row_carries_the_author_the_first_line_the_count_and_the_state() {
         created_at: 1_699_999_800,
     });
     ui.install_threads(vec![with_replies]);
-    let listed = rows(&ui, Locale::EnUs, None, |_| true);
-    assert_eq!(listed[0].ordinal, 1);
+    let listed = rows(&ui, Locale::EnUs, None, "p1");
+    assert_eq!(listed[0].ordinal, Some(1));
     assert_eq!(listed[0].author, "Kay");
     // One line, because a row is one line tall.
     assert_eq!(listed[0].excerpt, "first line second line");
@@ -118,21 +133,21 @@ fn a_row_carries_the_author_the_first_line_the_count_and_the_state() {
 fn the_viewers_own_comment_is_named_as_you() {
     let mut ui = CommentsUiState::default();
     ui.set_viewer_id(Some("u1".to_string()));
-    ui.install_threads(vec![thread(1, "n1", "Kay", None, "mine", false)]);
-    let listed = rows(&ui, Locale::EnUs, ui.viewer_id.as_deref(), |_| true);
+    ui.install_threads(vec![thread(1, "p1", "Kay", None, "mine", false)]);
+    let listed = rows(&ui, Locale::EnUs, ui.viewer_id.as_deref(), "p1");
     assert_eq!(listed[0].author, "You");
     // And with no id of our own it is the name the server recorded.
-    let anonymous = rows(&ui, Locale::EnUs, None, |_| true);
+    let anonymous = rows(&ui, Locale::EnUs, None, "p1");
     assert_eq!(anonymous[0].author, "Kay");
 }
 
 #[test]
 fn a_local_operator_comment_is_named_as_one() {
     let mut ui = CommentsUiState::default();
-    let mut local = thread(1, "n1", "", None, "no account behind this", false);
+    let mut local = thread(1, "p1", "", None, "no account behind this", false);
     local.comments[0].author.id = None;
     ui.install_threads(vec![local]);
-    let listed = rows(&ui, Locale::EnUs, None, |_| true);
+    let listed = rows(&ui, Locale::EnUs, None, "p1");
     assert_eq!(listed[0].author, "Local operator");
 }
 
@@ -141,11 +156,11 @@ fn a_thread_with_no_comments_still_has_a_row() {
     let mut ui = CommentsUiState::default();
     ui.install_threads(vec![CommentThread {
         id: 3,
-        node_id: "n3".to_string(),
+        anchor: Some(CommentAnchor::new("p1", 10.0, 20.0)),
         comments: vec![],
         ..CommentThread::default()
     }]);
-    let listed = rows(&ui, Locale::EnUs, None, |_| true);
+    let listed = rows(&ui, Locale::EnUs, None, "p1");
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].excerpt, "");
     assert_eq!(listed[0].author, "Unknown");
@@ -153,15 +168,81 @@ fn a_thread_with_no_comments_still_has_a_row() {
 }
 
 #[test]
-fn a_press_lands_on_the_row_it_aimed_at() {
+fn a_thread_with_no_pin_is_listed_marked_and_unumbered() {
+    // A thread the daemon migrated from the element-keyed format has no page and
+    // no coordinates. It is not hidden — a conversation nobody can find is worse
+    // than one without a marker — and it is not given a number, because there is
+    // no marker carrying that number.
     let mut ui = CommentsUiState::default();
     ui.install_threads(vec![
-        thread(1, "n1", "Kay", None, "one", false),
-        thread(2, "n2", "Ada", None, "two", false),
-        thread(3, "n3", "Cy", None, "three", false),
+        thread(1, "p1", "Kay", None, "on this page", false),
+        CommentThread {
+            id: 2,
+            anchor: None,
+            comments: vec![Comment {
+                id: 20,
+                author: CommentAuthor {
+                    id: Some("u2".to_string()),
+                    name: "Ada".to_string(),
+                    role: None,
+                },
+                body: "migrated from the old format".to_string(),
+                created_at: 1_699_999_800,
+            }],
+            ..CommentThread::default()
+        },
     ]);
-    let list = panel(&ui, 0.0, |_| true);
-    let rect = list.rect_in_canvas(canvas());
+    let listed = rows(&ui, Locale::EnUs, None, "p1");
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[0].ordinal, Some(1));
+    assert_eq!(listed[1].ordinal, None, "no pin, no number");
+    assert_eq!(listed[1].author, "Ada");
+
+    // And the row says so, rather than reading as a pin somebody cannot see.
+    let list = panel(&ui, 0.0, "p1");
+    let mut backend = CaptureBackend::default();
+    let mut cx = PaintCx {
+        backend: &mut backend,
+    };
+    list.paint(&mut cx, rail());
+    let painted: Vec<&str> = backend
+        .texts
+        .iter()
+        .map(|(text, _)| text.as_str())
+        .collect();
+    assert!(painted.contains(&"Pin 1"), "{painted:?}");
+    assert!(painted.contains(&"No pin"), "{painted:?}");
+    assert!(!painted.contains(&"Pin 2"), "{painted:?}");
+}
+
+#[test]
+fn a_pin_less_thread_belongs_to_the_page_being_shown() {
+    // It is in the list of whatever page the reviewer is on, and in the count
+    // that list opens: otherwise a migrated conversation would be invisible
+    // everywhere, and only a reload would ever change the badge.
+    let mut ui = CommentsUiState::default();
+    ui.install_threads(vec![
+        thread(1, "p1", "Kay", None, "here", false),
+        CommentThread {
+            id: 2,
+            anchor: None,
+            ..CommentThread::default()
+        },
+        thread(3, "p2", "Ada", None, "elsewhere", false),
+    ]);
+    assert_eq!(ui.threads_on_page("p1").len(), 2);
+    assert_eq!(ui.threads_on_page("p2").len(), 2);
+    assert_eq!(ui.open_count_on_page("p1"), 2);
+    // "Elsewhere" means another page's pin, not a thread with no page at all.
+    assert_eq!(ui.open_count_elsewhere("p1"), 1);
+    assert_eq!(ui.open_count_elsewhere("p2"), 1);
+}
+
+#[test]
+fn a_press_lands_on_the_row_it_aimed_at() {
+    let ui = three_threads();
+    let list = panel(&ui, 0.0, "p1");
+    let rect = rail();
     let row_rects = list.row_rects(rect);
     assert_eq!(row_rects.len(), 3);
     for (index, row) in row_rects.iter().enumerate() {
@@ -170,19 +251,30 @@ fn a_press_lands_on_the_row_it_aimed_at() {
     }
 }
 
+fn three_threads() -> CommentsUiState {
+    let mut ui = CommentsUiState::default();
+    ui.install_threads(vec![
+        thread(1, "p1", "Kay", None, "one", false),
+        thread(2, "p1", "Ada", None, "two", false),
+        thread(3, "p1", "Cy", None, "three", false),
+    ]);
+    ui
+}
+
 #[test]
 fn a_press_on_the_panel_edges_does_nothing_to_the_rows() {
-    let mut ui = CommentsUiState::default();
-    ui.install_threads(vec![thread(1, "n1", "Kay", None, "one", false)]);
-    let list = panel(&ui, 0.0, |_| true);
-    let rect = list.rect_in_canvas(canvas());
+    let ui = three_threads();
+    let list = panel(&ui, 0.0, "p1");
+    let rect = rail();
     assert_eq!(
         list.hit_test(rect, center(CommentsPanel::close_rect(rect))),
         CommentsPanelHit::Close
     );
+    // The hint line is not a control: it says what the tool does, and a click on
+    // it is a click on the panel.
     assert_eq!(
-        list.hit_test(rect, center(CommentsPanel::arm_rect(rect))),
-        CommentsPanelHit::ArmPin
+        list.hit_test(rect, center(CommentsPanel::hint_rect(rect))),
+        CommentsPanelHit::Inside
     );
     assert_eq!(
         list.hit_test(
@@ -194,26 +286,27 @@ fn a_press_on_the_panel_edges_does_nothing_to_the_rows() {
 }
 
 #[test]
-fn rows_never_overlap_the_toggle_above_them() {
-    let mut ui = CommentsUiState::default();
-    ui.install_threads(vec![thread(1, "n1", "Kay", None, "one", false)]);
-    let list = panel(&ui, 0.0, |_| true);
-    let rect = list.rect_in_canvas(canvas());
-    let arm = CommentsPanel::arm_rect(rect);
+fn rows_never_overlap_the_hint_above_them() {
+    let ui = three_threads();
+    let list = panel(&ui, 0.0, "p1");
+    let rect = rail();
+    let hint = CommentsPanel::hint_rect(rect);
     let first = list.row_rects(rect)[0];
-    assert!(first.origin.y >= arm.origin.y + arm.size.y);
+    assert!(first.origin.y >= hint.origin.y + hint.size.y);
 }
 
 #[test]
-fn the_panel_sits_against_the_canvas_right_edge() {
-    let mut ui = CommentsUiState::default();
-    ui.install_threads(vec![thread(1, "n1", "Kay", None, "one", false)]);
-    let list = panel(&ui, 0.0, |_| true);
-    let region = canvas();
-    let rect = list.rect_in_canvas(region);
-    assert!(rect.origin.x + rect.size.x <= region.origin.x + region.size.x);
-    assert!(rect.origin.x > region.origin.x + region.size.x / 2.0);
-    assert!(rect.origin.y >= region.origin.y);
+fn the_list_is_painted_inside_the_rect_the_rail_gave_it() {
+    // The rail's rect is the inspector's slot: the list paints inside it and
+    // never outside, because the canvas is right next to it.
+    let ui = three_threads();
+    let list = panel(&ui, 0.0, "p1");
+    let rect = rail();
+    for row in list.row_rects(rect) {
+        assert!(row.origin.x >= rect.origin.x);
+        assert!(row.origin.x + row.size.x <= rect.origin.x + rect.size.x);
+        assert!(row.origin.y + row.size.y <= rect.origin.y + rect.size.y);
+    }
 }
 
 #[test]
@@ -221,16 +314,39 @@ fn a_long_list_is_capped_and_counted() {
     let mut ui = CommentsUiState::default();
     ui.install_threads(
         (1..=20)
-            .map(|id| thread(id, "n1", "Kay", None, "body", false))
+            .map(|id| thread(id, "p1", "Kay", None, "body", false))
             .collect(),
     );
-    let list = panel(&ui, 0.0, |_| true);
-    assert_eq!(list.visible_rows().len(), MAX_ROWS);
-    assert_eq!(list.hidden_rows(), 20 - MAX_ROWS);
-    // The height is what the rows cost, not what the list holds.
+    let list = panel(&ui, 0.0, "p1");
+    // A rail tall enough for the cap: past a screenful the answer is a filter
+    // rather than a scrollbar.
+    let tall = Rect::xywh(
+        1040.0,
+        40.0,
+        240.0,
+        40.0 + 26.0 + 12.0 + MAX_ROWS as f32 * ROW_H,
+    );
+    assert_eq!(list.row_rects(tall).len(), MAX_ROWS);
+    assert_eq!(list.hidden_rows(tall), 20 - MAX_ROWS);
+    // A shorter rail clips instead: the rows it has no room for are counted,
+    // not painted over the panel's own edge.
+    let room = ((rail().size.y - HEADER_H - HINT_H - PAD) / ROW_H).floor() as usize;
+    assert!(room < MAX_ROWS, "the fixture rail is the shorter case");
+    assert_eq!(list.row_rects(rail()).len(), room);
+    assert_eq!(list.hidden_rows(rail()), 20 - room);
+}
+
+#[test]
+fn a_list_with_no_room_paints_no_rows_rather_than_out_of_the_panel() {
+    let ui = three_threads();
+    let list = panel(&ui, 0.0, "p1");
+    // A rail shorter than its own header: nothing fits, so nothing is claimed —
+    // hit-test and paint read the same answer.
+    let cramped = Rect::xywh(1040.0, 40.0, 240.0, 50.0);
+    assert!(list.row_rects(cramped).is_empty());
     assert_eq!(
-        list.height(),
-        HEADER_H + ARM_H + MAX_ROWS as f32 * ROW_H + PAD
+        list.hit_test(cramped, Point2D::new(1100.0, 60.0)),
+        CommentsPanelHit::Inside
     );
 }
 
@@ -241,8 +357,8 @@ fn an_empty_list_paints_its_own_reason() {
     let mut cx = PaintCx {
         backend: &mut backend,
     };
-    let list = panel(&ui, 0.0, |_| true);
-    list.paint(&mut cx, list.rect_in_canvas(canvas()));
+    let list = panel(&ui, 0.0, "p1");
+    list.paint(&mut cx, rail());
     let painted: Vec<&str> = backend
         .texts
         .iter()
@@ -253,7 +369,10 @@ fn an_empty_list_paints_its_own_reason() {
         painted.iter().any(|text| text.contains("No comments")),
         "{painted:?}"
     );
-    assert!(painted.contains(&"Comment on an element"), "{painted:?}");
+    assert!(
+        painted.iter().any(|text| text.contains("Click the canvas")),
+        "{painted:?}"
+    );
 }
 
 #[test]
@@ -264,8 +383,8 @@ fn a_loading_and_a_failed_list_say_which_they_are() {
     let mut cx = PaintCx {
         backend: &mut backend,
     };
-    let list = panel(&loading, 0.0, |_| true);
-    list.paint(&mut cx, list.rect_in_canvas(canvas()));
+    let list = panel(&loading, 0.0, "p1");
+    list.paint(&mut cx, rail());
     assert!(
         backend
             .texts
@@ -281,8 +400,8 @@ fn a_loading_and_a_failed_list_say_which_they_are() {
     let mut cx = PaintCx {
         backend: &mut backend,
     };
-    let list = panel(&failed, 0.0, |_| true);
-    list.paint(&mut cx, list.rect_in_canvas(canvas()));
+    let list = panel(&failed, 0.0, "p1");
+    list.paint(&mut cx, rail());
     assert!(
         backend
             .texts
@@ -294,19 +413,26 @@ fn a_loading_and_a_failed_list_say_which_they_are() {
 }
 
 #[test]
-fn a_row_paints_its_marks_and_the_missing_pin() {
+fn a_row_paints_its_pin_number_its_state_and_its_replies() {
     let mut ui = CommentsUiState::default();
-    ui.install_threads(vec![
-        thread(1, "n1", "Kay", None, "one", false),
-        thread(2, "gone", "Ada", None, "two", true),
-    ]);
-    let list = panel(&ui, 1_700_000_000_000.0, |id| id == "n1");
+    let mut closed = thread(2, "p1", "Ada", None, "two", true);
+    closed.comments.push(Comment {
+        id: 22,
+        author: CommentAuthor {
+            id: Some("u2".to_string()),
+            name: "Ada".to_string(),
+            role: None,
+        },
+        body: "an answer".to_string(),
+        created_at: 1_699_999_900,
+    });
+    ui.install_threads(vec![thread(1, "p1", "Kay", None, "one", false), closed]);
+    let list = panel(&ui, 1_700_000_000_000.0, "p1");
     let mut backend = CaptureBackend::default();
     let mut cx = PaintCx {
         backend: &mut backend,
     };
-    let rect = list.rect_in_canvas(canvas());
-    list.paint(&mut cx, rect);
+    list.paint(&mut cx, rail());
     let painted: Vec<&str> = backend
         .texts
         .iter()
@@ -316,25 +442,48 @@ fn a_row_paints_its_marks_and_the_missing_pin() {
     assert!(painted.contains(&"Ada"), "{painted:?}");
     assert!(painted.contains(&"Open"), "{painted:?}");
     assert!(painted.contains(&"Resolved"), "{painted:?}");
-    assert!(painted.contains(&"No pin"), "{painted:?}");
+    // The number a row carries is the number its pin shows.
+    assert!(painted.contains(&"Pin 1"), "{painted:?}");
+    assert!(painted.contains(&"Pin 2"), "{painted:?}");
+    assert!(painted.contains(&"1 replies"), "{painted:?}");
     assert!(painted.contains(&"5m ago"), "{painted:?}");
 }
 
 #[test]
-fn the_armed_toggle_says_what_it_will_do() {
+fn the_other_pages_are_named_at_the_foot_of_the_list() {
     let mut ui = CommentsUiState::default();
-    ui.toggle_pin_mode();
-    let list = panel(&ui, 0.0, |_| true);
+    ui.install_threads(vec![
+        thread(1, "p1", "Kay", None, "one", false),
+        thread(2, "p2", "Ada", None, "elsewhere", false),
+    ]);
+    let list = panel(&ui, 0.0, "p1");
     let mut backend = CaptureBackend::default();
     let mut cx = PaintCx {
         backend: &mut backend,
     };
-    list.paint(&mut cx, list.rect_in_canvas(canvas()));
+    list.paint(&mut cx, rail());
+    let painted: Vec<&str> = backend
+        .texts
+        .iter()
+        .map(|(text, _)| text.as_str())
+        .collect();
+    assert!(painted.contains(&"1 on other pages"), "{painted:?}");
+}
+
+#[test]
+fn the_hint_says_what_the_active_tool_does_with_a_click() {
+    let ui = CommentsUiState::default();
+    let list = panel(&ui, 0.0, "p1");
+    let mut backend = CaptureBackend::default();
+    let mut cx = PaintCx {
+        backend: &mut backend,
+    };
+    list.paint(&mut cx, rail());
     assert!(
         backend
             .texts
             .iter()
-            .any(|(text, _)| text.contains("Click an element")),
+            .any(|(text, _)| text.contains("Click the canvas")),
         "{:?}",
         backend.texts
     );
@@ -343,21 +492,21 @@ fn the_armed_toggle_says_what_it_will_do() {
 #[test]
 fn the_list_is_localized() {
     let mut ui = CommentsUiState::default();
-    ui.install_threads(vec![thread(1, "n1", "Кай", None, "текст", false)]);
+    ui.install_threads(vec![thread(1, "p1", "Кай", None, "текст", false)]);
     let panel = CommentsPanel::new(
         Theme::dark(),
         Locale::Ru,
-        rows(&ui, Locale::Ru, None, |_| true),
-        false,
+        rows(&ui, Locale::Ru, None, "p1"),
         false,
         None,
         0.0,
+        0,
     );
     let mut backend = CaptureBackend::default();
     let mut cx = PaintCx {
         backend: &mut backend,
     };
-    panel.paint(&mut cx, panel.rect_in_canvas(canvas()));
+    panel.paint(&mut cx, rail());
     let painted: Vec<&str> = backend
         .texts
         .iter()
@@ -365,5 +514,5 @@ fn the_list_is_localized() {
         .collect();
     assert!(painted.contains(&"Комментарии"), "{painted:?}");
     assert!(painted.contains(&"Открыт"), "{painted:?}");
-    assert!(painted.contains(&"Комментарий к элементу"), "{painted:?}");
+    assert!(painted.contains(&"Пин 1"), "{painted:?}");
 }

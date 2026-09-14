@@ -32,6 +32,18 @@ impl WidgetHost {
             .image_generation_configured();
         let image_popover_open = self.editor_state.editor_ui.image_panel.search_open
             || self.editor_state.editor_ui.image_panel.generate_open;
+        // The comment composer is an in-canvas field with exact geometry of its
+        // own: the popover rect the paint pass just cached, and the input row
+        // inside it. Without this the browser anchors a composition (an IME
+        // candidate window, an emoji picker) at the last cursor position, which
+        // after a canvas click is a different part of the screen from the field
+        // receiving the text.
+        if self.editor_state.editor_ui.comments.takes_keyboard() {
+            if let Some(rect) = self.comments_popover_rect {
+                use op_editor_ui::widgets::comment_thread_popover::CommentThreadPopover;
+                return Some(CommentThreadPopover::input_rect(rect));
+            }
+        }
         if let (Some(panel), Some(rect)) = (
             op_editor_ui::widgets::PromptCenterPanel::for_editor(&self.editor_state),
             self.prompt_center_panel_rect(self.last_viewport_w, self.last_viewport_h),

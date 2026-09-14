@@ -26,14 +26,32 @@
 //! replaces the list and re-opens the open thread by id, or closes it if it is
 //! gone.
 //!
-//! ## Why a thread with no pin is still a thread
+//! ## Why a comment is a point on a page, not an element
 //!
-//! `node_id` names an element, and the element can be deleted while the
-//! conversation about it stays worth reading — Figma's "unattached" comments.
-//! So nothing here filters by whether the node exists: the pin is a property of
-//! the paint layer (see `op_editor_ui::widgets::comment_pins`), which drops the
-//! marker and leaves the thread in the list. Dropping the thread itself would
-//! lose the discussion the moment its subject is renamed away.
+//! A thread used to name a `node_id` and hang off that element's bounds. That
+//! made the comment reachable only where the element was: the small elements a
+//! review is mostly about — an icon, a label, a 4 px gap — are exactly the ones
+//! a pointer cannot reliably hit, so the comment about them could not be placed
+//! at all. A comment is therefore a [point](CommentAnchor): the page it is on
+//! and a coordinate in that page's own document space, which is where the
+//! reviewer clicked. Nothing about a thread's position depends on the document
+//! tree any more, so an element that moves, is renamed, or is deleted leaves
+//! the conversation exactly where it was left.
+//!
+//! The coordinate is **document** space, and the page id is kept beside it: a
+//! screen position is a property of the viewport, so a pin that stored one
+//! would slide the moment somebody panned (see
+//! `op_editor_ui::widgets::comment_pins` for the one place the two spaces are
+//! converted).
+//!
+//! ## Why the rail is the mode, rather than a separate flag
+//!
+//! The right rail shows one thing at a time: the inspector, or the document's
+//! conversations. Two flags (`pin_mode` and a `panel_open`) would be two
+//! answers to one question, and every reader that consulted only one of them
+//! would eventually paint the wrong occupant. So [`CommentsUiState::pin_mode`]
+//! is the comment *tool* — the toolbar's icon, the rail's occupant and the
+//! canvas click that drops a pin are all that one bit.
 
 /// Longest comment accepted, in characters — the daemon's own ceiling.
 ///
@@ -79,12 +97,73 @@ pub struct Comment {
     pub created_at: u64,
 }
 
-/// One thread: the pin, its comments, and whether it is closed.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// Where a comment sits: the page, and the point on it.
+///
+/// Document-space coordinates (`x` / `y`), in the page `page_id` names — the
+/// same space the canvas paints in and the same pair the daemon stores. Kept
+/// together rather than as three loose fields so a comment can never carry a
+/// coordinate that belongs to another page.
+///
+/// `f64` rather than `f32`: the daemon stores the pair as REAL and hands it back
+/// as it was written, and a narrowing round trip through the parse would move a
+/// pin by a visible amount at any zoom past 1x — a document pixel is wider than
+/// a screen pixel there.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CommentAnchor {
+    /// The page this point is on.
+    pub page_id: String,
+    pub x: f64,
+    pub y: f64,
+}
+
+/// Furthest from the origin the daemon will store a coordinate.
+///
+/// Mirrored rather than imported for the reason [`MAX_COMMENT_CHARS`] is: it is
+/// a wire contract shared with a crate this one does not depend on. It is
+/// checked here so a click that could not be stored is refused where it is made
+/// instead of coming back as a 400 after the reviewer has typed a paragraph.
+pub const MAX_COMMENT_COORDINATE: f64 = 10_000_000.0;
+
+impl CommentAnchor {
+    pub fn new(page_id: impl Into<String>, x: f64, y: f64) -> Self {
+        Self {
+            page_id: page_id.into(),
+            x,
+            y,
+        }
+    }
+
+    /// Whether this is a point a pin can be drawn at, and stored.
+    ///
+    /// A non-finite or out-of-range coordinate is refused rather than clamped:
+    /// it would place a pin nobody can find, and the state that made one is a
+    /// bug worth being able to see rather than hide behind a `0.0`.
+    pub fn is_placeable(&self) -> bool {
+        self.x.is_finite()
+            && self.y.is_finite()
+            && self.x.abs() <= MAX_COMMENT_COORDINATE
+            && self.y.abs() <= MAX_COMMENT_COORDINATE
+    }
+}
+
+/// One thread: its pin (when it has one), its comments, and whether it is
+/// closed.
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct CommentThread {
     pub id: i64,
-    /// The element the pin sits on. May name a node the document no longer has.
-    pub node_id: String,
+    /// Where the pin sits, or `None` for a thread with no pin at all.
+    ///
+    /// The daemon migrated threads written under the old element-keyed format,
+    /// which have no page and no coordinates, and it answers `null` for exactly
+    /// that — so "there is nothing to draw" is a state this model has to be able
+    /// to hold. Folding it into a coordinate would put a pin at the origin of
+    /// some page and claim the comment was left there. The thread is still a
+    /// thread: the rail lists it, marked, and a press on its row opens the
+    /// conversation without moving the canvas.
+    ///
+    /// Independent of the document tree either way, so a thread outlives the
+    /// element it was written about.
+    pub anchor: Option<CommentAnchor>,
     pub created_at: u64,
     pub resolved: bool,
     /// Set exactly when `resolved` is — the daemon writes the pair together.
@@ -130,16 +209,21 @@ impl CommentThread {
 /// it has the node the click landed on, and the write that creates it needs
 /// exactly that. Keeping them one enum is what stops a half-built state (a
 /// draft with neither an id nor a node) from being representable.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CommentComposer {
     /// An existing thread is open.
     Thread(i64),
-    /// A comment about `node_id` that has not been written yet.
-    NewThread(String),
+    /// A comment about the point in `anchor` that has not been written yet.
+    ///
+    /// The anchor is carried, not looked up: this is the click the reviewer
+    /// just made, and it is what the composer is painted beside and what the
+    /// write will send. A composer that only remembered "a new thread is being
+    /// written" would have to be told the position twice.
+    NewThread(CommentAnchor),
 }
 
 /// A write the widget layer asked for and the host must perform.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CommentRequest {
     /// Re-read the document's threads.
     ///
@@ -147,8 +231,8 @@ pub enum CommentRequest {
     /// comments, so a client that never re-reads shows a conversation that
     /// stopped at the moment it loaded.
     Reload,
-    /// Open a thread on `node_id` with `text` as its first comment.
-    Create { node_id: String, text: String },
+    /// Open a thread at `anchor` with `text` as its first comment.
+    Create { anchor: CommentAnchor, text: String },
     /// Add `text` to an existing thread.
     Reply { thread_id: i64, text: String },
     /// Close a thread.
@@ -203,6 +287,14 @@ pub struct CommentsUiState {
     /// than by name. It is identity, not document state, so a document change
     /// does NOT clear it.
     pub viewer_id: Option<String>,
+    /// Whether this host carries the daemon's comment client at all.
+    ///
+    /// Declared by the host that owns the transport (`op_host_web::web_comments`),
+    /// not derived here: a host without it can neither read the conversation nor
+    /// write one, so the comment tool has nothing to select and the toolbar must
+    /// not offer it. Defaults to `false`, which is the honest answer for every
+    /// host that has not said otherwise.
+    pub transport: bool,
     /// The document's threads, oldest first — the server's own order.
     ///
     /// The order is deliberately kept rather than re-sorted by node or by
@@ -218,14 +310,22 @@ pub struct CommentsUiState {
     pub open_thread: Option<i64>,
     /// The comment being typed into the open thread.
     pub reply_draft: String,
-    /// The comment being typed for the thread a pin click will create.
+    /// The comment being typed for the thread a canvas click will create.
     pub new_draft: String,
-    /// Whether the next canvas click on an element drops a pin.
+    /// Whether the comment tool is active.
+    ///
+    /// One bit, three effects: the toolbar icon reads it as its active state,
+    /// the right rail shows the thread list instead of the inspector, and a
+    /// canvas click drops a pin. Tools behave this way — the mode ends when the
+    /// reviewer picks it again or picks another tool (see
+    /// `host_keyboard_transitions::set_active_tool`) — so it is deliberately not
+    /// a flag per surface.
     pub pin_mode: bool,
-    /// The element a pending new-thread draft belongs to.
-    pub pin_node: Option<String>,
-    /// Whether the thread list panel is showing.
-    pub panel_open: bool,
+    /// The point a pending new-thread draft belongs to.
+    ///
+    /// Set by the canvas click and read by the composer, which paints beside
+    /// it and sends it. `None` while an existing thread is open instead.
+    pub pending_pin: Option<CommentAnchor>,
     /// Whether the comment field owns the keyboard.
     ///
     /// The host routes typed text to exactly one surface, so the comment
@@ -256,12 +356,14 @@ impl CommentsUiState {
         self.reply_draft.clear();
         self.new_draft.clear();
         self.pin_mode = false;
-        self.pin_node = None;
+        self.pending_pin = None;
         self.composer_focused = false;
         // `viewer_id` is deliberately kept: it is who this client is, not
         // something the document said.
-        // `panel_open` is chrome, not document state, and survives — the panel
-        // a reviewer opened is still the panel they want on the next file.
+        // `pin_mode` is NOT kept, unlike the old panel flag: the mode is
+        // attached to the page a click landed on, and the next document's
+        // coordinate space is not that one. A reviewer who wants the comment
+        // rail back picks the tool again, which is one click and unambiguous.
         self.pending.clear();
     }
 
@@ -325,31 +427,109 @@ impl CommentsUiState {
         self.threads.iter().map(|thread| thread.id).collect()
     }
 
-    /// 1-based position of a thread in the list — the number a pin shows.
+    /// Every thread the rail lists for `page_id`, in the server's order.
     ///
-    /// `None` for a thread the list does not hold, which is how a pin whose
-    /// thread arrived after the snapshot that drew the canvas is skipped instead
-    /// of drawn unnumbered.
-    pub fn ordinal(&self, id: i64) -> Option<usize> {
+    /// That is the page's own pinned threads **plus** the pin-less ones. A
+    /// thread the daemon migrated from the old element-keyed format belongs to
+    /// no page, and a strictly page-scoped list would hide it from every page —
+    /// a conversation nobody can find is worse than one listed without a marker
+    /// to jump to. They carry no number and no pin; the row says so.
+    ///
+    /// The list is page-scoped for the same reason the pins are: the number a
+    /// marker shows is its index among the markers actually drawn. Threads
+    /// *pinned* on other pages are counted instead of listed (see
+    /// [`Self::open_count_elsewhere`]) — a reviewer is told they exist without
+    /// being handed rows that lead to a page they are not looking at.
+    pub fn threads_on_page(&self, page_id: &str) -> Vec<&CommentThread> {
         self.threads
             .iter()
-            .position(|thread| thread.id == id)
-            .map(|index| index + 1)
-    }
-
-    /// Every thread whose pin sits on `node_id`, oldest first.
-    pub fn threads_on_node(&self, node_id: &str) -> Vec<&CommentThread> {
-        self.threads
-            .iter()
-            .filter(|thread| thread.node_id == node_id)
+            .filter(|thread| match thread.anchor.as_ref() {
+                Some(anchor) => anchor.page_id == page_id,
+                None => true,
+            })
             .collect()
     }
 
+    /// 1-based position of a thread among its page's pins, or `None`.
+    ///
+    /// `None` for a thread the rail cannot point at: one with no pin at all, or
+    /// one the list does not hold — which is how a marker whose thread arrived
+    /// after the snapshot that drew the canvas is skipped instead of drawn
+    /// unnumbered.
+    pub fn ordinal(&self, id: i64) -> Option<usize> {
+        let thread = self.thread(id)?;
+        let page_id = thread.anchor.as_ref()?.page_id.as_str();
+        self.pinned_on_page(page_id)
+            .iter()
+            .position(|held| held.id == id)
+            .map(|index| index + 1)
+    }
+
+    /// The threads of `page_id` that have a drawable pin, in the server's order.
+    ///
+    /// This is the sequence both the rail's numbering and the canvas' marker
+    /// placement walk, which is what makes a row's number and its marker's
+    /// number the same number. "Drawable" is part of the filter rather than a
+    /// second check at the marker: a coordinate outside the range the daemon
+    /// stores is a thread with no pin, and numbering it would leave a gap in the
+    /// numbers painted on the canvas.
+    pub fn pinned_on_page(&self, page_id: &str) -> Vec<&CommentThread> {
+        self.threads
+            .iter()
+            .filter(|thread| {
+                thread
+                    .anchor
+                    .as_ref()
+                    .is_some_and(|anchor| anchor.page_id == page_id && anchor.is_placeable())
+            })
+            .collect()
+    }
+
+    /// Open threads the rail lists for `page_id` — what the toolbar badge shows.
+    ///
+    /// The badge counts what pressing it opens, so it includes the pin-less
+    /// threads for the reason the list does; anything else would be a number
+    /// that disagrees with the first thing the reviewer sees.
+    pub fn open_count_on_page(&self, page_id: &str) -> usize {
+        self.threads_on_page(page_id)
+            .iter()
+            .filter(|thread| !thread.resolved)
+            .count()
+    }
+
+    /// Open threads pinned on pages other than `page_id`.
+    ///
+    /// The rail lists one page; a count of the rest is how a reviewer learns
+    /// that the review does not end with it, without a list whose rows would
+    /// each have to say which page they belong to. A pin-less thread is not
+    /// "elsewhere" — it is nowhere, and it is already in the list.
+    pub fn open_count_elsewhere(&self, page_id: &str) -> usize {
+        self.threads
+            .iter()
+            .filter(|thread| {
+                !thread.resolved
+                    && thread
+                        .anchor
+                        .as_ref()
+                        .is_some_and(|anchor| anchor.page_id != page_id)
+            })
+            .count()
+    }
+
+    /// Every open thread of the document.
     pub fn open_count(&self) -> usize {
         self.threads
             .iter()
             .filter(|thread| !thread.resolved)
             .count()
+    }
+
+    /// Whether the right rail is showing the document's conversations.
+    ///
+    /// The rail has one occupant at a time, and the comment tool selects it —
+    /// see the module notes on why this is the mode bit and not a second flag.
+    pub fn rail_visible(&self) -> bool {
+        self.pin_mode
     }
 
     pub fn is_open(&self, id: i64) -> bool {
@@ -362,7 +542,7 @@ impl CommentsUiState {
             return;
         }
         self.open_thread = Some(id);
-        self.pin_node = None;
+        self.pending_pin = None;
         // Opening a thread puts the cursor in the field: the reviewer clicked a
         // pin to say something, and making them click a second time to type is
         // a step with no decision in it.
@@ -381,7 +561,7 @@ impl CommentsUiState {
     /// put it in.
     pub fn close(&mut self) {
         self.open_thread = None;
-        self.pin_node = None;
+        self.pending_pin = None;
         self.composer_focused = false;
         self.reply_draft.clear();
         self.new_draft.clear();
@@ -423,22 +603,22 @@ impl CommentsUiState {
     /// What the popover is showing, if anything.
     ///
     /// An open thread wins over a pending pin: a reviewer who opened a thread
-    /// and then armed pin mode asked for a new pin, and the click that lands
-    /// calls [`Self::begin_thread_on`], which clears the open thread.
+    /// and then clicked the canvas asked for a new pin, and the click that lands
+    /// calls [`Self::begin_thread_at`], which clears the open thread.
     pub fn composer(&self) -> Option<CommentComposer> {
         if let Some(id) = self.open_thread {
             return Some(CommentComposer::Thread(id));
         }
-        self.pin_node
+        self.pending_pin
             .as_ref()
-            .map(|node| CommentComposer::NewThread(node.clone()))
+            .map(|anchor| CommentComposer::NewThread(anchor.clone()))
     }
 
     pub fn set_pin_mode(&mut self, on: bool) {
-        self.pin_mode = on;
-        if !on {
-            self.pin_node = None;
-            self.new_draft.clear();
+        if on {
+            self.begin_mode();
+        } else {
+            self.end_mode();
         }
     }
 
@@ -446,21 +626,47 @@ impl CommentsUiState {
         self.set_pin_mode(!self.pin_mode);
     }
 
-    /// A canvas click landed on `node_id` while pin mode was armed: open the
-    /// composer for a comment about it.
+    /// Activate the comment tool: show the rail, drop a pin on the next click.
     ///
-    /// Pin mode stays armed — a review is often several pins in a row, and
-    /// disarming after one would make the second comment a trip back to the
-    /// toolbar. The pin is what the mode is for; the mode ends when the reviewer
-    /// says so (or when the thread is written, see [`Self::submit_new_thread`]).
-    pub fn begin_thread_on(&mut self, node_id: impl Into<String>) {
-        let node_id = node_id.into();
-        if node_id.is_empty() {
+    /// The reload is part of turning it on, not an afterthought: the daemon
+    /// pushes no signal for comments, so the list a client holds is only as
+    /// fresh as its last read — a rail that opened onto somebody else's
+    /// yesterday would be worse than one that opened onto a spinner.
+    pub fn begin_mode(&mut self) {
+        // A host with no comment client has no list to show and no write to
+        // send: refusing here means a stray call can never blank a rail.
+        if !self.transport {
+            return;
+        }
+        self.pin_mode = true;
+        self.request_reload();
+    }
+
+    /// Leave the comment tool: the rail goes back to the inspector.
+    ///
+    /// Anything half-written goes with it. A pin waiting for a click and a
+    /// draft waiting for a send belong to the mode; keeping them would leave a
+    /// composer on screen after the rail that explains it has gone back to
+    /// properties, which is how a comment arrives with no visible reason.
+    pub fn end_mode(&mut self) {
+        self.pin_mode = false;
+        self.close();
+    }
+
+    /// A canvas click landed at `anchor` while the comment tool was active:
+    /// open the composer for a comment about that point.
+    ///
+    /// The point is taken as given — element or empty space, the pin goes where
+    /// the reviewer clicked (see the module notes). The mode stays active: a
+    /// review is often several pins in a row, and leaving it after one would
+    /// make the second comment a trip back to the toolbar.
+    pub fn begin_thread_at(&mut self, anchor: CommentAnchor) {
+        if !anchor.is_placeable() {
             return;
         }
         self.open_thread = None;
         self.reply_draft.clear();
-        self.pin_node = Some(node_id);
+        self.pending_pin = Some(anchor);
         self.new_draft.clear();
         self.composer_focused = true;
     }
@@ -518,16 +724,16 @@ impl CommentsUiState {
                 });
                 true
             }
-            Some(CommentComposer::NewThread(node_id)) => {
+            Some(CommentComposer::NewThread(anchor)) => {
                 let text = self.new_draft.trim().to_string();
                 self.new_draft.clear();
-                self.pin_node = None;
+                self.pending_pin = None;
                 self.composer_focused = false;
-                // The pin is placed by the server's answer (the thread's id),
-                // and a mode still armed would drop a second pin on the next
-                // click while the reviewer is trying to read the first.
-                self.pin_mode = false;
-                self.pending.push(CommentRequest::Create { node_id, text });
+                // The tool stays active: the pin is placed by the server's
+                // answer (the thread's coordinates), and a review is a sequence
+                // of comments — the reviewer leaves the mode by picking another
+                // tool, exactly as with every other tool in the column.
+                self.pending.push(CommentRequest::Create { anchor, text });
                 true
             }
             None => false,

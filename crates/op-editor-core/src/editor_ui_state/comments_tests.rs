@@ -19,10 +19,14 @@ fn comment(id: i64, body: &str) -> Comment {
     }
 }
 
-fn thread(id: i64, node: &str, bodies: &[&str]) -> CommentThread {
+/// A thread on `page`, a whole number of document units apart per id.
+///
+/// The position is derived from the id so a test that reasons about a pin's
+/// place can name it without a second literal per case.
+fn thread(id: i64, page: &str, bodies: &[&str]) -> CommentThread {
     CommentThread {
         id,
-        node_id: node.to_string(),
+        anchor: Some(CommentAnchor::new(page, id as f64 * 10.0, id as f64 * 20.0)),
         created_at: 1_700_000_000,
         resolved: false,
         resolved_at: None,
@@ -36,6 +40,17 @@ fn thread(id: i64, node: &str, bodies: &[&str]) -> CommentThread {
     }
 }
 
+/// The state a test starts from: comments available, nothing loaded.
+///
+/// `transport` is what a host declares when it carries the daemon's comment
+/// client; the toolbar offers the tool only then, and the mode refuses to turn
+/// on without it, so every test that exercises the tool has to say so.
+fn state_with_transport() -> CommentsUiState {
+    let mut state = CommentsUiState::default();
+    state.transport = true;
+    state
+}
+
 #[test]
 fn a_fresh_state_is_quiet_and_empty() {
     let state = CommentsUiState::default();
@@ -46,16 +61,18 @@ fn a_fresh_state_is_quiet_and_empty() {
     assert!(!state.pin_mode);
     assert!(state.composer().is_none());
     assert!(!state.has_pending());
-    // The panel toggle is chrome, so it starts closed but is not "document".
-    assert!(!state.panel_open);
+    // No host has declared a comment client yet, so neither the rail nor the
+    // tool it belongs to is on offer.
+    assert!(!state.transport);
+    assert!(!state.rail_visible());
 }
 
 #[test]
 fn opening_a_thread_then_another_drops_the_first_draft() {
     let mut state = CommentsUiState::default();
     state.install_threads(vec![
-        thread(1, "n1", &["first"]),
-        thread(2, "n2", &["second"]),
+        thread(1, "p1", &["first"]),
+        thread(2, "p1", &["second"]),
     ]);
 
     state.open(1);
@@ -73,7 +90,7 @@ fn opening_a_thread_then_another_drops_the_first_draft() {
 #[test]
 fn reopening_the_same_thread_keeps_its_draft() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
     state.reply_draft.push_str("half typed");
     state.open(1);
@@ -83,7 +100,7 @@ fn reopening_the_same_thread_keeps_its_draft() {
 #[test]
 fn a_reload_that_lost_the_open_thread_closes_it() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
     state.reply_draft.push_str("draft");
     state.install_threads(vec![]);
@@ -94,9 +111,9 @@ fn a_reload_that_lost_the_open_thread_closes_it() {
 #[test]
 fn a_reload_that_still_has_the_thread_leaves_it_open() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
-    state.install_threads(vec![thread(1, "n1", &["first", "answer"])]);
+    state.install_threads(vec![thread(1, "p1", &["first", "answer"])]);
     assert!(state.is_open(1));
     assert_eq!(state.thread(1).unwrap().reply_count(), 1);
 }
@@ -105,91 +122,219 @@ fn a_reload_that_still_has_the_thread_leaves_it_open() {
 fn an_upsert_replaces_in_place_and_appends_a_new_thread() {
     let mut state = CommentsUiState::default();
     state.install_threads(vec![
-        thread(1, "n1", &["first"]),
-        thread(2, "n2", &["second"]),
+        thread(1, "p1", &["first"]),
+        thread(2, "p1", &["second"]),
     ]);
 
-    state.upsert_thread(thread(1, "n1", &["first", "answer"]));
+    state.upsert_thread(thread(1, "p1", &["first", "answer"]));
     assert_eq!(state.thread_ids(), vec![1, 2]);
     assert_eq!(state.thread(1).unwrap().reply_count(), 1);
 
-    state.upsert_thread(thread(3, "n3", &["third"]));
+    state.upsert_thread(thread(3, "p1", &["third"]));
     assert_eq!(state.thread_ids(), vec![1, 2, 3]);
 }
 
 #[test]
 fn the_ordinal_is_the_number_a_pin_shows() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(7, "n1", &["a"]), thread(9, "n2", &["b"])]);
+    state.install_threads(vec![thread(7, "p1", &["a"]), thread(9, "p1", &["b"])]);
     assert_eq!(state.ordinal(7), Some(1));
     assert_eq!(state.ordinal(9), Some(2));
     assert_eq!(state.ordinal(8), None);
 }
 
 #[test]
-fn threads_are_found_by_the_node_their_pin_sits_on() {
+fn threads_are_found_by_the_page_their_pin_sits_on() {
     let mut state = CommentsUiState::default();
     state.install_threads(vec![
-        thread(1, "n1", &["a"]),
-        thread(2, "n2", &["b"]),
-        thread(3, "n1", &["c"]),
+        thread(1, "p1", &["a"]),
+        thread(2, "p2", &["b"]),
+        thread(3, "p1", &["c"]),
     ]);
-    let on_n1: Vec<i64> = state
-        .threads_on_node("n1")
+    let on_p1: Vec<i64> = state
+        .threads_on_page("p1")
         .into_iter()
         .map(|thread| thread.id)
         .collect();
-    assert_eq!(on_n1, vec![1, 3]);
-    assert!(state.threads_on_node("gone").is_empty());
+    assert_eq!(on_p1, vec![1, 3]);
+    assert!(state.threads_on_page("gone").is_empty());
+}
+
+#[test]
+fn a_thread_with_no_pin_is_listed_everywhere_and_numbered_nowhere() {
+    // The daemon migrated threads from the element-keyed format have no page and
+    // no coordinates. Dropping them would hide a conversation nobody could find;
+    // numbering them would print a number no marker carries.
+    let mut state = CommentsUiState::default();
+    state.install_threads(vec![
+        thread(1, "p1", &["a"]),
+        CommentThread {
+            id: 2,
+            anchor: None,
+            comments: vec![comment(20, "old")],
+            ..CommentThread::default()
+        },
+    ]);
+    assert_eq!(state.threads_on_page("p1").len(), 2);
+    assert_eq!(state.threads_on_page("p2").len(), 1);
+    assert!(state.pinned_on_page("p1").iter().all(|t| t.id == 1));
+    assert_eq!(state.ordinal(1), Some(1));
+    assert_eq!(state.ordinal(2), None);
+    // It is outstanding work on whichever page the reviewer is looking at, and
+    // it is *not* "on another page" — it is on none.
+    assert_eq!(state.open_count_on_page("p2"), 1);
+    assert_eq!(
+        state.open_count_elsewhere("p1"),
+        0,
+        "nothing pinned is elsewhere from p1"
+    );
+    assert_eq!(
+        state.open_count_elsewhere("p2"),
+        1,
+        "p1's pinned thread is elsewhere from p2 — the pin-less one never is"
+    );
+}
+
+#[test]
+fn a_coordinate_the_daemon_would_refuse_is_not_placeable() {
+    // The write route refuses these with a 400, so the client must not offer the
+    // pin in the first place — and a read that carried one anyway is a thread
+    // with no drawable marker rather than a marker at an absurd position.
+    assert!(CommentAnchor::new("p1", 0.0, 0.0).is_placeable());
+    assert!(CommentAnchor::new("p1", -9_999_999.0, 9_999_999.0).is_placeable());
+    for anchor in [
+        CommentAnchor::new("p1", f64::NAN, 0.0),
+        CommentAnchor::new("p1", 0.0, f64::INFINITY),
+        CommentAnchor::new("p1", MAX_COMMENT_COORDINATE + 1.0, 0.0),
+        CommentAnchor::new("p1", 0.0, -MAX_COMMENT_COORDINATE - 1.0),
+    ] {
+        assert!(!anchor.is_placeable(), "{anchor:?}");
+    }
+    let mut state = CommentsUiState::default();
+    state.install_threads(vec![CommentThread {
+        id: 1,
+        anchor: Some(CommentAnchor::new("p1", 1.0e9, 0.0)),
+        ..CommentThread::default()
+    }]);
+    assert!(
+        state.threads_on_page("p1").len() == 1,
+        "the thread is listed"
+    );
+    assert!(state.pinned_on_page("p1").is_empty(), "with no pin to draw");
+}
+
+#[test]
+fn a_pages_list_numbers_its_own_threads_and_the_badge_counts_them() {
+    // The rail lists one page and the pins are placed on one page, so the
+    // number a marker shows has to be the index in THAT list — a document-wide
+    // index would number a pin by threads the reviewer cannot see.
+    let mut state = CommentsUiState::default();
+    let mut closed = thread(4, "p1", &["done"]);
+    closed.resolved = true;
+    state.install_threads(vec![
+        thread(1, "p1", &["a"]),
+        thread(2, "p2", &["b"]),
+        thread(3, "p1", &["c"]),
+        closed,
+    ]);
+
+    assert_eq!(state.ordinal(1), Some(1));
+    assert_eq!(state.ordinal(3), Some(2));
+    assert_eq!(state.ordinal(2), Some(1), "p2's own list starts at one");
+    assert_eq!(state.open_count_on_page("p1"), 2);
+    assert_eq!(state.open_count_on_page("p2"), 1);
+    // The rest of the review is counted, not listed: the rail shows one page.
+    assert_eq!(state.open_count_elsewhere("p1"), 1);
+    assert_eq!(state.open_count_elsewhere("p2"), 2);
+    assert_eq!(state.open_count(), 3);
+}
+
+#[test]
+fn an_anchor_that_could_not_be_painted_is_refused() {
+    let mut state = state_with_transport();
+    state.begin_thread_at(CommentAnchor::new("p1", f64::NAN, 4.0));
+    assert_eq!(state.composer(), None, "a NaN pin is nowhere to point at");
+    state.begin_thread_at(CommentAnchor::new("p1", 4.0, f64::INFINITY));
+    assert_eq!(state.composer(), None);
+    state.begin_thread_at(CommentAnchor::new("p1", 4.0, 8.0));
+    assert!(state.composer().is_some());
 }
 
 #[test]
 fn pin_mode_arms_the_next_click_and_its_own_off_switch() {
-    let mut state = CommentsUiState::default();
+    let mut state = state_with_transport();
     state.toggle_pin_mode();
     assert!(state.pin_mode);
+    // Selecting the tool is also what fills the rail, and the list it opens has
+    // to be asked for: the daemon pushes no signal for comments.
+    assert!(state.rail_visible());
+    assert_eq!(state.take_requests(), vec![CommentRequest::Reload]);
 
-    state.begin_thread_on("n4");
+    state.begin_thread_at(CommentAnchor::new("p4", 120.0, 64.0));
     assert_eq!(
         state.composer(),
-        Some(CommentComposer::NewThread("n4".into()))
+        Some(CommentComposer::NewThread(CommentAnchor::new(
+            "p4", 120.0, 64.0
+        )))
     );
-    // Pin mode stays armed: a review is several pins in a row.
+    // The tool stays active: a review is several comments in a row, and the
+    // mode ends the way every other tool's does.
     assert!(state.pin_mode);
 
     state.toggle_pin_mode();
     assert!(!state.pin_mode);
-    // Disarming abandons a composer that was waiting for its click.
+    // Leaving the tool abandons a composer that was waiting for its click.
     assert_eq!(state.composer(), None);
     assert_eq!(state.draft(), "");
 }
 
 #[test]
-fn a_pin_click_on_an_element_replaces_an_open_thread() {
+fn a_host_without_a_comment_client_cannot_select_the_tool() {
+    // A stray call — a stale script, a future host — must not blank the rail on
+    // a build that has nothing to put in it.
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    assert!(!state.transport);
+    state.begin_mode();
+    assert!(!state.pin_mode);
+    assert!(!state.rail_visible());
+    assert!(!state.has_pending(), "and nothing is asked of the daemon");
+}
+
+#[test]
+fn end_mode_closes_the_rail_and_whatever_was_half_written() {
+    let mut state = state_with_transport();
+    state.begin_mode();
+    state.begin_thread_at(CommentAnchor::new("p1", 10.0, 20.0));
+    state.new_draft = "half typed".to_string();
+    state.end_mode();
+    assert!(!state.pin_mode);
+    assert!(!state.rail_visible());
+    assert_eq!(state.composer(), None);
+    assert_eq!(state.draft(), "");
+    assert!(!state.takes_keyboard(), "and it gives the keyboard back");
+}
+
+#[test]
+fn a_canvas_click_replaces_an_open_thread() {
+    let mut state = state_with_transport();
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
-    state.begin_thread_on("n2");
+    state.begin_thread_at(CommentAnchor::new("p1", 30.0, 40.0));
     // The click asked for a new pin, so the open thread must not keep the
     // popover: two anchors cannot share one composer.
     assert!(state.open_thread.is_none());
     assert_eq!(
         state.composer(),
-        Some(CommentComposer::NewThread("n2".into()))
+        Some(CommentComposer::NewThread(CommentAnchor::new(
+            "p1", 30.0, 40.0
+        )))
     );
-}
-
-#[test]
-fn an_empty_node_id_never_opens_a_composer() {
-    let mut state = CommentsUiState::default();
-    state.begin_thread_on("");
-    assert_eq!(state.composer(), None);
 }
 
 #[test]
 fn sending_a_reply_queues_the_write_and_clears_the_draft() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
     state.reply_draft = "  looks good  ".to_string();
     assert!(state.can_send());
@@ -205,18 +350,21 @@ fn sending_a_reply_queues_the_write_and_clears_the_draft() {
 }
 
 #[test]
-fn sending_a_new_thread_places_its_pin_and_disarms_pin_mode() {
-    let mut state = CommentsUiState::default();
+fn sending_a_new_thread_carries_the_point_it_was_written_at() {
+    let mut state = state_with_transport();
     state.toggle_pin_mode();
-    state.begin_thread_on("n4");
+    state.take_requests();
+    state.begin_thread_at(CommentAnchor::new("p1", 412.5, 88.25));
     state.new_draft = "this button is too close to the edge".to_string();
     assert!(state.send());
-    assert!(!state.pin_mode);
     assert_eq!(state.composer(), None);
+    // The tool stays active after a send: the pin is placed by the server's
+    // answer, and the reviewer leaves the mode by picking another tool.
+    assert!(state.pin_mode);
     assert_eq!(
         state.take_requests(),
         vec![CommentRequest::Create {
-            node_id: "n4".to_string(),
+            anchor: CommentAnchor::new("p1", 412.5, 88.25),
             text: "this button is too close to the edge".to_string(),
         }]
     );
@@ -225,7 +373,7 @@ fn sending_a_new_thread_places_its_pin_and_disarms_pin_mode() {
 #[test]
 fn a_draft_of_nothing_but_spaces_is_not_sendable() {
     let mut state = CommentsUiState::default();
-    state.begin_thread_on("n1");
+    state.begin_thread_at(CommentAnchor::new("p1", 1.0, 2.0));
     state.new_draft = "   \n\t ".to_string();
     assert!(!state.can_send());
     assert!(!state.send());
@@ -237,7 +385,7 @@ fn a_draft_of_nothing_but_spaces_is_not_sendable() {
 #[test]
 fn a_draft_over_the_servers_ceiling_is_not_sendable() {
     let mut state = CommentsUiState::default();
-    state.begin_thread_on("n1");
+    state.begin_thread_at(CommentAnchor::new("p1", 1.0, 2.0));
     state.new_draft = "я".repeat(MAX_COMMENT_CHARS);
     assert!(state.can_send(), "the bound itself is accepted");
     state.new_draft.push('я');
@@ -279,7 +427,7 @@ fn a_second_reload_request_before_the_drain_is_absorbed() {
 #[test]
 fn a_refusal_is_recorded_without_restoring_the_draft() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
     state.reply_draft = "text the server refused".to_string();
     state.send();
@@ -329,7 +477,7 @@ fn a_thread_without_comments_is_a_shape_the_model_survives() {
     let mut state = CommentsUiState::default();
     state.install_threads(vec![CommentThread {
         id: 5,
-        node_id: "n9".to_string(),
+        anchor: Some(CommentAnchor::new("p1", 10.0, 20.0)),
         created_at: 1_700_000_000,
         resolved: false,
         resolved_at: None,
@@ -346,15 +494,15 @@ fn a_thread_without_comments_is_a_shape_the_model_survives() {
 #[test]
 fn a_resolved_thread_keeps_its_resolver_and_the_open_count_drops() {
     let mut state = CommentsUiState::default();
-    let mut closed = thread(2, "n2", &["done"]);
+    let mut closed = thread(2, "p1", &["done"]);
     closed.resolved = true;
     closed.resolved_at = Some(1_700_000_500);
     closed.resolved_by = Some("u2".to_string());
     closed.resolved_by_name = Some("Ada".to_string());
-    let mut nameless = thread(3, "n3", &["also done"]);
+    let mut nameless = thread(3, "p1", &["also done"]);
     nameless.resolved = true;
     nameless.resolved_by_name = Some(String::new());
-    state.install_threads(vec![thread(1, "n1", &["a"]), closed, nameless]);
+    state.install_threads(vec![thread(1, "p1", &["a"]), closed, nameless]);
 
     assert_eq!(state.open_count(), 1);
     assert_eq!(state.thread(2).unwrap().resolved_by_label(), Some("Ada"));
@@ -371,27 +519,30 @@ fn the_local_operator_is_an_author_without_an_account() {
 }
 
 #[test]
-fn a_document_change_forgets_the_conversation_but_keeps_the_panel() {
-    let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+fn a_document_change_forgets_the_conversation_and_the_tool() {
+    let mut state = state_with_transport();
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
     state.reply_draft = "half typed".to_string();
     state.toggle_pin_mode();
-    state.panel_open = true;
     state.loading = true;
     state.error = Some("stale".to_string());
+    state.take_requests();
 
     state.clear_for_document();
 
     assert!(state.threads.is_empty());
     assert!(state.open_thread.is_none());
     assert_eq!(state.draft(), "");
+    // The comment tool goes with the document: a pin is a point on a page, and
+    // the next document's coordinates are not that page's.
     assert!(!state.pin_mode);
+    assert!(!state.rail_visible());
     assert!(state.error.is_none());
     assert!(!state.loading);
     assert!(!state.has_pending());
-    // The panel a reviewer opened is still the panel they want.
-    assert!(state.panel_open);
+    // What the host is, rather than what the document said, survives.
+    assert!(state.transport);
 }
 
 #[test]
@@ -402,7 +553,7 @@ fn a_loaded_answer_clears_the_spinner_and_the_previous_error() {
     state.set_error("the daemon refused");
     assert!(!state.loading);
     assert!(state.error.is_some());
-    state.install_threads(vec![thread(1, "n1", &["a"])]);
+    state.install_threads(vec![thread(1, "p1", &["a"])]);
     assert!(state.error.is_none());
     assert!(!state.loading);
 }
@@ -410,14 +561,14 @@ fn a_loaded_answer_clears_the_spinner_and_the_previous_error() {
 #[test]
 fn cancelling_the_composer_discards_both_drafts() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
     state.reply_draft = "reply".to_string();
     state.cancel_composer();
     assert_eq!(state.composer(), None);
     assert_eq!(state.reply_draft, "");
 
-    state.begin_thread_on("n2");
+    state.begin_thread_at(CommentAnchor::new("p1", 5.0, 6.0));
     state.new_draft = "new".to_string();
     state.cancel_composer();
     assert_eq!(state.composer(), None);
@@ -427,7 +578,7 @@ fn cancelling_the_composer_discards_both_drafts() {
 #[test]
 fn the_field_takes_the_keyboard_when_a_composer_opens_and_gives_it_back() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     assert!(!state.composer_focused, "nothing to type into yet");
 
     state.open(1);
@@ -438,10 +589,10 @@ fn the_field_takes_the_keyboard_when_a_composer_opens_and_gives_it_back() {
     state.focus_composer();
     assert!(state.composer_focused);
 
-    state.begin_thread_on("n2");
+    state.begin_thread_at(CommentAnchor::new("p1", 5.0, 6.0));
     assert!(
         state.composer_focused,
-        "a pin click opens a field to type in"
+        "a canvas click opens a field to type in"
     );
 
     state.cancel_composer();
@@ -461,10 +612,10 @@ fn the_field_answers_whether_it_owns_the_keyboard() {
     // One question, one answer: the host's "a text input owns the keyboard"
     // rule and every keyboard arm read this instead of re-deriving it from the
     // focus flag, which can outlive the popover (issue #49).
-    let mut state = CommentsUiState::default();
+    let mut state = state_with_transport();
     assert!(!state.takes_keyboard(), "nothing is open");
 
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.open(1);
     assert!(state.takes_keyboard());
 
@@ -479,15 +630,25 @@ fn the_field_answers_whether_it_owns_the_keyboard() {
         "a closed popover cannot keep the keyboard"
     );
 
-    state.begin_thread_on("n2");
+    state.begin_thread_at(CommentAnchor::new("p1", 5.0, 6.0));
     assert!(state.takes_keyboard(), "a new thread's field owns it too");
+
+    // Issue #49's shape, restated for the coordinate model: selecting the
+    // comment tool and clicking the canvas is how the composer is reached, and
+    // the field must own the keyboard from that click on — a bare letter has to
+    // reach the draft rather than switch the tool.
+    state.end_mode();
+    state.begin_mode();
+    state.begin_thread_at(CommentAnchor::new("p1", 7.0, 8.0));
+    assert!(state.pin_mode, "the rail is showing the conversation");
+    assert!(state.takes_keyboard());
 }
 
 #[test]
 fn the_viewer_id_survives_a_document_change() {
     let mut state = CommentsUiState::default();
     state.set_viewer_id(Some("u1".to_string()));
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.clear_for_document();
     // Identity is not something the document said.
     assert_eq!(state.viewer_id.as_deref(), Some("u1"));
@@ -505,7 +666,7 @@ fn a_failure_ends_the_wait_as_well_as_recording_it() {
 #[test]
 fn ending_a_read_leaves_the_list_and_the_error_alone() {
     let mut state = CommentsUiState::default();
-    state.install_threads(vec![thread(1, "n1", &["first"])]);
+    state.install_threads(vec![thread(1, "p1", &["first"])]);
     state.set_loading();
     state.set_loading_done();
     assert!(!state.loading);

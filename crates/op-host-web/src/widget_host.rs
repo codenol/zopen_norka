@@ -391,16 +391,16 @@ pub struct WidgetHost {
     /// The press arm re-checks the offer is still on screen before trusting it
     /// (see `op_editor_ui::widgets::recovery_banner_flow::press`).
     pub(in crate::widget_host) recovery_banner_rect: Option<op_editor_ui::Rect>,
-    /// Where the comment thread list painted this frame, for the press arm.
+    /// Where the comment rail painted this frame, for the press arm.
     ///
     /// Cached for the same reason the recovery banner's rect is: the geometry
-    /// follows the canvas region and the length of the conversation, either of
-    /// which can change between the paint and the press.
+    /// follows the rail and the length of the conversation, either of which can
+    /// change between the paint and the press. `None` while the inspector owns
+    /// the rail, which is what lets a press there fall through to the tiers
+    /// below instead of being eaten by a panel that is not on screen.
     pub(in crate::widget_host) comments_panel_rect: Option<op_editor_ui::Rect>,
     /// Where the open thread's popover painted this frame.
     pub(in crate::widget_host) comments_popover_rect: Option<op_editor_ui::Rect>,
-    /// Where the comment pill (the panel's collapsed form) painted this frame.
-    pub(in crate::widget_host) comments_toggle_rect: Option<op_editor_ui::Rect>,
     /// Most recent viewport size seen via `apply_press` etc. — cached
     /// so `apply_cursor_move(x, y)` can rebuild the canvas region
     /// when its signature can't carry viewport dims (mirrors native).
@@ -611,7 +611,12 @@ impl WidgetHost {
     /// adjacent state. Every whole-state seam uses this helper so async work
     /// observes one monotonic identity and host caches cannot alias revision 0.
     #[cfg(feature = "canvaskit")]
-    pub(crate) fn replace_editor_state(&mut self, state: op_editor_core::EditorState) {
+    pub(crate) fn replace_editor_state(&mut self, mut state: op_editor_core::EditorState) {
+        // A state installed into this host carries this host's capabilities:
+        // File → New and an ingest both build a fresh `EditorState`, and a
+        // capability declared only in the constructor would be gone after the
+        // first of them (see `host_lifecycle::declare_host_capabilities`).
+        host_lifecycle::declare_host_capabilities(&mut state);
         self.editor_state = state;
         self.document_epoch = self.document_epoch.wrapping_add(1).max(1);
         self.force_rotate_layer_panel_owner();

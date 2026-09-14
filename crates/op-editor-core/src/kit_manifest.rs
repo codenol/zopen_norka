@@ -341,7 +341,11 @@ mod tests {
         assert_eq!(table.name_pattern, "Table/Default");
         assert_eq!(table.variant_count, 3);
         assert_eq!(
-            table.slots.iter().map(|slot| slot.suffix.as_str()).collect::<Vec<_>>(),
+            table
+                .slots
+                .iter()
+                .map(|slot| slot.suffix.as_str())
+                .collect::<Vec<_>>(),
             vec!["-header", "-rows"]
         );
         assert!(kit.type_by_id("checkbox").is_some());

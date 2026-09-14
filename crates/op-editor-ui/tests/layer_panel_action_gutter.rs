@@ -297,7 +297,17 @@ fn normal_and_hovered_rows_share_one_action_gutter() {
     assert!(close(regions.layers.horizontal_offset, 28.0));
 
     let row = child_row(&normal_panel);
-    assert_eq!(row, Rect::xywh(6.0, 134.0, 168.0, 24.0));
+    // What this test is about is the horizontal gutter the row's actions sit
+    // in — the eye, the lock, their spacing and the space left for the label.
+    // The row's vertical position is not part of that: it follows whatever
+    // sections sit above the layer list, and the kit's Recipes section (which
+    // comes from the kit, not the document) moved every row down by its own
+    // height. Pinning the absolute y made a layout this test does not describe
+    // fail it. The row's own geometry is asserted instead, and the last
+    // assertion below keeps it inside the panel.
+    assert!(close(row.origin.x, 6.0));
+    assert!(close(row.size.x, 168.0));
+    assert!(close(row.size.y, 24.0));
     let trailing_right = row.origin.x + row.size.x - 8.0;
     let lock_x = trailing_right - 14.0;
     let eye_x = lock_x - 22.0;
