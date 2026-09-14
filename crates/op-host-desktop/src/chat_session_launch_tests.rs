@@ -113,8 +113,13 @@ fn design_launch_preparation_captures_acp_tier_before_detaching_chat() {
     let expected_revision = host.editor_state().document_revision();
     let expected_root_count = host.editor_state().active_children().len();
 
-    let (request, initial_state) =
-        prepare_design_request_and_snapshot(&mut host, "draw a dashboard".into(), None);
+    let attachments = TurnAttachments::drain(host.editor_state_mut());
+    let (request, initial_state) = prepare_design_request_and_snapshot(
+        &mut host,
+        "draw a dashboard".into(),
+        None,
+        &attachments,
+    );
 
     assert_eq!(request.model.as_deref(), Some("acp:custom/vendor"));
     assert_eq!(
@@ -164,8 +169,13 @@ fn design_launch_preparation_captures_builtin_model_before_detaching_chat() {
     )];
     host.editor_state_mut().chat.selected_model = 0;
 
-    let (request, initial_state) =
-        prepare_design_request_and_snapshot(&mut host, "draw a dashboard".into(), None);
+    let attachments = TurnAttachments::drain(host.editor_state_mut());
+    let (request, initial_state) = prepare_design_request_and_snapshot(
+        &mut host,
+        "draw a dashboard".into(),
+        None,
+        &attachments,
+    );
 
     assert_eq!(request.model.as_deref(), Some("MiniMax-M3"));
     assert_eq!(
