@@ -25,11 +25,28 @@
 //! The name, the status, and which database was written. Never the password —
 //! not a length, not a hash, not a hint. A password that appears once in a log
 //! has to be treated as compromised, so it does not appear at all.
+//!
+//! ## `op admin invite`, and why it is the same shape
+//!
+//! An invitation is the OTHER thing that has to be issuable when there is no
+//! administrator to ask: the first link of a deployment whose only operator has
+//! no browser in front of them, and the scripted case (a provisioning job that
+//! makes one link per contractor). So it opens the same store, for the same
+//! reason, and prints the link — once, because that is how many times the value
+//! exists. The daemon's own route
+//! (`POST /api/auth/admin/invites`) is the same act for an operator who DOES
+//! have a browser; both write through
+//! [`AccountsDb::create_invite`](op_host_services::accounts::AccountsDb::create_invite),
+//! so the roles, the lifetime and the hashing are one decision with two front
+//! doors, exactly as `create` is.
 
 use std::io::{BufRead, Write};
 use std::path::Path;
 
-use op_host_services::accounts::{check_password_strength, AccountsDb, FirstAdmin};
+use op_host_services::accounts::{
+    canonical_roles, check_password_strength, now_secs, split_roles, AccountsDb, FirstAdmin,
+    NewInvite, INVITE_TTL_SECS,
+};
 
 use crate::cli_error::CliError;
 use crate::command_helpers::flag_value;
@@ -42,9 +59,19 @@ pub(crate) fn map_admin(positionals: &[String], flags: &Flags) -> Result<Command
         "create" => Ok(Command::AdminCreate {
             data_dir: flag_value(flags, "data-dir"),
         }),
-        "" => Err(CliError::usage("Usage: op admin create [--data-dir DIR]")),
+        "invite" => Ok(Command::AdminInvite {
+            data_dir: flag_value(flags, "data-dir"),
+            roles: flag_value(flags, "roles"),
+            email: flag_value(flags, "email"),
+            origin: flag_value(flags, "origin"),
+        }),
+        "" => Err(CliError::usage(
+            "Usage: op admin create [--data-dir DIR] | op admin invite [--roles a,b] [--email ADDR] \
+             [--origin URL] [--data-dir DIR]",
+        )),
         other => Err(CliError::usage(format!(
-            "unknown admin subcommand {other:?}; the only one is `op admin create`"
+            "unknown admin subcommand {other:?}; the two are `op admin create` and `op admin \
+             invite`"
         ))),
     }
 }
@@ -57,6 +84,84 @@ pub(crate) fn run_create(data_dir: Option<&str>) -> Result<String, CliError> {
     let mut read_secret = read_secret_from_terminal;
     let summary = create_admin(&store, &mut stdin, &mut stdout, &mut read_secret)?;
     Ok(summary)
+}
+
+/// Run `op admin invite`, printing the link it made.
+pub(crate) fn run_invite(
+    data_dir: Option<&str>,
+    roles: Option<&str>,
+    email: Option<&str>,
+    origin: Option<&str>,
+) -> Result<String, CliError> {
+    let store = open_store(data_dir)?;
+    invite(&store, roles, email, origin, now_secs())
+}
+
+/// Issue one invitation and render it for a terminal or a script.
+///
+/// `now` is an argument for the same reason the store takes it: the lifetime
+/// is a decision this command makes with a number, and a test that had to wait
+/// for a clock to move would not be testing the decision.
+///
+/// `created_by` is deliberately `None`. The store records WHO issued a link
+/// when an account did, and this command is not an account: naming an account
+/// here would mean inventing an attribution — the operator's own name, or the
+/// first administrator's — and putting it in a row that is read as a fact.
+/// "Issued from the command line, by whoever holds the data directory" is the
+/// truth, and `NULL` is how the column says it.
+pub(crate) fn invite(
+    store: &AccountsDb,
+    roles: Option<&str>,
+    email: Option<&str>,
+    origin: Option<&str>,
+    now: i64,
+) -> Result<String, CliError> {
+    // The product's own vocabulary, asked before anything is written: a role
+    // this build does not have would be stored and would then grant nothing,
+    // which is the failure that looks like a working invitation.
+    let requested = split_roles(roles.unwrap_or_default());
+    let canonical = canonical_roles(&requested)
+        .map_err(|unknown| CliError::usage(format!("--roles: {unknown}")))?;
+    let role_refs: Vec<&str> = canonical.iter().map(String::as_str).collect();
+
+    let email = email.map(str::trim).filter(|email| !email.is_empty());
+    let mut new_invite = NewInvite::new(&role_refs, None, INVITE_TTL_SECS);
+    if let Some(email) = email {
+        new_invite = new_invite.with_email(email);
+    }
+    let issued = store
+        .create_invite(&new_invite, now)
+        .map_err(|error| CliError::Io(format!("cannot write the account store: {error}")))?;
+
+    let link = match origin.map(str::trim).filter(|origin| !origin.is_empty()) {
+        // A trailing slash is how people write an origin, and `//invite/…` is
+        // a link that resolves to nothing.
+        Some(origin) => format!(
+            "{}{}",
+            origin.trim_end_matches('/'),
+            op_editor_core::route::to_invite_path(&issued.token)
+        ),
+        None => op_editor_core::route::to_invite_path(&issued.token),
+    };
+    Ok(format!(
+        "created an invitation in {}{}{}; it stops being accepted at {} ({} days from now)\n{}",
+        store.dir().join("accounts.db").display(),
+        match email {
+            Some(email) => format!(" for {email}"),
+            None => String::new(),
+        },
+        match canonical.is_empty() {
+            true => " with no roles".to_string(),
+            false => format!(" with the roles `{}`", canonical.join(", ")),
+        },
+        issued.invite.expires_at,
+        INVITE_TTL_SECS / 86_400,
+        // The link alone on its own line, because that is the line a script
+        // takes and the line a person copies. Without `--origin` it is the path
+        // only: this command does not know which address the deployment answers
+        // on, and a link with the wrong host is worse than one to complete.
+        link,
+    ))
 }
 
 /// The store this command writes, and the path it came from.

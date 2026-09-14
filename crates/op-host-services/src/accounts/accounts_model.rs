@@ -510,6 +510,14 @@ pub struct IssuedInvite {
     /// The plaintext token. Stored nowhere: the operator has this copy and the
     /// database has the hash.
     pub token: String,
+    /// The row's identity, in the same form a listing shows
+    /// ([`super::accounts_secret::hash_hex`] of the stored hash).
+    ///
+    /// Carried here as well as in the listing because the answer that hands
+    /// out the link is the one moment the operator is certainly looking at
+    /// this invitation: naming the row in the same response lets them withdraw
+    /// it without a second round trip to find out what it is called.
+    pub id: String,
     /// The row that was written.
     pub invite: Invite,
 }

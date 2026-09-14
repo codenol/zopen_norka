@@ -79,6 +79,50 @@ pub fn hash_token(token: &str) -> [u8; 32] {
     Sha256::digest(token.as_bytes()).into()
 }
 
+/// A stored hash as text, for a surface that has to NAME a row.
+///
+/// ## Why a hash may be written down
+///
+/// Everywhere else in this module the rule is that a hash never leaves the
+/// store. This is the one exception, and it is safe for a reason worth stating:
+/// hashing is one-way, the token behind this digest is 256 random bits, and
+/// **no path in this product accepts a hash as a credential** — a presented
+/// token is hashed and looked up, so a presented hash is hashed again and
+/// matches nothing. What the hex buys is that a table keyed by `token_hash`
+/// alone can be addressed by a human: without it, an operator's list of
+/// invitations could say everything about a link except which one it is
+/// talking about, and "withdraw the link I sent to the wrong person" would be
+/// impossible without the link itself.
+///
+/// Lowercase and fixed width, because this value is compared as text by
+/// whoever holds it.
+pub fn hash_hex(hash: &[u8]) -> String {
+    let mut out = String::with_capacity(hash.len() * 2);
+    for byte in hash {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
+}
+
+/// The 32 bytes a [`hash_hex`] string names, or `None` when it names none.
+///
+/// Total rather than fallible: a caller here is a request body, and "this is
+/// not a row id" and "no such row" earn the same answer. Anything that is not
+/// exactly 64 lowercase-or-uppercase hex digits — a token pasted by mistake, a
+/// truncated copy, an id from some other system — is `None`, which the caller
+/// reports as "no such invitation" rather than as a malformed request.
+pub fn hash_from_hex(text: &str) -> Option<[u8; 32]> {
+    if text.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for (index, byte) in bytes.iter_mut().enumerate() {
+        let pair = text.get(index * 2..index * 2 + 2)?;
+        *byte = u8::from_str_radix(pair, 16).ok()?;
+    }
+    Some(bytes)
+}
+
 /// Whether a stored token hash is the hash of the token just presented.
 ///
 /// Constant-time in the bytes compared, so the answer cannot be turned into

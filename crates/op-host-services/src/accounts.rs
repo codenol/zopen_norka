@@ -66,6 +66,7 @@ mod accounts_model;
 mod accounts_password;
 mod accounts_password_strength;
 mod accounts_policy;
+mod accounts_roles;
 mod accounts_secret;
 mod accounts_sessions;
 mod accounts_signin;
@@ -74,6 +75,7 @@ mod accounts_users;
 
 pub use accounts_bootstrap::FirstAdmin;
 pub use accounts_error::AccountsError;
+pub use accounts_invites::{InviteWithdrawal, ListedInvite};
 pub use accounts_model::{
     Invite, IssuedInvite, IssuedSession, IssuedToken, NewInvite, NewSession, NewUser,
     OneTimePurpose, OneTimeToken, Session, User, UserStatus,
@@ -85,7 +87,8 @@ pub use accounts_password_strength::{
 pub use accounts_policy::{
     EMAIL_VERIFY_TTL_SECS, INVITE_TTL_SECS, PASSWORD_RESET_TTL_SECS, SESSION_TTL_SECS,
 };
-pub use accounts_secret::{hash_token, issue_token, token_hash_eq};
+pub use accounts_roles::{canonical_roles, known_roles, split_roles, UnknownRole};
+pub use accounts_secret::{hash_from_hex, hash_hex, hash_token, issue_token, token_hash_eq};
 pub use accounts_signin::SignInOutcome;
 
 use accounts_migrations::{Migration, MIGRATIONS};

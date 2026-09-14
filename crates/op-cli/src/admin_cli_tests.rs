@@ -268,3 +268,238 @@ fn a_data_directory_that_cannot_be_opened_is_an_error_and_not_a_new_deployment()
         open_store(Some(&blocker.join("accounts").to_string_lossy())).expect_err("cannot open");
     assert!(error.to_string().contains("cannot open"), "{error}");
 }
+
+// ---------------------------------------------------------------------------
+// `op admin invite`
+// ---------------------------------------------------------------------------
+
+/// The link a run printed, taken the way a script takes it: the last line.
+fn printed_link(summary: &str) -> String {
+    summary
+        .lines()
+        .last()
+        .expect("the summary is never empty")
+        .trim()
+        .to_string()
+}
+
+/// The token a printed link carries, as the browser shell would read it.
+fn printed_token(summary: &str) -> String {
+    let link = printed_link(summary);
+    let path = link
+        .split_once("://")
+        .map(|(_, rest)| rest.split_once('/').map(|(_, path)| format!("/{path}")))
+        .unwrap_or(Some(link.clone()))
+        .expect("a path");
+    op_editor_core::route::invite_token(&path)
+        .unwrap_or_else(|| panic!("{link} is not a link this product recognises"))
+        .to_string()
+}
+
+#[test]
+fn the_invite_subcommand_maps_and_its_flags_come_through() {
+    let mut flags = Flags::new();
+    flags.insert("roles".into(), Some("qa,ux_ui".into()));
+    flags.insert("email".into(), Some("new@example.com".into()));
+    flags.insert("origin".into(), Some("https://canvas.example".into()));
+    flags.insert("data-dir".into(), Some("/srv/norka".into()));
+    assert_eq!(
+        map_admin(&["invite".to_string()], &flags).expect("maps"),
+        Command::AdminInvite {
+            data_dir: Some("/srv/norka".into()),
+            roles: Some("qa,ux_ui".into()),
+            email: Some("new@example.com".into()),
+            origin: Some("https://canvas.example".into()),
+        }
+    );
+    assert_eq!(
+        map_admin(&["invite".to_string()], &Flags::new()).expect("maps"),
+        Command::AdminInvite {
+            data_dir: None,
+            roles: None,
+            email: None,
+            origin: None,
+        }
+    );
+}
+
+#[test]
+fn a_link_printed_by_the_command_is_one_the_acceptance_page_reads() {
+    let (_dir, store) = store("invite-link");
+    let summary = invite(&store, Some("qa"), None, None, 1_700_000_000).expect("invite");
+
+    // A path, because this command does not know which address the deployment
+    // answers on; the token in it is the one the store wrote a hash of.
+    let path = printed_link(&summary);
+    let token = printed_token(&summary);
+    assert_eq!(path, op_editor_core::route::to_invite_path(&token));
+
+    let row = store
+        .find_invite(&token)
+        .expect("find")
+        .expect("the invitation exists");
+    assert_eq!(row.roles, vec!["qa".to_string()]);
+    assert_eq!(row.created_by, None, "the command line is not an account");
+    assert_eq!(row.expires_at, 1_700_000_000 + INVITE_TTL_SECS);
+    assert!(row.is_redeemable_at(1_700_000_000));
+}
+
+#[test]
+fn the_printed_link_is_the_only_place_the_token_exists() {
+    // The whole promise of the format: an operator who loses this line has
+    // lost the link, and nothing anywhere can produce it again.
+    let (dir, store) = store("invite-once");
+    let summary = invite(&store, None, None, None, 1_700_000_000).expect("invite");
+    let token = printed_token(&summary);
+
+    let listed = store.list_invites(10, 0).expect("list");
+    assert_eq!(listed.len(), 1);
+    assert!(!listed[0].id.contains(&token));
+    // And not in the file either, WAL included.
+    let mut bytes = std::fs::read(dir.path().join("accounts.db")).expect("read the database");
+    if let Ok(wal) = std::fs::read(dir.path().join("accounts.db-wal")) {
+        bytes.extend_from_slice(&wal);
+    }
+    let needle = token.as_bytes();
+    assert!(
+        !bytes.windows(needle.len()).any(|part| part == needle),
+        "an invitation table that leaked is a list of invitations nobody can accept"
+    );
+}
+
+#[test]
+fn an_origin_is_put_in_front_of_the_link_only_when_one_is_given() {
+    let (_dir, store) = store("invite-origin");
+    let bare = invite(&store, None, None, None, 1_700_000_000).expect("invite");
+    assert!(printed_link(&bare).starts_with("/invite/"), "{bare}");
+
+    // A trailing slash is how people write an origin, and `//invite/…` is a
+    // link that resolves to nothing.
+    let full = invite(
+        &store,
+        None,
+        None,
+        Some("https://canvas.example/"),
+        1_700_000_000,
+    )
+    .expect("invite");
+    let link = printed_link(&full);
+    assert!(link.starts_with("https://canvas.example/invite/"), "{link}");
+    assert!(
+        printed_token(&full) != printed_token(&bare),
+        "each run issues its own link"
+    );
+}
+
+#[test]
+fn the_roles_are_this_builds_own_and_a_typo_writes_nothing() {
+    let (_dir, store) = store("invite-roles");
+    // An alias folds onto the one wire spelling, so the row holds one role and
+    // not four spellings of one.
+    let summary = invite(&store, Some("UX/UI, qa"), None, None, 1_700_000_000).expect("invite");
+    let token = printed_token(&summary);
+    assert_eq!(
+        store
+            .find_invite(&token)
+            .expect("find")
+            .expect("the invitation")
+            .roles,
+        vec!["ux_ui".to_string(), "qa".to_string()]
+    );
+
+    // A role this build does not have is refused BEFORE the row exists: an
+    // invitation whose role grants nothing is one that looks like it worked.
+    let error = invite(&store, Some("qa,superuser"), None, None, 1_700_000_000)
+        .expect_err("not a role here");
+    assert!(error.to_string().contains("superuser"), "{error}");
+    assert!(error.to_string().contains("qa"), "{error}");
+    assert_eq!(store.list_invites(10, 0).expect("list").len(), 1);
+}
+
+#[test]
+fn an_invitation_with_no_roles_is_a_guest_link() {
+    let (_dir, store) = store("invite-guest");
+    let summary = invite(&store, None, None, None, 1_700_000_000).expect("invite");
+    let token = printed_token(&summary);
+    let row = store
+        .find_invite(&token)
+        .expect("find")
+        .expect("the invitation");
+    assert!(row.roles.is_empty());
+    assert!(
+        row.is_redeemable_at(1_700_000_000),
+        "and it is still a link"
+    );
+}
+
+#[test]
+fn the_email_is_recorded_when_one_is_given_and_a_blank_one_is_not() {
+    let (_dir, store) = store("invite-email");
+    let with =
+        invite(&store, None, Some(" new@example.com "), None, 1_700_000_000).expect("invite");
+    assert_eq!(
+        store
+            .find_invite(&printed_token(&with))
+            .expect("find")
+            .expect("the invitation")
+            .email
+            .as_deref(),
+        Some("new@example.com"),
+        "trimmed, because an address typed with a space is the same address"
+    );
+    let without = invite(&store, None, Some("   "), None, 1_700_000_000).expect("invite");
+    assert_eq!(
+        store
+            .find_invite(&printed_token(&without))
+            .expect("find")
+            .expect("the invitation")
+            .email,
+        None,
+        "blank is 'not asked for', not an address of spaces"
+    );
+}
+
+#[test]
+fn the_summary_says_what_was_made_and_never_what_it_is_worth() {
+    let (_dir, store) = store("invite-summary");
+    let summary = invite(
+        &store,
+        Some("admin"),
+        Some("new@example.com"),
+        None,
+        1_700_000_000,
+    )
+    .expect("invite");
+    assert!(summary.contains("accounts.db"), "{summary}");
+    assert!(summary.contains("new@example.com"), "{summary}");
+    assert!(summary.contains("admin"), "{summary}");
+    // The lifetime is the store's own policy, and the summary says which one.
+    assert!(
+        summary.contains(&format!("{}", INVITE_TTL_SECS / 86_400)),
+        "{summary}"
+    );
+    // One line of prose and one line of link: the second is what a script
+    // takes and what a person copies, and nothing else may end up on it.
+    assert_eq!(summary.lines().count(), 2, "{summary}");
+    assert_eq!(
+        printed_link(&summary),
+        format!("/invite/{}", printed_token(&summary))
+    );
+}
+
+#[test]
+fn an_invitation_the_command_line_issued_can_be_withdrawn_by_the_id_the_listing_gives() {
+    // The two front doors write the same row: what the command prints, the
+    // route can withdraw, and both name it the same way.
+    let (_dir, store) = store("invite-revoke");
+    let summary = invite(&store, Some("qa"), None, None, 1_700_000_000).expect("invite");
+    let token = printed_token(&summary);
+    let listed = store.list_invites(10, 0).expect("list");
+    assert_eq!(listed.len(), 1);
+
+    assert_eq!(
+        store.revoke_invite_by_id(&listed[0].id).expect("withdraw"),
+        op_host_services::accounts::InviteWithdrawal::Revoked
+    );
+    assert_eq!(store.find_invite(&token).expect("find"), None);
+}

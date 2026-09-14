@@ -445,3 +445,102 @@ fn a_store_that_is_configured_but_unreadable_does_not_fall_back_to_the_table() {
         OnlineAuthError::VerifierUnavailable
     );
 }
+
+/// #82, end to end: a link an administrator hands out is a link somebody else
+/// can accept, and the account it makes is an account of this deployment.
+///
+/// The unit tests prove what each route answers. What only this can prove is
+/// that the two halves meet on the wire: the token the issuance response
+/// carries is the one the acceptance route reads, and the session the
+/// acceptance sets is one this deployment's verifier resolves.
+#[test]
+fn a_link_an_administrator_issues_through_the_loop_opens_an_account() {
+    use crate::web_canvas_server::account_admin_routes::{INVITES, USERS};
+
+    let (_dir, accounts, verifier) = deployment();
+    let admin = account(&accounts, "operator", &["admin"]);
+    // A session, not a sign-in: this test is about what an ALREADY signed-in
+    // administrator does, and the sign-in path has its own.
+    let session = accounts
+        .db()
+        .create_session(
+            &crate::accounts::NewSession::new(&admin.id, SESSION_TTL_SECS),
+            crate::accounts::now_secs(),
+        )
+        .expect("a session")
+        .token;
+    let registry = registry();
+
+    let issued = serve_as(
+        &registry,
+        &verifier,
+        Some(&accounts),
+        Request::json(
+            "POST",
+            INVITES,
+            &serde_json::json!({ "roles": ["qa"] }).to_string(),
+        )
+        .with_session(&session)
+        .with_origin(PUBLIC_ORIGIN),
+    );
+    assert_eq!(status_line(&issued), "HTTP/1.1 201 Created", "{issued}");
+    // The link, and no cookie: this route hands out an invitation, not a
+    // sign-in.
+    assert!(set_cookie(&issued).is_none(), "{issued}");
+    let path = body(&issued)["path"].as_str().expect("a path").to_string();
+    let token = op_editor_core::route::invite_token(&path)
+        .unwrap_or_else(|| panic!("{path} is not a link this product recognises"))
+        .to_string();
+
+    // Anonymous, from nothing but the link — which is what the person who
+    // received it has.
+    let accepted = serve_as(
+        &registry,
+        &verifier,
+        Some(&accounts),
+        Request::json(
+            "POST",
+            op_editor_core::auth_routes::INVITE_ACCEPT,
+            &serde_json::json!({
+                "token": token,
+                "username": "newcomer",
+                "password": PASSWORD,
+            })
+            .to_string(),
+        )
+        .with_origin(PUBLIC_ORIGIN),
+    );
+    assert_eq!(status_line(&accepted), "HTTP/1.1 200 OK", "{accepted}");
+    let newcomer = set_cookie(&accepted).expect("the acceptance signed the account in");
+
+    // The roles the invitation carried are the identity the routes read, and
+    // they are not the administrator's.
+    let identity = verifier
+        .resolve(&PresentedCredentials {
+            bearer: None,
+            session_cookie: Some(newcomer),
+        })
+        .expect("the session the acceptance made resolves");
+    assert!(identity
+        .roles
+        .contains(op_editor_core::access::ProductRole::Qa));
+    assert!(!identity.roles.rights().can_manage_users());
+    assert_ne!(identity.user_id, admin.id);
+
+    // And the account list the administrator reads names it.
+    let listed = serve_as(
+        &registry,
+        &verifier,
+        Some(&accounts),
+        Request::new("GET", USERS).with_session(&session),
+    );
+    assert_eq!(status_line(&listed), "HTTP/1.1 200 OK", "{listed}");
+    let users = body(&listed)["users"].clone();
+    let users = users.as_array().expect("a list of accounts");
+    assert!(
+        users
+            .iter()
+            .any(|user| user["username"] == "newcomer" && user["roles"][0] == "qa"),
+        "{listed}"
+    );
+}

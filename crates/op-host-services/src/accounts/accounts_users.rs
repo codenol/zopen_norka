@@ -13,8 +13,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use super::accounts_error::AccountsError;
 use super::accounts_model::{
-    checked_display_name, checked_email, checked_id, checked_username, encode_roles, new_account_id,
-    user_from_row, NewUser, User, UserStatus, USER_COLUMNS,
+    checked_display_name, checked_email, checked_id, checked_username, encode_roles,
+    new_account_id, user_from_row, NewUser, User, UserStatus, USER_COLUMNS,
 };
 use super::accounts_password::{hash_password, HASH_ALGO_ARGON2ID};
 use super::AccountsDb;

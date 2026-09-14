@@ -37,6 +37,7 @@ use std::sync::Arc;
 use crate::accounts::{AccountsDb, AccountsError, NewSession, NewUser, SESSION_TTL_SECS};
 use op_editor_core::auth_routes;
 
+use super::account_admin_routes;
 use super::account_cookie::{cleared_session_cookie, session_cookie, CookieSecurity};
 use super::account_verifier::AccountVerifier;
 use super::tenant_auth::{anonymous_auth_status_json, IdentityVerifier, PresentedCredentials};
@@ -71,7 +72,11 @@ pub struct AccountReply {
 
 impl AccountReply {
     /// A JSON answer with no cookie.
-    fn json(status: &'static str, body: String) -> Self {
+    ///
+    /// `pub(super)`: the administration routes are the account tier's other
+    /// half and answer in exactly this shape, and a second definition of "what
+    /// an account answer looks like" is how the two would come to disagree.
+    pub(super) fn json(status: &'static str, body: String) -> Self {
         Self {
             status,
             body,
@@ -80,7 +85,7 @@ impl AccountReply {
     }
 
     /// A coded refusal, in the shape every other daemon route refuses in.
-    fn refusal(status: &'static str, code: &str, message: &str) -> Self {
+    pub(super) fn refusal(status: &'static str, code: &str, message: &str) -> Self {
         Self::json(
             status,
             serde_json::json!({
@@ -167,6 +172,16 @@ impl AccountAuth {
             AccountRoute::Login => self.login(request),
             AccountRoute::Logout => self.logout(request),
             AccountRoute::AcceptInvite => self.accept_invite(request),
+            // The administration routes. They are dispatched from here because
+            // this tier owns the `/api/auth/` prefix, not because they are
+            // anonymous: each of them resolves the caller's own session before
+            // it does anything — see `account_admin_routes`.
+            AccountRoute::AdminInviteCreate => account_admin_routes::create_invite(self, request),
+            AccountRoute::AdminInviteList => account_admin_routes::list_invites(self, request),
+            AccountRoute::AdminInviteRevoke => account_admin_routes::revoke_invite(self, request),
+            AccountRoute::AdminUserList => account_admin_routes::list_users(self, request),
+            AccountRoute::AdminUserRoles => account_admin_routes::set_user_roles(self, request),
+            AccountRoute::AdminUserStatus => account_admin_routes::set_user_status(self, request),
         })
     }
 
@@ -498,6 +513,18 @@ enum AccountRoute {
     Logout,
     /// `POST /api/auth/invite/accept`.
     AcceptInvite,
+    /// `POST /api/auth/admin/invites` — an administrator issues a link.
+    AdminInviteCreate,
+    /// `GET /api/auth/admin/invites` — an administrator reads the list.
+    AdminInviteList,
+    /// `POST /api/auth/admin/invites/revoke`.
+    AdminInviteRevoke,
+    /// `GET /api/auth/admin/users`.
+    AdminUserList,
+    /// `POST /api/auth/admin/users/roles`.
+    AdminUserRoles,
+    /// `POST /api/auth/admin/users/status`.
+    AdminUserStatus,
 }
 
 impl AccountRoute {
@@ -512,14 +539,30 @@ impl AccountRoute {
             ("POST", auth_routes::LOGIN) => Some(Self::Login),
             ("POST", auth_routes::LOGOUT) => Some(Self::Logout),
             ("POST", auth_routes::INVITE_ACCEPT) => Some(Self::AcceptInvite),
+            ("POST", account_admin_routes::INVITES) => Some(Self::AdminInviteCreate),
+            ("GET", account_admin_routes::INVITES) => Some(Self::AdminInviteList),
+            ("POST", account_admin_routes::INVITE_REVOKE) => Some(Self::AdminInviteRevoke),
+            ("GET", account_admin_routes::USERS) => Some(Self::AdminUserList),
+            ("POST", account_admin_routes::USER_ROLES) => Some(Self::AdminUserRoles),
+            ("POST", account_admin_routes::USER_STATUS) => Some(Self::AdminUserStatus),
             _ => None,
         }
     }
 
-    /// Whether this route changes the caller's account, and so must pass the
+    /// Whether this route changes stored state, and so must pass the
     /// cross-origin and content-type gate first.
+    ///
+    /// Written as the READS it is not, rather than as the writes it is: a
+    /// route added to this enum and not to this list is a write until it says
+    /// otherwise, which is the direction that fails closed. A read that
+    /// wrongly passed the gate would cost a browser POST's `Origin` check on a
+    /// route that has nothing to protect; a write that wrongly skipped it
+    /// would be reachable from any page on the internet.
     const fn is_write(self) -> bool {
-        !matches!(self, Self::Status)
+        !matches!(
+            self,
+            Self::Status | Self::AdminInviteList | Self::AdminUserList
+        )
     }
 }
 

@@ -94,6 +94,17 @@ fn run(args: &[String]) -> Result<String, CliError> {
         )?,
         Command::StopMcp => app_control_cli::run_stop()?,
         Command::AdminCreate { data_dir } => admin_cli::run_create(data_dir.as_deref())?,
+        Command::AdminInvite {
+            data_dir,
+            roles,
+            email,
+            origin,
+        } => admin_cli::run_invite(
+            data_dir.as_deref(),
+            roles.as_deref(),
+            email.as_deref(),
+            origin.as_deref(),
+        )?,
         Command::SkillExport { name, out_dir } => {
             skill_export_cli::run_export(&name, out_dir.as_deref())?
         }
@@ -216,6 +227,22 @@ enum Command {
         /// `--data-dir`: the deployment's data directory. Falls back to
         /// `OPENPENCIL_ONLINE_DATA_DIR`, which is what the daemon reads.
         data_dir: Option<String>,
+    },
+    /// `op admin invite` — issue one invitation and print the link, for a
+    /// deployment whose operator has no browser in front of them and for a
+    /// script that makes one link per person.
+    AdminInvite {
+        /// `--data-dir`: the same directory `op admin create` writes.
+        data_dir: Option<String>,
+        /// `--roles a,b`: the roles the accepting account is granted, in this
+        /// build's own vocabulary. Omitted means no roles.
+        roles: Option<String>,
+        /// `--email`: the address the link is meant for, recorded on the row
+        /// so an operator can match it to the account it made.
+        email: Option<String>,
+        /// `--origin https://…`: printed in front of the link, because a path
+        /// is not something anybody can paste into a chat.
+        origin: Option<String>,
     },
     SkillExport {
         name: String,
