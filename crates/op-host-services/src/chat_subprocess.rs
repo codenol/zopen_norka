@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use op_ai::chat_provider::{
-    ChatDelta, ChatProvider, ChatRequest, CliName, EffortLevel, StopReason,
+    AttachmentTransport, ChatDelta, ChatProvider, ChatRequest, CliName, EffortLevel, StopReason,
 };
 use op_process_io::LineStreamChild;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -265,6 +265,12 @@ impl ChatProvider for SubprocessProvider {
 
     fn supports_cancellable_send(&self) -> bool {
         true
+    }
+
+    /// The prompt carries `[attached …: <temp path>]` lines and the CLI agent
+    /// opens those files with its own tools — real delivery by path.
+    fn attachment_transport(&self) -> AttachmentTransport {
+        AttachmentTransport::ReadablePath
     }
 
     fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {

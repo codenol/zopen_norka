@@ -11,8 +11,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use op_ai::chat_provider::{
-    ChatDelta, ChatHistoryRole, ChatProvider, ChatRequest, ChatToolDef, ChatToolExecutor,
-    EffortLevel, StopReason, ThinkingMode,
+    AttachmentTransport, ChatAttachment, ChatDelta, ChatHistoryRole, ChatProvider, ChatRequest,
+    ChatToolDef, ChatToolExecutor, EffortLevel, StopReason, ThinkingMode,
 };
 use op_editor_core::{BuiltinAgentConfig, BuiltinAgentKind};
 use serde_json::{json, Value};
@@ -36,8 +36,8 @@ pub use op_chat_agent::backoff::{DESIGN_LOOP_MAX_OUTPUT_TOKENS, DESIGN_LOOP_MAX_
 pub use op_chat_agent::chat_builtin_http::BuiltinHttpError;
 
 pub(crate) use crate::chat_builtin_http_wire::{
-    normalize_provider_base_url, parse_anthropic_sse_data, parse_openai_sse_data,
-    provider_endpoint, pump_sse_response,
+    anthropic_user_content, normalize_provider_base_url, openai_user_content,
+    parse_anthropic_sse_data, parse_openai_sse_data, provider_endpoint, pump_sse_response,
 };
 // `apply_reasoning_wire_control` is public so the headless benchmark harness
 // (op-smoke) builds its request body through the SAME entry point the live
@@ -213,6 +213,15 @@ impl ConfiguredBuiltinProvider {
     fn endpoint(&self, path: &str) -> String {
         provider_endpoint(&self.base_url, path)
     }
+
+    /// Whether a turn on this provider takes the plain streaming path instead
+    /// of the tool-executing agent loop. It is the fact that decides both
+    /// whether attachments can ride the request body and which prompt shape
+    /// the turn gets, so it has one name rather than two call sites
+    /// re-deriving it from `tools` / `executor` and drifting apart.
+    fn streams_plainly(&self) -> bool {
+        self.executor.is_none() && self.tools.is_empty()
+    }
 }
 
 impl fmt::Debug for ConfiguredBuiltinProvider {
@@ -237,7 +246,23 @@ impl ChatProvider for ConfiguredBuiltinProvider {
     }
 
     fn supports_evidence_only_send(&self) -> bool {
-        self.tools.is_empty() && self.executor.is_none()
+        self.streams_plainly()
+    }
+
+    /// Attachments ride the request body as inline image blocks — but only on
+    /// the plain streaming path (see [`Self::streams_plainly`]).
+    ///
+    /// The tool-executing agent loop cannot carry them: `AgentLoopConfig`
+    /// takes a `user_prompt` string and its canvas tools have no way to open
+    /// a local file, so an attachment there reaches the model as nothing at
+    /// all. Declaring `Dropped` keeps a vision caller from treating such a
+    /// turn's answer as grounded in pixels it never received (issue #61).
+    fn attachment_transport(&self) -> AttachmentTransport {
+        if self.streams_plainly() {
+            AttachmentTransport::InlineImage
+        } else {
+            AttachmentTransport::Dropped
+        }
     }
 
     fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {
@@ -283,12 +308,27 @@ impl ConfiguredBuiltinProvider {
                 .into_iter(),
             );
         }
-        let (mut prompt, guard) = match crate::chat_attachment::prompt_with_attachments(
-            &request.user_message,
-            &request.attachments,
-        ) {
-            Ok(pair) => pair,
-            Err(e) => return crate::chat_attachment::attachment_error_turn(e),
+        // Attachments are handled differently by the two send paths, so the
+        // prompt text is built per path:
+        //  - plain streaming (no tools) puts raster images in the request
+        //    BODY as inline image blocks — the prompt names only what the
+        //    body cannot carry;
+        //  - the tool-executing agent loop (`op-chat-agent`) carries a
+        //    `user_prompt` string and its canvas tools cannot open a local
+        //    file, so nothing reaches the model and the prompt says so.
+        // Neither path spills a temp file: unlike a CLI transport, no model
+        // here can read one, and naming a path it cannot open is what made
+        // the model invent a screenshot inventory (issue #61).
+        let mut prompt = if self.streams_plainly() {
+            crate::chat_attachment::prompt_with_inline_images(
+                &request.user_message,
+                &request.attachments,
+            )
+        } else {
+            crate::chat_attachment::prompt_with_undelivered_attachments(
+                &request.user_message,
+                &request.attachments,
+            )
         };
         let mut directive = String::new();
         if let Some(d) = crate::chat_attachment::thinking_directive(request.thinking) {
@@ -318,9 +358,16 @@ impl ConfiguredBuiltinProvider {
         }
 
         let provider = self.clone();
-        let system_prompt = request.system_prompt;
-        let history = request.history;
-        let max_output_tokens = request.max_output_tokens.max(1);
+        let turn = ChatTurn {
+            system_prompt: request.system_prompt,
+            history: request.history,
+            prompt,
+            // The plain streaming path puts these on the wire as image
+            // blocks; the agent-loop path above ignores them (see the prompt
+            // note) and says so in the prompt instead.
+            attachments: request.attachments,
+            max_output_tokens: request.max_output_tokens.max(1),
+        };
         // Only force MiniMax thinking off when the CALLER asked for it
         // (the orchestrator sets `Disabled`; normal chat defaults to
         // `Adaptive` and must keep M3's reasoning). Codex review caught
@@ -329,7 +376,6 @@ impl ConfiguredBuiltinProvider {
         let disable_thinking = request.thinking == ThinkingMode::Disabled;
         let (tx, rx) = mpsc::channel::<ChatDelta>(64);
         let task = shared_runtime().spawn(async move {
-            let _guard = guard;
             // Tool-capable turns route through the agent loop: tool
             // defs ride the request, `tool_use` streams back, the
             // executor runs each call, and `tool_result` rides a
@@ -343,10 +389,10 @@ impl ConfiguredBuiltinProvider {
                     },
                     api_key: provider.api_key.clone(),
                     model: provider.model.clone(),
-                    system_prompt,
-                    history,
-                    user_prompt: prompt,
-                    max_output_tokens,
+                    system_prompt: turn.system_prompt,
+                    history: turn.history,
+                    user_prompt: turn.prompt,
+                    max_output_tokens: turn.max_output_tokens,
                     tools: provider.tools.clone(),
                     executor,
                     max_turns: provider.max_turns_override.unwrap_or(
@@ -367,27 +413,10 @@ impl ConfiguredBuiltinProvider {
             } else {
                 match provider.kind {
                     BuiltinAgentKind::Anthropic => {
-                        run_anthropic_chat(
-                            provider,
-                            system_prompt,
-                            history,
-                            prompt,
-                            max_output_tokens,
-                            &tx,
-                        )
-                        .await
+                        run_anthropic_chat(provider, turn, &tx).await
                     }
                     BuiltinAgentKind::OpenAiCompat => {
-                        run_openai_chat(
-                            provider,
-                            system_prompt,
-                            history,
-                            prompt,
-                            max_output_tokens,
-                            disable_thinking,
-                            &tx,
-                        )
-                        .await
+                        run_openai_chat(provider, turn, disable_thinking, &tx).await
                     }
                 }
             };
@@ -419,15 +448,29 @@ impl ConfiguredBuiltinProvider {
     }
 }
 
-async fn run_openai_chat(
-    provider: ConfiguredBuiltinProvider,
+/// One plain-streaming turn's wire inputs, assembled once so the two
+/// endpoint shapes take the same bundle instead of a widening argument list.
+struct ChatTurn {
     system_prompt: String,
     history: Vec<(ChatHistoryRole, String)>,
     prompt: String,
+    attachments: Vec<ChatAttachment>,
     max_output_tokens: u32,
+}
+
+async fn run_openai_chat(
+    provider: ConfiguredBuiltinProvider,
+    turn: ChatTurn,
     disable_thinking: bool,
     tx: &mpsc::Sender<ChatDelta>,
 ) -> Result<bool, BuiltinHttpError> {
+    let ChatTurn {
+        system_prompt,
+        history,
+        prompt,
+        attachments,
+        max_output_tokens,
+    } = turn;
     let url = provider.endpoint("/chat/completions");
     let mut messages = Vec::new();
     if !system_prompt.trim().is_empty() {
@@ -441,9 +484,11 @@ async fn run_openai_chat(
     for (role, text) in &history {
         messages.push(json!({ "role": role.as_str(), "content": text }));
     }
+    // `content` stays a plain string for text-only turns and becomes the
+    // vision parts array when the turn carries raster images.
     messages.push(json!({
         "role": "user",
-        "content": prompt,
+        "content": openai_user_content(&prompt, &attachments),
     }));
     let mut body = json!({
         "model": provider.model,
@@ -486,12 +531,16 @@ async fn run_openai_chat(
 
 async fn run_anthropic_chat(
     provider: ConfiguredBuiltinProvider,
-    system_prompt: String,
-    history: Vec<(ChatHistoryRole, String)>,
-    prompt: String,
-    max_output_tokens: u32,
+    turn: ChatTurn,
     tx: &mpsc::Sender<ChatDelta>,
 ) -> Result<bool, BuiltinHttpError> {
+    let ChatTurn {
+        system_prompt,
+        history,
+        prompt,
+        attachments,
+        max_output_tokens,
+    } = turn;
     let url = provider.endpoint("/v1/messages");
     // Prior turns ride as full wire messages ahead of the current
     // user prompt (TS parity: builtin multi-turn context seeding).
@@ -499,7 +548,11 @@ async fn run_anthropic_chat(
         .iter()
         .map(|(role, text)| json!({ "role": role.as_str(), "content": text }))
         .collect();
-    messages.push(json!({ "role": "user", "content": prompt }));
+    // Anthropic's own image-block shape; a plain string for text-only turns.
+    messages.push(json!({
+        "role": "user",
+        "content": anthropic_user_content(&prompt, &attachments),
+    }));
     let mut body = json!({
         "model": provider.model,
         "max_tokens": max_output_tokens,
@@ -532,6 +585,10 @@ async fn run_anthropic_chat(
 #[cfg(test)]
 #[path = "chat_builtin_http_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chat_builtin_http_attachment_tests.rs"]
+mod attachment_tests;
 
 #[cfg(test)]
 #[path = "chat_builtin_http_cancellation_tests.rs"]

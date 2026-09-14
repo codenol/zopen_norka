@@ -67,6 +67,15 @@ pub fn first_reference_image_base64(attachments: &[ReferenceAttachment]) -> Opti
 }
 
 /// Resolve a reference brief via vision, or the fallback string.
+///
+/// Any non-empty `VisionResponse::Text` is accepted as the inventory. That
+/// trust is deliberate and it rests on the vision client's contract (see
+/// [`VisionLlmClient::validate`]): a client returns `Text` only when the
+/// image actually reached the model, and returns `Skipped` when it could not.
+/// The brief cannot verify grounding from the text itself — a model handed
+/// only a file name writes a perfectly structured inventory of a picture it
+/// never saw (issue #61) — so the honesty has to live at the transport
+/// boundary, and a client that breaks that contract reinstates the bug.
 pub fn resolve_reference_brief(
     attachments: &[ReferenceAttachment],
     vision: &dyn VisionLlmClient,
@@ -89,11 +98,24 @@ pub fn resolve_reference_brief(
         provider: provider.map(|s| s.to_string()),
         timeout: BRIEF_TIMEOUT,
     };
-    match vision.validate(req) {
+    let response = vision.validate(req);
+    match &response {
         VisionResponse::Text(text) if !text.trim().is_empty() => {
             Some(format!("## Reference screen brief\n\n{}", text.trim()))
         }
         VisionResponse::Text(_) | VisionResponse::Skipped { .. } => {
+            // Both outcomes produce the same conservative brief, so without
+            // the reason on the record "the image never reached the model" and
+            // "the model answered nothing" are indistinguishable to whoever
+            // reads the log — and they need different fixes.
+            if let VisionResponse::Skipped { reason } = &response {
+                eprintln!(
+                    "[reference-brief] no screenshot inventory: {}",
+                    reason.as_deref().unwrap_or("vision unavailable (no reason given)")
+                );
+            } else {
+                eprintln!("[reference-brief] no screenshot inventory: vision returned empty text");
+            }
             Some(fallback_reference_brief(images.len()))
         }
     }
@@ -175,5 +197,62 @@ mod tests {
         let mut req = crate::types::DesignRequest::default();
         enrich_request_with_reference_brief(&mut req, &SkippedVisionLlmClient);
         assert!(req.reference_brief.is_none());
+    }
+
+    /// The conservative brief exists so an ungrounded turn cannot hand the
+    /// planner an inventory. It must therefore never read like one: no
+    /// `## Reference screen brief` heading (which marks a model-written
+    /// inventory of the actual image), no `## Visible regions` section, and —
+    /// because the text is injected into planning prompts as authoritative —
+    /// an explicit statement that vision was unavailable.
+    #[test]
+    fn fallback_brief_is_not_mistakable_for_an_image_inventory() {
+        let text = fallback_reference_brief(1);
+        assert!(!text.contains("## Reference screen brief"));
+        assert!(!text.contains("## Visible regions"));
+        assert!(text.contains("fallback"));
+        assert!(text.contains("vision brief unavailable"));
+    }
+
+    /// A skip reason travels with the fallback rather than being swallowed:
+    /// "the transport never delivered the image" and "the model answered
+    /// nothing" need different fixes, and they are indistinguishable from the
+    /// brief text alone.
+    #[test]
+    fn skipped_vision_reason_does_not_change_the_conservative_brief() {
+        let att = ReferenceAttachment {
+            name: "shot.png".into(),
+            media_type: "image/png".into(),
+            data: vec![1, 2, 3, 4],
+        };
+        let brief = resolve_reference_brief(
+            &[att],
+            &crate::stub_providers::SkippedVisionLlmClient,
+            None,
+            None,
+        )
+        .expect("brief");
+        assert_eq!(brief, fallback_reference_brief(1));
+    }
+
+    /// Text from a client that honoured its contract is wrapped as the
+    /// authoritative inventory the planner reads.
+    #[test]
+    fn grounded_vision_text_becomes_the_reference_screen_brief() {
+        struct GroundedClient;
+        impl VisionLlmClient for GroundedClient {
+            fn validate(&self, _req: VisionCallRequest) -> VisionResponse {
+                VisionResponse::Text("## Visible regions\n- toolbar\n- table".into())
+            }
+        }
+        let att = ReferenceAttachment {
+            name: "shot.png".into(),
+            media_type: "image/png".into(),
+            data: vec![1, 2, 3, 4],
+        };
+        let brief = resolve_reference_brief(&[att], &GroundedClient, None, None).expect("brief");
+        assert!(brief.starts_with("## Reference screen brief"));
+        assert!(brief.contains("- toolbar"));
+        assert!(!brief.contains("fallback"));
     }
 }

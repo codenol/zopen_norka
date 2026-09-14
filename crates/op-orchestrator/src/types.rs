@@ -126,6 +126,14 @@ pub trait ScreenshotProvider: Send + Sync {
 /// + spec §4.1.
 pub trait VisionLlmClient: Send + Sync {
     /// 执行一次同步视觉校验调用并返回结果。
+    ///
+    /// CONTRACT — `Text` means "the model answered about the image in `req`".
+    /// An implementation MUST return `Skipped` rather than issue a text-only
+    /// call when the image cannot reach the model: a model handed a file name
+    /// writes a confident description of a picture it never saw, and
+    /// `reference_brief` feeds that text to the planner as an inventory of the
+    /// user's screen (issue #61). Enforced host-side by asking
+    /// `ChatProvider::attachment_transport` first.
     fn validate(&self, req: VisionCallRequest) -> VisionResponse;
 }
 
@@ -163,6 +171,8 @@ pub struct VisionCallRequest {
 /// `VisionLlmClient::validate` 的返回值。
 ///
 /// `Text` = 模型返回了 JSON 文本;`Skipped` = stub / 截图不可用 / host 选择跳过。
+/// `Skipped` 的 `reason` 是**诊断**文本("图像没送到"与"模型没答"需要不同的修法),
+/// 不是可展示给用户的文案。
 #[derive(Debug, Clone)]
 pub enum VisionResponse {
     /// 模型返回了完整文本(JSON 格式,待 `parse_validation_response` 解析)。

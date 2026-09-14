@@ -668,3 +668,53 @@ fn provider_constructs_as_chat_provider_trait_object() {
     assert_eq!(p.provider_label(), "OpenCode");
     assert!(p.supports_cancellable_send());
 }
+
+/// Requirement: a non-image attachment must never become an image part. The
+/// parts builder used to forward every attachment as `type:"image"`, so a text
+/// file — or a JPEG the browser labelled `image/png` — was posted as content
+/// the model cannot decode, while the transport declared inline delivery.
+#[test]
+fn image_parts_carry_raster_images_only() {
+    let png = ChatAttachment {
+        name: "reference.png".into(),
+        media_type: "image/png".into(),
+        data: vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a],
+    };
+    let mislabelled_jpeg = ChatAttachment {
+        name: "photo.png".into(),
+        media_type: "image/png".into(),
+        data: vec![0xff, 0xd8, 0xff, 0xe0],
+    };
+    let notes = ChatAttachment {
+        name: "notes.txt".into(),
+        media_type: "text/plain".into(),
+        data: b"hello".to_vec(),
+    };
+
+    let parts = OpenCodeProvider::image_parts(&[png, mislabelled_jpeg, notes]);
+
+    assert_eq!(parts.len(), 2, "only the two raster payloads: {parts:?}");
+    assert!(parts
+        .iter()
+        .all(|part| part["type"] == "image" && part["url"].is_string()));
+    assert!(
+        parts[0]["url"]
+            .as_str()
+            .unwrap()
+            .starts_with("data:image/png;base64,"),
+        "{parts:?}"
+    );
+    assert!(
+        parts[1]["url"]
+            .as_str()
+            .unwrap()
+            .starts_with("data:image/jpeg;base64,"),
+        "the wire label follows the bytes: {parts:?}"
+    );
+    assert!(
+        !serde_json::to_string(&parts).unwrap().contains("text/plain"),
+        "a document is not image input: {parts:?}"
+    );
+
+    assert!(OpenCodeProvider::image_parts(&[]).is_empty());
+}

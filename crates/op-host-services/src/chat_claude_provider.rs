@@ -20,6 +20,14 @@ impl ChatProvider for ClaudeCodeProvider {
         true
     }
 
+    /// Attachments spill to a private temp directory and Claude Code is
+    /// instructed to `Read` each file (`chat_attachment::claude_image_prompt`)
+    /// — a real route to the pixels through the CLI's own tools, so this is
+    /// `ReadablePath`, not `Dropped`.
+    fn attachment_transport(&self) -> AttachmentTransport {
+        AttachmentTransport::ReadablePath
+    }
+
     fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {
         self.send_inner(request, None)
     }

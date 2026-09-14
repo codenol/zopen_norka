@@ -38,7 +38,10 @@
 use std::sync::{atomic::AtomicBool, Arc};
 use std::time::Duration;
 
-use op_ai::chat_provider::{ChatDelta, ChatProvider, ChatRequest, EffortLevel, StopReason};
+use op_ai::chat_provider::{
+    AttachmentTransport, ChatAttachment, ChatDelta, ChatProvider, ChatRequest, EffortLevel,
+    StopReason,
+};
 use tokio::sync::mpsc;
 
 use crate::chat_runtime::{shared_runtime, BlockingRecvIter};
@@ -118,6 +121,13 @@ impl ChatProvider for OpenCodeProvider {
         true
     }
 
+    /// Image attachments become `{"type":"image","url":"data:…;base64,…"}`
+    /// parts in the prompt payload, so the pixels reach the model with the
+    /// request body.
+    fn attachment_transport(&self) -> AttachmentTransport {
+        AttachmentTransport::InlineImage
+    }
+
     fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {
         self.send_inner(request, None)
     }
@@ -132,6 +142,30 @@ impl ChatProvider for OpenCodeProvider {
 }
 
 impl OpenCodeProvider {
+    /// Prompt-payload `parts` for this turn's attachments: one `image` part
+    /// with a `data:` URL per attachment whose BYTES really are a raster image.
+    ///
+    /// The filter is byte-driven on purpose. It used to forward every
+    /// attachment as an image — including a text file, and including a JPEG
+    /// labelled `image/png` — which posts content the model cannot decode as
+    /// an image, and (through the declaration below) claims a delivery that
+    /// did not happen. Anything left over is reported by
+    /// [`crate::chat_attachment::prompt_with_inline_images`] in the prompt.
+    fn image_parts(attachments: &[ChatAttachment]) -> Vec<serde_json::Value> {
+        crate::chat_attachment::inline_image_attachments(attachments)
+            .iter()
+            .map(|(att, media_type)| {
+                serde_json::json!({
+                    "type": "image",
+                    "url": format!(
+                        "data:{media_type};base64,{}",
+                        crate::chat_attachment::attachment_to_base64(att)
+                    ),
+                })
+            })
+            .collect()
+    }
+
     fn send_inner(
         &self,
         request: ChatRequest,
@@ -142,7 +176,13 @@ impl OpenCodeProvider {
         // Prompt text = directive + history digest + user message.
         // The system prompt rides the dedicated `noReply` injection
         // (TS parity), so it is NOT folded into the prompt string.
-        let mut prompt = request.user_message.clone();
+        // Attachments come in through `image_parts`; whatever cannot ride a
+        // part (a document, an SVG) is named there as NOT delivered instead
+        // of being announced as a file path this transport cannot hand over.
+        let mut prompt = crate::chat_attachment::prompt_with_inline_images(
+            &request.user_message,
+            &request.attachments,
+        );
         let mut directive = String::new();
         if let Some(d) = crate::chat_attachment::thinking_directive(request.thinking) {
             directive.push_str(d);
@@ -170,20 +210,7 @@ impl OpenCodeProvider {
         // text part (TS chat.ts:650-657 — incl. the `type:"image"`
         // shape and the "Analyze these images." empty-prompt
         // fallback).
-        let mut parts: Vec<serde_json::Value> = request
-            .attachments
-            .iter()
-            .map(|a| {
-                serde_json::json!({
-                    "type": "image",
-                    "url": format!(
-                        "data:{};base64,{}",
-                        a.media_type,
-                        crate::chat_attachment::attachment_to_base64(a)
-                    ),
-                })
-            })
-            .collect();
+        let mut parts: Vec<serde_json::Value> = Self::image_parts(&request.attachments);
         let text = if prompt.is_empty() {
             "Analyze these images.".to_string()
         } else {

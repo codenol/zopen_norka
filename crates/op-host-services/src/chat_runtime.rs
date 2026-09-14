@@ -30,7 +30,9 @@ use agent::provider::Provider;
 use agent::query::QueryEngine;
 use agent::stream::Event;
 use futures::StreamExt;
-use op_ai::chat_provider::{ChatDelta, ChatProvider, ChatRequest, EffortLevel, StopReason};
+use op_ai::chat_provider::{
+    AttachmentTransport, ChatDelta, ChatProvider, ChatRequest, EffortLevel, StopReason,
+};
 use tokio::sync::mpsc;
 
 // `shared_runtime` + `block_on_anywhere` moved to `op_chat_agent::runtime`
@@ -89,6 +91,14 @@ impl BuiltInProvider {
 impl ChatProvider for BuiltInProvider {
     fn provider_label(&self) -> &str {
         &self.label
+    }
+
+    /// The prompt carries the staged temp paths, and `agent::QueryEngine`
+    /// runs agent-rs's code toolset (`agent-tools-code` registers a file-read
+    /// tool), so the engine can open them itself. Delivery is by path, not by
+    /// body: nothing here inlines image bytes.
+    fn attachment_transport(&self) -> AttachmentTransport {
+        AttachmentTransport::ReadablePath
     }
 
     fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {

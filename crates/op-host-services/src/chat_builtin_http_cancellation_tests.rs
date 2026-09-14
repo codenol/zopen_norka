@@ -104,3 +104,33 @@ fn configured_builtin_evidence_capability_rejects_tool_wiring() {
     });
     assert!(!provider.supports_evidence_only_send());
 }
+
+/// The transport declaration a vision caller reads has to match what each
+/// send path actually puts on the wire: the plain path inlines image blocks,
+/// the tool-executing agent loop has no route to the bytes at all
+/// (issue #61 — the loop is why a screenshot could be "attached" and never
+/// arrive).
+#[test]
+fn configured_builtin_transport_declares_inline_images_only_on_the_plain_path() {
+    let mut provider = test_provider("http://127.0.0.1:9/v1".into());
+    assert_eq!(
+        provider.attachment_transport(),
+        AttachmentTransport::InlineImage
+    );
+    assert!(provider.attachment_transport().delivers_attachments());
+
+    provider.executor = Some(Arc::new(NoopExecutor));
+    assert_eq!(
+        provider.attachment_transport(),
+        AttachmentTransport::Dropped,
+        "the agent loop carries a user_prompt string, not image blocks"
+    );
+    provider.executor = None;
+    provider.tools.push(ChatToolDef {
+        name: "get_screenshot".into(),
+        description: "canvas read".into(),
+        level: "read".into(),
+        input_schema_json: "{}".into(),
+    });
+    assert_eq!(provider.attachment_transport(), AttachmentTransport::Dropped);
+}
