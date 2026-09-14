@@ -57,12 +57,14 @@ mod files_thumb_fetch;
 mod route_sync;
 #[cfg(feature = "canvaskit")]
 mod tooltip_pump;
-// Daemon device-login relay (action drain + login-status poll + popup).
+// Identity-epoch glue: the document/sync reset a change of account needs.
 #[cfg(feature = "canvaskit")]
 mod live_sync_glue;
 // The recovery stash behind an online auto-accept.
 #[cfg(feature = "canvaskit")]
 mod live_sync_recovery;
+// The account session: `/api/auth/status` on a tick, plus the sign-in,
+// invitation-acceptance and sign-out calls the entry form asks for.
 #[cfg(feature = "canvaskit")]
 mod web_auth_sync;
 // Opens the hub portal's per-account MCP-token page in a new tab from the
@@ -87,7 +89,7 @@ mod dom_io;
 #[cfg(feature = "canvaskit")]
 mod file_actions;
 // Which account this tab belongs to. Lives with the daemon-facing modules
-// because it is driven by the device-login status poll.
+// because it is driven by the `/api/auth/status` answer.
 #[cfg(feature = "canvaskit")]
 pub mod identity_epoch;
 #[cfg(all(test, feature = "canvaskit"))]

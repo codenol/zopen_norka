@@ -259,11 +259,13 @@ pub fn handle_static_request(path: &str, bundle_dir: Option<&Path>) -> Option<St
             body: ICONIFY_BRANDS_JSON.as_bytes().to_vec(),
         });
     }
-    // Client-side routes: `/f/<key>` and `/files` are read by the wasm shell
-    // from `window.location`, so the daemon answers them with the same page
-    // (§ `op_editor_core::route`). Without this a shared link 404s before the
-    // bundle ever loads. Only extension-less paths qualify — an asset request
-    // that reaches here is genuinely missing and must keep its 404.
+    // Client-side routes: `/f/<key>`, `/files` and `/invite/<token>` are read by
+    // the wasm shell from `window.location`, so the daemon answers them with the
+    // same page (§ `op_editor_core::route`). Without this a shared link 404s
+    // before the bundle ever loads — an invitation link most of all, because the
+    // person holding it has no account yet and nothing else to click. Only
+    // extension-less paths qualify: an asset request that reaches here is
+    // genuinely missing and must keep its 404.
     if is_client_route(path) {
         return Some(match bundle_dir {
             Some(_) => StaticReply {
@@ -286,6 +288,10 @@ pub fn handle_static_request(path: &str, bundle_dir: Option<&Path>) -> Option<St
 fn is_client_route(path: &str) -> bool {
     path == op_editor_core::route::FILES_PATH
         || path == "/files/"
+        // An invitation is a page, and the token's grammar decides it: a path
+        // that is not base64url is not an invitation, so it keeps its 404
+        // instead of being served the editor page by a prefix rule.
+        || op_editor_core::route::invite_token(path).is_some()
         || path
             .strip_prefix(op_editor_core::route::DOCUMENT_PREFIX)
             .is_some_and(|rest| !rest.is_empty())
@@ -599,17 +605,38 @@ mod tests {
         assert!(handle_static_request("/pkg/op_host_web.js", None).is_some());
     }
 
-    /// A shared link must reach the bundle: `/f/<key>` and `/files` answer the
-    /// page, while the daemon's own routes keep their own handlers.
+    /// A shared link must reach the bundle: `/f/<key>`, `/files` and
+    /// `/invite/<token>` answer the page, while the daemon's own routes keep
+    /// their own handlers.
     #[test]
     fn client_routes_serve_the_page_and_only_those() {
-        for path in ["/files", "/files/", "/f/01hqx", "/f/01hqx/slug"] {
+        for path in [
+            "/files",
+            "/files/",
+            "/f/01hqx",
+            "/f/01hqx/slug",
+            // The invitation link: the one address whose holder has no account
+            // and therefore no other way in.
+            "/invite/abc-DEF_123",
+            "/invite/abc-DEF_123/",
+        ] {
             let reply = handle_static_request(path, Some(Path::new("/bundle")))
                 .unwrap_or_else(|| panic!("{path} should serve the page"));
             assert_eq!(reply.status, "200 OK", "{path}");
             assert!(reply.content_type.starts_with("text/html"), "{path}");
         }
-        for path in ["/api/files", "/mcp", "/f/", "/smoke", "/pkg/x.js"] {
+        for path in [
+            "/api/files",
+            "/mcp",
+            "/f/",
+            "/smoke",
+            "/pkg/x.js",
+            // Not an invitation: the token grammar decides, so a typo or a
+            // probe is a 404 rather than the editor page.
+            "/invite",
+            "/invite/",
+            "/invite/a/b",
+        ] {
             let served = handle_static_request(path, Some(Path::new("/bundle")));
             if path == "/pkg/x.js" {
                 // Owned by the bundle layer (404 for a missing file), not by

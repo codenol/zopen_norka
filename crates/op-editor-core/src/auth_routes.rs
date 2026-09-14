@@ -9,9 +9,16 @@
 //! Two generations of routes live here. [`LOGIN`], [`LOGOUT`], [`STATUS`] and
 //! [`INVITE_ACCEPT`] are the product's own accounts: a name and a password, a
 //! session cookie, and an invitation. The `LOGIN_BEGIN` / `LOGIN_STATUS` /
-//! `LOGIN_CANCEL` family is the device-login pairing the daemon used to proxy
-//! to a third-party identity service — the daemon no longer serves it, and the
-//! constants stay only until the browser shell that calls them is replaced.
+//! `LOGIN_CANCEL` family — and [`AVATAR`], and the [`LOADING_PAGE`] popup
+//! interstitial — is the device-login pairing the daemon used to proxy to a
+//! third-party identity service.
+//!
+//! Nothing calls any of that family any more: the daemon answers `404` for it
+//! (`web_canvas_server`), and the browser shell that used to drive it now shows
+//! its own password form ([`LOGIN`]). The constants stay because the daemon's
+//! tests name those exact paths to prove the 404, and a test that asserts
+//! against a string literal instead of the shared spelling is a test that stops
+//! noticing when the spelling moves.
 
 /// Sign-in popup interstitial page (auth-exempt static HTML that shows
 /// a spinner until the popup is navigated to the verification URI).

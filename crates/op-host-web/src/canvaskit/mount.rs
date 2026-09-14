@@ -264,9 +264,10 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
     // Mirror the daemon's agent-indicator registry so design runs paint
     // their agent borders / badges / reveal animations on web too.
     crate::agent_indicator_sync::start(&inner);
-    // Device-login relay: seed `account_ui_available` + any session the
-    // daemon restored (shared with the desktop GUI), then drive login
-    // flows through the daemon's `/api/auth/*` proxy.
+    // Account session: read `/api/auth/status` once (what this deployment
+    // offers, and who this tab is), keep it fresh on a tick, and give the
+    // entry form its sign-in / invitation / sign-out calls. Also reads an
+    // invitation token out of the address.
     crate::web_auth_sync::start(&inner);
     // Collaboration relay. Starts here rather than inside the sync-reset
     // completion because it neither reads nor writes the document — it drives
@@ -435,6 +436,10 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 crate::theme_preset_io::drain_pending_theme_preset_io(&inner);
                 crate::web_fonts::drain_font_requests(&inner);
                 crate::web_fonts::drain_missing_fonts_detection(&inner);
+                // A submit on the account entry form queues its credentials;
+                // sending them here keeps a sign-in from waiting for the poll
+                // tick it does not need.
+                crate::web_auth_sync::drain_pending_credentials(&inner);
             },
         )?;
     }

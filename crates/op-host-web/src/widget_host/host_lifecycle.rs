@@ -64,7 +64,8 @@ impl WidgetHost {
             last_viewport_h: 0.0,
             last_cursor_x: 0.0,
             last_cursor_y: 0.0,
-            pending_auth_actions: Vec::new(),
+            pending_session_actions: Vec::new(),
+            pending_credential_request: None,
             chat_panel_owner: op_editor_ui::widgets::AIChatPlaceholder::next_owner(),
             layer_panel_owner: op_editor_ui::widgets::LayerPanel::next_layer_panel_owner(),
             last_chat_session_index,
@@ -89,9 +90,17 @@ impl WidgetHost {
         }
     }
 
-    /// Drain the device-login actions queued by press dispatchers.
-    pub fn take_pending_auth_actions(&mut self) -> Vec<PendingAuthAction> {
-        std::mem::take(&mut self.pending_auth_actions)
+    /// Drain the session actions queued by press dispatchers.
+    pub fn take_pending_session_actions(&mut self) -> Vec<PendingSessionAction> {
+        std::mem::take(&mut self.pending_session_actions)
+    }
+
+    /// Take the credentials a submit collected, if any.
+    ///
+    /// Taken rather than read: the request that leaves here is the last owner
+    /// of the secret, and a second reader would be a second copy of it.
+    pub fn take_pending_credential_request(&mut self) -> Option<PendingCredentialRequest> {
+        self.pending_credential_request.take()
     }
 
     /// Rotate the chat-panel transcript-cache owner when the active chat session

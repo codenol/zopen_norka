@@ -119,9 +119,6 @@ impl WidgetHost {
                 self.document_import_generation.wrapping_add(1).max(1);
             crate::figma_temp_bridge::cancel_all();
         }
-        if self.editor_state.editor_ui.login_modal_status.is_some() {
-            self.cancel_login_flow();
-        }
         op_editor_core::host_escape_transitions::close_preview_owned_overlays(
             &mut self.editor_state,
             self.now_ms,
@@ -576,11 +573,10 @@ mod tests {
 
     #[test]
     fn web_preview_entry_queues_its_real_auth_cancel_and_clears_focus_idempotently() {
-        use op_editor_core::{AccountState, Locale, LoginFlowStatus, PropertyFocus, ThemeMode};
+        use op_editor_core::{AccountState, Locale, PropertyFocus, ThemeMode};
 
         let mut host = web_preview_entry_host();
         host.editor_state.editor_ui.login_modal_open = true;
-        host.editor_state.editor_ui.login_modal_status = Some(LoginFlowStatus::WaitingBrowser);
         host.editor_state.editor_ui.prompt_center.open = true;
         host.editor_state.editor_ui.prompt_center.save_open = true;
         host.editor_state.editor_ui.theme_mode = ThemeMode::Light;
@@ -635,28 +631,23 @@ mod tests {
         assert_eq!(host.editor_state.editor_ui.layer_panel_width, 312.0);
         assert_eq!(host.editor_state.editor_ui.property_panel_width, 364.0);
         assert_eq!(host.document_import_generation, import_generation_before);
-        assert_eq!(
-            host.pending_auth_actions,
-            vec![super::super::PendingAuthAction::CancelLogin],
-            "web records the daemon request instead of claiming native cancellation"
+        assert!(
+            host.pending_session_actions.is_empty(),
+            "entering preview asks the daemon for nothing: the sign-in surface is \
+             not a device-login pairing any more, so there is no flow to cancel"
         );
 
         host.prepare_preview_entry();
-        assert_eq!(
-            host.pending_auth_actions,
-            vec![super::super::PendingAuthAction::CancelLogin],
-            "repeated cleanup cannot enqueue duplicate cancellation"
-        );
+        assert!(host.pending_session_actions.is_empty());
         assert_eq!(host.document_import_generation, import_generation_before);
     }
 
     #[test]
     fn web_preview_prepare_invalidates_import_generation_and_clears_capture_state() {
-        use op_editor_core::{LoginFlowStatus, NodeId};
+        use op_editor_core::NodeId;
 
         let mut host = web_preview_entry_host();
         host.document_import_generation = 41;
-        host.editor_state.editor_ui.login_modal_status = Some(LoginFlowStatus::WaitingBrowser);
         host.editor_state.editor_ui.figma_import_open = true;
         host.editor_state.editor_ui.figma_import_in_progress = true;
         host.editor_state.editor_ui.figma_import_pages = vec![
@@ -683,10 +674,7 @@ mod tests {
 
         assert_eq!(host.document_import_generation, 42);
         assert!(!host.editor_state.editor_ui.login_modal_open);
-        assert_eq!(
-            host.pending_auth_actions,
-            vec![super::super::PendingAuthAction::CancelLogin]
-        );
+        assert!(host.pending_session_actions.is_empty());
         assert!(!host.editor_state.editor_ui.figma_import_open);
         assert!(!host.editor_state.editor_ui.figma_import_in_progress);
         assert!(host.editor_state.editor_ui.figma_import_pages.is_empty());
@@ -702,39 +690,31 @@ mod tests {
 
         host.prepare_preview_entry();
         assert_eq!(host.document_import_generation, 42);
-        assert_eq!(
-            host.pending_auth_actions,
-            vec![super::super::PendingAuthAction::CancelLogin]
-        );
+        assert!(host.pending_session_actions.is_empty());
     }
 
     #[cfg(feature = "canvaskit")]
     #[test]
     fn web_preview_entry_without_op_ck_keeps_state_and_warns() {
-        use op_editor_core::{LoginFlowStatus, PropertyFocus};
+        use op_editor_core::PropertyFocus;
 
         let mut host = web_preview_entry_host();
         host.editor_state.editor_ui.login_modal_open = true;
-        host.editor_state.editor_ui.login_modal_status = Some(LoginFlowStatus::WaitingBrowser);
         host.editor_state.ui.property_focus = Some(PropertyFocus::PositionX);
         host.editor_state.ui.property_input.set_text("draft");
         let document_before = host.editor_state.doc.clone();
         let warnings_before = host.editor_state.editor_ui.preview.warnings.clone();
-        let auth_actions_before = host.pending_auth_actions.clone();
+        let auth_actions_before = host.pending_session_actions.clone();
 
         assert!(!host.enter_preview_from_browser(1200.0, 800.0, None));
 
         assert_eq!(host.editor_state.doc, document_before);
         assert!(host.editor_state.editor_ui.login_modal_open);
         assert_eq!(
-            host.editor_state.editor_ui.login_modal_status,
-            Some(LoginFlowStatus::WaitingBrowser)
-        );
-        assert_eq!(
             host.editor_state.ui.property_focus,
             Some(PropertyFocus::PositionX)
         );
-        assert_eq!(host.pending_auth_actions, auth_actions_before);
+        assert_eq!(host.pending_session_actions, auth_actions_before);
         assert_eq!(
             host.editor_state.editor_ui.preview.warnings,
             vec!["preview: CanvasKit not initialized".to_string()]

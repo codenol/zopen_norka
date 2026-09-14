@@ -104,6 +104,9 @@ impl Default for EditorUiState {
             login_modal_hover: None,
             login_modal_stub_hint_shown: false,
             login_modal_status: None,
+            // No status answer yet, nothing typed, no invitation in the
+            // address — see `account_entry_state`.
+            account_entry: crate::account_entry_state::AccountEntryState::default(),
             shape_picker: jian_widgets::components::select::SelectState::default(),
             toolbar_hover: None,
             shape_tool: Tool::Rect,

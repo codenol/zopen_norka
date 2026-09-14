@@ -19,6 +19,14 @@ use crate::NodeId;
 pub const DOCUMENT_PREFIX: &str = "/f/";
 /// `/files` — the file browser (the `figma.com/files` screen).
 pub const FILES_PATH: &str = "/files";
+/// `/invite/<token>` — accepting an invitation, which is a page of its own
+/// rather than a place in a document. See [`invite_token`] for why it is not a
+/// [`RouteTarget`].
+pub const INVITE_PREFIX: &str = "/invite/";
+/// Longest token accepted from an address. The daemon mints 256 random bits
+/// (43 base64url characters); the bound is here so a megabyte of path cannot
+/// become a request body.
+const MAX_INVITE_TOKEN_CHARS: usize = 256;
 
 /// Which document the route names.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,6 +150,41 @@ pub fn parse(path: &str, query: &str) -> RoutePath {
         node: params.node(),
         embed,
     }))
+}
+
+/// The invitation token an address names, or `None` when it names none.
+///
+/// ## Why this is not a [`RouteTarget`]
+///
+/// That vocabulary is what the address says about the EDITOR — which document,
+/// which page, which node — and every host answers for all of it, including the
+/// desktop, which records it for Back/Forward. An invitation is a page the
+/// editor does not have: it is shown before there is any document to name, and
+/// the desktop never shows it at all. A third variant would make every one of
+/// those hosts answer for a surface it does not own.
+///
+/// ## Why the grammar is checked here
+///
+/// A token is base64url and nothing else, so a path that is not one is not an
+/// invitation — it is a typo or a probe. Deciding that in the vocabulary both
+/// the browser shell and the daemon's static layer read is what keeps the two
+/// from disagreeing about which paths get the page and which get a 404.
+pub fn invite_token(path: &str) -> Option<&str> {
+    let rest = path.strip_prefix(INVITE_PREFIX)?;
+    // Exactly one segment: `/invite/<token>`, never `/invite/<token>/x`.
+    let token = rest.strip_suffix('/').unwrap_or(rest);
+    if token.is_empty() || token.contains('/') || token.len() > MAX_INVITE_TOKEN_CHARS {
+        return None;
+    }
+    token
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+        .then_some(token)
+}
+
+/// The address that carries an invitation.
+pub fn to_invite_path(token: &str) -> String {
+    format!("{INVITE_PREFIX}{token}")
 }
 
 /// The address for a route, without an origin. Always starts with `/`.
@@ -582,5 +625,43 @@ mod tests {
             to_path(&RouteTarget::Document(route)),
             "/f/k1/spisok-tokenov"
         );
+    }
+
+    #[test]
+    fn an_invitation_token_is_read_out_of_its_address() {
+        assert_eq!(invite_token("/invite/abc-DEF_123"), Some("abc-DEF_123"));
+        // A trailing slash is what a person adds by hand; it still names one.
+        assert_eq!(invite_token("/invite/abc-DEF_123/"), Some("abc-DEF_123"));
+        assert_eq!(to_invite_path("abc-DEF_123"), "/invite/abc-DEF_123");
+        assert_eq!(
+            invite_token(&to_invite_path("abc-DEF_123")),
+            Some("abc-DEF_123")
+        );
+    }
+
+    #[test]
+    fn addresses_that_are_not_invitations_name_no_token() {
+        let too_long = format!("/invite/{}", "a".repeat(MAX_INVITE_TOKEN_CHARS + 1));
+        for path in [
+            "/invite",
+            "/invite/",
+            "/invite//",
+            "/invite/a/b",
+            "/invite/has space",
+            "/invite/tok?x=1",
+            "/f/invite/tok",
+            "/",
+            too_long.as_str(),
+        ] {
+            assert_eq!(invite_token(path), None, "{path}");
+        }
+    }
+
+    #[test]
+    fn an_invitation_is_not_a_document_route() {
+        // The editor must not claim the address: `/invite/<token>` opens no
+        // document, and a `RouteTarget` for it would make the browser shell
+        // rewrite the link into `/` before the form was ever submitted.
+        assert_eq!(parse("/invite/tok-1", ""), RoutePath::NotARoute);
     }
 }

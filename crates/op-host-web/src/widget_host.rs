@@ -40,6 +40,7 @@ use op_editor_ui::widgets::TOP_BAR_HEIGHT;
 use op_editor_ui::{Point2D, Rect, Theme};
 
 mod a11y_bridge;
+mod account_entry;
 mod account_press;
 #[cfg(test)]
 mod agent_settings_acp_press_tests;
@@ -229,16 +230,30 @@ mod viewport_fit;
 mod web_fonts;
 mod wheel_pan;
 
-/// Device-login side effects requested by press dispatchers and executed
-/// by `web_auth_sync` against the daemon's `/api/auth/*` proxy. (Begin is
-/// NOT queued: it must fire inside the click's user-activation window so
-/// the sign-in popup isn't blocked — see `web_auth_sync::begin_login_now`.)
+/// Session side effects requested by press dispatchers and executed by
+/// `web_auth_sync` on its next tick against the daemon's `/api/auth/*` routes.
+///
+/// Queued rather than fired from the press tier: a press runs inside the frame,
+/// where the shell may already be borrowed, and the XHR that answers it must not
+/// be issued from a path that cannot repaint the answer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PendingAuthAction {
-    /// Abort the in-flight flow (modal dismissed).
-    CancelLogin,
-    /// Drop the shared session and revoke the device token.
+pub enum PendingSessionAction {
+    /// `POST /api/auth/logout`, then re-read who the tab is.
     SignOut,
+}
+
+/// Credentials the entry form has collected and not yet sent.
+///
+/// Held on the HOST and not on `EditorState`, deliberately: these values are
+/// the one thing in the shell a snapshot must never carry, and `EditorState` is
+/// what gets cloned for workers, snapshots, and diffs. The variant owns the
+/// secret only until `web_auth_sync` has built the request body — see
+/// `op_editor_core::account_entry_state`.
+pub enum PendingCredentialRequest {
+    /// `POST /api/auth/login`.
+    SignIn(op_editor_core::SignInRequest),
+    /// `POST /api/auth/invite/accept`.
+    Invite(op_editor_core::InviteAcceptance),
 }
 
 // Floating-chrome insets live with the canvas-region math they are
@@ -411,10 +426,13 @@ pub struct WidgetHost {
     /// browser IME candidate-window fallback instead of viewport (0, 0).
     pub(in crate::widget_host) last_cursor_x: f32,
     pub(in crate::widget_host) last_cursor_y: f32,
-    /// Queued device-login actions for the daemon auth proxy; the
-    /// `web_auth_sync` poll tick drains them into `/api/auth/*` calls.
-    /// Press dispatchers only enqueue — they never issue requests.
-    pub(in crate::widget_host) pending_auth_actions: Vec<PendingAuthAction>,
+    /// Queued session actions; the `web_auth_sync` poll tick drains them into
+    /// `/api/auth/*` calls. Press dispatchers only enqueue — they never issue
+    /// requests.
+    pub(in crate::widget_host) pending_session_actions: Vec<PendingSessionAction>,
+    /// Credentials a submit collected, waiting for the post-press drain that
+    /// owns the shared context. See [`PendingCredentialRequest`].
+    pub(in crate::widget_host) pending_credential_request: Option<PendingCredentialRequest>,
     /// Stable, process-unique id scoping this host's chat-panel transcript
     /// cache (mirrors native `WidgetHostNative::chat_panel_owner`). Stamped onto
     /// every `AIChatPlaceholder` this host builds so the thread-local canonical

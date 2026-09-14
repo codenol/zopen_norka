@@ -21,6 +21,20 @@ impl WidgetHost {
         let (x, y) = (ctx.x, ctx.y);
         let viewport_width = ctx.viewport_width;
         let viewport_height = ctx.viewport_height;
+        // Account entry form — the topmost surface there is (it paints its own
+        // full-viewport scrim last), so it is hit-tested first. It consumes
+        // EVERY press, scrim included: the editor behind it has no session to
+        // work with, so a click that looks like a canvas click must not reach
+        // one. Being first is also what keeps the collaboration panel and the
+        // TopBar unreachable while the form is up.
+        if self
+            .account_entry_form(viewport_width, viewport_height)
+            .is_some()
+        {
+            self.close_image_popovers_for_higher_overlay();
+            self.dispatch_account_entry_press(x, y, viewport_width, viewport_height);
+            return Some(true);
+        }
         let missing_fonts_rect =
             op_editor_ui::widgets::MissingFontsPanel::for_editor(&self.editor_state)
                 .map(|panel| panel.rect(viewport_width, viewport_height));
@@ -132,10 +146,7 @@ impl WidgetHost {
         let (x, y) = (ctx.x, ctx.y);
         let viewport_width = ctx.viewport_width;
         let viewport_height = ctx.viewport_height;
-        if self.editor_state.editor_ui.collab.panel.open
-            && !(self.editor_state.editor_ui.account_ui_available
-                && self.editor_state.editor_ui.login_modal_open)
-        {
+        if self.editor_state.editor_ui.collab.panel.open {
             let top_bar_rect = Rect::xywh(
                 0.0,
                 0.0,
@@ -163,6 +174,13 @@ impl WidgetHost {
                                 &mut self.editor_state.editor_ui,
                                 hit,
                             );
+                            // The panel's "sign in" row asks for a sign-in
+                            // surface, and in an online deployment that surface
+                            // is the entry form, which is already up — the
+                            // shared flow's `login_modal_open` is the NATIVE
+                            // host's popup modal, and painting it here as well
+                            // would put two sign-in surfaces on one screen.
+                            self.absorb_sign_in_request_into_entry_form();
                         }
                     }
                 } else {
@@ -281,16 +299,10 @@ impl WidgetHost {
             self.dispatch_figma_import_press(x, y, viewport_width, viewport_height);
             return Some(true);
         }
-        // Sign-in modal / account dropdown — same overlay tier as native
-        // §0a/§0a' (before the TopBar so a re-click on the avatar closes
-        // instead of re-toggling).
-        if self.editor_state.editor_ui.account_ui_available
-            && self.editor_state.editor_ui.login_modal_open
-        {
-            self.close_image_popovers_for_higher_overlay();
-            self.dispatch_login_modal_press(x, y, viewport_width, viewport_height);
-            return Some(true);
-        }
+        // Account dropdown — the same overlay tier as native §0a' (before the
+        // TopBar so a re-click on the avatar closes instead of re-toggling).
+        // The entry form is not here: it is the topmost surface and is
+        // hit-tested first, in `press_topmost_overlay_tiers`.
         if self.editor_state.editor_ui.account_ui_available
             && self.editor_state.editor_ui.account_menu_open
         {

@@ -707,4 +707,32 @@ impl EditorUiState {
         }
         changed
     }
+
+    /// Which account-entry surface (if any) the chrome shows right now.
+    ///
+    /// The single place the decision is made, so the host that paints it, the
+    /// host that hit-tests it, and the tests that assert it cannot disagree:
+    /// an invitation address wins, then "this deployment signs people in" plus
+    /// "nobody is signed in" plus "the answer has arrived" decide between the
+    /// form, the unprovisioned explanation, and nothing at all.
+    pub fn account_entry_mode(&self) -> crate::AccountEntryMode {
+        self.account_entry
+            .mode(self.account_ui_available, self.account.is_signed_in())
+    }
+
+    /// Set the invitation token the address names, keeping the caret out of
+    /// the form until the first press.
+    pub fn set_invite_token(&mut self, token: Option<String>) {
+        if self.account_entry.invite_token == token {
+            return;
+        }
+        self.account_entry.invite_token = token;
+        self.account_entry.error = None;
+        self.account_entry.submitting = false;
+        // A fresh link starts a fresh form: a draft typed for another token
+        // belongs to that token, not this one.
+        self.account_entry.focus = None;
+        self.account_entry.invite_password.clear();
+        self.account_entry.invite_confirm.clear();
+    }
 }

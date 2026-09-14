@@ -111,6 +111,14 @@ pub(crate) fn tick(host: &WidgetHost) {
     if !INSTALLED.with(std::cell::Cell::get) {
         return;
     }
+    // An invitation address belongs to the invitation, not to the editor: the
+    // token in it is the credential the form is about to send, so rewriting the
+    // address to `/` before it has been accepted would throw the link away (and
+    // a refresh would lose it entirely). Once the acceptance succeeds the token
+    // is cleared, and the next tick writes the editor's own address as usual.
+    if crate::web_auth_sync::invitation_address_active(host) {
+        return;
+    }
     if PENDING.with(|pending| pending.borrow().is_some()) {
         // The address is the source of truth until it has been applied.
         return;

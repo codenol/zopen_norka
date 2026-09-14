@@ -359,6 +359,9 @@ pub struct EditorUiState {
     /// Progress note for an in-flight browser device-login, painted in
     /// the sign-in modal. `None` when no flow is running.
     pub login_modal_status: Option<crate::account_state::LoginFlowStatus>,
+    /// The sign-in / invitation forms, and the daemon answer that decides
+    /// which of them shows. See `account_entry_state` for the whole rule.
+    pub account_entry: crate::account_entry_state::AccountEntryState,
 
     // --- Toolbar shape slot ----------------------------------------
     /// Toolbar shape-tool dropdown state.
