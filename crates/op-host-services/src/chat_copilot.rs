@@ -27,7 +27,9 @@ use github_copilot_sdk::types::{
     Attachment, MessageOptions, SessionConfig, SessionEvent, SessionId,
 };
 use github_copilot_sdk::{Client, Error, ErrorKind};
-use op_ai::chat_provider::{ChatDelta, ChatProvider, ChatRequest, EffortLevel, StopReason};
+use op_ai::chat_provider::{
+    AttachmentTransport, ChatDelta, ChatProvider, ChatRequest, EffortLevel, StopReason,
+};
 use tokio::sync::mpsc;
 
 use crate::chat_runtime::{prompt_with_system_prompt, BlockingRecvIter};
@@ -80,6 +82,12 @@ impl ChatProvider for CopilotProvider {
 
     fn supports_cancellable_send(&self) -> bool {
         true
+    }
+
+    /// Attachments spill to temp files and ride the SDK as `Attachment::File`
+    /// entries, which the Copilot CLI reads itself — real delivery by path.
+    fn attachment_transport(&self) -> AttachmentTransport {
+        AttachmentTransport::ReadablePath
     }
 
     fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {

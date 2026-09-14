@@ -143,12 +143,37 @@ here at a glance.
 
 ### Fixed
 
+- **An attached screenshot now reaches the model — and the brief stops being
+  invented when it does not.** The built-in API-key providers posted the turn's
+  text and nothing else, so a reference image arrived as the line
+  `[attached image: /tmp/…]`: the model answered about the file name, and that
+  answer was handed to the planner as an authoritative inventory of a screen it
+  had never seen. Images now ride the request body as real image blocks —
+  OpenAI `image_url` data URLs, Anthropic base64 `image` blocks — with the
+  media type read from the bytes rather than the browser's label. A transport
+  that cannot deliver an attachment says so in the prompt instead of naming a
+  path it cannot open, and the vision caller refuses to spend a call it cannot
+  ground, so the planner gets the conservative brief that forbids inventing KPI
+  cards, charts and analytics tiles. Transports that genuinely read the file
+  themselves (Claude Code, GitHub Copilot, local ACP, the CLI agents) keep
+  doing exactly that.
+
 - **A comment field opened in the corner of the canvas instead of where the
   comment was.** Clicking an element in the middle of the page opened the
   composer at the canvas' top-left corner, and the pin then appeared somewhere
   the reviewer never clicked. The field now opens at the point that was
   clicked — the marker's own place — so what is typed and what is pinned are
   the same spot, and the box stays inside the window at the edges.
+
+- **A document with open comments no longer looks like one nobody ever
+  discussed.** The conversation was read only once the comment tool was armed,
+  so the page list, the layer rows and the badge on the tool stayed empty until
+  the reviewer went looking — asserting "no comments" when the truth was "not
+  asked". Opening a document now reads its conversation once, up front, through
+  the same request the tool used to send; a different document, or a different
+  account, reads again. Saving and autosaving deliberately do not, because a
+  save cannot change a conversation and autosave would turn it into a stream of
+  requests.
 
 ## [0.9.0] — 2026-09-14
 

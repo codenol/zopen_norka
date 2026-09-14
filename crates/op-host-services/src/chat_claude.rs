@@ -41,7 +41,9 @@ use anthropic_agent_sdk::{
     types::{ContentBlock, Message},
     ClaudeAgentOptions, StreamExt,
 };
-use op_ai::chat_provider::{ChatDelta, ChatProvider, ChatRequest, StopReason, ThinkingMode};
+use op_ai::chat_provider::{
+    AttachmentTransport, ChatDelta, ChatProvider, ChatRequest, StopReason, ThinkingMode,
+};
 use tokio::sync::mpsc;
 
 use crate::chat_runtime::{shared_runtime, BlockingRecvIter};

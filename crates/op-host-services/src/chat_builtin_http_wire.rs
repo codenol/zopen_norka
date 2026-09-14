@@ -12,7 +12,8 @@
 //! reqwest/tokio transport halves.
 
 use futures::StreamExt;
-use op_ai::chat_provider::{ChatDelta, StopReason};
+use op_ai::chat_provider::{ChatAttachment, ChatDelta, StopReason};
+use serde_json::{json, Value};
 use tokio::sync::mpsc;
 
 pub use op_ai::chat_sse::{map_anthropic_stop_reason, map_openai_stop_reason};
@@ -136,3 +137,69 @@ pub(crate) fn normalize_provider_base_url(base_url: &str) -> Result<String, Buil
     }
     Ok(url.as_str().trim_end_matches('/').to_string())
 }
+
+/// `content` for one OpenAI-compatible user message.
+///
+/// Text-only turns keep the historical plain string, so nothing changes for
+/// them on the wire. A turn carrying raster images becomes a parts array with
+/// one `image_url` data-URL part per image (images first, text last — the
+/// order the OpenCode transport in this crate already uses), which is the
+/// only shape OpenAI-compatible vision endpoints read pixels from. Without
+/// this the model received `[attached image: /tmp/…]` and invented the rest
+/// of the screenshot (issue #61).
+pub(crate) fn openai_user_content(prompt: &str, attachments: &[ChatAttachment]) -> Value {
+    let images = crate::chat_attachment::inline_image_attachments(attachments);
+    if images.is_empty() {
+        return Value::String(prompt.to_string());
+    }
+    let mut parts: Vec<Value> = images
+        .iter()
+        .map(|(att, media_type)| {
+            json!({
+                "type": "image_url",
+                "image_url": {
+                    "url": format!(
+                        "data:{media_type};base64,{}",
+                        crate::chat_attachment::attachment_to_base64(att)
+                    ),
+                },
+            })
+        })
+        .collect();
+    if !prompt.is_empty() {
+        parts.push(json!({ "type": "text", "text": prompt }));
+    }
+    Value::Array(parts)
+}
+
+/// `content` blocks for one Anthropic user message.
+///
+/// Same contract as [`openai_user_content`] in this wire's own shape:
+/// `{"type":"image","source":{"type":"base64","media_type":…,"data":…}}`
+/// blocks ahead of the text block. The text block is omitted when the prompt
+/// is empty because Anthropic rejects an empty text block with a 400 — and a
+/// turn that is only an image is a legitimate request.
+pub(crate) fn anthropic_user_content(prompt: &str, attachments: &[ChatAttachment]) -> Value {
+    let images = crate::chat_attachment::inline_image_attachments(attachments);
+    if images.is_empty() {
+        return Value::String(prompt.to_string());
+    }
+    let mut blocks: Vec<Value> = images
+        .iter()
+        .map(|(att, media_type)| {
+            json!({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": crate::chat_attachment::attachment_to_base64(att),
+                },
+            })
+        })
+        .collect();
+    if !prompt.is_empty() {
+        blocks.push(json!({ "type": "text", "text": prompt }));
+    }
+    Value::Array(blocks)
+}
+

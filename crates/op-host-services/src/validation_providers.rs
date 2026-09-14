@@ -25,10 +25,21 @@
 //! issues a single multimodal turn: the critique prompt as text + the
 //! screenshot PNG as a `ChatAttachment` image. Builtin / HTTP providers
 //! map the attachment onto their wire's inline image block (Anthropic
-//! `image`/OpenAI `image_url`); the blocking delta iterator is drained
-//! to a single `String` and returned as `VisionResponse::Text` for the
-//! orchestrator's `parse_validation_response` to consume. Reuses the
-//! existing request/SSE plumbing — no hand-rolled HTTP client.
+//! `type:"image"` with a base64 `source`, OpenAI `image_url` with a
+//! `data:` URL — see `chat_builtin_http_wire::{anthropic,openai}_user_content`);
+//! the blocking delta iterator is drained to a single `String` and returned
+//! as `VisionResponse::Text` for the orchestrator's
+//! `parse_validation_response` to consume. Reuses the existing request/SSE
+//! plumbing — no hand-rolled HTTP client.
+//!
+//! Before it sends anything, the client asks the transport how it conveys
+//! attachments ([`ChatProvider::attachment_transport`]). A transport that
+//! drops them gets no call at all and the caller sees `Skipped`: a text-only
+//! "vision" call answers about the attachment's file name as if it had seen
+//! the picture, and every downstream consumer treats that answer as grounded
+//! (issue #61 — an invented screenshot inventory reached the design planner
+//! this way). `Skipped` is the honest outcome, and it is what makes the
+//! conservative fallback brief engage.
 
 use std::sync::Arc;
 
@@ -160,14 +171,24 @@ impl ChatVisionLlmClient {
     /// Decode the screenshot base64 into raw PNG bytes for the
     /// `ChatAttachment`. Providers re-encode (Anthropic image block) or
     /// data-URL it as their wire demands.
+    ///
+    /// `None` when the payload is not a raster image at all. The bytes decide
+    /// the media type, not the caller: `VisionCallRequest` carries no type
+    /// field, and labelling every payload `image/png` (as this used to) makes
+    /// a JPEG reference 400 the whole call on the Anthropic wire, which
+    /// validates the base64 against its declared `media_type`.
     fn screenshot_attachment(image_base64: &str) -> Option<ChatAttachment> {
         use base64::Engine as _;
         let data = base64::engine::general_purpose::STANDARD
             .decode(image_base64)
             .ok()?;
+        let media_type = crate::chat_attachment::sniff_image_media_type(&data)?;
         Some(ChatAttachment {
-            name: "design-screenshot.png".to_string(),
-            media_type: "image/png".to_string(),
+            // The extension has to match the bytes: a path transport spills
+            // this name to a temp file and the model's Read step (or its SDK
+            // file attachment) infers the type from it.
+            name: format!("design-screenshot.{}", media_type.trim_start_matches("image/")),
+            media_type: media_type.to_string(),
             data,
         })
     }
@@ -182,12 +203,35 @@ impl ChatVisionLlmClient {
 
 impl VisionLlmClient for ChatVisionLlmClient {
     fn validate(&self, req: VisionCallRequest) -> VisionResponse {
+        // Ask the transport how it conveys attachments BEFORE spending a
+        // call. This is the only honest way to know whether the reply the
+        // model produces was written about pixels or about a file name: a
+        // transport that drops attachments still returns fluent, confident
+        // text, and every consumer of `VisionResponse::Text` treats that text
+        // as grounded (issue #61).
+        let transport = self.provider.attachment_transport();
+        if !transport.delivers_attachments() {
+            return VisionResponse::Skipped {
+                reason: Some(format!(
+                    "transport '{}' does not deliver image attachments ({transport:?}); \
+                     refusing a text-only vision call",
+                    self.provider.provider_label()
+                )),
+            };
+        }
+
         // A malformed / empty screenshot string can't drive a vision
         // call — skip rather than send a text-only critique that would
-        // hallucinate against no image.
+        // hallucinate against no image. The bytes also decide the media
+        // type: a payload no vision wire accepts (SVG, an unknown format)
+        // is not something a model can look at.
         let Some(attachment) = Self::screenshot_attachment(&req.image_base64) else {
             return VisionResponse::Skipped {
-                reason: Some("screenshot was not valid base64 PNG".to_string()),
+                reason: Some(
+                    "image payload is not base64 png/jpeg/gif/webp — a vision model has no way \
+                     to look at it"
+                        .to_string(),
+                ),
             };
         };
 
@@ -250,481 +294,5 @@ impl VisionLlmClient for ChatVisionLlmClient {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use op_ai::chat_provider::StopReason;
-    use op_editor_core::EditorState;
-    use std::sync::Mutex;
-
-    #[test]
-    fn validation_prompt_preserves_intentional_horizontal_scrollers() {
-        let prompt = validation_system_prompt();
-        assert!(
-            prompt.contains("clip=true") && prompt.contains("intentional horizontal scroller"),
-            "validation prompt must distinguish scroll intent from overflow: {prompt}"
-        );
-    }
-
-    #[test]
-    fn validation_prompt_does_not_outline_chart_marks() {
-        let prompt = validation_system_prompt();
-        assert!(
-            prompt.contains("chart bars") && prompt.contains("Do not add borders"),
-            "validation prompt must distinguish chart marks from card surfaces: {prompt}"
-        );
-    }
-
-    #[test]
-    fn validation_prompt_limits_image_review_to_rendering_integrity() {
-        let prompt = validation_system_prompt();
-        assert!(prompt.contains("IMAGE REVIEW SCOPE — PRESENTATION ONLY"));
-        assert!(prompt.contains("Do NOT judge image subject relevance"));
-        assert!(prompt.contains("A correctly displayed image passes validation"));
-    }
-
-    // ── RealScreenshotProvider ───────────────────────────────────────────────
-
-    /// An empty document has no page content → the real provider returns
-    /// `None` (loop skips the round), never panics.
-    #[test]
-    fn real_screenshot_provider_returns_none_on_empty_doc() {
-        let state = EditorState::new();
-        assert!(RealScreenshotProvider.capture_root_frame(&state).is_none());
-    }
-
-    /// A document with real content renders to a base64 PNG payload.
-    #[test]
-    fn real_screenshot_provider_renders_png_for_a_populated_doc() {
-        let doc: jian_ops_schema::PenDocument = serde_json::from_str(
-            r##"{
-                "version":"1.0",
-                "children":[
-                    {"type":"frame","id":"root","name":"Root",
-                     "x":0,"y":0,"width":200,"height":120,
-                     "fill":[{"type":"solid","color":"#ffffff"}],
-                     "children":[
-                        {"type":"rectangle","id":"r1","name":"Box",
-                         "x":10,"y":10,"width":80,"height":40,
-                         "fill":[{"type":"solid","color":"#3b82f6"}]}
-                     ]}
-                ]
-            }"##,
-        )
-        .expect("fixture parses");
-        let state = EditorState::from_document(doc);
-        let b64 = RealScreenshotProvider
-            .capture_root_frame(&state)
-            .expect("populated doc renders a screenshot");
-        use base64::Engine as _;
-        let png = base64::engine::general_purpose::STANDARD
-            .decode(&b64)
-            .expect("valid base64");
-        assert_eq!(
-            &png[..4],
-            &[0x89, b'P', b'N', b'G'],
-            "must be a PNG payload"
-        );
-    }
-
-    // ── ChatVisionLlmClient ──────────────────────────────────────────────────
-
-    /// A scripted provider that records the `ChatRequest` it received and
-    /// replies with a fixed JSON verdict.
-    struct RecordingVisionProvider {
-        seen: Arc<Mutex<Vec<ChatRequest>>>,
-        reply: String,
-    }
-
-    impl ChatProvider for RecordingVisionProvider {
-        fn provider_label(&self) -> &str {
-            "recording-vision"
-        }
-        fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {
-            self.seen.lock().unwrap().push(request);
-            Box::new(
-                vec![
-                    ChatDelta::TextDelta(self.reply.clone()),
-                    ChatDelta::Done {
-                        stop_reason: StopReason::EndTurn,
-                    },
-                ]
-                .into_iter(),
-            )
-        }
-    }
-
-    fn b64_png() -> String {
-        use base64::Engine as _;
-        // 4-byte PNG magic is enough to prove the attachment decodes.
-        base64::engine::general_purpose::STANDARD.encode([0x89, b'P', b'N', b'G'])
-    }
-
-    fn vision_req(image_base64: &str) -> VisionCallRequest {
-        VisionCallRequest {
-            system: "You are a design validator. Return JSON.".into(),
-            message: "Analyze this screenshot.".into(),
-            image_base64: image_base64.to_string(),
-            model: Some("vision-model".into()),
-            provider: None,
-            timeout: std::time::Duration::from_secs(30),
-        }
-    }
-
-    /// The real client sends the screenshot as an image attachment, inlines
-    /// the system prompt into the user message, and returns the reply text.
-    #[test]
-    fn chat_vision_client_sends_image_attachment_and_returns_text() {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let provider = Arc::new(RecordingVisionProvider {
-            seen: seen.clone(),
-            reply: r#"{"issues":[],"fixes":[],"qualityScore":9}"#.into(),
-        });
-        let client = ChatVisionLlmClient::new(provider).with_model(Some("vision-model".into()));
-
-        let resp = client.validate(vision_req(&b64_png()));
-
-        // Reply text surfaced verbatim for parse_validation_response.
-        match resp {
-            VisionResponse::Text(t) => {
-                assert!(t.contains("qualityScore"), "got: {t}");
-            }
-            VisionResponse::Skipped { reason } => panic!("unexpected skip: {reason:?}"),
-        }
-
-        // The request carried exactly one image attachment with the PNG bytes.
-        let reqs = seen.lock().unwrap();
-        let r = reqs.first().expect("provider was called");
-        assert_eq!(r.attachments.len(), 1, "one screenshot attachment");
-        assert!(r.attachments[0].is_image(), "attachment is an image");
-        assert_eq!(r.attachments[0].media_type, "image/png");
-        assert_eq!(&r.attachments[0].data[..4], &[0x89, b'P', b'N', b'G']);
-        // System prompt inlined into the user message (CLI providers ignore
-        // the system field).
-        assert!(
-            r.user_message.contains("design validator"),
-            "system prompt inlined; got: {}",
-            r.user_message
-        );
-        assert!(r.user_message.contains("Analyze this screenshot"));
-        assert_eq!(r.model.as_deref(), Some("vision-model"));
-    }
-
-    #[test]
-    fn chat_vision_client_does_not_forward_acp_capability_marker_as_model() {
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let provider = Arc::new(RecordingVisionProvider {
-            seen: seen.clone(),
-            reply: r#"{"issues":[],"fixes":[],"qualityScore":9}"#.into(),
-        });
-        let client =
-            ChatVisionLlmClient::new(provider).with_model(Some("acp:custom/vendor".to_string()));
-        let mut request = vision_req(&b64_png());
-        request.model = Some("acp:custom/vendor".to_string());
-
-        let response = client.validate(request);
-
-        assert!(matches!(response, VisionResponse::Text(_)));
-        let requests = seen.lock().unwrap();
-        assert_eq!(
-            requests.first().expect("provider was called").model,
-            None,
-            "ACP catalog identity is a capability marker, not a transport model"
-        );
-    }
-
-    /// A non-base64 screenshot string can't drive a vision call → Skipped.
-    #[test]
-    fn chat_vision_client_skips_on_bad_base64() {
-        let provider = Arc::new(RecordingVisionProvider {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            reply: "{}".into(),
-        });
-        let client = ChatVisionLlmClient::new(provider);
-        let resp = client.validate(vision_req("@@@ not base64 @@@"));
-        assert!(matches!(resp, VisionResponse::Skipped { .. }));
-    }
-
-    /// An `Error` delta downgrades to `Skipped` (never crashes the turn).
-    #[test]
-    fn chat_vision_client_skips_on_provider_error() {
-        struct ErroringProvider;
-        impl ChatProvider for ErroringProvider {
-            fn provider_label(&self) -> &str {
-                "erroring"
-            }
-            fn send(&self, _r: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {
-                Box::new(
-                    vec![
-                        ChatDelta::Error("quota exhausted".into()),
-                        ChatDelta::Done {
-                            stop_reason: StopReason::Aborted,
-                        },
-                    ]
-                    .into_iter(),
-                )
-            }
-        }
-        let client = ChatVisionLlmClient::new(Arc::new(ErroringProvider));
-        let resp = client.validate(vision_req(&b64_png()));
-        match resp {
-            VisionResponse::Skipped { reason } => {
-                assert!(reason.unwrap().contains("quota exhausted"));
-            }
-            VisionResponse::Text(_) => panic!("error should downgrade to Skipped"),
-        }
-    }
-
-    /// An empty reply downgrades to `Skipped` (parse_validation_response
-    /// would otherwise treat "" as a parse failure anyway).
-    #[test]
-    fn chat_vision_client_skips_on_empty_reply() {
-        let provider = Arc::new(RecordingVisionProvider {
-            seen: Arc::new(Mutex::new(Vec::new())),
-            reply: "   ".into(),
-        });
-        let client = ChatVisionLlmClient::new(provider);
-        let resp = client.validate(vision_req(&b64_png()));
-        assert!(matches!(resp, VisionResponse::Skipped { .. }));
-    }
-
-    // ── End-to-end wiring test ───────────────────────────────────────────────
-    //
-    // Drives `op_orchestrator::run_post_generation_validation` with the REAL
-    // host providers (`RealScreenshotProvider` renders an actual PNG of the
-    // live document; `ChatVisionLlmClient` runs a fake-but-real-shaped
-    // `ChatProvider`). Proves the wiring is LIVE end-to-end: screenshot →
-    // vision → a safe fix lands on the live document. The default-off variant
-    // proves the stubs keep the loop a no-op (default path unchanged).
-
-    use op_orchestrator::DocSink;
-
-    /// Minimal `DocSink` over a live `EditorState` (mirrors
-    /// `pre_validator::tests::TestSink`).
-    struct LiveSink {
-        editor: EditorState,
-    }
-    impl DocSink for LiveSink {
-        fn state(&self) -> &EditorState {
-            &self.editor
-        }
-        fn apply(&mut self, cmd: op_editor_core::EditorCommand) -> bool {
-            self.editor.apply(cmd)
-        }
-        fn begin_undo_batch(&mut self) {}
-        fn end_undo_batch(&mut self) {}
-    }
-
-    /// A `ChatProvider` that returns a fixed JSON validation verdict and
-    /// records how many times it was asked (proves the real vision client
-    /// actually called the provider, i.e. the loop reached the vision step).
-    struct ScriptedVisionProvider {
-        calls: Arc<std::sync::atomic::AtomicUsize>,
-        reply: String,
-    }
-    impl ChatProvider for ScriptedVisionProvider {
-        fn provider_label(&self) -> &str {
-            "scripted-vision"
-        }
-        fn send(&self, _r: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {
-            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Box::new(
-                vec![
-                    ChatDelta::TextDelta(self.reply.clone()),
-                    ChatDelta::Done {
-                        stop_reason: StopReason::EndTurn,
-                    },
-                ]
-                .into_iter(),
-            )
-        }
-    }
-
-    /// Build a renderable doc whose active page holds >= 30 nodes (clears the
-    /// `VALIDATION_NODE_COUNT_THRESHOLD = 30` gate) including a frame named
-    /// `target` the vision verdict will fix.
-    fn doc_over_threshold() -> jian_ops_schema::PenDocument {
-        let mut children = String::new();
-        // The fix target: a frame with cornerRadius 0 the verdict bumps to 24.
-        children.push_str(
-            r##"{"type":"frame","id":"target","name":"Target",
-                "x":10,"y":10,"width":120,"height":48,"cornerRadius":0,
-                "fill":[{"type":"solid","color":"#3b82f6"}]}"##,
-        );
-        // Pad to >= 30 total nodes (1 root + 1 target + 30 fillers).
-        for i in 0..30 {
-            children.push_str(&format!(
-                r##",{{"type":"rectangle","id":"r{i}","name":"R{i}",
-                    "x":0,"y":{y},"width":40,"height":20,
-                    "fill":[{{"type":"solid","color":"#e2e8f0"}}]}}"##,
-                y = 60 + i * 24
-            ));
-        }
-        let json = format!(
-            r##"{{"version":"1.0","children":[
-                {{"type":"frame","id":"root","name":"Root",
-                  "x":0,"y":0,"width":200,"height":900,
-                  "fill":[{{"type":"solid","color":"#ffffff"}}],
-                  "children":[{children}]}}
-            ]}}"##
-        );
-        serde_json::from_str(&json).expect("fixture parses")
-    }
-
-    fn request_with_validation(enabled: bool) -> op_orchestrator::DesignRequest {
-        op_orchestrator::DesignRequest {
-            prompt: "p".into(),
-            model: None,
-            provider: None,
-            rules: Vec::new(),
-            concurrency: 1,
-            continuation_context: None,
-            append_context: None,
-            validation_enabled: enabled,
-            visual_ref_enabled: false,
-            pinned_style_guide: None,
-            reference_attachments: Vec::new(),
-        reference_brief: None,
-        }
-    }
-
-    /// REAL providers + validation_enabled=true → the loop captures a real
-    /// PNG, calls the vision provider, and applies the cornerRadius safe fix
-    /// to the live document. (The vision call only happens because the real
-    /// screenshot returned `Some(png)` — proving the screenshot wiring is
-    /// live, not the stub's `None`.)
-    #[test]
-    fn real_providers_drive_loop_capture_vision_and_apply_fix() {
-        let mut sink = LiveSink {
-            editor: EditorState::from_document(doc_over_threshold()),
-        };
-
-        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        // qualityScore 5 (< threshold 8) so the loop proceeds to apply fixes.
-        let provider = Arc::new(ScriptedVisionProvider {
-            calls: calls.clone(),
-            reply: r#"{"issues":["target corner radius too sharp"],
-                       "fixes":[{"nodeId":"target","property":"cornerRadius","value":24}],
-                       "structuralFixes":[],"qualityScore":5}"#
-                .into(),
-        });
-
-        let screenshot = RealScreenshotProvider;
-        let vision = ChatVisionLlmClient::new(provider);
-        let pre_validator = op_orchestrator::SkippedPreValidator;
-        let abort = op_orchestrator::AbortFlag::new();
-        let mut events: Vec<op_orchestrator::Progress> = Vec::new();
-
-        let summary = op_orchestrator::run_post_generation_validation(
-            &mut sink,
-            &pre_validator,
-            &screenshot,
-            &vision,
-            "validator system prompt",
-            &request_with_validation(true),
-            &mut |p| events.push(p),
-            &abort,
-        )
-        .expect("loop runs");
-
-        // The vision provider was actually called — proves screenshot → vision
-        // wiring is live (stub would have returned None and skipped this).
-        assert!(
-            calls.load(std::sync::atomic::Ordering::SeqCst) >= 1,
-            "real vision provider must have been called at least once"
-        );
-        // At least one fix was applied to the live document.
-        assert!(
-            summary.total_applied >= 1,
-            "expected the cornerRadius fix to apply, got {}",
-            summary.total_applied
-        );
-        assert!(summary.rounds_run >= 1, "at least one vision round ran");
-
-        // The fix actually LANDED on the live document: the target frame's
-        // container cornerRadius is now Uniform(24). Reading the concrete
-        // post-mutation value (not just the applied count) proves the fix
-        // wrote through the real sink, not a counter that lied.
-        let target = op_editor_core::walkers::find_node(
-            sink.state().active_children(),
-            &op_editor_core::node_id::NodeId::new("target"),
-        )
-        .expect("target node present");
-        match target {
-            jian_ops_schema::node::PenNode::Frame(f) => {
-                use jian_ops_schema::node::container::CornerRadius;
-                assert!(
-                    matches!(f.container.corner_radius, Some(CornerRadius::Uniform(r)) if (r - 24.0).abs() < 1e-6),
-                    "cornerRadius fix must be written to the live document, got {:?}",
-                    f.container.corner_radius
-                );
-            }
-            other => panic!("target is not a frame: {other:?}"),
-        }
-
-        // Progress stream reached a real vision round.
-        assert!(
-            events
-                .iter()
-                .any(|p| matches!(p, op_orchestrator::Progress::ValidationRoundStarted { .. })),
-            "a vision round must have started"
-        );
-    }
-
-    /// Default-off proof: the STUB providers (selected when
-    /// `OPENPENCIL_VISION_VALIDATION` is unset) keep the loop a no-op even at
-    /// node_count >= 30 with validation_enabled=true — zero rounds, document
-    /// untouched. This is the byte-for-byte default path.
-    #[test]
-    fn stub_providers_keep_loop_a_noop_even_above_threshold() {
-        let mut sink = LiveSink {
-            editor: EditorState::from_document(doc_over_threshold()),
-        };
-        let before = sink.state().active_children().len();
-
-        let screenshot = op_orchestrator::SkippedScreenshotProvider;
-        let vision = op_orchestrator::SkippedVisionLlmClient;
-        let pre_validator = op_orchestrator::SkippedPreValidator;
-        let abort = op_orchestrator::AbortFlag::new();
-        let mut events: Vec<op_orchestrator::Progress> = Vec::new();
-
-        let summary = op_orchestrator::run_post_generation_validation(
-            &mut sink,
-            &pre_validator,
-            &screenshot,
-            &vision,
-            "",
-            &request_with_validation(true),
-            &mut |p| events.push(p),
-            &abort,
-        )
-        .expect("loop runs");
-
-        assert_eq!(summary.total_applied, 0, "stub loop applies nothing");
-        assert_eq!(summary.rounds_run, 0, "stub loop runs zero vision rounds");
-        // Document untouched — cornerRadius stays 0, node count unchanged.
-        assert_eq!(sink.state().active_children().len(), before);
-        let target = op_editor_core::walkers::find_node(
-            sink.state().active_children(),
-            &op_editor_core::node_id::NodeId::new("target"),
-        )
-        .expect("target node present");
-        match target {
-            jian_ops_schema::node::PenNode::Frame(f) => {
-                use jian_ops_schema::node::container::CornerRadius;
-                assert!(
-                    matches!(f.container.corner_radius, Some(CornerRadius::Uniform(r)) if r == 0.0),
-                    "stub path must NOT mutate cornerRadius, got {:?}",
-                    f.container.corner_radius
-                );
-            }
-            other => panic!("target is not a frame: {other:?}"),
-        }
-        // No vision round ever started (screenshot stub returned None first).
-        assert!(
-            !events
-                .iter()
-                .any(|p| matches!(p, op_orchestrator::Progress::ValidationRoundDone { .. })),
-            "no vision round should complete on the stub path"
-        );
-    }
-}
+#[path = "validation_providers_tests.rs"]
+mod tests;

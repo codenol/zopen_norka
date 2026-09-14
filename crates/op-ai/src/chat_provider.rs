@@ -227,28 +227,12 @@ impl EffortLevel {
     }
 }
 
-/// A file the user attached to a chat turn — typically a pasted or
-/// picked image. Mirrors TS `ChatAttachment` (`apps/web/.../ai`),
-/// minus the UI-only `id` / `size` fields. `data` is the raw decoded
-/// bytes; providers base64-encode (Claude image blocks) or spill to a
-/// temp file (CLI subprocesses) as their wire format demands.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ChatAttachment {
-    /// Original file name, e.g. `screenshot.png`.
-    pub name: String,
-    /// MIME type, e.g. `image/png`.
-    pub media_type: String,
-    /// Raw file bytes (not base64).
-    pub data: Vec<u8>,
-}
+/// [`ChatAttachment`] plus the [`AttachmentTransport`] declaration that says
+/// whether a transport actually delivers one; re-exported, paths unchanged.
+#[path = "chat_provider_attachments.rs"]
+mod attachments;
 
-impl ChatAttachment {
-    /// True when this attachment is an image — the only kind every
-    /// provider can ingest (as an image content block).
-    pub fn is_image(&self) -> bool {
-        self.media_type.starts_with("image/")
-    }
-}
+pub use attachments::{AttachmentTransport, ChatAttachment};
 
 /// Author of one prior chat turn carried in [`ChatRequest::history`].
 /// Mirrors the TS chat wire's `role: 'user' | 'assistant'`.
@@ -318,6 +302,17 @@ impl ChatRequest {
 pub trait ChatProvider: Send + Sync {
     fn provider_label(&self) -> &str;
     fn send(&self, request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send>;
+
+    /// How this transport conveys `request.attachments` when it is sent.
+    ///
+    /// Defaults to [`AttachmentTransport::Dropped`] — see that variant for
+    /// why the conservative answer is the right default. A transport that
+    /// does carry attachments must override this *and* keep the declaration
+    /// true on the wire: it is the only signal a vision caller has, so a
+    /// wrong `InlineImage` here reproduces issue #61 from the other end.
+    fn attachment_transport(&self) -> AttachmentTransport {
+        AttachmentTransport::Dropped
+    }
 
     /// Whether [`Self::send_cancellable`] owns a transport that is actually
     /// aborted when its flag is raised. Callers with a hard deadline must gate
@@ -759,6 +754,31 @@ mod tests {
         assert!(req.history.is_empty());
         assert_eq!(ChatHistoryRole::User.as_str(), "user");
         assert_eq!(ChatHistoryRole::Assistant.as_str(), "assistant");
+    }
+
+    #[test]
+    fn attachment_transport_defaults_to_dropped_and_knows_what_delivers() {
+        // The default is the conservative answer: an undeclared transport
+        // must not be trusted with an attachment, because the failure mode of
+        // guessing wrong is a fabricated description instead of an error.
+        struct Undeclared;
+        impl ChatProvider for Undeclared {
+            fn provider_label(&self) -> &str {
+                "undeclared"
+            }
+            fn send(&self, _request: ChatRequest) -> Box<dyn Iterator<Item = ChatDelta> + Send> {
+                Box::new(std::iter::empty())
+            }
+        }
+        assert_eq!(
+            Undeclared.attachment_transport(),
+            AttachmentTransport::Dropped
+        );
+        assert!(!Undeclared.attachment_transport().delivers_attachments());
+        // Inline blocks and a readable path both put the pixels within the
+        // model's reach; `Dropped` does neither.
+        assert!(AttachmentTransport::InlineImage.delivers_attachments());
+        assert!(AttachmentTransport::ReadablePath.delivers_attachments());
     }
 
     #[test]
