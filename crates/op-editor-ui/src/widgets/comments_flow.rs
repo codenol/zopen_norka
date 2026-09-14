@@ -4,30 +4,42 @@
 //! `EditorState` mutation plus a widget-layer hit-test, so a host's arm is only
 //! "resolve against this canvas, run the platform tail" and both hosts behave
 //! identically by construction. Three surfaces are here because they are one
-//! interaction: a pin opens the popover, the popover writes to the state, and
-//! the panel is the list of the same threads.
+//! interaction: the rail lists the document's conversations, a row or a pin
+//! opens the popover, and the popover writes back into the state.
 //!
 //! ## Why the pins are passed in rather than looked up
 //!
-//! A pin's screen position is a property of the canvas viewport and the render
-//! tree, and both belong to the caller's `CanvasViewport` snapshot. Passing the
-//! placed pins means the popover hangs under the marker the paint pass actually
-//! drew — the alternative, recomputing the anchor here from document bounds,
-//! is a second implementation of the viewport transform that could disagree
-//! with the first by exactly the pan the user just made.
+//! A pin's screen position follows from the point on its page and the current
+//! viewport, and both belong to the caller's `CanvasViewport` snapshot. Passing
+//! the placed pins means the popover hangs under the marker the paint pass
+//! actually drew — the alternative, recomputing the anchor here, is a second
+//! implementation of the viewport transform that could disagree with the first
+//! by exactly the pan the user just made.
+//!
+//! ## Why a composer being written places itself
+//!
+//! A thread being written has no pin yet — it is the click that will make one —
+//! so the popover is anchored to the point the reviewer clicked, converted
+//! through the same document→screen mapping the pin will use when the write
+//! comes back. The box therefore appears *at the place the comment is about*,
+//! and the marker that arrives after the send lands under it. The previous
+//! behaviour (the canvas' top-left corner) put the field in a corner the
+//! reviewer was not looking at, and the pin then appeared where they never
+//! clicked.
 //!
 //! ## What a press asks the host to do
 //!
-//! Selecting a node and opening a thread are the widget layer's to do; framing
-//! the camera on that node needs the render tree, which is the host's. So
-//! [`press_panel`] returns a [`CommentsPanelAction`] naming the node to frame,
-//! and the host runs its own `zoom_to_fit_node` against its own scene. Nothing
-//! here writes a viewport it cannot see.
+//! Opening a thread is the widget layer's to do; framing the canvas on a pin
+//! needs the viewport, which is the host's. So [`press_panel`] returns a
+//! [`CommentsPanelAction`] naming the point to frame, and the host runs its own
+//! camera move against its own viewport. Nothing here writes a viewport it
+//! cannot see.
 
-use op_editor_core::editor_ui_state::CommentComposer;
-use op_editor_core::{EditorState, NodeId};
+use op_editor_core::editor_ui_state::{CommentAnchor, CommentComposer};
+use op_editor_core::EditorState;
 
-use crate::widgets::comment_pins::CommentPin;
+use crate::widgets::canvas_doc_mapping::doc_point_to_screen;
+use crate::widgets::comment_pins::{self, CommentPin};
 use crate::widgets::comment_thread_popover::{
     CommentPopoverHit, CommentPopoverModel, CommentThreadPopover,
 };
@@ -36,41 +48,86 @@ use crate::widgets::editor_state_ext::theme_for;
 use crate::widgets::PaintCx;
 use crate::{Point2D, Rect};
 
+/// The canvas the comment surfaces are placed against.
+///
+/// The rect and the page are one value because every caller that needs one of
+/// them needs the other: a document point can only become a screen position if
+/// both are known, and a caller that had the rect but not the page could place
+/// a marker from another page's coordinates without noticing.
+#[derive(Debug, Clone, Copy)]
+pub struct CommentCanvas<'a> {
+    pub rect: Rect,
+    /// The page the canvas is showing — never empty, because a document with no
+    /// authored pages still names one (`EditorState::active_page_identity`).
+    pub page_id: &'a str,
+}
+
+impl<'a> CommentCanvas<'a> {
+    pub fn new(rect: Rect, page_id: &'a str) -> Self {
+        Self { rect, page_id }
+    }
+}
+
 /// What a press on the thread list asked the host to do beyond the widget
 /// layer's reach.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CommentsPanelAction {
     /// Handled inside the widget layer — the state already changed.
     Handled,
-    /// Frame this element on the canvas: the row the reviewer clicked is about
-    /// an element that may be off screen right now.
-    RevealNode(String),
-}
-
-/// Where the popover hangs when its thread has no pin.
-///
-/// A thread whose element was deleted still opens — from the panel, which is
-/// where such a thread lives — and it needs somewhere to be. The canvas' own
-/// top-left corner is the honest place: no element is being pointed at.
-fn unpinned_anchor(canvas: Rect) -> Rect {
-    Rect::xywh(canvas.origin.x + 8.0, canvas.origin.y + 8.0, 0.0, 0.0)
+    /// Frame this point on the canvas: the row the reviewer clicked may be
+    /// about a comment that is off screen right now.
+    RevealAnchor(CommentAnchor),
 }
 
 /// The rect the popover should hang from.
-pub fn popover_anchor(state: &EditorState, canvas: Rect, pins: &[CommentPin]) -> Rect {
+///
+/// An existing thread hangs under its own marker. A thread being written hangs
+/// under the point the click landed on — the place its pin will occupy — which
+/// is why the pending anchor is converted through the same mapping rather than
+/// being given a corner of its own.
+pub fn popover_anchor(state: &EditorState, canvas: CommentCanvas<'_>, pins: &[CommentPin]) -> Rect {
     let ui = &state.editor_ui.comments;
     match ui.composer() {
         Some(CommentComposer::Thread(id)) => pins
             .iter()
             .find(|pin| pin.thread_id == id)
             .map(|pin| pin.rect)
-            .unwrap_or_else(|| unpinned_anchor(canvas)),
-        // A thread being written has no pin yet — it is the click that will make
-        // one — so it opens beside the panel's own corner rather than following
-        // a marker that does not exist.
-        Some(CommentComposer::NewThread(_)) => unpinned_anchor(canvas),
-        None => unpinned_anchor(canvas),
+            .unwrap_or_else(|| unpinned_anchor(canvas.rect)),
+        Some(CommentComposer::NewThread(anchor)) => pending_pin_rect(&anchor, canvas, state),
+        None => unpinned_anchor(canvas.rect),
     }
+}
+
+/// Where a composer for an unwritten comment hangs from: its future pin.
+///
+/// `None`-page and off-page anchors fall back to the rail's own corner: the
+/// point exists, but not on the page this canvas is showing, so there is no
+/// place on the design to point at. The write still carries the anchor, so the
+/// comment is not lost by that.
+fn pending_pin_rect(
+    anchor: &CommentAnchor,
+    canvas: CommentCanvas<'_>,
+    state: &EditorState,
+) -> Rect {
+    if !anchor.is_placeable() || canvas.page_id != anchor.page_id {
+        return unpinned_anchor(canvas.rect);
+    }
+    let screen = doc_point_to_screen(
+        Point2D::new(anchor.x as f32, anchor.y as f32),
+        canvas.rect,
+        &state.viewport,
+    );
+    comment_pins::pin_rect(comment_pins::pin_anchor(screen, canvas.rect, 0))
+}
+
+/// Where the popover hangs when its thread has no pin on this canvas.
+///
+/// A thread whose anchor belongs to another page still opens — from the rail,
+/// which is where such a thread is listed — and it needs somewhere to be. The
+/// canvas' own top-left corner is the honest place: nothing on this page is
+/// being pointed at.
+fn unpinned_anchor(canvas: Rect) -> Rect {
+    Rect::xywh(canvas.origin.x + 8.0, canvas.origin.y + 8.0, 0.0, 0.0)
 }
 
 /// Build the popover this frame, if a composer is open.
@@ -103,11 +160,11 @@ pub fn popover_for(state: &EditorState) -> Option<CommentThreadPopover> {
 pub fn paint_popover(
     cx: &mut PaintCx<'_>,
     state: &EditorState,
-    canvas: Rect,
+    canvas: CommentCanvas<'_>,
     pins: &[CommentPin],
 ) -> Option<Rect> {
     let popover = popover_for(state)?;
-    let rect = popover.rect_at(popover_anchor(state, canvas, pins), canvas);
+    let rect = popover.rect_at(popover_anchor(state, canvas, pins), canvas.rect);
     popover.paint(cx, rect);
     Some(rect)
 }
@@ -118,11 +175,11 @@ pub fn paint_popover(
 /// is placed against the pin's own screen rect, and the anchor is not derivable
 /// here without the pins the caller already has.
 ///
-/// `true` when the press was consumed — including the press OUTSIDE the panel
+/// `true` when the press was consumed — including the press OUTSIDE the popover
 /// that closes it. Consuming that one is deliberate: a click that dismisses a
 /// floating panel is a click at the panel, not at the canvas underneath it, and
-/// letting it through would start a marquee or drop the selection the reviewer
-/// was about to comment on.
+/// letting it through would drop a second pin where the reviewer was aiming at
+/// the first.
 ///
 /// An answer that writes (send, resolve) becomes a request in the state rather
 /// than a call here: the widget layer owns no transport. The host's frame tick
@@ -173,48 +230,13 @@ pub fn press_popover(state: &mut EditorState, rect: Option<Rect>, point: Point2D
     }
 }
 
-/// Paint the comment pill when the panel is closed, and answer nothing when it
-/// is open — the two never share the corner.
-pub fn paint_toggle(cx: &mut PaintCx<'_>, state: &EditorState, canvas: Rect) -> Option<Rect> {
+/// Build the rail's thread list this frame, if the comment tool is active.
+pub fn panel_for(state: &EditorState, page_id: &str) -> Option<CommentsPanel> {
     let ui = &state.editor_ui.comments;
-    if ui.panel_open {
+    if !ui.rail_visible() {
         return None;
     }
-    let rect = comments_panel::CommentsToggle::rect_in_canvas(canvas);
-    comments_panel::CommentsToggle::paint(
-        cx,
-        &theme_for(&state.editor_ui),
-        rect,
-        ui.open_count(),
-        ui.loading,
-    );
-    Some(rect)
-}
-
-/// Route a press against the comment pill. `true` when it opened the panel.
-///
-/// Opening it also asks for the document's conversation: the daemon pushes no
-/// signal for comments, so the list a client holds is only as fresh as its last
-/// read, and a panel that opened onto yesterday's review would be worse than one
-/// that opened onto a spinner.
-pub fn press_toggle(state: &mut EditorState, rect: Option<Rect>, point: Point2D) -> bool {
-    let Some(rect) = rect else {
-        return false;
-    };
-    if !comments_panel::CommentsToggle::contains(rect, point) {
-        return false;
-    }
-    state.editor_ui.comments.panel_open = true;
-    state.editor_ui.comments.request_reload();
-    true
-}
-
-/// Build the list panel this frame, if it is open.
-pub fn panel_for(state: &EditorState, node_exists: &dyn Fn(&str) -> bool) -> Option<CommentsPanel> {
-    let ui = &state.editor_ui.comments;
-    if !ui.panel_open {
-        return None;
-    }
+    let page = page_id;
     Some(CommentsPanel::new(
         theme_for(&state.editor_ui),
         state.editor_ui.effective_locale(),
@@ -222,66 +244,62 @@ pub fn panel_for(state: &EditorState, node_exists: &dyn Fn(&str) -> bool) -> Opt
             ui,
             state.editor_ui.effective_locale(),
             ui.viewer_id.as_deref(),
-            node_exists,
+            page,
         ),
-        ui.pin_mode,
         ui.loading,
         ui.error.clone(),
         state.editor_ui.now_unix_ms,
+        ui.open_count_elsewhere(page),
     ))
 }
 
-/// Paint the list panel, if it is open. Returns the rect it painted.
+/// Paint the thread list in the right rail. Returns the rect it painted.
+///
+/// The rail's rect is passed in rather than derived: the rail is the
+/// inspector's own slot, so whoever decides which occupant it has this frame is
+/// also the one that knows where it is.
 pub fn paint_panel(
     cx: &mut PaintCx<'_>,
     state: &EditorState,
-    canvas: Rect,
-    node_exists: &dyn Fn(&str) -> bool,
+    rect: Rect,
+    page_id: &str,
 ) -> Option<Rect> {
-    let panel = panel_for(state, node_exists)?;
-    let rect = panel.rect_in_canvas(canvas);
+    let panel = panel_for(state, page_id)?;
     panel.paint(cx, rect);
     Some(rect)
 }
 
-/// Route a press against the list panel.
+/// Route a press against the rail's thread list.
 ///
 /// `None` when the point is outside it, so the tiers below keep the click —
-/// unlike the popover, the panel sits on the edge of the canvas and a click
-/// beside it is aimed at the design.
+/// a press in the canvas beside the rail is aimed at the design, and in comment
+/// mode that means it places a pin.
 pub fn press_panel(
     state: &mut EditorState,
     rect: Option<Rect>,
     point: Point2D,
-    node_exists: &dyn Fn(&str) -> bool,
+    page_id: &str,
 ) -> Option<CommentsPanelAction> {
     let rect = rect?;
-    let panel = panel_for(state, node_exists)?;
+    let panel = panel_for(state, page_id)?;
     match panel.hit_test(rect, point) {
         CommentsPanelHit::Close => {
-            state.editor_ui.comments.panel_open = false;
-            Some(CommentsPanelAction::Handled)
-        }
-        CommentsPanelHit::ArmPin => {
-            state.editor_ui.comments.toggle_pin_mode();
+            state.editor_ui.comments.end_mode();
             Some(CommentsPanelAction::Handled)
         }
         CommentsPanelHit::Row(thread_id) => {
             state.editor_ui.comments.open(thread_id);
-            // Select the element the thread is about, exactly as a layer click
-            // does, so the property panel and the canvas agree about what the
-            // reviewer is looking at.
-            let node = state
-                .editor_ui
-                .comments
-                .thread(thread_id)
-                .map(|thread| thread.node_id.clone())?;
-            if node_exists(&node) {
-                state.set_single_selection(NodeId::new(node.clone()));
-                Some(CommentsPanelAction::RevealNode(node))
-            } else {
-                // Nowhere to jump: the element is gone, and the row says so.
-                Some(CommentsPanelAction::Handled)
+            // The camera move is the host's: centring on a document point needs
+            // the viewport, which this layer cannot see. Selecting a node would
+            // be a different gesture — the comment is about a place, not about
+            // whatever element happens to be under it now.
+            //
+            // A thread with no pin has nowhere to jump to, so opening it is the
+            // whole answer: the row says the thread has no marker, and a camera
+            // move invented for it would be a jump to a place nobody named.
+            match state.editor_ui.comments.thread(thread_id)?.anchor.clone() {
+                Some(anchor) => Some(CommentsPanelAction::RevealAnchor(anchor)),
+                None => Some(CommentsPanelAction::Handled),
             }
         }
         CommentsPanelHit::Inside => Some(CommentsPanelAction::Handled),

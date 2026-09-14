@@ -196,9 +196,9 @@ impl WidgetHost {
         if let Some(consumed) = self.press_recovery_banner_tier(&ctx) {
             return consumed;
         }
-        // Tier 1c — the comment popover and the thread list panel. They paint
-        // in the same band as the banner above, so they are hit-tested here,
-        // before every dropdown and modal below them.
+        // Tier 1c — the comment popover. It paints in the same band as the
+        // banner above, so it is hit-tested here, before every dropdown and
+        // modal below it.
         if let Some(consumed) = self.press_comments_tier(&ctx) {
             return consumed;
         }
@@ -239,6 +239,12 @@ impl WidgetHost {
         if let Some(consumed) = self.press_property_panel_tier(&ctx) {
             return consumed;
         }
+        // Tier 8b — the rail's comment list. Same slot, same priority: while
+        // the comment tool holds the rail the inspector is not built, so this
+        // is the occupant that answers for a press inside the rail's rect.
+        if let Some(consumed) = self.press_comment_rail_tier(&ctx) {
+            return consumed;
+        }
         ctx.property_focus_committed = self.commit_property_family_focus_if_any();
         let property_focus_committed = ctx.property_focus_committed;
         // Tier 9 — AI chat panel.
@@ -255,7 +261,9 @@ impl WidgetHost {
         }
         // Tier 11b — a comment pin, or the click that places one. A pin paints
         // over the node tree, so its press must be resolved before the canvas
-        // tier turns the same click into a selection or a marquee.
+        // tier turns the same click into a selection or a marquee — and while
+        // the comment tool is active every canvas click is a pin, not a
+        // selection.
         if let Some(consumed) = self.press_comment_pin_tier(&ctx) {
             return consumed;
         }

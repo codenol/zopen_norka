@@ -176,12 +176,14 @@ pub fn resolved_design_rules_for_kit(
     });
     if !instruction_saved {
         let rule = crate::design_rules_ui::default_ai_instruction_rule();
-        resolved.entry(rule.id.clone()).or_insert(EffectiveDesignRule {
-            rule,
-            source: DesignRuleSource::Library {
-                kit_id: kit.id.clone(),
-            },
-        });
+        resolved
+            .entry(rule.id.clone())
+            .or_insert(EffectiveDesignRule {
+                rule,
+                source: DesignRuleSource::Library {
+                    kit_id: kit.id.clone(),
+                },
+            });
     }
 
     let mut rules: Vec<_> = resolved
@@ -425,7 +427,10 @@ mod recipe_selection_tests {
 /// The kit declares them (`KitRecipe::optional`); this only matches the
 /// user's words against each block's phrases. Empty means the request asked
 /// for nothing specific, and the recipe lands whole.
-pub fn requested_hidden_blocks(prompt: &str, recipe: &crate::kit_manifest::KitRecipe) -> Vec<String> {
+pub fn requested_hidden_blocks(
+    prompt: &str,
+    recipe: &crate::kit_manifest::KitRecipe,
+) -> Vec<String> {
     let haystack = prompt.to_lowercase();
     let chars: Vec<char> = haystack.chars().collect();
     recipe
@@ -594,7 +599,9 @@ const REFERENCE_PHRASES: &[&str] = &[
 /// Whether a request points at a picture instead of at a recipe.
 pub fn refers_to_a_reference(prompt: &str) -> bool {
     let haystack = prompt.to_lowercase();
-    REFERENCE_PHRASES.iter().any(|phrase| haystack.contains(phrase))
+    REFERENCE_PHRASES
+        .iter()
+        .any(|phrase| haystack.contains(phrase))
 }
 
 /// The recipe to place for this turn, or `None` when one must not be placed.
@@ -626,8 +633,8 @@ mod reference_turn_tests {
     #[test]
     fn a_plain_admin_list_still_places_one() {
         let kit = crate::session_kit();
-        let placed = recipe_to_place("список коммутаторов с таблицей", false, kit)
-            .expect("the ops recipe");
+        let placed =
+            recipe_to_place("список коммутаторов с таблицей", false, kit).expect("the ops recipe");
         assert_eq!(placed.id, "ops-servers-screen");
     }
 }

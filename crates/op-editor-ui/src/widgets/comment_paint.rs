@@ -184,6 +184,71 @@ pub(crate) fn chip_width(cx: &mut PaintCx<'_>, label: &str) -> f32 {
     text_metrics::measure_chrome_weighted(cx.backend, label, 10.0, 500) + 12.0
 }
 
+/// Diameter of the count badge.
+///
+/// Small enough to sit on a 32 px toolbar button without covering its glyph,
+/// large enough for a two-character label at [`BADGE_FONT`] — that pair is the
+/// whole constraint, and both surfaces that show a count read them from here.
+pub const BADGE_DIAMETER: f32 = 15.0;
+/// Font size inside the badge.
+const BADGE_FONT: f32 = 10.0;
+
+/// How many open threads a badge says before it stops counting.
+///
+/// `9+` rather than `12`: the badge is a nudge, not a ledger, and a third
+/// character would need a wider circle than a corner badge should be. The rail
+/// prints the exact number a few centimetres away.
+pub fn badge_label(count: usize) -> String {
+    if count > 9 {
+        "9+".to_string()
+    } else {
+        count.to_string()
+    }
+}
+
+/// A count badge pinned to the top-right corner of `anchor`.
+///
+/// The ring in the surface colour under it is what makes a 15 px badge legible
+/// over an 18 px icon drawn in the same corner: without it the glyph and the
+/// badge's edge touch, and the number reads as part of the icon. Nothing is
+/// painted at `0` — a "0" badge claims there is something to look at.
+pub(crate) fn count_badge(cx: &mut PaintCx<'_>, theme: &Theme, anchor: Rect, count: usize) {
+    if count == 0 {
+        return;
+    }
+    let label = badge_label(count);
+    let badge = Rect::xywh(
+        anchor.origin.x + anchor.size.x - BADGE_DIAMETER * 0.62,
+        anchor.origin.y - BADGE_DIAMETER * 0.28,
+        BADGE_DIAMETER,
+        BADGE_DIAMETER,
+    );
+    cx.backend
+        .fill_oval(inflate(badge, 1.5), theme.popover.with_alpha(0.95));
+    cx.backend.fill_oval(badge, theme.primary);
+    let width = text_metrics::measure_chrome_weighted(cx.backend, &label, BADGE_FONT, 700);
+    text(
+        cx,
+        &label,
+        BADGE_FONT,
+        theme.primary_foreground,
+        Point2D::new(
+            badge.origin.x + (badge.size.x - width) / 2.0,
+            jian_widgets::centered_text_baseline_y(badge, BADGE_FONT),
+        ),
+        700,
+    );
+}
+
+fn inflate(rect: Rect, by: f32) -> Rect {
+    Rect::xywh(
+        rect.origin.x - by,
+        rect.origin.y - by,
+        rect.size.x + by * 2.0,
+        rect.size.y + by * 2.0,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

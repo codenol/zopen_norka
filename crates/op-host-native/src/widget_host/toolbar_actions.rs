@@ -22,6 +22,16 @@ impl WidgetHostNative {
                 self.mark_dirty();
                 true
             }
+            // Added only to keep the shared toolbar-action enum exhaustive. The
+            // comment button is offered exclusively where a comment client
+            // exists (`CommentsUiState::transport`, set by the web host) and the
+            // state refuses the mode without one, so no native path can reach
+            // this arm and no native surface is affected.
+            ToolbarAction::ToggleComments => {
+                self.editor_state.editor_ui.comments.toggle_pin_mode();
+                self.mark_dirty();
+                true
+            }
         }
     }
 }

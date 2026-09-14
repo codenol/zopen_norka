@@ -21,11 +21,20 @@
 //!
 //! ## Why a thread being written looks the same as one that exists
 //!
-//! A pin click opens the composer before there is a thread to show, and the
+//! A canvas click opens the composer before there is a thread to show, and the
 //! reviewer should not have to learn a second panel for that: same frame, same
-//! field, same position — with the header saying what the comment will be
-//! attached to. The difference is one button (there is nothing to resolve yet),
-//! and it is decided from the model rather than from a second widget.
+//! field, same position — beside the point the comment will be pinned to. The
+//! difference is two things the model decides rather than a second widget: the
+//! header says it is a new comment, and there is nothing to resolve yet.
+//!
+//! ## Why the box is kept inside the canvas
+//!
+//! A pin can sit at the very edge of the viewport, and a popover hung to its
+//! right would leave the window. [`CommentThreadPopover::rect_at`] therefore
+//! flips the box to the other side of the marker and then clamps both axes into
+//! the canvas region, so whatever a reviewer clicks, the field they have to type
+//! into is on screen. A pin that has been panned out of the canvas entirely
+//! anchors the same way and the box lands against the nearest edge.
 
 use op_editor_core::editor_ui_state::{CommentComposer, CommentsUiState};
 use op_i18n::Locale;
@@ -90,7 +99,6 @@ pub struct CommentView {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ThreadView {
     pub id: i64,
-    pub node_id: String,
     pub resolved: bool,
     pub resolved_by: Option<String>,
     /// Oldest first.
@@ -98,12 +106,16 @@ pub struct ThreadView {
 }
 
 /// What the popover is about.
+///
+/// A comment being written carries no position: the popover is placed against
+/// the anchor the click recorded (see `comments_flow::popover_anchor`), and the
+/// header only has to say that this is a new one.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommentComposerView {
     /// An existing thread.
     Thread(Box<ThreadView>),
-    /// A comment about `node_id` that has not been written yet.
-    NewThread { node_id: String },
+    /// A comment that has not been written yet.
+    NewThread,
 }
 
 /// Everything the popover paints and decides from.
@@ -133,7 +145,6 @@ impl CommentPopoverModel {
                 let thread = ui.thread(id)?;
                 CommentComposerView::Thread(Box::new(ThreadView {
                     id: thread.id,
-                    node_id: thread.node_id.clone(),
                     resolved: thread.resolved,
                     resolved_by: thread.resolved_by_label().map(|name| name.to_string()),
                     comments: thread
@@ -148,7 +159,7 @@ impl CommentPopoverModel {
                         .collect(),
                 }))
             }
-            CommentComposer::NewThread(node_id) => CommentComposerView::NewThread { node_id },
+            CommentComposer::NewThread(_) => CommentComposerView::NewThread,
         };
         let reply_placeholder = matches!(view, CommentComposerView::Thread(_));
         Some(Self {
@@ -164,14 +175,14 @@ impl CommentPopoverModel {
     pub fn thread_id(&self) -> Option<i64> {
         match &self.composer {
             CommentComposerView::Thread(thread) => Some(thread.id),
-            CommentComposerView::NewThread { .. } => None,
+            CommentComposerView::NewThread => None,
         }
     }
 
     pub fn resolved(&self) -> bool {
         match &self.composer {
             CommentComposerView::Thread(thread) => thread.resolved,
-            CommentComposerView::NewThread { .. } => false,
+            CommentComposerView::NewThread => false,
         }
     }
 
@@ -288,10 +299,12 @@ impl CommentThreadPopover {
     /// Where the popover paints, anchored under its pin and kept inside the
     /// canvas.
     ///
-    /// `anchor` is the pin's own rect, so the popover follows the element it
-    /// belongs to as the canvas pans. A thread with no pin (its element is gone)
-    /// passes the canvas' top-left corner instead — the conversation is still
-    /// readable, it just has nowhere on the design to hang from.
+    /// `anchor` is the pin's own rect, so the popover follows the point the
+    /// comment was left at as the canvas pans — and, for a comment being
+    /// written, the point the pin is about to occupy. A thread whose anchor is
+    /// not on the page being shown passes the canvas' own corner instead: the
+    /// conversation is still readable, it just has nowhere on this page to hang
+    /// from.
     pub fn rect_at(&self, anchor: Rect, canvas: Rect) -> Rect {
         let width = POPOVER_W.min((canvas.size.x - 16.0).max(160.0));
         let x = anchor.origin.x + anchor.size.x + 8.0;
@@ -386,8 +399,8 @@ impl CommentThreadPopover {
                     None,
                 ),
             },
-            CommentComposerView::NewThread { .. } => (
-                op_i18n::translate(self.model.locale, "comments.pin.arm").to_string(),
+            CommentComposerView::NewThread => (
+                op_i18n::translate(self.model.locale, "comments.composer.newTitle").to_string(),
                 None,
             ),
         };

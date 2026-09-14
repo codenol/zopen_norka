@@ -38,7 +38,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use op_editor_core::editor_ui_state::{
-    Comment, CommentAuthor, CommentRequest, CommentThread, CommentWriteError, CommentsUiState,
+    Comment, CommentAnchor, CommentAuthor, CommentRequest, CommentThread, CommentWriteError,
+    CommentsUiState,
 };
 
 use crate::repaint_ctx::RepaintContext;
@@ -200,7 +201,7 @@ fn parse_thread(value: &serde_json::Value) -> Option<CommentThread> {
     let id = value.get("id").and_then(|id| id.as_i64())?;
     Some(CommentThread {
         id,
-        node_id: string_field(value, "nodeId"),
+        anchor: parse_anchor(value),
         created_at: u64_field(value, "createdAt"),
         resolved: value
             .get("resolved")
@@ -265,6 +266,31 @@ fn parse_comment(value: &serde_json::Value) -> Option<Comment> {
     })
 }
 
+/// The pin's place, or `None` for a thread that has none.
+///
+/// `pageId` / `x` / `y` are nullable on the wire, and a `null` there means
+/// exactly one thing: this thread has no pin. That is the state the daemon
+/// migrated threads from the old element-keyed format are in, and it has to
+/// stay distinguishable from a pin at the origin of some page — a fallback of
+/// `""` / `0.0` would paint a migrated conversation in the top-left corner of
+/// every document and claim the reviewer left it there.
+///
+/// It is also the *only* distinction needed: an empty page id is treated as no
+/// page (a coordinate needs a page to be in), and a coordinate outside the range
+/// the daemon accepts is refused here to match the refusal it would get back
+/// from a write.
+fn parse_anchor(value: &serde_json::Value) -> Option<CommentAnchor> {
+    let page_id = value
+        .get("pageId")
+        .and_then(|page| page.as_str())
+        .filter(|page| !page.is_empty())?
+        .to_string();
+    let x = json_f64(value.get("x")?)?;
+    let y = json_f64(value.get("y")?)?;
+    let anchor = CommentAnchor::new(page_id, x, y);
+    anchor.is_placeable().then_some(anchor)
+}
+
 fn string_field(value: &serde_json::Value, key: &str) -> String {
     value
         .get(key)
@@ -275,6 +301,19 @@ fn string_field(value: &serde_json::Value, key: &str) -> String {
 
 fn u64_field(value: &serde_json::Value, key: &str) -> u64 {
     value.get(key).and_then(|field| field.as_u64()).unwrap_or(0)
+}
+
+/// A JSON number, accepted in either shape, at full `f64` precision.
+///
+/// `as_f64` alone covers integers on paper, but a `{"x": 12}` written by a
+/// server whose column happens to be an integer is a shape worth surviving.
+/// Nothing is rounded: the daemon stores the pair as REAL, and a document pixel
+/// is wider than a screen pixel past zoom 1, so a rounded coordinate moves the
+/// pin by a visible amount.
+fn json_f64(field: &serde_json::Value) -> Option<f64> {
+    field
+        .as_f64()
+        .or_else(|| field.as_i64().map(|int| int as f64))
 }
 
 /// The daemon path for one comment request.
@@ -335,8 +374,17 @@ fn post_thread(key: &str, suffix: &str, body: Option<String>) {
 fn dispatch(request: CommentRequest, key: &str) {
     match request {
         CommentRequest::Reload => fetch_threads(key.to_string()),
-        CommentRequest::Create { node_id, text } => {
-            let body = serde_json::json!({ "nodeId": node_id, "text": text }).to_string();
+        CommentRequest::Create { anchor, text } => {
+            // The daemon's create route takes the place, not an element: a
+            // comment is about a point on a page (see `CommentAnchor`), so the
+            // page id and the two coordinates are the whole address.
+            let body = serde_json::json!({
+                "pageId": anchor.page_id,
+                "x": anchor.x,
+                "y": anchor.y,
+                "text": text,
+            })
+            .to_string();
             post_thread(key, "", Some(body));
         }
         CommentRequest::Reply { thread_id, text } => {
@@ -445,25 +493,20 @@ fn apply(ui: &mut CommentsUiState, kind: AnswerKind, result: Result<Answer, Comm
         (_, Ok(Answer::Threads(threads))) => ui.install_threads(threads),
         (_, Ok(Answer::Thread(thread))) => {
             let id = thread.id;
-            let node = thread.node_id.clone();
             let open = ui.open_thread;
-            let pinned = ui.pin_node.clone();
             ui.upsert_thread(*thread);
             ui.set_loading_done();
             match open {
                 // The thread that was already open is the one that was written
                 // into, so it stays open and now shows the new comment.
-                Some(open) if open == id => {}
-                // A different thread is open: the reviewer moved on, and a
-                // background answer must not take the panel back.
                 Some(_) => {}
-                // Nothing was open, and this answer is about the thread the
-                // composer was waiting for — the pin click that had no thread
-                // yet, or a write into a thread that was opened and then
-                // closed. It opens, because that is what the reviewer asked to
-                // see.
-                None if pinned.as_deref() == Some(node.as_str()) || pinned.is_none() => ui.open(id),
-                None => {}
+                // Nothing was open: this answer is the thread a composer was
+                // waiting for — the canvas click that had no thread yet, or a
+                // write into a thread that was opened and then closed. It
+                // opens, because seeing what was just written is what the
+                // reviewer asked for, and the pin it carries is the point they
+                // clicked.
+                None => ui.open(id),
             }
         }
         (_, Err(error)) => note_failure(ui, &error),

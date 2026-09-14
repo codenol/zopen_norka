@@ -12,20 +12,22 @@
 ///
 /// Kept as a literal rather than derived from the tables: the point is to state
 /// what the widgets ask for, independently of what the catalogs happen to hold.
-const COMMENT_KEYS: [&str; 27] = [
+const COMMENT_KEYS: [&str; 29] = [
     "comments.panel.title",
     "comments.panel.loading",
     "comments.panel.empty",
     "comments.panel.error",
-    "comments.panel.unpinned",
     "comments.panel.replyCount",
     "comments.panel.more",
     "comments.panel.open",
     "comments.panel.resolved",
-    "comments.pin.arm",
-    "comments.pin.armed",
+    "comments.panel.pin",
+    "comments.panel.unpinned",
+    "comments.panel.otherPages",
+    "comments.tool.hint",
     "comments.composer.placeholder",
     "comments.composer.replyPlaceholder",
+    "comments.composer.newTitle",
     "comments.composer.send",
     "comments.action.resolve",
     "comments.action.reopen",
@@ -48,7 +50,8 @@ fn every_comment_key_is_translated_in_every_locale() {
         for locale in crate::Locale::ALL {
             let translated = super::translate(locale, key);
             assert_ne!(
-                translated, key,
+                translated,
+                key,
                 "locale `{}` has no direct value for `{key}`",
                 locale.code()
             );

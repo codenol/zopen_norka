@@ -488,17 +488,18 @@ pub fn escape_selection(state: &mut EditorState) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::editor_ui_state::{Comment, CommentAuthor, CommentThread};
+    use crate::editor_ui_state::{Comment, CommentAnchor, CommentAuthor, CommentThread};
 
     #[test]
     fn escape_dismisses_the_comment_surfaces_one_layer_at_a_time() {
         let mut state = EditorState::new();
+        state.editor_ui.comments.transport = true;
         state
             .editor_ui
             .comments
             .install_threads(vec![CommentThread {
                 id: 1,
-                node_id: "n1".to_string(),
+                anchor: Some(CommentAnchor::new("p1", 40.0, 60.0)),
                 comments: vec![Comment {
                     id: 10,
                     author: CommentAuthor {
@@ -541,10 +542,14 @@ mod tests {
         // with the mode, so the next click does not open a field nobody asked
         // for.
         let mut state = EditorState::new();
+        state.editor_ui.comments.transport = true;
         state.editor_ui.comments.set_pin_mode(true);
-        state.editor_ui.comments.begin_thread_on("n4");
+        state
+            .editor_ui
+            .comments
+            .begin_thread_at(CommentAnchor::new("p1", 12.0, 34.0));
         assert!(escape_comment_popover(&mut state));
-        assert!(state.editor_ui.comments.pin_node.is_none());
+        assert!(state.editor_ui.comments.pending_pin.is_none());
     }
 
     #[test]

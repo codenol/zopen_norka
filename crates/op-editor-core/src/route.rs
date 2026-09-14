@@ -151,10 +151,12 @@ pub fn to_path(target: &RouteTarget) -> String {
         RouteTarget::Document(route) => {
             let mut path = match &route.file {
                 RouteFile::Untitled => "/".to_string(),
-                RouteFile::Key(key) => match route.slug.as_deref().filter(|slug| !slug.is_empty()) {
-                    Some(slug) => format!("{DOCUMENT_PREFIX}{key}/{slug}"),
-                    None => format!("{DOCUMENT_PREFIX}{key}"),
-                },
+                RouteFile::Key(key) => {
+                    match route.slug.as_deref().filter(|slug| !slug.is_empty()) {
+                        Some(slug) => format!("{DOCUMENT_PREFIX}{key}/{slug}"),
+                        None => format!("{DOCUMENT_PREFIX}{key}"),
+                    }
+                }
             };
             let mut query: Vec<String> = Vec::new();
             if let Some(page) = route.page {
@@ -207,22 +209,75 @@ pub fn slugify(name: &str) -> String {
 /// Cyrillic (and the few Latin look-alikes Figma sees) → ASCII.
 fn translit(ch: char) -> Option<&'static str> {
     Some(match ch {
-        'а' => "a", 'б' => "b", 'в' => "v", 'г' => "g", 'д' => "d", 'е' => "e",
-        'ё' => "e", 'ж' => "zh", 'з' => "z", 'и' => "i", 'й' => "y", 'к' => "k",
-        'л' => "l", 'м' => "m", 'н' => "n", 'о' => "o", 'п' => "p", 'р' => "r",
-        'с' => "s", 'т' => "t", 'у' => "u", 'ф' => "f", 'х' => "h", 'ц' => "ts",
-        'ч' => "ch", 'ш' => "sh", 'щ' => "sch", 'ъ' => "", 'ы' => "y", 'ь' => "",
-        'э' => "e", 'ю' => "yu", 'я' => "ya",
-        'А' => "a", 'Б' => "b", 'В' => "v", 'Г' => "g", 'Д' => "d", 'Е' => "e",
-        'Ё' => "e", 'Ж' => "zh", 'З' => "z", 'И' => "i", 'Й' => "y", 'К' => "k",
-        'Л' => "l", 'М' => "m", 'Н' => "n", 'О' => "o", 'П' => "p", 'Р' => "r",
-        'С' => "s", 'Т' => "t", 'У' => "u", 'Ф' => "f", 'Х' => "h", 'Ц' => "ts",
-        'Ч' => "ch", 'Ш' => "sh", 'Щ' => "sch", 'Ъ' => "", 'Ы' => "y", 'Ь' => "",
-        'Э' => "e", 'Ю' => "yu", 'Я' => "ya",
+        'а' => "a",
+        'б' => "b",
+        'в' => "v",
+        'г' => "g",
+        'д' => "d",
+        'е' => "e",
+        'ё' => "e",
+        'ж' => "zh",
+        'з' => "z",
+        'и' => "i",
+        'й' => "y",
+        'к' => "k",
+        'л' => "l",
+        'м' => "m",
+        'н' => "n",
+        'о' => "o",
+        'п' => "p",
+        'р' => "r",
+        'с' => "s",
+        'т' => "t",
+        'у' => "u",
+        'ф' => "f",
+        'х' => "h",
+        'ц' => "ts",
+        'ч' => "ch",
+        'ш' => "sh",
+        'щ' => "sch",
+        'ъ' => "",
+        'ы' => "y",
+        'ь' => "",
+        'э' => "e",
+        'ю' => "yu",
+        'я' => "ya",
+        'А' => "a",
+        'Б' => "b",
+        'В' => "v",
+        'Г' => "g",
+        'Д' => "d",
+        'Е' => "e",
+        'Ё' => "e",
+        'Ж' => "zh",
+        'З' => "z",
+        'И' => "i",
+        'Й' => "y",
+        'К' => "k",
+        'Л' => "l",
+        'М' => "m",
+        'Н' => "n",
+        'О' => "o",
+        'П' => "p",
+        'Р' => "r",
+        'С' => "s",
+        'Т' => "t",
+        'У' => "u",
+        'Ф' => "f",
+        'Х' => "h",
+        'Ц' => "ts",
+        'Ч' => "ch",
+        'Ш' => "sh",
+        'Щ' => "sch",
+        'Ъ' => "",
+        'Ы' => "y",
+        'Ь' => "",
+        'Э' => "e",
+        'Ю' => "yu",
+        'Я' => "ya",
         _ => return None,
     })
 }
-
 
 /// The route the editor state describes.
 ///
@@ -343,14 +398,8 @@ mod tests {
 
     #[test]
     fn the_file_browser_has_its_own_path() {
-        assert_eq!(
-            parse("/files", ""),
-            RoutePath::Known(RouteTarget::Files)
-        );
-        assert_eq!(
-            parse("/files/", ""),
-            RoutePath::Known(RouteTarget::Files)
-        );
+        assert_eq!(parse("/files", ""), RoutePath::Known(RouteTarget::Files));
+        assert_eq!(parse("/files/", ""), RoutePath::Known(RouteTarget::Files));
     }
 
     #[test]
@@ -397,7 +446,13 @@ mod tests {
 
     #[test]
     fn other_paths_are_not_routes() {
-        for path in ["/api/mcp/document", "/pkg/op_host_web.js", "/f/", "/f/a/b/c", "/files2"] {
+        for path in [
+            "/api/mcp/document",
+            "/pkg/op_host_web.js",
+            "/f/",
+            "/f/a/b/c",
+            "/files2",
+        ] {
             assert_eq!(parse(path, ""), RoutePath::NotARoute, "{path}");
         }
     }

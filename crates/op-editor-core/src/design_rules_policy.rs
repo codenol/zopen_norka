@@ -216,10 +216,7 @@ mod tests {
 /// the ops screen even after the recipe stopped being placed. A reference turn
 /// drops those rules; everything else (working agreement, component rules)
 /// still applies.
-pub fn rules_without_recipes_for_reference(
-    rules: &[DesignRule],
-    prompt: &str,
-) -> Vec<DesignRule> {
+pub fn rules_without_recipes_for_reference(rules: &[DesignRule], prompt: &str) -> Vec<DesignRule> {
     if !crate::design_rules::refers_to_a_reference(prompt) {
         return rules.to_vec();
     }

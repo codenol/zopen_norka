@@ -72,7 +72,6 @@ pub mod conversion;
 pub mod design_md;
 pub mod design_md_button_state;
 pub mod design_rules;
-pub mod route;
 pub mod design_rules_policy;
 pub mod design_rules_ui;
 pub mod document_install;
@@ -80,6 +79,7 @@ pub mod drag_mutators;
 pub mod edit_transaction;
 pub mod editor_toast;
 pub mod kit_manifest;
+pub mod route;
 pub mod size_class;
 // Runtime-fetched product assets for the browser bundle (native embeds them).
 pub mod assets_panel_keyboard;
@@ -129,6 +129,7 @@ pub mod missing_fonts;
 pub mod mutators;
 pub mod node_defaults;
 pub mod node_id;
+pub mod page_identity;
 pub mod page_mutators;
 pub mod path_bounds;
 pub mod path_edit;
@@ -348,21 +349,19 @@ pub use compositing::{fill_blend_mode_at, node_blend_mode, node_mask_type};
 pub use design_md::{extract_design_md_from_document, generate_design_md, parse_design_md};
 pub use design_md_button_state::DesignMdButton;
 pub use design_rules::{
-    hide_blocks_in_subtree, recipe_to_place, refers_to_a_reference, requested_hidden_blocks,
-    select_recipe,
-    delete_rule, effective_design_rules, library_design_rules, set_rule_enabled,
-    upsert_document_rule, DesignRuleSource, EffectiveDesignRule,
+    delete_rule, effective_design_rules, hide_blocks_in_subtree, library_design_rules,
+    recipe_to_place, refers_to_a_reference, requested_hidden_blocks, select_recipe,
+    set_rule_enabled, upsert_document_rule, DesignRuleSource, EffectiveDesignRule,
 };
 pub use design_rules_policy::{
-    rules_without_recipes_for_reference,
     build_design_rules_policy, build_effective_rules_policy, has_design_rules,
+    rules_without_recipes_for_reference,
 };
 pub use design_rules_ui::{
-    author_rules, component_document_id, component_documents, default_component_body,
-    recipe_document_id,
-    AI_INSTRUCTION_RULE_ID, DEFAULT_AI_INSTRUCTIONS, panel_rows,
-    parse_rule_markdown, rule_markdown, rule_matches_filter, ComponentDoc, DesignRuleDraft,
-    DesignRuleFocus, DesignRulesFilter, PanelRow,
+    author_rules, component_document_id, component_documents, default_component_body, panel_rows,
+    parse_rule_markdown, recipe_document_id, rule_markdown, rule_matches_filter, ComponentDoc,
+    DesignRuleDraft, DesignRuleFocus, DesignRulesFilter, PanelRow, AI_INSTRUCTION_RULE_ID,
+    DEFAULT_AI_INSTRUCTIONS,
 };
 pub use document_install::{DocumentInstallError, DocumentInstallReport, PreparedDocument};
 pub use edit_transaction::{
@@ -378,10 +377,9 @@ pub use editor_ui_state::{
     Locale, MergeConflictRow, MergeResolveFile, MergeResolveState, MissingFontSurface,
     PaddingEditMode, PageRenameState, PencilCursorStyle, PreviewDeviceKind, PreviewState,
     PromptCenterFocus, PromptCenterState, PromptFilter, PropertyTab, RecentFile, SceneFilter,
-    ServerFile, ServerFileMenu, ServerFileRename, SERVER_FILE_CAP,
-    SceneTemplateCenterState, SceneTemplateFocus, SizeToggleState, SlidesDrag, SlidesPanelState,
-    SlidesPanelTarget, StyleImportState, ThemeMode, UpdateStatus, VariableRowFocus,
-    WindowControlRequest,
+    SceneTemplateCenterState, SceneTemplateFocus, ServerFile, ServerFileMenu, ServerFileRename,
+    SizeToggleState, SlidesDrag, SlidesPanelState, SlidesPanelTarget, StyleImportState, ThemeMode,
+    UpdateStatus, VariableRowFocus, WindowControlRequest, SERVER_FILE_CAP,
 };
 pub use export_dialog_state::ExportDialogButton;
 pub use export_quick_menu_state::ExportQuickRow;

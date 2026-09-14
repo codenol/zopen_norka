@@ -112,6 +112,15 @@ impl PropertyPanel {
     /// millisecond clock through so the focused-input caret can
     /// blink off the same animation timer as the chat input.
     pub fn for_selection_at(state: &EditorState, now_ms: u64) -> Option<Self> {
+        // One rail, one occupant: while the comment tool is active the rail is
+        // showing the document's conversations, so there is no inspector to
+        // build. Answered here because this is where every caller asks whether
+        // the inspector exists at all — paint, the press ladder, hover, the IME
+        // commit path — and a second answer somewhere else is how a panel that
+        // is not on screen keeps eating clicks meant for the design.
+        if state.editor_ui.comments.rail_visible() {
+            return None;
+        }
         if let Some(panel) = Self::for_selection_nodes(state, now_ms) {
             return Some(panel);
         }

@@ -2,9 +2,16 @@
 //! edge of the canvas (Step 4 visual lift).
 //!
 //! Layout matches `apps/web/src/components/editor/toolbar.tsx`:
-//! tools at the top (Select / Rect / Text / Frame / Hand), a hairline
-//! separator, undo/redo, another separator, then panel toggles
+//! tools at the top (Select / Rect / Text / Frame / Hand / Comments), a
+//! hairline separator, undo/redo, another separator, then panel toggles
 //! (Variables / Design system).
+//!
+//! Comments sit in the tool group rather than in a corner of the canvas: a
+//! reviewer looks for a mode where the other modes are, and a second floating
+//! control in the design's own area competes with the design. The button reads
+//! the comment tool's own state (`pin_mode`) and carries the count of open
+//! threads, so "is the mode on" and "is there anything to read" are answered
+//! where the mode is switched.
 //!
 //! Active tool gets a `theme.primary` filled rounded square + the
 //! white foreground icon. Inactive items render the icon in
@@ -58,6 +65,8 @@ pub enum ToolbarAction {
     Redo,
     ToggleVariablesPanel,
     ToggleDesignPanel,
+    /// Activate or leave the comment tool (`CommentsUiState::pin_mode`).
+    ToggleComments,
 }
 
 /// Hit-test result for a mouse click inside the toolbar rect.
@@ -84,6 +93,10 @@ pub struct Toolbar {
     /// active item where the active fill already reads).
     pub hover: Option<op_editor_core::ToolbarHover>,
     pub pressed: Option<op_editor_core::ToolbarHover>,
+    /// Whether the comment tool is active — the comments button's own "active".
+    pub comments_armed: bool,
+    /// Open threads on the page being edited, for the button's badge.
+    pub comments_open: usize,
 }
 
 impl Toolbar {
@@ -101,19 +114,31 @@ impl Toolbar {
         // Form-widget tools are intentionally NOT in the toolbar: widget
         // nodes are authored via the component kit (uikit) / AI+MCP and
         // matched by the jian runtime, not dropped as primitive tools.
-        let items = vec![
+        let mut items = vec![
             ToolbarItem::Tool(Tool::Select, Icon::Cursor),
             ToolbarItem::ShapeSlot,
             ToolbarItem::Tool(Tool::Text, Icon::Type),
             ToolbarItem::Tool(Tool::Frame, Icon::Frame),
             ToolbarItem::Tool(Tool::Hand, Icon::Hand),
+        ];
+        // The comment tool closes the tool group: it is a mode like the others,
+        // and the count it carries is about the page being edited. Offered only
+        // where a comment client exists — elsewhere the mode would select a rail
+        // with nothing in it (see `CommentsUiState::transport`).
+        if state.editor_ui.comments.transport {
+            items.push(ToolbarItem::Action(
+                ToolbarAction::ToggleComments,
+                Icon::MessageCircle,
+            ));
+        }
+        items.extend([
             ToolbarItem::Separator,
             ToolbarItem::Action(ToolbarAction::Undo, Icon::Undo),
             ToolbarItem::Action(ToolbarAction::Redo, Icon::Redo),
             ToolbarItem::Separator,
             ToolbarItem::Action(ToolbarAction::ToggleVariablesPanel, Icon::Braces),
             ToolbarItem::Action(ToolbarAction::ToggleDesignPanel, Icon::BookOpen),
-        ];
+        ]);
         Self {
             id: WidgetId::new(3000),
             items,
@@ -121,11 +146,26 @@ impl Toolbar {
             theme: theme_for(&state.editor_ui),
             shape_tool: state.editor_ui.shape_tool,
             hover: state.editor_ui.toolbar_hover,
+            comments_armed: state.editor_ui.comments.pin_mode,
+            // Page-scoped, so the badge and the rail always agree: both answer
+            // "what is outstanding on the page I am looking at".
+            comments_open: {
+                let (page, _) = state.active_page_identity();
+                state.editor_ui.comments.open_count_on_page(&page)
+            },
             pressed: match state.editor_ui.pressed_button {
                 Some(op_editor_core::ButtonPressTarget::Toolbar(button)) => Some(button),
                 _ => None,
             },
         }
+    }
+
+    /// Whether an action button paints as active.
+    ///
+    /// Only the mode switches have an active state — undo has nothing to be
+    /// "on" — and the comment button takes it from the tool it switches.
+    fn action_is_active(&self, action: ToolbarAction) -> bool {
+        matches!(action, ToolbarAction::ToggleComments) && self.comments_armed
     }
 
     /// True when `hover` matches `item`. The active state takes
@@ -144,6 +184,7 @@ impl Toolbar {
             ToolbarItem::Action(action, _) => {
                 use crate::widgets::editor_state_ext::toolbar_action;
                 matches!(hover, H::Action(a) if a == toolbar_action(*action))
+                    && !self.action_is_active(*action)
             }
             ToolbarItem::ShapeSlot => matches!(hover, H::ShapeSlot) && !self.active.is_shape(),
             ToolbarItem::Separator => false,
@@ -384,13 +425,34 @@ impl Widget for Toolbar {
                     y += BUTTON_SIZE;
                     prev_was_item = true;
                 }
-                ToolbarItem::Action(_, icon) => {
+                ToolbarItem::Action(action, icon) => {
                     if prev_was_item {
                         y += BUTTON_GAP;
                     }
                     let hovered = self.item_hovered(item);
                     let pressed = self.item_pressed(item);
-                    paint_button(cx, &self.theme, button_x, y, *icon, false, hovered, pressed);
+                    let active = self.action_is_active(*action);
+                    paint_button(
+                        cx,
+                        &self.theme,
+                        button_x,
+                        y,
+                        *icon,
+                        active,
+                        hovered,
+                        pressed,
+                    );
+                    if matches!(action, ToolbarAction::ToggleComments) {
+                        crate::widgets::comment_paint::count_badge(
+                            cx,
+                            &self.theme,
+                            Rect {
+                                origin: Point2D::new(button_x, y),
+                                size: Point2D::new(BUTTON_SIZE, BUTTON_SIZE),
+                            },
+                            self.comments_open,
+                        );
+                    }
                     y += BUTTON_SIZE;
                     prev_was_item = true;
                 }
@@ -470,145 +532,5 @@ fn paint_button(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn default_set_has_base_tools_shape_slot_and_actions_no_widgets() {
-        let toolbar = Toolbar::default_set();
-        let tool_count = toolbar
-            .items
-            .iter()
-            .filter(|i| matches!(i, ToolbarItem::Tool(..)))
-            .count();
-        let widget_tool_count = toolbar
-            .items
-            .iter()
-            .filter(|i| matches!(i, ToolbarItem::Tool(t, _) if t.is_widget()))
-            .count();
-        let action_count = toolbar
-            .items
-            .iter()
-            .filter(|i| matches!(i, ToolbarItem::Action(..)))
-            .count();
-        let shape_slot_count = toolbar
-            .items
-            .iter()
-            .filter(|i| matches!(i, ToolbarItem::ShapeSlot))
-            .count();
-        // Select / Text / Frame / Hand are direct tool buttons;
-        // Rect / Ellipse / Polygon / Line / Pen live behind the single
-        // ShapeSlot dropdown. Form widgets are NOT toolbar tools — they
-        // are authored via the component kit / AI+MCP, not primitive
-        // drop tools.
-        assert_eq!(tool_count, 4);
-        assert_eq!(widget_tool_count, 0);
-        assert_eq!(shape_slot_count, 1);
-        assert_eq!(action_count, 4);
-        assert_eq!(toolbar.active, Tool::Select);
-    }
-
-    #[test]
-    fn intrinsic_height_accommodates_all_items() {
-        let toolbar = Toolbar::default_set();
-        let h = toolbar.intrinsic_height();
-        // 4 direct tools + shape slot + 4 action buttons = 9 button
-        // slots; total is at least 9 * BUTTON_SIZE plus padding + gaps.
-        let buttons = 9.0;
-        assert!(
-            h > buttons * BUTTON_SIZE,
-            "toolbar shorter than its buttons"
-        );
-        assert!(h < buttons * BUTTON_SIZE + 200.0, "toolbar bloated: {h}");
-    }
-
-    #[test]
-    fn for_editor_picks_up_active_tool() {
-        let mut state = EditorState::new();
-        state.tool = op_editor_core::Tool::Frame;
-        let toolbar = Toolbar::for_editor(&state);
-        assert_eq!(toolbar.active, Tool::Frame);
-    }
-
-    #[test]
-    fn hit_test_inside_first_button_returns_select() {
-        let toolbar = Toolbar::default_set();
-        let rect = Rect {
-            origin: Point2D::new(0.0, 0.0),
-            size: Point2D::new(TOOLBAR_WIDTH, toolbar.intrinsic_height()),
-        };
-        // Center of the first button.
-        let center = Point2D::new((TOOLBAR_WIDTH) / 2.0, PAD_TOP + BUTTON_SIZE / 2.0);
-        assert_eq!(
-            toolbar.hit_test(rect, center),
-            Some(ToolbarHit::Tool(Tool::Select))
-        );
-    }
-
-    #[test]
-    fn hit_test_outside_returns_none() {
-        let toolbar = Toolbar::default_set();
-        let rect = Rect {
-            origin: Point2D::new(0.0, 0.0),
-            size: Point2D::new(TOOLBAR_WIDTH, toolbar.intrinsic_height()),
-        };
-        assert_eq!(toolbar.hit_test(rect, Point2D::new(-10.0, -10.0)), None);
-        assert_eq!(toolbar.hit_test(rect, Point2D::new(1000.0, 1000.0)), None);
-    }
-
-    #[test]
-    fn for_editor_picks_up_pressed_button() {
-        let mut state = EditorState::new();
-        state.editor_ui.pressed_button = Some(op_editor_core::ButtonPressTarget::Toolbar(
-            op_editor_core::ToolbarHover::Action(op_editor_core::ToolbarAction::Undo),
-        ));
-        let toolbar = Toolbar::for_editor(&state);
-        assert_eq!(
-            toolbar.pressed,
-            Some(op_editor_core::ToolbarHover::Action(
-                op_editor_core::ToolbarAction::Undo
-            ))
-        );
-    }
-
-    #[test]
-    fn hit_test_resolves_action_button() {
-        let toolbar = Toolbar::default_set();
-        let rect = Rect {
-            origin: Point2D::new(0.0, 0.0),
-            size: Point2D::new(TOOLBAR_WIDTH, toolbar.intrinsic_height()),
-        };
-        // The Undo button sits below the (now longer) tool sections;
-        // rather than re-derive its y by hand, scan every row down the
-        // bar centre for the first Undo hit. Decouples the test from
-        // the exact item layout.
-        let cx = TOOLBAR_WIDTH / 2.0;
-        let undo_hit = (0..(toolbar.intrinsic_height() as i32)).find(|y| {
-            toolbar.hit_test(rect, Point2D::new(cx, *y as f32))
-                == Some(ToolbarHit::Action(ToolbarAction::Undo))
-        });
-        assert!(
-            undo_hit.is_some(),
-            "expected an Undo action button somewhere down the bar"
-        );
-    }
-
-    #[test]
-    fn no_widget_tools_in_toolbar() {
-        // Widgets are authored via the component kit / AI+MCP, never as
-        // toolbar drop-tools — so none appear in the bar.
-        let toolbar = Toolbar::default_set();
-        assert!(!toolbar
-            .items
-            .iter()
-            .any(|i| matches!(i, ToolbarItem::Tool(t, _) if t.is_widget())));
-    }
-
-    #[test]
-    fn access_node_advertises_toolbar_role() {
-        let toolbar = Toolbar::default_set();
-        let node = toolbar.access_node();
-        assert_eq!(node.role(), accesskit::Role::Toolbar);
-        assert_eq!(node.label(), Some("Toolbar"));
-    }
-}
+#[path = "toolbar_tests.rs"]
+mod tests;

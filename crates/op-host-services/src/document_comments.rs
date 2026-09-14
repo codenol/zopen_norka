@@ -1,9 +1,25 @@
-//! Comment threads: the conversations pinned to a document's elements.
+//! Comment threads: the conversations pinned to a document.
 //!
-//! The tables are `document_db`'s — migration 2 — because that list is the
-//! database's history, and a table created anywhere else would be a table no
+//! The tables are `document_db`'s — migrations 2 and 3 — because that list is
+//! the database's history, and a table created anywhere else would be a table no
 //! field database ever recorded as having made. This module is what reads and
 //! writes them, and it owns what a thread IS as the rest of the daemon sees it.
+//!
+//! ## Why a pin is a point on a page and not an element
+//!
+//! A comment is placed where somebody pointed: a page, and a point on that page
+//! ([`Placement`]). Migration 2 anchored a thread to `node_id` instead, and the
+//! change is not a preference. Most elements in a real document are small — an
+//! icon, a label, a divider — and a pin that can only be dropped ON one cannot
+//! be dropped anywhere near it: the gesture that places a comment becomes a
+//! test of aim, and the comments that matter most are the ones about the space
+//! between things, which no element contains. An element anchor also moves when
+//! the element moves, which is a different statement: the reviewer said "here",
+//! and a pin that follows a frame somebody dragged is no longer saying that.
+//!
+//! What an older thread was anchored to is kept in `anchor_hint` — readable,
+//! and deciding nothing. The position of a pin is `page_id`/`x`/`y` and nothing
+//! else.
 //!
 //! ## Why every function is scoped by document key
 //!
@@ -29,12 +45,12 @@
 //!
 //! ## Bounds live here
 //!
-//! [`MAX_COMMENT_CHARS`] and [`MAX_NODE_ID_CHARS`] are stated beside the record
-//! they bound, because this module is what must never store an unbounded one:
-//! a comment is read by everyone who can reach the document, and one caller
-//! pasting a novel into a thread makes the conversation unreadable for all of
-//! them. The route refuses the request with a 400; these are the numbers it
-//! refuses against.
+//! [`MAX_COMMENT_CHARS`], [`MAX_PAGE_ID_CHARS`] and [`MAX_COORDINATE`] are
+//! stated beside the record they bound, because this module is what must never
+//! store an unbounded one: a comment is read by everyone who can reach the
+//! document, and one caller pasting a novel into a thread makes the conversation
+//! unreadable for all of them. The route refuses the request with a 400; these
+//! are the numbers it refuses against.
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
@@ -49,12 +65,46 @@ use crate::document_store::DocumentStoreError;
 /// an editorial style.
 pub(crate) const MAX_COMMENT_CHARS: usize = 4_000;
 
-/// Longest node id accepted for a pin.
+/// Longest page id accepted for a pin.
 ///
 /// The id is written by the client and resolved by the client, so this bound
 /// only has to be longer than any id this editor issues; it exists so that a
 /// public deployment cannot be made to store arbitrary-length keys.
-pub(crate) const MAX_NODE_ID_CHARS: usize = 128;
+pub(crate) const MAX_PAGE_ID_CHARS: usize = 128;
+
+/// How far from a page's origin a pin may sit, in document pixels.
+///
+/// Document space has no edge — the canvas is unbounded and a designer may work
+/// a long way out — so this is not "where the document ends" but "past here the
+/// number is not a place". Ten million document pixels is some five thousand
+/// screens wide at 100%, and it sits below `2^24` (16,777,216), the largest
+/// integer an `f32` holds exactly: a coordinate this build accepts is one the
+/// client's own `f32` geometry can still tell apart from its neighbours, and
+/// one past that could not be drawn where it was put.
+pub(crate) const MAX_COORDINATE: f64 = 10_000_000.0;
+
+/// Where a pin sits: a page of the document, and a point on that page.
+///
+/// One value rather than three fields, because the three are one fact. A page
+/// with no point, or a point with no page, is not a place anything can be
+/// drawn, and a signature that took them apart would let a caller hand over
+/// half of one — the schema refuses that too (migration 3's CHECK), which is
+/// how it stays true for rows written by anything at all.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Placement {
+    /// The page the coordinates are relative to, as the client names it.
+    ///
+    /// The page is part of the address and not decoration: two pages both have
+    /// a point at (100, 100), and without it a pin on one would be a pin on the
+    /// other.
+    pub page_id: String,
+    /// Horizontal position in the page's own coordinate system — the one the
+    /// document is authored in, which the viewport's pan and zoom are applied
+    /// TO. Screen coordinates would make a pin drift as somebody scrolled.
+    pub x: f64,
+    /// Vertical position, on the same terms as [`Placement::x`].
+    pub y: f64,
+}
 
 /// Who is being recorded as having said or done something.
 ///
@@ -121,11 +171,30 @@ pub(crate) struct Comment {
 }
 
 /// One thread, with its comments in the order they were written.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `PartialEq` and not `Eq`, unlike the comments it carries: a placement is a
+/// pair of `f64` (see [`Placement`]), and a reflexivity-by-fiat `Eq` over
+/// floating point is a promise this type cannot keep.
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CommentThread {
     pub id: i64,
-    /// The element the pin sits on.
-    pub node_id: String,
+    /// Where the pin sits, or `None` for a thread opened before pins were
+    /// coordinates (migration 3 leaves those with nothing to put here).
+    ///
+    /// `None` is a thread that still READS — its conversation is intact and it
+    /// is listed with every other — and that has no pin to draw. That is a real
+    /// state a client has to handle rather than an error: the alternative was
+    /// inventing a position for a comment whose author pointed at an element
+    /// this build no longer resolves.
+    pub placement: Option<Placement>,
+    /// The element an older thread was pinned to, as the client named it then.
+    ///
+    /// A record, not an anchor: nothing here decides a position from it, and
+    /// this build never writes one — a pin opened now is coordinates and carries
+    /// no element. It is kept because it is the only thing left that says what
+    /// those comments were about, and it is what a client can show beside a
+    /// thread it cannot place.
+    pub anchor_hint: Option<String>,
     pub created_at: u64,
     pub resolved: bool,
     /// Set exactly when `resolved` is, and written together with it (see
@@ -144,7 +213,8 @@ pub(crate) struct CommentThread {
 /// returns, before the rows are folded back into threads.
 struct JoinedRow {
     id: i64,
-    node_id: String,
+    placement: Option<Placement>,
+    anchor_hint: Option<String>,
     created_at: u64,
     resolved: bool,
     resolved_at: Option<u64>,
@@ -178,7 +248,8 @@ fn comment_at(row: &Row<'_>, first: usize) -> rusqlite::Result<Option<Comment>> 
 
 /// Threads with their comments, joined, so one document's whole conversation is
 /// one query rather than one per thread.
-const THREAD_QUERY: &str = "SELECT t.id, t.node_id, t.created_at, t.resolved,
+const THREAD_QUERY: &str =
+    "SELECT t.id, t.page_id, t.x, t.y, t.anchor_hint, t.created_at, t.resolved,
             t.resolved_at, t.resolved_by, t.resolved_by_name,
             c.id, c.author_id, c.author_name, c.author_role, c.body, c.created_at
        FROM comment_threads AS t
@@ -198,7 +269,8 @@ fn fold_threads(rows: Vec<JoinedRow>) -> Vec<CommentThread> {
     for row in rows {
         let JoinedRow {
             id,
-            node_id,
+            placement,
+            anchor_hint,
             created_at,
             resolved,
             resolved_at,
@@ -212,7 +284,8 @@ fn fold_threads(rows: Vec<JoinedRow>) -> Vec<CommentThread> {
         if threads.last().map(|thread| thread.id) != Some(id) {
             threads.push(CommentThread {
                 id,
-                node_id,
+                placement,
+                anchor_hint,
                 created_at,
                 resolved,
                 resolved_at,
@@ -276,15 +349,29 @@ fn read_thread(
 
 /// Read one joined row's thread columns.
 fn thread_row(row: &Row<'_>) -> rusqlite::Result<JoinedRow> {
+    // Read separately and folded here rather than as three fields on the row
+    // struct, because the schema stores a pin as one fact: `page_id`
+    // with no coordinates (or the other way round) is refused by migration 3's
+    // CHECK, so the only two shapes a row can have are "all three" and "none".
+    // A row that somehow held half of one reads as no pin — which is the same
+    // answer as a thread written before pins were coordinates, and the honest
+    // one: there is no point to draw.
+    let page_id: Option<String> = row.get(1)?;
+    let x: Option<f64> = row.get(2)?;
+    let y: Option<f64> = row.get(3)?;
     Ok(JoinedRow {
         id: row.get(0)?,
-        node_id: row.get(1)?,
-        created_at: row.get(2)?,
-        resolved: row.get(3)?,
-        resolved_at: row.get(4)?,
-        resolved_by: row.get(5)?,
-        resolved_by_name: row.get(6)?,
-        comment: comment_at(row, 7)?,
+        placement: match (page_id, x, y) {
+            (Some(page_id), Some(x), Some(y)) => Some(Placement { page_id, x, y }),
+            _ => None,
+        },
+        anchor_hint: row.get(4)?,
+        created_at: row.get(5)?,
+        resolved: row.get(6)?,
+        resolved_at: row.get(7)?,
+        resolved_by: row.get(8)?,
+        resolved_by_name: row.get(9)?,
+        comment: comment_at(row, 10)?,
     })
 }
 
@@ -388,6 +475,29 @@ fn insert_comment(
 /// has no comments yet" — the one a client shows an empty panel for and the
 /// other a 404. Every function here keeps that distinction, so a route can turn
 /// it into one reply without asking a second question.
+///
+/// ## Why this is the whole conversation and not one page's
+///
+/// A document's threads arrive together, with no page filter at this level or
+/// at the route's. The reasons, in the order they decided it:
+///
+/// * The client is the only side that knows which pages exist. Pages live in
+///   the `.op` file, and this module deliberately cannot see it — nothing here
+///   may touch the document (`super::web_canvas_server::comment_routes` says
+///   why). A `WHERE page_id = ?` on a name the store cannot resolve would
+///   answer "this page has no comments" for a page that was renamed, deleted,
+///   or never existed, and a client drawing pins would believe it.
+/// * A pin is drawn per page, but almost everything else about a conversation
+///   is per document: the panel, the count, "which pages have anything on
+///   them", and the marker a page strip shows. A filter would make those into
+///   one request per page, over a payload the same argument for not paging
+///   already calls small — a review, not a forum.
+///
+/// What would change this: a document whose conversation grows past what one
+/// answer should carry. The answer then is paging (or a filter the route can
+/// honestly describe as "rows I have, matching a name I do not check"), and it
+/// belongs beside these rows in a request with a limit — not as a filter that
+/// claims to know the document's pages.
 pub(crate) fn list_threads(
     db: &DocumentDb,
     document_key: &str,
@@ -399,7 +509,7 @@ pub(crate) fn list_threads(
     read_threads(&conn, document_key, None).map(Some)
 }
 
-/// Open a thread on `node_id` with its first comment.
+/// Open a thread at `placement` with its first comment.
 ///
 /// The thread and that comment land in one transaction: a thread with no
 /// comments is a pin that shows nothing when it is clicked, and there is no
@@ -407,10 +517,15 @@ pub(crate) fn list_threads(
 /// key — asked as part of the insert itself (`INSERT ... SELECT` from
 /// `documents`), so the foreign key cannot be reached with a key that has no
 /// row, and nothing is written when it has none.
+///
+/// `anchor_hint` is not in the column list on purpose: a pin opened now is
+/// coordinates and points at no element, so the only writer of that column is
+/// migration 3, carrying over what an older thread knew. A `DEFAULT NULL` would
+/// say the same thing less clearly.
 pub(crate) fn create_thread(
     db: &DocumentDb,
     document_key: &str,
-    node_id: &str,
+    placement: Placement,
     comment: NewComment<'_>,
     created_at: u64,
 ) -> Result<Option<CommentThread>, DocumentStoreError> {
@@ -418,9 +533,15 @@ pub(crate) fn create_thread(
     let tx = conn.unchecked_transaction().map_err(db_error)?;
     let inserted = tx
         .execute(
-            "INSERT INTO comment_threads (document_key, node_id, created_at, resolved)
-             SELECT key, ?2, ?3, 0 FROM documents WHERE key = ?1",
-            params![document_key, node_id, created_at],
+            "INSERT INTO comment_threads (document_key, page_id, x, y, created_at, resolved)
+             SELECT key, ?2, ?3, ?4, ?5, 0 FROM documents WHERE key = ?1",
+            params![
+                document_key,
+                placement.page_id,
+                placement.x,
+                placement.y,
+                created_at,
+            ],
         )
         .map_err(db_error)?;
     if inserted == 0 {

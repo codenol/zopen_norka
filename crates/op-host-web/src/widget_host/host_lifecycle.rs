@@ -11,7 +11,8 @@ impl WidgetHost {
     pub fn new() -> Self {
         // A fresh launch opens with a single empty starter Frame —
         // see `EditorState::starter`.
-        let editor_state = op_editor_core::EditorState::starter();
+        let mut editor_state = op_editor_core::EditorState::starter();
+        declare_host_capabilities(&mut editor_state);
         // Seed the render scene once up front; subsequent frames
         // re-derive only when `editor_state_dirty` is set.
         let layout_scene = op_pen_loader::editor_state_to_active_page_layout_scene(&editor_state);
@@ -59,7 +60,6 @@ impl WidgetHost {
             recovery_banner_rect: None,
             comments_panel_rect: None,
             comments_popover_rect: None,
-            comments_toggle_rect: None,
             last_viewport_w: 0.0,
             last_viewport_h: 0.0,
             last_cursor_x: 0.0,
@@ -315,4 +315,16 @@ impl WidgetHost {
         );
         self.mark_dirty();
     }
+}
+
+/// What this host can do, declared on every state it installs.
+///
+/// A host capability is not document state: opening a file, starting a new one
+/// or ingesting an import hands the host a fresh `EditorState`, and a flag that
+/// lived only in the constructor would be lost by the first of those. The
+/// comment client (`crate::web_comments`) is what makes the comment tool real —
+/// without it the tool has no list to show and no write to send — so it is
+/// declared at both seams: here and in the constructor above.
+pub(super) fn declare_host_capabilities(state: &mut op_editor_core::EditorState) {
+    state.editor_ui.comments.transport = true;
 }

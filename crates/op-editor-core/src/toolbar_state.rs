@@ -12,12 +12,20 @@
 use crate::tool::Tool;
 
 /// One-shot action a toolbar button can dispatch.
+///
+/// `ToggleComments` is a mode switch rather than a command, and it sits in this
+/// enum with `ToggleVariablesPanel` for the same reason: both are "show me this
+/// instead", both are decided by state the widget layer already reads, and
+/// neither needs a `Tool` variant — the tool enum is what a canvas click
+/// *builds*, and a comment is not a node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolbarAction {
     Undo,
     Redo,
     ToggleVariablesPanel,
     ToggleDesignPanel,
+    /// Activate or leave the comment tool.
+    ToggleComments,
 }
 
 /// Which toolbar item the cursor is over. `None` on

@@ -423,25 +423,27 @@ pub fn panel_rows(kit: &crate::KitManifest, spec: Option<&DesignMdSpec>) -> Vec<
         saved: stored_instruction.is_some(),
         is_primary: true,
     }];
-    rows.extend(component_documents(kit, spec)
-        .into_iter()
-        .map(|doc| PanelRow {
-            label: doc.name.clone(),
-            rule_id: doc.rule_id,
-            title: doc.name,
-            body: doc.body,
-            scope: DesignRuleScope::ComponentType {
-                kit_id: kit.id.clone(),
-                type_id: doc.type_id,
-            },
-            enabled: doc.enabled,
-            removable: false,
-            is_component: true,
-            is_recipe: false,
-            saved: doc.saved,
-            is_primary: false,
-        })
-        .collect::<Vec<PanelRow>>());
+    rows.extend(
+        component_documents(kit, spec)
+            .into_iter()
+            .map(|doc| PanelRow {
+                label: doc.name.clone(),
+                rule_id: doc.rule_id,
+                title: doc.name,
+                body: doc.body,
+                scope: DesignRuleScope::ComponentType {
+                    kit_id: kit.id.clone(),
+                    type_id: doc.type_id,
+                },
+                enabled: doc.enabled,
+                removable: false,
+                is_component: true,
+                is_recipe: false,
+                saved: doc.saved,
+                is_primary: false,
+            })
+            .collect::<Vec<PanelRow>>(),
+    );
     rows.extend(kit.recipes.iter().map(|recipe| {
         let rule_id = recipe_document_id(&recipe.id);
         let stored = spec.and_then(|spec| spec.rules.iter().find(|rule| rule.id == rule_id));

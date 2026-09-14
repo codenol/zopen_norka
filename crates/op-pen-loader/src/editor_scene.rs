@@ -87,14 +87,12 @@ pub fn editor_state_to_active_page_layout_scene(
             &doc_pages[active_page_index].children,
         )
     } else {
-        let (id, name) = if state.doc.children.is_empty() {
-            ("n1".to_string(), "Page 1".to_string())
-        } else {
-            (
-                "page-1".to_string(),
-                state.doc.name.as_deref().unwrap_or("Page 1").to_string(),
-            )
-        };
+        // The single-page fallback is not spelled here: `active_page_identity`
+        // is the one place that decides what a document without a `pages` array
+        // calls its page, and this scene's page id has to be that same string —
+        // a page-scoped projection (comment pins, the comment rail) is keyed on
+        // it, and two rules would place a marker on a page nobody named.
+        let (id, name) = state.active_page_identity();
         (
             vec![ScenePage {
                 id,

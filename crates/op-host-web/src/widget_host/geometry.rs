@@ -89,6 +89,17 @@ impl WidgetHost {
         }
     }
 
+    /// The id of the page being edited, as every page-scoped projection names it.
+    ///
+    /// Read from the editor state, which is where the rule lives
+    /// (`EditorState::active_page_identity`) and which the render scene builder
+    /// also calls — so the canvas, the pins and the comment rail can only ever
+    /// agree about which page they are on. Never empty: a document with no
+    /// `pages` array gets the same synthesized id the scene uses for it.
+    pub(in crate::widget_host) fn active_page_id(&self) -> String {
+        self.editor_state.active_page_identity().0
+    }
+
     /// Anchor / bezier-handle hit-test for the selected Path node.
     /// The math is shared with the native host — see
     /// `op_editor_ui::widgets::host_canvas_geometry::path_anchor_hit`.

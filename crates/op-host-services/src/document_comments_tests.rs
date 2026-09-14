@@ -6,6 +6,14 @@
 //! never take on purpose — a thread with no comments, an id that has to be
 //! reached through the wrong document, a document that vanishes under a
 //! conversation.
+//!
+//! A thread is placed at a point on a page (see [`Placement`]) rather than
+//! anchored to an element, so the pins here are coordinates. The element-typed
+//! assertions this file used to make are not gone, they are read differently:
+//! where a test said "the thread is on n1" it now says "the thread is at
+//! (x, y) on p1", and what used to be `node_id` is the `anchor_hint` a migrated
+//! thread carries — a record with a test of its own
+//! ([`a_thread_without_coordinates_still_reads_as_a_thread`]).
 
 use super::*;
 use crate::document_store::DocumentEntry;
@@ -28,6 +36,15 @@ fn seed_document(db: &DocumentDb, key: &str, name: &str) {
         },
     )
     .expect("insert a document");
+}
+
+/// A pin at a point on a page.
+fn pin(page_id: &str, x: f64, y: f64) -> Placement {
+    Placement {
+        page_id: page_id.to_string(),
+        x,
+        y,
+    }
 }
 
 /// A comment about to be written.
@@ -60,13 +77,21 @@ fn a_thread_is_created_with_its_first_comment_and_reads_back_whole() {
     let created = create_thread(
         &db,
         "aaaaaaaa00000001",
-        "n1",
+        pin("page-1", 120.5, -40.25),
         comment(Some("userA"), "Anya", "Fix the padding here"),
         100,
     )
     .expect("create")
     .expect("a document carries the key");
-    assert_eq!(created.node_id, "n1");
+    assert_eq!(
+        created.placement,
+        Some(pin("page-1", 120.5, -40.25)),
+        "the pin is where it was put, on the page it named"
+    );
+    assert_eq!(
+        created.anchor_hint, None,
+        "a comment placed now points at no element"
+    );
     assert_eq!(created.created_at, 100);
     assert!(!created.resolved, "a new thread is open");
     assert_eq!(created.resolved_at, None);
@@ -85,6 +110,48 @@ fn a_thread_is_created_with_its_first_comment_and_reads_back_whole() {
 }
 
 #[test]
+fn a_pin_is_read_back_exactly_as_it_was_written() {
+    // Coordinates are stored as REAL and carried as f64 for a reason (see
+    // `Placement`): the editor's geometry is fractional, and a pin that came
+    // back on a rounded pixel would sit visibly beside the point somebody
+    // clicked. The values here are the ones a rounding step would move — a
+    // fractional part well past what an integer column keeps, a negative, and
+    // the origin — and they are asserted equal, not approximately equal.
+    let dir = TempDir::new("comments-pin-precision");
+    let db = dir.open();
+    let key = "aaaaaaaa00000001";
+    seed_document(&db, key, "Work");
+
+    for (page_id, x, y) in [
+        ("page-1", 1234.567_890_123_4, -0.125),
+        ("page-1", 0.0, 0.0),
+        // The page is part of the address: the same numbers on another page
+        // are another pin.
+        ("page-2", 1234.567_890_123_4, -0.125),
+    ] {
+        create_thread(&db, key, pin(page_id, x, y), comment(None, "", "here"), 10)
+            .expect("create")
+            .expect("document");
+    }
+
+    let placements: Vec<Option<Placement>> = list_threads(&db, key)
+        .expect("list")
+        .expect("document")
+        .into_iter()
+        .map(|thread| thread.placement)
+        .collect();
+    assert_eq!(
+        placements,
+        vec![
+            Some(pin("page-1", 1234.567_890_123_4, -0.125)),
+            Some(pin("page-1", 0.0, 0.0)),
+            Some(pin("page-2", 1234.567_890_123_4, -0.125)),
+        ],
+        "and the third is not the first: a pin is page and point together"
+    );
+}
+
+#[test]
 fn the_order_is_creation_time_and_then_the_order_things_were_written() {
     // Timestamps are seconds, so a thread opened and answered inside one second
     // is the ordinary case rather than a corner: the rowid is what decides, and
@@ -94,14 +161,14 @@ fn the_order_is_creation_time_and_then_the_order_things_were_written() {
     let key = "aaaaaaaa00000001";
     seed_document(&db, key, "Work");
 
-    let first = create_thread(&db, key, "a", comment(None, "", "one"), 500)
+    let first = create_thread(&db, key, pin("p", 1.0, 1.0), comment(None, "", "one"), 500)
         .expect("create")
         .expect("document");
-    let second = create_thread(&db, key, "b", comment(None, "", "two"), 500)
+    let second = create_thread(&db, key, pin("p", 2.0, 2.0), comment(None, "", "two"), 500)
         .expect("create")
         .expect("document");
     // Written last, but created first: the timestamp wins over the insert order.
-    let oldest = create_thread(&db, key, "c", comment(None, "", "three"), 400)
+    let oldest = create_thread(&db, key, pin("p", 3.0, 3.0), comment(None, "", "three"), 400)
         .expect("create")
         .expect("document");
     assert!(oldest.id > second.id, "ids are handed out in write order");
@@ -137,9 +204,15 @@ fn a_reply_joins_its_thread_and_the_author_name_is_a_snapshot() {
     let db = dir.open();
     let key = "aaaaaaaa00000001";
     seed_document(&db, key, "Work");
-    let thread = create_thread(&db, key, "n1", comment(Some("userA"), "Anya", "first"), 10)
-        .expect("create")
-        .expect("document");
+    let thread = create_thread(
+        &db,
+        key,
+        pin("page-1", 10.0, 20.0),
+        comment(Some("userA"), "Anya", "first"),
+        10,
+    )
+    .expect("create")
+    .expect("document");
 
     let answered = add_reply(
         &db,
@@ -152,6 +225,9 @@ fn a_reply_joins_its_thread_and_the_author_name_is_a_snapshot() {
     .expect("the thread is there");
     assert_eq!(answered.comments.len(), 2);
     assert_eq!(answered.comments[1].author_name, "Boris");
+    // Answering does not move the pin: the thread is the same place, whatever is
+    // said in it.
+    assert_eq!(answered.placement, thread.placement);
 
     // Somebody renamed: the comment they already wrote still reads as the name
     // they had when they wrote it, which is the whole reason the name is stored
@@ -185,9 +261,15 @@ fn resolving_records_who_closed_the_thread_and_reopening_clears_it() {
     let db = dir.open();
     let key = "aaaaaaaa00000001";
     seed_document(&db, key, "Work");
-    let thread = create_thread(&db, key, "n1", comment(Some("userA"), "Anya", "hello"), 10)
-        .expect("create")
-        .expect("document");
+    let thread = create_thread(
+        &db,
+        key,
+        pin("page-1", 5.0, 6.0),
+        comment(Some("userA"), "Anya", "hello"),
+        10,
+    )
+    .expect("create")
+    .expect("document");
 
     let closed = set_resolved(
         &db,
@@ -210,6 +292,9 @@ fn resolving_records_who_closed_the_thread_and_reopening_clears_it() {
     assert_eq!(closed.resolved_by_name.as_deref(), Some("Boris"));
     // Closing a thread is not a way to lose what was said in it.
     assert_eq!(closed.comments.len(), 1);
+    // Nor a way to lose where it was: a closed comment is still a comment
+    // somebody has to be able to find on the canvas.
+    assert_eq!(closed.placement, thread.placement);
 
     // Closing it again moves the stamp to whoever closed it now: the field
     // answers "who closed this", and the last person to do so is the answer.
@@ -264,9 +349,15 @@ fn a_thread_is_reached_only_through_its_own_document() {
     let (mine, theirs) = ("aaaaaaaa00000001", "aaaaaaaa00000002");
     seed_document(&db, mine, "Mine");
     seed_document(&db, theirs, "Theirs");
-    let thread = create_thread(&db, mine, "n1", comment(Some("userA"), "Anya", "hello"), 10)
-        .expect("create")
-        .expect("document");
+    let thread = create_thread(
+        &db,
+        mine,
+        pin("page-1", 1.0, 2.0),
+        comment(Some("userA"), "Anya", "hello"),
+        10,
+    )
+    .expect("create")
+    .expect("document");
 
     assert_eq!(
         add_reply(&db, theirs, thread.id, comment(None, "", "trespass"), 11).expect("reply"),
@@ -297,6 +388,7 @@ fn a_thread_is_reached_only_through_its_own_document() {
         .expect("the thread");
     assert_eq!(untouched.comments.len(), 1);
     assert!(!untouched.resolved);
+    assert_eq!(untouched.placement, Some(pin("page-1", 1.0, 2.0)));
     assert_eq!(
         thread_author(&db, mine, thread.id).expect("author"),
         ThreadAuthor::Account("userA".to_string())
@@ -308,13 +400,15 @@ fn a_thread_cannot_be_opened_on_a_document_the_store_does_not_have() {
     // The foreign key is what says a conversation belongs to a stored document;
     // the insert asks for the row itself (`INSERT ... SELECT`) so that a key
     // naming no document is one answer — None — rather than a constraint
-    // violation surfacing as a 500.
+    // violation surfacing as a 500. The pin is written by the same statement,
+    // so a refused key leaves no coordinates behind either.
     let dir = TempDir::new("comments-no-document");
     let db = dir.open();
     let key = "aaaaaaaa00000009";
 
     assert_eq!(
-        create_thread(&db, key, "n1", comment(None, "", "hello"), 10).expect("create"),
+        create_thread(&db, key, pin("page-1", 1.0, 1.0), comment(None, "", "hello"), 10)
+            .expect("create"),
         None
     );
     assert_eq!(count_rows(&db, "comment_threads"), 0);
@@ -327,19 +421,33 @@ fn deleting_a_document_takes_its_threads_and_their_comments_with_it() {
     // Proves the cascade reaches two levels down: the document's threads go
     // through one foreign key, and each thread's comments through the next.
     // Without `foreign_keys=ON` — or without SQLite cascading further from a
-    // cascaded delete — the rows would survive the document they describe.
+    // cascaded delete — the rows would survive the document they describe. This
+    // is the property migration 3 had to keep while it rebuilt both tables, and
+    // the reason it drops the child before the parent.
     let dir = TempDir::new("comments-cascade");
     let db = dir.open();
     let (mine, theirs) = ("aaaaaaaa00000001", "aaaaaaaa00000002");
     seed_document(&db, mine, "Mine");
     seed_document(&db, theirs, "Theirs");
-    let mine_thread = create_thread(&db, mine, "n1", comment(None, "", "mine"), 10)
-        .expect("create")
-        .expect("document");
+    let mine_thread = create_thread(
+        &db,
+        mine,
+        pin("page-1", 1.0, 1.0),
+        comment(None, "", "mine"),
+        10,
+    )
+    .expect("create")
+    .expect("document");
     add_reply(&db, mine, mine_thread.id, comment(None, "", "more"), 11).expect("reply");
-    create_thread(&db, theirs, "n2", comment(None, "", "theirs"), 10)
-        .expect("create")
-        .expect("document");
+    create_thread(
+        &db,
+        theirs,
+        pin("page-1", 2.0, 2.0),
+        comment(None, "", "theirs"),
+        10,
+    )
+    .expect("create")
+    .expect("document");
     assert_eq!(count_rows(&db, "comment_threads"), 2);
     assert_eq!(count_rows(&db, "comments"), 3);
 
@@ -371,9 +479,15 @@ fn the_local_operator_is_recorded_with_no_account_and_no_invented_name() {
     let db = dir.open();
     let key = "aaaaaaaa00000001";
     seed_document(&db, key, "Work");
-    let thread = create_thread(&db, key, "n1", comment(None, "", "local"), 10)
-        .expect("create")
-        .expect("document");
+    let thread = create_thread(
+        &db,
+        key,
+        pin("page-1", 3.5, 4.5),
+        comment(None, "", "local"),
+        10,
+    )
+    .expect("create")
+    .expect("document");
     assert_eq!(thread.comments[0].author_id, None);
     assert_eq!(thread.comments[0].author_name, "");
     assert_eq!(
@@ -396,16 +510,95 @@ fn a_thread_without_comments_is_still_listed() {
     seed_document(&db, key, "Work");
     db.conn()
         .execute(
-            "INSERT INTO comment_threads (document_key, node_id, created_at, resolved)
-             VALUES (?1, 'n9', 7, 0)",
+            "INSERT INTO comment_threads (document_key, page_id, x, y, created_at, resolved)
+             VALUES (?1, 'page-9', 7.5, 8.5, 7, 0)",
             params![key],
         )
         .expect("insert a thread by hand");
 
     let threads = list_threads(&db, key).expect("list").expect("document");
     assert_eq!(threads.len(), 1);
-    assert_eq!(threads[0].node_id, "n9");
+    assert_eq!(threads[0].placement, Some(pin("page-9", 7.5, 8.5)));
     assert!(threads[0].comments.is_empty());
+}
+
+#[test]
+fn a_thread_without_coordinates_still_reads_as_a_thread() {
+    // The shape migration 3 leaves behind: a thread that was anchored to an
+    // element under migration 2, carried over with its hint and with no
+    // coordinates. It must still be LISTED, with its conversation intact — that
+    // is the whole reason the migration keeps the rows instead of dropping the
+    // ones it cannot place — and it must read as having no pin rather than as
+    // having one this build made up.
+    let dir = TempDir::new("comments-no-pin");
+    let db = dir.open();
+    let key = "aaaaaaaa00000001";
+    seed_document(&db, key, "Work");
+    db.conn()
+        .execute(
+            "INSERT INTO comment_threads (document_key, anchor_hint, created_at, resolved)
+             VALUES (?1, 'n7', 7, 1)",
+            params![key],
+        )
+        .expect("insert a thread in the migrated shape");
+    db.conn()
+        .execute(
+            "INSERT INTO comments (thread_id, author_id, author_name, body, created_at)
+             SELECT id, 'userA', 'Anya', 'written before pins were coordinates', 7
+               FROM comment_threads WHERE document_key = ?1",
+            params![key],
+        )
+        .expect("insert its comment");
+
+    let threads = list_threads(&db, key).expect("list").expect("document");
+    assert_eq!(threads.len(), 1);
+    assert_eq!(
+        threads[0].placement, None,
+        "there is no point to draw, and none is invented for it"
+    );
+    assert_eq!(
+        threads[0].anchor_hint.as_deref(),
+        Some("n7"),
+        "the element it used to point at is what is left to say about it"
+    );
+    assert!(threads[0].resolved, "and the rest of the record is untouched");
+    assert_eq!(threads[0].comments.len(), 1);
+    assert_eq!(threads[0].comments[0].body, "written before pins were coordinates");
+}
+
+#[test]
+fn the_schema_refuses_half_a_pin() {
+    // Migration 3's CHECK. A page with no point, or a point with no page, is
+    // not a place anything can be drawn, and the reader folds such a row into
+    // "no pin" (see `thread_row`) — a silent answer for a row that should never
+    // exist. The constraint is what makes that unreachable for writes from
+    // anywhere, including the ones that do not come through this module.
+    let dir = TempDir::new("comments-half-pin");
+    let db = dir.open();
+    let key = "aaaaaaaa00000001";
+    seed_document(&db, key, "Work");
+
+    let page_only = db.conn().execute(
+        "INSERT INTO comment_threads (document_key, page_id, created_at, resolved)
+         VALUES (?1, 'page-1', 7, 0)",
+        params![key],
+    );
+    assert!(
+        page_only.is_err(),
+        "a page with no coordinates is not a pin: {page_only:?}"
+    );
+
+    let point_only = db.conn().execute(
+        "INSERT INTO comment_threads (document_key, x, y, created_at, resolved)
+         VALUES (?1, 1.0, 2.0, 7, 0)",
+        params![key],
+    );
+    assert!(
+        point_only.is_err(),
+        "coordinates with no page are not a pin either: {point_only:?}"
+    );
+
+    assert_eq!(count_rows(&db, "comment_threads"), 0);
 }
 
 #[test]
@@ -419,17 +612,29 @@ fn a_thread_id_is_never_handed_out_twice() {
     let db = dir.open();
     let key = "aaaaaaaa00000001";
     seed_document(&db, key, "Work");
-    let first = create_thread(&db, key, "n1", comment(None, "", "first"), 10)
-        .expect("create")
-        .expect("document");
+    let first = create_thread(
+        &db,
+        key,
+        pin("page-1", 1.0, 1.0),
+        comment(None, "", "first"),
+        10,
+    )
+    .expect("create")
+    .expect("document");
 
     // The highest row goes away with its document, which is exactly when SQLite
     // would reuse the id without AUTOINCREMENT.
     crate::document_db::delete_entry(&db, key).expect("delete");
     seed_document(&db, key, "Work again");
-    let second = create_thread(&db, key, "n2", comment(None, "", "second"), 20)
-        .expect("create")
-        .expect("document");
+    let second = create_thread(
+        &db,
+        key,
+        pin("page-1", 2.0, 2.0),
+        comment(None, "", "second"),
+        20,
+    )
+    .expect("create")
+    .expect("document");
     assert!(
         second.id > first.id,
         "a new thread must not take the id of a deleted one: {} vs {}",
@@ -451,7 +656,7 @@ fn the_authors_role_is_a_snapshot_beside_the_name() {
     create_thread(
         &db,
         "aaaaaaaa00000002",
-        "n1",
+        pin("page-1", 1.0, 1.0),
         NewComment {
             author: Author {
                 id: Some("userA"),
@@ -475,7 +680,7 @@ fn the_authors_role_is_a_snapshot_beside_the_name() {
     create_thread(
         &db,
         "aaaaaaaa00000003",
-        "n1",
+        pin("page-1", 1.0, 1.0),
         comment(None, "", "local"),
         100,
     )

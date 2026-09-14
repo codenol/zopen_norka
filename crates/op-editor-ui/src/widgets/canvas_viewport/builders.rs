@@ -83,9 +83,23 @@ impl<'a> CanvasViewport<'a> {
             collab_presence: crate::widgets::canvas_collab_presence::snapshot(
                 &state.editor_ui.collab,
             ),
-            comment_threads: crate::widgets::comment_pins::threads_for(
-                &state.editor_ui.comments,
-            ),
+            // The page being shown, named by the one rule both this scene and
+            // the comment rail use: the markers below are this page's, and the
+            // number each carries is its position in the rail's list.
+            //
+            // Markers exist only while the comment tool is active. A review is a
+            // mode — the same one that puts the list in the right rail — so
+            // outside it the canvas is the design and nothing else: a pin nobody
+            // can press (a press outside the mode selects) would be a mark that
+            // answers nothing.
+            comment_threads: if state.editor_ui.comments.rail_visible() {
+                crate::widgets::comment_pins::threads_for_page(
+                    &state.editor_ui.comments,
+                    &state.active_page_identity().0,
+                )
+            } else {
+                Vec::new()
+            },
             comment_pin_hover: None,
             fast_interaction: false,
             cull_override: None,
