@@ -334,7 +334,6 @@ cat design.dsl | op design - # 从 stdin 管道输入
 - 场景模板中心 — 一个可浏览的目录，涵盖六大场景下的 58 个模板，从「文件 ▸ 从模板新建」打开
 - 提示词中心，包含 web、仪表盘、组件与修改条目及可视化提示词预览
 - 素材中心 — 全窗口响应式画廊，配有双动作模板与 DESIGN.md 风格导入
-- [Chrome 网页捕获扩展](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — 将任意网页快照到 OpenPencil，支持高保真的 HTML / 布局捕获；快照会送达你账户在 hub 上的收件箱，或在离线时下载为一个可直接打开的 `.op` 文件
 
 **Git 集成**
 

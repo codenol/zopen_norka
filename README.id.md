@@ -336,7 +336,6 @@ Mendukung string inline, `@filepath`, dan stdin (`-`). Bekerja dengan aplikasi d
 - Pusat templat scene — katalog yang dapat dijelajahi berisi 58 templat di enam scene, dibuka dari File ▸ New from template
 - Pusat prompt dengan entri web, dashboard, component, dan modify serta pratinjau prompt visual
 - Pusat aset — galeri responsif satu jendela penuh dengan templat aksi ganda dan impor gaya DESIGN.md
-- [Ekstensi web-capture Chrome](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — snapshot halaman web apa pun ke OpenPencil dengan penangkapan HTML / layout yang setia; snapshot dikirim ke kotak masuk akun Anda di hub, atau diunduh sebagai file `.op` yang siap dibuka secara offline
 
 **Integrasi Git**
 
@@ -526,7 +525,6 @@ Kontribusi sangat disambut! Lihat [CLAUDE.md](./CLAUDE.md) untuk detail arsitekt
 - [x] Pengeditan kolaboratif — P2P terautentikasi, relay publik, dan hub regional
 - [x] Dek presentasi — templat, presenter slideshow, dan ekspor PDF/HTML/PPTX/video
 - [x] Login perangkat dan hosting web multi-tenant online
-- [x] Ekstensi web-capture Chrome dengan impor HTML / browser-snapshot
 - [ ] Sistem plugin
 
 ## Kontributor

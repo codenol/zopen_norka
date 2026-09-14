@@ -336,7 +336,6 @@ Admite cadenas inline, `@filepath` y stdin (`-`). Funciona con la app de escrito
 - Centro de plantillas de escena — un catálogo navegable de 58 plantillas en seis escenas, abierto desde Archivo ▸ Nuevo desde plantilla
 - Centro de prompts con entradas de web, dashboard, componente y modificación, y vistas previas visuales de prompts
 - Centro de assets — una galería responsiva a pantalla completa con plantillas de doble acción e importación de estilo DESIGN.md
-- [Extensión de Chrome de captura web](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — captura cualquier página web en OpenPencil con una captura fiel del HTML / del diseño; las instantáneas se entregan en la bandeja de entrada de tu cuenta en el hub, o se descargan sin conexión como un archivo `.op` listo para abrir
 
 **Integración con Git**
 

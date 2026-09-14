@@ -1,9 +1,9 @@
 //! Browser-extension snapshot ingress (`POST /api/import/web-snapshot`).
 //!
-//! The OpenPencil Chrome extension (`packages/op-chrome-extension`) runs
-//! the canonical DOM extractor (`op-html/assets/snapshot-extractor.js`) in
-//! the active tab and has to hand the resulting JSON to the running
-//! editor. It cannot use the general `/mcp` surface:
+//! An extension-origin caller runs the canonical DOM extractor
+//! (`op-html/assets/snapshot-extractor.js`) in the active tab and has to hand
+//! the resulting JSON to the running editor. It cannot use the general `/mcp`
+//! surface:
 //!
 //! * `admission::check_boundary` refuses every `Origin` other than this
 //!   instance's own loopback origin, and a browser ALWAYS attaches

@@ -51,6 +51,24 @@ here at a glance.
   sign-in work stands on, landed first so that the visible half is a change to
   behaviour rather than a change to storage.
 
+- **Signing in from the browser.** The daemon could sign people in; the browser
+  had no way to ask. It does now: the web shell reads `GET /api/auth/status`,
+  and — only where that answer says this deployment has accounts and nobody is
+  signed in — shows a name-and-password form over the editor. A wrong name and a
+  wrong password get one and the same sentence (the store refuses to say which,
+  so the form must not guess), a disabled account says so, and the typed
+  password is dropped from editor state the moment the request carrying it is
+  built. A deployment with no accounts at all shows how to create one
+  (`NORKA_ADMIN_USERNAME`/`NORKA_ADMIN_PASSWORD`, or `op admin create`) instead
+  of a form that could only refuse. Signing out is the account menu's own row,
+  and it re-reads the status rather than assuming either outcome.
+
+- **Invitations open where the link points.** `GET /invite/<token>` serves the
+  editor page and shows an acceptance form — account name, password twice, an
+  optional display name — that posts to `POST /api/auth/invite/accept` and, on
+  success, leaves the visitor signed in. A spent, expired or unknown link says
+  which of the three it is.
+
 ### Changed
 
 - **A comment is placed by coordinates instead of being pinned to an element.**
@@ -76,6 +94,33 @@ here at a glance.
   Threads are listed for the page being edited, with a count of the rest.
 
 ### Removed
+
+- **The browser extension, and the Rust crate behind it.** The Manifest V3
+  Chrome extension is gone from the tree — `packages/op-chrome-extension/` and
+  everything in it (manifest, locales, popup, capture scripts, store
+  packaging) — together with the `crates/op-chrome-extension-core/` wasm core it
+  loaded. We do not use it and do not plan to, and it carried a client for a
+  third-party service, whose domains its manifest asked the browser for.
+
+  What only served it goes too: the version-sync guard that pinned the
+  extension manifest to the workspace version, the CI wasm32 check that
+  compiled the crate, the `packages/` lint guards and build scripts that all
+  pointed into the extension directory, and the ignore rules that existed to
+  keep its generated wasm and its vendored extractor copy out of the linters.
+
+  Nothing the product uses lived in that crate. `design.md` extraction and the
+  browser-snapshot ingress stay where they already were —
+  `crates/op-host-services` (`design_md_*`, `mcp_live/snapshot_ingest.rs`) — and
+  are unchanged.
+
+- **The browser shell's device-login proxy.** The daemon stopped serving
+  `/api/auth/login/begin`, `/api/auth/login/status`, `/api/auth/login/cancel`,
+  `/api/auth/avatar` and `/auth/loading` in the previous change; the browser
+  shell kept calling them, so signing in from a browser opened a popup that
+  could only 404. Those calls, the popup they navigated, the login-status poll
+  and the account-avatar fetch are gone, and the sign-in surface is the password
+  form. The route spellings stay in `op_editor_core::auth_routes` because the
+  daemon's tests name them to prove the 404.
 
 - **The hub, and the device-login proxy that fronted it.** Identities are this
   deployment's own, so the hub client, its error type and its verifier are

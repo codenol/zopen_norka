@@ -34,12 +34,6 @@ docs/
 # MUST be tracked (the CI diagnostics-golden drift guard reads it).
 !crates/op-design-lint/tests/fixtures/docs/
 
-# Keep the Chrome Web Store policy alongside the extension source. The bare
-# `docs/` rule above also matches nested extension documentation directories.
-!packages/op-chrome-extension/docs/
-packages/op-chrome-extension/docs/*
-!packages/op-chrome-extension/docs/privacy-policy.md
-
 # Build outputs
 out/
 dist/

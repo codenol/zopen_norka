@@ -443,7 +443,6 @@ Supports three input methods: inline string, `@filepath` (read from file), or `-
 - Scene template center — a browsable catalogue of 58 templates across six scenes, opened from File ▸ New from template
 - Prompt center with web, dashboard, component, and modify entries and visual prompt previews
 - Asset center — a full-window responsive gallery with dual-action templates and DESIGN.md style import
-- [Chrome web-capture extension](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — snapshot any webpage into OpenPencil with faithful HTML / layout capture; snapshots are delivered to your account's inbox on the hub, or downloaded as a ready-to-open `.op` file offline
 
 **Git Integration**
 
@@ -671,7 +670,6 @@ Contributions are welcome! See [CLAUDE.md](./CLAUDE.md) for architecture details
 - [x] Collaborative editing — authenticated P2P, public relay, and regional hubs
 - [x] Presentation decks — templates, slideshow presenter, and PDF/HTML/PPTX/video export
 - [x] Device login and online multi-tenant web hosting
-- [x] Chrome web-capture extension with HTML / browser-snapshot import
 - [ ] Plugin system
 
 ## Contributors

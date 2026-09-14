@@ -336,7 +336,6 @@ Satır içi metni, `@filepath` ve stdin'i (`-`) destekler. Masaüstü uygulama, 
 - Sahne şablonu merkezi — altı sahnede 58 şablonluk göz atılabilir bir katalog, Dosya ▸ Şablondan Yeni ile açılır
 - Web, gösterge paneli, bileşen ve değiştirme girdileri ile görsel prompt önizlemeleri içeren prompt merkezi
 - Varlık merkezi — çift eylemli şablonlar ve DESIGN.md stil içe aktarımı içeren tam pencere duyarlı galeri
-- [Chrome web yakalama uzantısı](https://chromewebstore.google.com/detail/openpencil/ahfofgelkdaobcmglejmjbpnajhpgcij) — sadık HTML / düzen yakalamayla herhangi bir web sayfasını OpenPencil'a anlık görüntü olarak alın; anlık görüntüler hub'daki hesabınızın gelen kutusuna teslim edilir veya çevrimdışıyken açılmaya hazır bir `.op` dosyası olarak indirilir
 
 **Git Entegrasyonu**
 

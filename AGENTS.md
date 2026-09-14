@@ -39,8 +39,7 @@ a feature that ships without them is an unfinished feature.
   then run `scripts/sync-version.sh`. That script needs the JS workspace
   installed; when it cannot run, do its work by hand: `cargo update --workspace
   --offline` for `Cargo.lock` and the same version string in
-  `packages/*/package.json`, `packages/package.json`,
-  `packages/op-chrome-extension/manifest.json` and `packages/bun.lock`.
+  `packages/*/package.json`, `packages/package.json` and `packages/bun.lock`.
 - **Build stamp** — nothing to do by hand. `crates/op-editor-ui/build.rs`
   stamps the version and the build time into the top bar, next to
   "Agents & MCP", and colours it by freshness: green under three minutes,

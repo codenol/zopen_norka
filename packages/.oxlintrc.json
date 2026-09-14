@@ -10,8 +10,6 @@
     "out",
     "dist",
     "**/routeTree.gen.ts",
-    "**/*.gen.*",
-    "op-chrome-extension/vendor/**",
-    "op-chrome-extension/wasm/**"
+    "**/*.gen.*"
   ]
 }

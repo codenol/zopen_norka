@@ -222,9 +222,6 @@ new_repo() {
         'edition = "2024"' > "$repo/Cargo.toml"
     printf '%s\n' 'version = 4' > "$repo/Cargo.lock"
     printf '%s\n' '{"name":"fixture-packages"}' > "$repo/packages/package.json"
-    mkdir -p "$repo/packages/op-chrome-extension"
-    printf '{"manifest_version":3,"name":"fixture-extension","version":"%s"}\n' "$version" \
-        > "$repo/packages/op-chrome-extension/manifest.json"
     cat > "$repo/packaging/android/app/build.gradle.kts" <<'KOTLIN'
 val repositoryRoot = rootProject.layout.projectDirectory.dir("../..")
 val androidVersionOutput = providers.exec {
