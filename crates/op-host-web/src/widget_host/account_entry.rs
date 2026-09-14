@@ -125,6 +125,33 @@ mod tests {
     }
 
     #[test]
+    fn the_form_is_a_text_input_the_host_knows_about() {
+        // Issue #87, found by signing in to the deployed build: the form had
+        // its own idea of owning the keyboard (`account_entry_takes_keyboard`)
+        // and the host's single rule did not know about it — so `r`, `t`, `v`,
+        // `p`, `y`, `o`, `l` and `h` switched canvas tools instead of reaching
+        // the field. A correct password containing any of them was refused with
+        // no way for the person to see why.
+        let host = host_showing_the_form();
+        assert!(
+            host.account_entry_takes_keyboard(),
+            "the form says it takes the keyboard"
+        );
+        assert!(
+            host.input_active(),
+            "and the host's one rule agrees — otherwise the shortcuts win"
+        );
+
+        let mut local = WidgetHost::new();
+        local.editor_state.editor_ui.account_ui_available = false;
+        local.editor_state.editor_ui.account_entry.status_received = true;
+        assert!(
+            !local.input_active(),
+            "a local deployment shows no form and keeps its shortcuts"
+        );
+    }
+
+    #[test]
     fn typing_goes_into_the_focused_field_and_nowhere_else() {
         let mut host = host_showing_the_form();
         host.editor_state.editor_ui.account_entry.focus = Some(AccountField::Username);

@@ -19,6 +19,12 @@ impl WidgetHost {
             // character (IME commit, dead key, `Input.insertText`) has nowhere
             // to land and the reviewer's typing is silently lost.
             || self.editor_state.editor_ui.comments.takes_keyboard()
+            // The sign-in form is the same story one widget later (issue #87):
+            // without this line a password containing `r`, `t`, `v`, `p`, `y`,
+            // `o`, `l` or `h` could not be typed at all — those letters are
+            // canvas tool shortcuts and the tool won. A person typing a correct
+            // password was told it was wrong, with no way to see why.
+            || self.account_entry_takes_keyboard()
             || ui.layer_rename.is_some()
             || ui.text_editing.is_some()
             || ui.property_focus.is_some()
