@@ -624,8 +624,7 @@ fn post_file_save_keeps_document_wrapper_validation_errors() {
     assert!(missing.status.starts_with("400"), "{}", missing.body);
     assert!(missing.body.contains("save failed: missing document"));
 
-    let scalar =
-        handle_local_request("POST", "/api/file/save", r#"{"document":42}"#, &mut state);
+    let scalar = handle_local_request("POST", "/api/file/save", r#"{"document":42}"#, &mut state);
     assert!(scalar.status.starts_with("400"), "{}", scalar.body);
     assert!(scalar
         .body

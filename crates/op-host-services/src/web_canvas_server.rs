@@ -785,6 +785,7 @@ fn not_found_reply() -> WebReply {
 pub(crate) use request_access::handle_local_request;
 
 mod account_admin;
+mod account_admin_routes;
 mod account_cookie;
 mod account_routes;
 mod account_verifier;

@@ -19,6 +19,14 @@ COMMON COMMANDS:
   op admin create [--data-dir DIR]         create a deployment's FIRST administrator
                                            (asks for a name and a password twice);
                                            DIR defaults to OPENPENCIL_ONLINE_DATA_DIR
+  op admin invite [--roles a,b] [--email A] issue one invitation and print the link
+                  [--origin URL] [--data-dir DIR]
+                                           --roles are this build's own roles, comma
+                                           separated (admin, ux_ui, software, analyst,
+                                           frontend, backend, qa); omitting it grants
+                                           none. --origin is prefixed to the printed
+                                           link. The token is printed ONCE and stored
+                                           only as a hash — copy the link.
   op install [--target T]                  install openpencil-skill for AI agents
   op uninstall [--target T]                uninstall openpencil-skill
   op skill:export <skill> [--out DIR]       export embedded skill as DIR/<skill>/SKILL.md

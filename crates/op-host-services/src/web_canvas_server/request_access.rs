@@ -174,6 +174,18 @@ pub enum AccessRefusal {
     NotShared,
     /// The caller may reach the document, but no role it holds grants a write.
     ReadOnly,
+    /// The caller is a perfectly ordinary signed-in account, and the thing it
+    /// asked for is not about documents at all: it is the deployment's account
+    /// list, which only a role carrying
+    /// [`Rights::can_manage_users`](op_editor_core::access::Rights::can_manage_users)
+    /// reaches.
+    ///
+    /// A refusal of its own rather than a spelling of [`Self::ReadOnly`],
+    /// because the two send the person who reads them to different places:
+    /// "your roles do not allow changing this document" is about a file, and
+    /// the account list is not a file. The status and the shape are the same
+    /// `403` every other refusal here uses.
+    NotAnAdministrator,
 }
 
 impl AccessRefusal {
@@ -186,14 +198,18 @@ impl AccessRefusal {
             // spellings of "this document is not yours".
             Self::NotShared => "tenant-not-shared",
             Self::ReadOnly => "read-only-role",
+            Self::NotAnAdministrator => "admin-role-required",
         }
     }
 
     /// HTTP status this refusal maps to.
     ///
-    /// `403` for both, and never `404`: the caller has already been told the
-    /// document exists by the route it called, so hiding it now would be a
-    /// lie the next request contradicts.
+    /// `403` for all three, and never `404`: the caller has already been told
+    /// the document exists by the route it called, so hiding it now would be a
+    /// lie the next request contradicts. For the account list the same holds
+    /// for a different reason — the route's existence is not a secret, and
+    /// answering `404` would tell a signed-in colleague that the deployment
+    /// has no account list rather than that they may not open it.
     pub const fn http_status(self) -> &'static str {
         "403 Forbidden"
     }
@@ -204,6 +220,9 @@ impl std::fmt::Display for AccessRefusal {
         match self {
             Self::NotShared => f.write_str("this document is not shared with you"),
             Self::ReadOnly => f.write_str("your roles do not allow changing this document"),
+            Self::NotAnAdministrator => {
+                f.write_str("this deployment's account list is for accounts that may manage users")
+            }
         }
     }
 }
@@ -270,6 +289,35 @@ impl<'a> RequestAccess<'a> {
             owner_id: Some(owner_id),
             caller: Some(caller),
             shared_with_caller,
+        }
+    }
+
+    /// A request against the DEPLOYMENT itself, on behalf of a verified
+    /// `caller`: the account list, the invitations, the roles.
+    ///
+    /// ## Why this is not [`Self::online`] with the caller as its own owner
+    ///
+    /// Because that is exactly the mistake the account list must not make.
+    /// Every online request is served on somebody's tenant, and a caller with
+    /// no `?tenant=` is the owner of its own — so "is this workspace yours to
+    /// configure" is true for every signed-in account, which is right for a
+    /// settings file and catastrophic for the account list. The deployment's
+    /// accounts are not a tenant's property: there is one `accounts.db` for
+    /// the whole deployment, and the question "whose workspace is this" has no
+    /// answer for it at all.
+    ///
+    /// So `owner_id` is `None` here, deliberately. Every document-shaped
+    /// decision below answers [`AccessRefusal::NotShared`] for a carrier built
+    /// this way — a route that reached for [`Self::decide`] with it would
+    /// refuse rather than fall open — and
+    /// [`Self::decide_account_administration`] is the only question it can
+    /// answer.
+    pub const fn deployment(caller: &'a ResolvedIdentity) -> Self {
+        Self {
+            mode: ServeMode::Online,
+            owner_id: None,
+            caller: Some(caller),
+            shared_with_caller: false,
         }
     }
 
@@ -408,6 +456,51 @@ impl<'a> RequestAccess<'a> {
             Ok(())
         } else {
             Err(AccessRefusal::ReadOnly)
+        }
+    }
+
+    /// May this caller read and change the DEPLOYMENT's account list — who
+    /// else is in it, what roles they hold, which invitations are outstanding?
+    ///
+    /// ## Why this is not [`Self::decide_workspace_settings`]
+    ///
+    /// That question is "is this workspace yours to configure", and it answers
+    /// `Ok` for the tenant's owner. Applied to the account list it would be
+    /// true for EVERY signed-in account — every request without a `?tenant=`
+    /// is served on the caller's own tenant, so every caller is an owner of
+    /// something — and the deployment's account list would be readable, and
+    /// re-roleable, by anybody who can sign in. It is the right answer one
+    /// right over: fine for a settings file that belongs to an account, wrong
+    /// for a table that belongs to the deployment.
+    ///
+    /// So the owner half is deliberately absent and the question is the roles
+    /// alone: [`Rights::can_manage_users`], which today only the admin role
+    /// sets. It is the same right `decide_workspace_settings` consults for the
+    /// half of ITS answer that is not the owner, so there is still one place
+    /// that decides what "may manage users" means.
+    ///
+    /// `owner_id` is not read, and a carrier built by [`Self::deployment`] has
+    /// none to read — see its docs for why the deployment is nobody's tenant.
+    ///
+    /// Refused as [`AccessRefusal::NotAnAdministrator`]; a caller with no
+    /// verified identity at all is [`AccessRefusal::NotShared`], because there
+    /// is no account to ask the question about and "no roles" must not read as
+    /// "no roles needed".
+    pub fn decide_account_administration(&self) -> Result<(), AccessRefusal> {
+        // A deployment with no accounts administers nothing and has no
+        // account list: the operator's own daemon answers exactly as it always
+        // has, and this branch is what keeps a local route from being refused
+        // by a question about roles it cannot have.
+        if !self.mode.is_online() {
+            return Ok(());
+        }
+        let Some(caller) = self.caller else {
+            return Err(AccessRefusal::NotShared);
+        };
+        if caller.roles.rights().can_manage_users() {
+            Ok(())
+        } else {
+            Err(AccessRefusal::NotAnAdministrator)
         }
     }
 

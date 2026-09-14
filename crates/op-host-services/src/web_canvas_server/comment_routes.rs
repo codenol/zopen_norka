@@ -140,10 +140,7 @@ enum CommentRequestError {
     /// The axis is carried because a client puts the message beside a field, and
     /// "x is not a number" is actionable where "a coordinate is not a number" is
     /// a search.
-    BadCoordinate {
-        axis: Axis,
-        why: NotACoordinate,
-    },
+    BadCoordinate { axis: Axis, why: NotACoordinate },
     /// The body carried `nodeId`, which no longer places a pin.
     NodeIdRetired,
     /// The id in the path is not a positive whole number.
@@ -222,9 +219,9 @@ impl std::fmt::Display for CommentRequestError {
                     axis.name()
                 ),
             },
-            Self::NodeIdRetired => f.write_str(
-                "nodeId is no longer accepted: place a comment with pageId, x and y",
-            ),
+            Self::NodeIdRetired => {
+                f.write_str("nodeId is no longer accepted: place a comment with pageId, x and y")
+            }
             Self::InvalidThreadId => f.write_str("Invalid comment thread id"),
         }
     }

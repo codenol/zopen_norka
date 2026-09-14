@@ -366,26 +366,129 @@ fn a_thread_belongs_to_its_author_and_to_whoever_may_edit_the_document() {
 }
 
 #[test]
-fn the_two_refusals_read_differently_and_carry_a_code() {
+fn the_refusals_read_differently_and_carry_a_code() {
     assert_eq!(AccessRefusal::NotShared.http_status(), "403 Forbidden");
     assert_eq!(AccessRefusal::ReadOnly.http_status(), "403 Forbidden");
+    assert_eq!(
+        AccessRefusal::NotAnAdministrator.http_status(),
+        "403 Forbidden"
+    );
     assert_eq!(AccessRefusal::NotShared.code(), "tenant-not-shared");
     assert_eq!(AccessRefusal::ReadOnly.code(), "read-only-role");
+    assert_eq!(
+        AccessRefusal::NotAnAdministrator.code(),
+        "admin-role-required"
+    );
     assert_ne!(
         AccessRefusal::NotShared.to_string(),
         AccessRefusal::ReadOnly.to_string()
+    );
+    assert_ne!(
+        AccessRefusal::ReadOnly.to_string(),
+        AccessRefusal::NotAnAdministrator.to_string()
+    );
+    assert_ne!(
+        AccessRefusal::NotShared.to_string(),
+        AccessRefusal::NotAnAdministrator.to_string()
     );
     assert!(!AccessRefusal::ReadOnly.to_string().is_empty());
 }
 
 #[test]
 fn a_refusal_renders_the_coded_body_every_route_already_uses() {
-    for refusal in [AccessRefusal::NotShared, AccessRefusal::ReadOnly] {
+    for refusal in [
+        AccessRefusal::NotShared,
+        AccessRefusal::ReadOnly,
+        AccessRefusal::NotAnAdministrator,
+    ] {
         let reply = refusal_reply(refusal);
         assert_eq!(reply.status, refusal.http_status());
         let body: serde_json::Value = serde_json::from_str(&reply.body).expect("json");
         assert_eq!(body["ok"], false);
         assert_eq!(body["error"], refusal.code());
         assert!(body["message"].as_str().is_some_and(|m| !m.is_empty()));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The deployment's account list
+// ---------------------------------------------------------------------------
+
+/// The carrier an administration route builds: the deployment, and a caller.
+fn deployment_access(caller: &ResolvedIdentity) -> RequestAccess<'_> {
+    RequestAccess::deployment(caller)
+}
+
+#[test]
+fn only_a_role_that_manages_users_reaches_the_account_list() {
+    let admin = identity("userA", &["admin"]);
+    assert_eq!(
+        deployment_access(&admin).decide_account_administration(),
+        Ok(())
+    );
+
+    // Every other role, including the one that may edit every document. A
+    // contributor reaching the account list would be able to hand out roles,
+    // which is the whole of what the list is for.
+    for roles in [
+        &[][..],
+        &["ux_ui"][..],
+        &["qa"][..],
+        &["analyst"][..],
+        &["software"][..],
+    ] {
+        let person = identity("userB", roles);
+        assert_eq!(
+            deployment_access(&person).decide_account_administration(),
+            Err(AccessRefusal::NotAnAdministrator),
+            "{roles:?}"
+        );
+    }
+}
+
+#[test]
+fn the_deployment_carrier_is_not_a_tenant_and_gives_no_document_rights() {
+    // The reason this constructor exists rather than reusing `online`: the
+    // account list is not a tenant's property, and a carrier built for it must
+    // not read as "this caller owns the workspace" — which is exactly what
+    // `online(caller_id, caller, false)` would have said.
+    let admin = identity("userA", &["admin"]);
+    let access = deployment_access(&admin);
+    for action in DocumentAction::ALL {
+        assert_eq!(
+            access.decide(action),
+            Err(AccessRefusal::NotShared),
+            "{action:?}"
+        );
+    }
+    assert!(!access.reaches_stored_document(Some("userA")));
+    // And the same account holding the same roles DOES reach its own workspace
+    // through the tenant carrier, so the two carriers are not interchangeable
+    // by accident.
+    let as_tenant = RequestAccess::online("userA", &admin, false);
+    assert_eq!(as_tenant.decide(DocumentAction::View), Ok(()));
+}
+
+#[test]
+fn an_unattributable_caller_administers_nothing() {
+    // No verified identity: there is no account to ask the question about, and
+    // "no roles" must not read as "no roles needed".
+    let nobody = RequestAccess::local_operator(ServeMode::Online);
+    assert_eq!(
+        nobody.decide_account_administration(),
+        Err(AccessRefusal::NotShared)
+    );
+}
+
+#[test]
+fn a_deployment_with_no_accounts_administers_nothing_and_refuses_nothing() {
+    // One operator, one client, no account list to protect: the local and
+    // managed daemons answer exactly as they always have.
+    for mode in [ServeMode::Local, ServeMode::Managed] {
+        assert_eq!(
+            RequestAccess::local_operator(mode).decide_account_administration(),
+            Ok(()),
+            "{mode:?}"
+        );
     }
 }

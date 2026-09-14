@@ -23,9 +23,47 @@ use super::accounts_error::AccountsError;
 use super::accounts_model::{
     checked_email, encode_roles, invite_from_row, Invite, IssuedInvite, NewInvite, INVITE_COLUMNS,
 };
-use super::accounts_secret::{hash_token, issue_token};
+use super::accounts_secret::{hash_from_hex, hash_hex, hash_token, issue_token};
 use super::accounts_users::refused_for_unknown_user;
 use super::AccountsDb;
+
+/// An invitation as an operator's LIST shows it: the row, plus the identity
+/// that names it.
+///
+/// The row itself has no id to show — its primary key is the hash of the token
+/// this store deliberately never keeps — so a list that returned plain
+/// [`Invite`] values could describe every invitation in the deployment and
+/// name none of them. [`Self::id`] is that name: the stored hash in hex, which
+/// grants nothing (see [`hash_hex`]) and exists so an operator can act on the
+/// row they are looking at.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListedInvite {
+    /// The row's identity: lowercase hex of the stored token hash.
+    pub id: String,
+    /// The row.
+    pub invite: Invite,
+}
+
+/// What happened to an attempt to withdraw an invitation.
+///
+/// Three outcomes rather than a `bool`, because the caller is an operator
+/// looking at a list and the three mean different things to them: one is the
+/// withdrawal they asked for, one says the link was already used and the
+/// account it made is the thing to deal with now, and one says their list is
+/// out of date.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InviteWithdrawal {
+    /// The row was there and is gone.
+    Revoked,
+    /// The link had already been accepted.
+    ///
+    /// Withdrawing cannot un-create the account it made, and deleting the row
+    /// would erase the record of how that account came to exist — see
+    /// [`AccountsDb::revoke_invite`].
+    AlreadyAccepted,
+    /// No invitation this id names.
+    NotFound,
+}
 
 impl AccountsDb {
     /// Issue an invitation and hand back the link's token.
@@ -62,7 +100,11 @@ impl AccountsDb {
             params![&hash[..]],
             invite_from_row,
         )?;
-        Ok(IssuedInvite { token, invite })
+        Ok(IssuedInvite {
+            token,
+            id: hash_hex(&hash),
+            invite,
+        })
     }
 
     /// The invite this token names, spent or not.
@@ -138,6 +180,97 @@ impl AccountsDb {
         Ok(invite)
     }
 
+    /// The invitations this deployment has issued, newest first.
+    ///
+    /// ## Why this read exists at all
+    ///
+    /// Because the token is stored nowhere, an operator who has lost the link
+    /// has no other way to learn what happened to it — and "I sent the link,
+    /// the person says it does not work" is the ordinary case, not the
+    /// exceptional one. The row answers it: when it was issued, which roles it
+    /// carries, when it stops being accepted, and whether anybody used it.
+    ///
+    /// ## Why it is paged
+    ///
+    /// The table never shrinks on its own — a redeemed invite is a record, an
+    /// expired one is not swept — so a deployment that has been inviting
+    /// people for a year has a year of rows, and a route that returned all of
+    /// them would be a route whose cost grows with the deployment's age. The
+    /// order is `created_at DESC, token_hash` so that page two is a
+    /// continuation of page one rather than a re-shuffle: two rows created in
+    /// the same second still have one order, and it is the index's.
+    ///
+    /// Spent and expired rows are returned, never filtered: this is the read
+    /// an operator makes when they want to know what happened, and a query
+    /// that hid the answer would be answering a different question.
+    pub fn list_invites(
+        &self,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<ListedInvite>, AccountsError> {
+        let conn = self.conn();
+        let mut statement = conn.prepare(&format!(
+            // `token_hash` is selected last so that `invite_from_row`, which
+            // reads the `INVITE_COLUMNS` positions, keeps working unchanged.
+            "SELECT {INVITE_COLUMNS}, token_hash FROM invites
+             ORDER BY created_at DESC, token_hash LIMIT ?1 OFFSET ?2"
+        ))?;
+        let rows = statement.query_map(params![limit as i64, offset as i64], |row| {
+            let hash: Vec<u8> = row.get(7)?;
+            Ok(ListedInvite {
+                id: hash_hex(&hash),
+                invite: invite_from_row(row)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    /// Withdraw the invitation `id` names.
+    ///
+    /// [`Self::revoke_invite`] takes the token, which only the person holding
+    /// the link has; this takes the id a listing shows, which is what an
+    /// operator has when the thing they want to withdraw is a row on a screen
+    /// and the link is somewhere in a chat log. The two reach the same row —
+    /// the token path is this one under a hash — and share its rule: an
+    /// accepted invitation is not withdrawable, because doing so cannot
+    /// un-create the account it made.
+    pub fn revoke_invite_by_id(&self, id: &str) -> Result<InviteWithdrawal, AccountsError> {
+        // Not a row id at all: reported as "no such invitation" rather than as
+        // a malformed request, because that is what it is from here — the
+        // caller asked to withdraw something, and there is nothing by that
+        // name.
+        let Some(hash) = hash_from_hex(id) else {
+            return Ok(InviteWithdrawal::NotFound);
+        };
+        let conn = self.conn();
+        let removed = conn.execute(
+            "DELETE FROM invites WHERE token_hash = ?1 AND accepted_at IS NULL",
+            params![&hash[..]],
+        )?;
+        if removed > 0 {
+            return Ok(InviteWithdrawal::Revoked);
+        }
+        // Nothing was removed, and the row says which of the two it was. Read
+        // AFTER the delete so that the answer is about one statement's
+        // outcome rather than about a state that may have moved on.
+        let accepted: Option<Option<i64>> = conn
+            .query_row(
+                "SELECT accepted_at FROM invites WHERE token_hash = ?1",
+                params![&hash[..]],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(match accepted {
+            None => InviteWithdrawal::NotFound,
+            Some(None) => InviteWithdrawal::NotFound,
+            // A row that is still here, is not accepted, and was not removed
+            // is not a state this code can reach — the `DELETE` above matches
+            // exactly those rows. Reported as the withdrawal that did not
+            // happen rather than guessed at.
+            Some(Some(_)) => InviteWithdrawal::AlreadyAccepted,
+        })
+    }
+
     /// Withdraw an invitation that has not been accepted. `false` when there is
     /// no such invite to withdraw.
     ///
@@ -150,11 +283,7 @@ impl AccountsDb {
     /// account it made, and removing the row would erase the record of how that
     /// account came to exist.
     pub fn revoke_invite(&self, token: &str) -> Result<bool, AccountsError> {
-        let hash = hash_token(token);
-        let removed = self.conn().execute(
-            "DELETE FROM invites WHERE token_hash = ?1 AND accepted_at IS NULL",
-            params![&hash[..]],
-        )?;
-        Ok(removed > 0)
+        let id = hash_hex(&hash_token(token));
+        Ok(self.revoke_invite_by_id(&id)? == InviteWithdrawal::Revoked)
     }
 }

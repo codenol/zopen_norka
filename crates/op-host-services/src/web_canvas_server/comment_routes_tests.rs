@@ -191,7 +191,8 @@ fn a_documents_conversation_is_opened_answered_closed_and_read_back() {
     );
     assert_eq!(body_json(&closed)["thread"]["resolved"], true);
     assert_eq!(
-        body_json(&closed)["thread"]["pageId"], "page-1",
+        body_json(&closed)["thread"]["pageId"],
+        "page-1",
         "a closed thread is still a comment somebody has to find on the canvas"
     );
     assert_eq!(
@@ -604,8 +605,7 @@ fn a_request_the_route_cannot_read_is_refused_with_a_reason() {
         // a place at zero.
         (
             &route,
-            serde_json::json!({ "pageId": "page-1", "x": 1, "y": null, "text": "hi" })
-                .to_string(),
+            serde_json::json!({ "pageId": "page-1", "x": 1, "y": null, "text": "hi" }).to_string(),
             "y must be a number",
         ),
         // A number too large for an `f64` never reaches the coordinate check:
@@ -789,4 +789,3 @@ fn a_thread_placed_before_pins_were_coordinates_is_listed_without_one() {
     assert_eq!(thread["anchorHint"], "n7");
     assert_eq!(bodies(&thread), vec!["from the old build"]);
 }
-
