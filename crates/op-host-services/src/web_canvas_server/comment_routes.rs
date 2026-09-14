@@ -1,15 +1,40 @@
 //! The conversation about a document: `/api/files/<key>/comments*`.
 //!
 //! Four routes, one per thing a review actually does — read what has been said,
-//! open a thread on an element, answer in one, close or reopen one:
+//! place a comment, answer in one, close or reopen one:
 //!
 //! | Route | Answers |
 //! | --- | --- |
 //! | `GET /api/files/<key>/comments` | every thread of the document, each with its comments |
-//! | `POST /api/files/<key>/comments` | `{nodeId, text}` — a new thread and its first comment |
+//! | `POST /api/files/<key>/comments` | `{pageId, x, y, text}`; a thread and its first comment |
 //! | `POST /api/files/<key>/comments/<id>/reply` | `{text}` — a comment on an existing thread |
 //! | `POST /api/files/<key>/comments/<id>/resolve` | close it |
 //! | `POST /api/files/<key>/comments/<id>/reopen` | open it again |
+//!
+//! A thread comes back as `{id, pageId, x, y, anchorHint, createdAt, resolved,
+//! resolvedAt, resolvedByName, comments}`, where `pageId`/`x`/`y` are the pin
+//! and are all `null` for a thread written before pins were coordinates.
+//!
+//! ## Why a comment is placed by coordinates
+//!
+//! The pin is a point on a page ([`crate::document_comments::Placement`]), and
+//! the reasoning is there. What belongs here is the wire half of it: `x` and
+//! `y` are the PAGE's coordinates, the ones the document is authored in, not
+//! the ones the viewport draws it at. A client that sent screen coordinates
+//! would put every comment wherever that reader happened to be scrolled to,
+//! and the pins would move for the next person who opened the document.
+//!
+//! ## Why `nodeId` is refused rather than ignored
+//!
+//! A body carrying `nodeId` is a body written against the contract this route
+//! had before, and it gets a 400 that names the field. Ignoring unknown fields
+//! is the right default for fields this server never had — a client is allowed
+//! to send more than this build reads. A RETIRED field is not that case: the
+//! caller believes the pin is anchored to that element, and a 200 would let
+//! them keep believing it while the field is dropped on the floor. The refusal
+//! is the one place a client migrating to the new contract is told what
+//! changed, in the answer to the request it is already sending, instead of
+//! inferring it from a pin that lands somewhere unexpected.
 //!
 //! ## Why these live inside the `/api/files` family
 //!
@@ -29,7 +54,10 @@
 //! leave the whole of the daemon's editor state out of reach of every handler in
 //! this file. A comment therefore cannot bump a version, dirty a document, or
 //! invalidate a collaboration hash — the properties a reader of a design tool
-//! would otherwise have to take on trust.
+//! would otherwise have to take on trust. It has a second consequence now that
+//! pins are coordinates: this file cannot check that the page a pin names is a
+//! page the document has, and it must not pretend to (see
+//! [`crate::document_comments::list_threads`] on why there is no page filter).
 //!
 //! ## What each route asks for
 //!
@@ -52,8 +80,8 @@
 use super::request_access::{self, RequestAccess};
 use super::WebReply;
 use crate::document_comments::{
-    self, Author, Comment, CommentThread, NewComment, ResolutionChange, ThreadAuthor,
-    MAX_COMMENT_CHARS, MAX_NODE_ID_CHARS,
+    self, Author, Comment, CommentThread, NewComment, Placement, ResolutionChange, ThreadAuthor,
+    MAX_COMMENT_CHARS, MAX_COORDINATE, MAX_PAGE_ID_CHARS,
 };
 use crate::document_db::DocumentDb;
 use crate::document_store::{self, DocumentStoreError};
@@ -95,7 +123,7 @@ pub(super) fn handle(
 /// of the request was wrong — which is what a client needs in order to put a
 /// message next to the right field, and what a test can assert without matching
 /// prose.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum CommentRequestError {
     /// The body was not JSON.
     MalformedBody,
@@ -103,12 +131,65 @@ enum CommentRequestError {
     MissingText,
     /// `text` is over [`MAX_COMMENT_CHARS`].
     TextTooLong,
-    /// No `nodeId` string, or nothing but whitespace in it.
-    MissingNodeId,
-    /// `nodeId` is over [`MAX_NODE_ID_CHARS`].
-    NodeIdTooLong,
+    /// No `pageId` string, or nothing but whitespace in it.
+    MissingPageId,
+    /// `pageId` is over [`MAX_PAGE_ID_CHARS`].
+    PageIdTooLong,
+    /// A coordinate that cannot be a pin.
+    ///
+    /// The axis is carried because a client puts the message beside a field, and
+    /// "x is not a number" is actionable where "a coordinate is not a number" is
+    /// a search.
+    BadCoordinate {
+        axis: Axis,
+        why: NotACoordinate,
+    },
+    /// The body carried `nodeId`, which no longer places a pin.
+    NodeIdRetired,
     /// The id in the path is not a positive whole number.
     InvalidThreadId,
+}
+
+/// Which coordinate a complaint is about.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Axis {
+    X,
+    Y,
+}
+
+impl Axis {
+    /// The name it has in the body, in this server's messages, and nowhere
+    /// else — one spelling, so a client can match a message to a key.
+    fn name(self) -> &'static str {
+        match self {
+            Self::X => "x",
+            Self::Y => "y",
+        }
+    }
+}
+
+/// What is wrong with a coordinate that is present but unusable.
+///
+/// Three answers rather than one, because they are three different mistakes and
+/// the person reading the 400 can act on them differently: a typo (a string, a
+/// `null`, a key that is not there at all), a value the wire cannot mean (see
+/// [`NotACoordinate::NotFinite`]), and a number that is simply not a place in
+/// this editor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NotACoordinate {
+    /// Absent, or not a JSON number: a string, a boolean, `null`, an object.
+    NotANumber,
+    /// A number that is not a position: an infinity or a NaN.
+    ///
+    /// Unreachable from a well-formed JSON body — JSON has no literal for
+    /// either, and the parser refuses the ones that would overflow — and checked
+    /// anyway. It costs one comparison to make "the store never holds a
+    /// coordinate that cannot be drawn" a property of this function rather than
+    /// a property of serde_json's number handling, which is somebody else's
+    /// code and somebody else's version.
+    NotFinite,
+    /// Further from the origin than [`MAX_COORDINATE`].
+    TooFar,
 }
 
 impl std::fmt::Display for CommentRequestError {
@@ -122,10 +203,28 @@ impl std::fmt::Display for CommentRequestError {
                 f,
                 "Comment text is longer than {MAX_COMMENT_CHARS} characters"
             ),
-            Self::MissingNodeId => f.write_str("Missing nodeId string"),
-            Self::NodeIdTooLong => {
-                write!(f, "nodeId is longer than {MAX_NODE_ID_CHARS} characters")
+            Self::MissingPageId => f.write_str("Missing pageId string"),
+            Self::PageIdTooLong => {
+                write!(f, "pageId is longer than {MAX_PAGE_ID_CHARS} characters")
             }
+            Self::BadCoordinate { axis, why } => match why {
+                NotACoordinate::NotANumber => {
+                    write!(f, "{} must be a number", axis.name())
+                }
+                NotACoordinate::NotFinite => {
+                    write!(f, "{} must be a finite number", axis.name())
+                }
+                // The bound is printed as the integer it is: a client showing
+                // this to a person should not have to explain what `1e7` means.
+                NotACoordinate::TooFar => write!(
+                    f,
+                    "{} is further from the origin than {MAX_COORDINATE}",
+                    axis.name()
+                ),
+            },
+            Self::NodeIdRetired => f.write_str(
+                "nodeId is no longer accepted: place a comment with pageId, x and y",
+            ),
             Self::InvalidThreadId => f.write_str("Invalid comment thread id"),
         }
     }
@@ -181,18 +280,86 @@ fn text_field(value: &serde_json::Value) -> Result<String, CommentRequestError> 
     Ok(text.to_string())
 }
 
-/// The `nodeId` field: the element the pin sits on.
-fn node_id_field(value: &serde_json::Value) -> Result<String, CommentRequestError> {
-    let node_id = value
-        .get("nodeId")
-        .and_then(|node| node.as_str())
+/// The `pageId` field: the page the pin's coordinates are relative to.
+///
+/// A name the client and the document agree on, like the node id it replaced:
+/// pages live inside the `.op` file, so this server stores the string and does
+/// not know whether the document has a page by that name. What it does refuse is
+/// a missing one — coordinates without a page are not a place, because the same
+/// two numbers exist on every page.
+fn page_id_field(value: &serde_json::Value) -> Result<String, CommentRequestError> {
+    let page_id = value
+        .get("pageId")
+        .and_then(|page| page.as_str())
         .map(str::trim)
-        .filter(|node| !node.is_empty())
-        .ok_or(CommentRequestError::MissingNodeId)?;
-    if node_id.chars().count() > MAX_NODE_ID_CHARS {
-        return Err(CommentRequestError::NodeIdTooLong);
+        .filter(|page| !page.is_empty())
+        .ok_or(CommentRequestError::MissingPageId)?;
+    if page_id.chars().count() > MAX_PAGE_ID_CHARS {
+        return Err(CommentRequestError::PageIdTooLong);
     }
-    Ok(node_id.to_string())
+    Ok(page_id.to_string())
+}
+
+/// One coordinate of a pin.
+fn coordinate_field(value: &serde_json::Value, axis: Axis) -> Result<f64, CommentRequestError> {
+    let bad = |why| CommentRequestError::BadCoordinate { axis, why };
+    // `as_f64` and not `as_i64`: a coordinate is a measurement, so `12` and
+    // `12.5` are the same kind of answer and an integer-only reader would have
+    // to grow a second arm to accept the second one.
+    let number = value
+        .get(axis.name())
+        .and_then(|raw| raw.as_f64())
+        .ok_or_else(|| bad(NotACoordinate::NotANumber))?;
+    coordinate(number, axis)
+}
+
+/// The check one coordinate must pass, on its own.
+///
+/// Split from the body-walking above so it can be tested with values a JSON
+/// request cannot carry — an infinity, a NaN — rather than only with the ones
+/// the wire allows.
+fn coordinate(value: f64, axis: Axis) -> Result<f64, CommentRequestError> {
+    let bad = |why| CommentRequestError::BadCoordinate { axis, why };
+    if !value.is_finite() {
+        return Err(bad(NotACoordinate::NotFinite));
+    }
+    // Rejected rather than clamped: a client sending a position past the bound
+    // has a bug, and moving its pin to the edge of the world would hide the bug
+    // behind a comment that is now in the wrong place.
+    if value.abs() > MAX_COORDINATE {
+        return Err(bad(NotACoordinate::TooFar));
+    }
+    Ok(value)
+}
+
+/// The whole pin: the page and the point, read as one value.
+///
+/// One function rather than three calls at the route, because the three are one
+/// fact — a page without a point is not a place, and the schema refuses it
+/// (migration 3's CHECK). Taking them apart here would let this layer hand the
+/// store half of one.
+fn placement_field(value: &serde_json::Value) -> Result<Placement, CommentRequestError> {
+    Ok(Placement {
+        page_id: page_id_field(value)?,
+        x: coordinate_field(value, Axis::X)?,
+        y: coordinate_field(value, Axis::Y)?,
+    })
+}
+
+/// Refuse a body written against the old, element-anchored contract.
+///
+/// Asked before the fields it replaces, so a body carrying `nodeId` and no
+/// `pageId` is answered with what changed rather than with "Missing pageId
+/// string" — the second is true and tells the caller nothing about why the
+/// request they have been sending for months stopped working.
+fn reject_retired_node_id(value: &serde_json::Value) -> Result<(), CommentRequestError> {
+    match value.get("nodeId") {
+        // `null` is not sent by anything: it is what a client that modelled the
+        // old field as optional emits when it has nothing to put in it, which
+        // is not an attempt to pin an element.
+        Some(node_id) if !node_id.is_null() => Err(CommentRequestError::NodeIdRetired),
+        _ => Ok(()),
+    }
 }
 
 /// The thread id in the path.
@@ -222,10 +389,31 @@ fn author<'a>(access: &'a RequestAccess<'_>) -> Author<'a> {
 }
 
 /// One thread as the browser sees it.
+///
+/// The pin is three flat keys rather than a nested object, and a thread with no
+/// pin answers `null` in all three rather than omitting them: a client reads one
+/// shape either way, and `pageId === null` is the check that says "this thread
+/// has no pin to draw" without a second question. The other nulls in this object
+/// (`resolvedAt` on an open thread) have been read that way since the first
+/// version of the route.
 fn thread_json(thread: &CommentThread) -> serde_json::Value {
+    let (page_id, x, y) = match &thread.placement {
+        Some(placement) => (
+            Some(placement.page_id.as_str()),
+            Some(placement.x),
+            Some(placement.y),
+        ),
+        None => (None, None, None),
+    };
     serde_json::json!({
         "id": thread.id,
-        "nodeId": thread.node_id,
+        "pageId": page_id,
+        "x": x,
+        "y": y,
+        // Sent because it is the only thing that says what a thread without
+        // coordinates was about — those are the rows migration 3 carried over
+        // from the element-anchored schema, and a client cannot place them.
+        "anchorHint": thread.anchor_hint,
         "createdAt": thread.created_at,
         "resolved": thread.resolved,
         "resolvedAt": thread.resolved_at,
@@ -279,14 +467,17 @@ fn list(store: &DocumentDb, key: &str) -> WebReply {
     }
 }
 
-/// `POST /api/files/<key>/comments` — open a thread on an element.
+/// `POST /api/files/<key>/comments` — place a comment at a point on a page.
 fn create(store: &DocumentDb, key: &str, body: &str, access: &RequestAccess<'_>) -> WebReply {
     let value = match parse_body(body) {
         Ok(value) => value,
         Err(error) => return bad_request(error),
     };
-    let node_id = match node_id_field(&value) {
-        Ok(node_id) => node_id,
+    if let Err(error) = reject_retired_node_id(&value) {
+        return bad_request(error);
+    }
+    let placement = match placement_field(&value) {
+        Ok(placement) => placement,
         Err(error) => return bad_request(error),
     };
     let text = match text_field(&value) {
@@ -300,7 +491,7 @@ fn create(store: &DocumentDb, key: &str, body: &str, access: &RequestAccess<'_>)
     match document_comments::create_thread(
         store,
         key,
-        &node_id,
+        placement,
         comment,
         document_store::now_secs(),
     ) {

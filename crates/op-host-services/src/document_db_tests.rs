@@ -37,6 +37,26 @@ fn open_at_version_one(dir: &TempDir) -> Connection {
     conn
 }
 
+/// A database as the element-anchored build left it: migrations 1 and 2
+/// applied, and the version recorded to match.
+///
+/// Migration 2's `comment_threads` is what this produces — a `node_id TEXT NOT
+/// NULL` and no coordinates — which is the shape migration 3 has to carry over
+/// without losing a row.
+fn open_at_version_two(dir: &TempDir) -> Connection {
+    let conn = Connection::open(dir.join(DB_FILE)).expect("open");
+    conn.execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        .expect("meta");
+    conn.execute_batch(MIGRATIONS[0].sql).expect("migration 1");
+    conn.execute_batch(MIGRATIONS[1].sql).expect("migration 2");
+    conn.execute(
+        "INSERT INTO meta (key, value) VALUES (?1, '2')",
+        params![META_SCHEMA_VERSION],
+    )
+    .expect("version 2");
+    conn
+}
+
 /// A stored document with everything spelled out, so a test can compare whole
 /// entries rather than field by field.
 fn entry(
@@ -148,7 +168,7 @@ fn a_database_from_before_the_conversation_tables_gains_them_on_open() {
     let db = dir.open();
     assert_eq!(
         db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
-        Some("2"),
+        Some("3"),
         "an open brings the schema to the newest version"
     );
     {
@@ -178,15 +198,20 @@ fn opening_the_same_database_again_does_not_migrate_it_a_second_time() {
     {
         let db = dir.open();
         insert_entry(&db, &entry(key, "Kept", 1, 1, 1, false)).expect("insert");
-        // A thread written through the tables migration 2 added. Running that
-        // migration again would fail loudly (`CREATE TABLE` with no `IF NOT
-        // EXISTS`) rather than duplicate anything — which is the point: the
-        // version in `meta`, and not any tolerance in the SQL, is what keeps a
-        // second open from re-running a step.
+        // A thread written through the tables migrations 2 and 3 left. Running
+        // either of them again would fail loudly rather than duplicate anything
+        // — `CREATE TABLE` with no `IF NOT EXISTS` in the first case, and a
+        // `comment_threads_v3` that already exists in the second — which is the
+        // point: the version in `meta`, and not any tolerance in the SQL, is
+        // what keeps a second open from re-running a step.
         document_comments::create_thread(
             &db,
             key,
-            "n1",
+            document_comments::Placement {
+                page_id: "page-1".to_string(),
+                x: 4.0,
+                y: 5.0,
+            },
             NewComment {
                 author: Author { id: None, name: "", role: None },
                 body: "hello",
@@ -200,7 +225,7 @@ fn opening_the_same_database_again_does_not_migrate_it_a_second_time() {
     let db = dir.open();
     assert_eq!(
         db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
-        Some("2")
+        Some("3")
     );
     assert_eq!(
         list_entries(&db).expect("list").len(),
@@ -227,6 +252,125 @@ fn opening_the_same_database_again_does_not_migrate_it_a_second_time() {
         1,
         "and the thread written before the second open is still there"
     );
+}
+
+#[test]
+fn a_database_of_element_anchored_threads_is_rebuilt_without_losing_a_comment() {
+    // The upgrade every deployment of the previous build takes, and the only
+    // dangerous step in it. Migration 3 cannot `ALTER TABLE` the shape it needs
+    // — SQLite never drops a `NOT NULL`, and `node_id` has to become nullable —
+    // so the threads table is copied and replaced. Its child `comments` then has
+    // to be dropped and created again, because `DROP TABLE` on a parent fires
+    // the child's `ON DELETE CASCADE`: get that order wrong and every reply in
+    // the database is gone, silently, in a transaction that commits.
+    let dir = TempDir::new("upgrade-from-v2");
+    {
+        let conn = open_at_version_two(&dir);
+        conn.execute(
+            "INSERT INTO documents
+                 (key, name, owner_id, created_at, updated_at, size, has_thumbnail)
+             VALUES ('aaaaaaaa00000001', 'Reviewed', NULL, 1, 2, 3, 0)",
+            [],
+        )
+        .expect("a document with a conversation");
+        conn.execute(
+            "INSERT INTO comment_threads (document_key, node_id, created_at, resolved)
+             VALUES ('aaaaaaaa00000001', 'n1', 10, 1),
+                    ('aaaaaaaa00000001', 'n2', 11, 0)",
+            [],
+        )
+        .expect("a closed thread and an open one");
+        conn.execute(
+            "INSERT INTO comments (thread_id, author_id, author_name, body, created_at)
+             VALUES (1, 'userA', 'Anya', 'one', 10),
+                    (1, NULL, '', 'two', 11),
+                    (2, 'userB', 'Boris', 'three', 11)",
+            [],
+        )
+        .expect("three comments");
+    }
+
+    let db = dir.open();
+    assert_eq!(
+        db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
+        Some("3"),
+        "the rebuild is one more version, not a special case"
+    );
+
+    let threads = document_comments::list_threads(&db, "aaaaaaaa00000001")
+        .expect("list")
+        .expect("the document is stored");
+    assert_eq!(threads.len(), 2, "no thread was lost to the rebuild");
+    assert_eq!(
+        threads
+            .iter()
+            .map(|thread| thread.comments.len())
+            .sum::<usize>(),
+        3,
+        "and no comment was cascaded away by it"
+    );
+    // What the old rows knew is still known, and what they never knew is not
+    // invented: no coordinates (a position nobody recorded), and the element
+    // each thread was anchored to, kept as a hint.
+    assert!(
+        threads.iter().all(|thread| thread.placement.is_none()),
+        "the migration does not guess a position for a thread that never had one"
+    );
+    let hints: Vec<Option<&str>> = threads
+        .iter()
+        .map(|thread| thread.anchor_hint.as_deref())
+        .collect();
+    assert_eq!(hints, vec![Some("n1"), Some("n2")]);
+    assert_eq!(threads[0].comments[0].author_name, "Anya");
+    assert_eq!(
+        threads[0].comments[1].author_id, None,
+        "the local operator's NULL author survived the copy"
+    );
+    assert!(threads[0].resolved, "the closed thread is still closed");
+    assert!(!threads[1].resolved);
+
+    // And the table works at its new shape: a pin written now, with an id above
+    // every id already handed out. The copy carries the AUTOINCREMENT sequence
+    // across the rename, so the ids the old rows used are not issued again —
+    // the property `a_thread_id_is_never_handed_out_twice` exists for.
+    let placed = document_comments::create_thread(
+        &db,
+        "aaaaaaaa00000001",
+        document_comments::Placement {
+            page_id: "page-1".to_string(),
+            x: 12.5,
+            y: -3.0,
+        },
+        NewComment {
+            author: Author {
+                id: Some("userC"),
+                name: "Vera",
+                role: None,
+            },
+            body: "after the migration",
+        },
+        20,
+    )
+    .expect("create")
+    .expect("the document is stored");
+    assert!(
+        placed.id > threads[1].id,
+        "a rebuilt table must not hand out an id it already gave away: {} vs {}",
+        placed.id,
+        threads[1].id
+    );
+    assert_eq!(placed.placement.map(|placement| placement.page_id), Some("page-1".to_string()));
+
+    // The tables the rebuild borrowed are gone: a scratch copy left behind is a
+    // table somebody will later mistake for data.
+    let conn = db.conn();
+    let objects = schema_objects(&conn);
+    for name in ["comment_threads_v3", "comments_saved"] {
+        assert!(
+            !objects.contains(&name.to_string()),
+            "{name} was left behind: {objects:?}"
+        );
+    }
 }
 
 #[test]

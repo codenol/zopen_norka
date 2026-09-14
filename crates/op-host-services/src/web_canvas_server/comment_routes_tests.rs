@@ -119,17 +119,30 @@ fn a_documents_conversation_is_opened_answered_closed_and_read_back() {
         Some(0)
     );
 
-    // Opening a thread on an element.
+    // Opening a thread at a point on a page. The coordinates are the PAGE's,
+    // not the screen's, so they are what the client measured in the document.
     let opened = handle_web_canvas_request(
         "POST",
         &route,
-        r#"{"nodeId":"n1","text":"  Fix the padding  "}"#,
+        r#"{"pageId":"page-1","x":120.5,"y":-40.25,"text":"  Fix the padding  "}"#,
         &mut state,
         &access,
     );
     assert_eq!(opened.status, "200 OK", "{}", opened.body);
     let thread = body_json(&opened)["thread"].clone();
-    assert_eq!(thread["nodeId"], "n1");
+    assert_eq!(thread["pageId"], "page-1");
+    assert_eq!(thread["x"], 120.5);
+    assert_eq!(thread["y"], -40.25);
+    assert_eq!(
+        thread.get("nodeId"),
+        None,
+        "the element the pin used to sit on is not part of the answer any more"
+    );
+    assert_eq!(
+        thread["anchorHint"],
+        serde_json::Value::Null,
+        "a comment placed now points at no element"
+    );
     assert_eq!(thread["resolved"], false);
     assert_eq!(thread["resolvedAt"], serde_json::Value::Null);
     assert_eq!(
@@ -163,7 +176,9 @@ fn a_documents_conversation_is_opened_answered_closed_and_read_back() {
     let listed = handle_web_canvas_request("GET", &route, "", &mut state, &access);
     let threads = body_json(&listed)["threads"].clone();
     assert_eq!(threads.as_array().map(Vec::len), Some(1));
-    assert_eq!(threads[0]["nodeId"], "n1");
+    assert_eq!(threads[0]["pageId"], "page-1");
+    assert_eq!(threads[0]["x"], 120.5);
+    assert_eq!(threads[0]["y"], -40.25);
     assert_eq!(bodies(&threads[0]), vec!["Fix the padding", "Done"]);
 
     // Closed, and opened again.
@@ -175,6 +190,10 @@ fn a_documents_conversation_is_opened_answered_closed_and_read_back() {
         &access,
     );
     assert_eq!(body_json(&closed)["thread"]["resolved"], true);
+    assert_eq!(
+        body_json(&closed)["thread"]["pageId"], "page-1",
+        "a closed thread is still a comment somebody has to find on the canvas"
+    );
     assert_eq!(
         body_json(&closed)["thread"]["comments"]
             .as_array()
@@ -219,7 +238,7 @@ fn a_comment_is_not_part_of_the_document() {
     let opened = handle_web_canvas_request(
         "POST",
         &route,
-        r#"{"nodeId":"n1","text":"hello"}"#,
+        r#"{"pageId":"page-1","x":12,"y":34,"text":"hello"}"#,
         &mut state,
         &access,
     );
@@ -288,7 +307,7 @@ fn a_contributor_opens_a_thread_and_may_not_write_the_document() {
     let opened = handle_web_canvas_request(
         "POST",
         &route,
-        r#"{"nodeId":"n1","text":"hello"}"#,
+        r#"{"pageId":"page-1","x":12,"y":34,"text":"hello"}"#,
         &mut state,
         &access,
     );
@@ -347,7 +366,7 @@ fn a_guest_given_a_link_to_read_is_refused_the_conversation() {
         (
             "POST",
             route.clone(),
-            r#"{"nodeId":"n1","text":"hello"}"#.to_string(),
+            r#"{"pageId":"page-1","x":12,"y":34,"text":"hello"}"#.to_string(),
         ),
         (
             "POST",
@@ -390,7 +409,7 @@ fn a_stranger_cannot_reach_a_conversation_by_key() {
         (
             "POST",
             route.clone(),
-            r#"{"nodeId":"n1","text":"hello"}"#.to_string(),
+            r#"{"pageId":"page-1","x":12,"y":34,"text":"hello"}"#.to_string(),
         ),
         (
             "POST",
@@ -425,7 +444,7 @@ fn a_thread_is_closed_by_its_author_or_by_whoever_may_edit_the_document() {
     let opened = handle_web_canvas_request(
         "POST",
         &route,
-        r#"{"nodeId":"n1","text":"hello"}"#,
+        r#"{"pageId":"page-1","x":12,"y":34,"text":"hello"}"#,
         &mut state,
         &author,
     );
@@ -544,34 +563,106 @@ fn a_request_the_route_cannot_read_is_refused_with_a_reason() {
     let route = comments(&entry);
 
     let long_text = "x".repeat(document_comments::MAX_COMMENT_CHARS + 1);
-    let long_node = "n".repeat(document_comments::MAX_NODE_ID_CHARS + 1);
+    let long_page = "p".repeat(document_comments::MAX_PAGE_ID_CHARS + 1);
     let cases: &[(&str, String, &str)] = &[
         (&route, String::new(), "Expected a JSON object"),
         (&route, "{ not json".to_string(), "Expected a JSON object"),
         (
             &route,
-            r#"{"nodeId":"n1"}"#.to_string(),
+            serde_json::json!({ "pageId": "page-1", "x": 1, "y": 2 }).to_string(),
             "Missing text string",
         ),
         (
             &route,
-            r#"{"nodeId":"n1","text":"   "}"#.to_string(),
+            serde_json::json!({ "pageId": "page-1", "x": 1, "y": 2, "text": "   " }).to_string(),
             "Missing text string",
         ),
+        // A pin needs all three: the same two numbers exist on every page, so
+        // coordinates with no page are not a place.
         (
             &route,
-            r#"{"text":"hi"}"#.to_string(),
-            "Missing nodeId string",
+            serde_json::json!({ "x": 1, "y": 2, "text": "hi" }).to_string(),
+            "Missing pageId string",
         ),
         (
             &route,
-            serde_json::json!({ "nodeId": "n1", "text": long_text }).to_string(),
+            serde_json::json!({ "pageId": "  ", "x": 1, "y": 2, "text": "hi" }).to_string(),
+            "Missing pageId string",
+        ),
+        (
+            &route,
+            serde_json::json!({ "pageId": long_page, "x": 1, "y": 2, "text": "hi" }).to_string(),
+            "pageId is longer than 128 characters",
+        ),
+        (
+            &route,
+            serde_json::json!({ "pageId": "page-1", "x": "left", "y": 2, "text": "hi" })
+                .to_string(),
+            "x must be a number",
+        ),
+        // `null` reads as "no value", which is a missing coordinate rather than
+        // a place at zero.
+        (
+            &route,
+            serde_json::json!({ "pageId": "page-1", "x": 1, "y": null, "text": "hi" })
+                .to_string(),
+            "y must be a number",
+        ),
+        // A number too large for an `f64` never reaches the coordinate check:
+        // serde_json refuses the literal, so the body is not JSON at all. Kept
+        // here because it is the shape of the answer a caller sending one gets,
+        // and because it is what makes `NotACoordinate::NotFinite` a guard
+        // against this server's own future rather than against the wire.
+        (
+            &route,
+            r#"{"pageId":"page-1","x":1e400,"y":2,"text":"hi"}"#.to_string(),
+            "Expected a JSON object",
+        ),
+        // Past the bound is refused, not clamped: a client that sent this has a
+        // bug, and moving its pin to the edge of the world would hide the bug
+        // behind a comment that is now in the wrong place.
+        (
+            &route,
+            serde_json::json!({
+                "pageId": "page-1",
+                "x": document_comments::MAX_COORDINATE * 2.0,
+                "y": 2,
+                "text": "hi"
+            })
+            .to_string(),
+            "x is further from the origin than 10000000",
+        ),
+        (
+            &route,
+            serde_json::json!({
+                "pageId": "page-1",
+                "x": 1,
+                "y": -document_comments::MAX_COORDINATE - 1.0,
+                "text": "hi"
+            })
+            .to_string(),
+            "y is further from the origin than 10000000",
+        ),
+        // The retired field, and the one place a client migrating to
+        // coordinates is told what changed instead of being left to infer it.
+        (
+            &route,
+            serde_json::json!({
+                "nodeId": "n1", "pageId": "page-1", "x": 1, "y": 2, "text": "hi"
+            })
+            .to_string(),
+            "nodeId is no longer accepted: place a comment with pageId, x and y",
+        ),
+        (
+            &route,
+            serde_json::json!({ "nodeId": "n1", "text": "hi" }).to_string(),
+            "nodeId is no longer accepted: place a comment with pageId, x and y",
+        ),
+        (
+            &route,
+            serde_json::json!({ "pageId": "page-1", "x": 1, "y": 2, "text": long_text })
+                .to_string(),
             "Comment text is longer than 4000 characters",
-        ),
-        (
-            &route,
-            serde_json::json!({ "nodeId": long_node, "text": "hi" }).to_string(),
-            "nodeId is longer than 128 characters",
         ),
         (
             &format!("{route}/not-a-number/reply"),
@@ -594,9 +685,108 @@ fn a_request_the_route_cannot_read_is_refused_with_a_reason() {
         assert_eq!(reply.status, "400 Bad Request", "{path}: {}", reply.body);
         assert_eq!(error_code(&reply), *expected, "{path}");
     }
-    // None of them wrote anything.
+    // None of them wrote anything: a refused request leaves no thread, and no
+    // half-written pin either.
     assert_eq!(
         document_comments::list_threads(&store, &entry.key).expect("list"),
         Some(Vec::new())
     );
 }
+
+#[test]
+fn the_edges_of_a_pin_are_accepted_and_what_is_past_them_is_not() {
+    // The bound is a real number in a real answer, so it is pinned on both
+    // sides: the far corner is a place somebody may legitimately work, and one
+    // step past it is not. `MAX_COORDINATE` itself must be accepted — a limit
+    // that is exclusive is a limit that is off by one for whoever reads it.
+    let dir = TempDir::new("comment-pin-bounds");
+    let store = dir.open();
+    let entry = seed(&store, "Work", None);
+    let mut state = local_state(&store);
+    let access = RequestAccess::local_operator(ServeMode::Local);
+    let route = comments(&entry);
+    let bound = document_comments::MAX_COORDINATE;
+
+    for (x, y) in [(bound, -bound), (0.0, 0.0), (-0.5, 0.5)] {
+        let body = serde_json::json!({
+            "pageId": "page-1", "x": x, "y": y, "text": "here"
+        })
+        .to_string();
+        let reply = handle_web_canvas_request("POST", &route, &body, &mut state, &access);
+        assert_eq!(reply.status, "200 OK", "{body}: {}", reply.body);
+        assert_eq!(body_json(&reply)["thread"]["x"], x);
+        assert_eq!(body_json(&reply)["thread"]["y"], y);
+    }
+}
+
+#[test]
+fn a_coordinate_that_is_not_a_place_is_refused_whatever_the_wire_can_carry() {
+    // NaN and the infinities are the values JSON has no literal for, so a body
+    // cannot carry them — the check is here anyway, on the function rather than
+    // through a request, because "the store never holds a coordinate that
+    // cannot be drawn" should not depend on somebody else's number parsing. The
+    // wire-level half of the same case is in
+    // `a_request_the_route_cannot_read_is_refused_with_a_reason`: an integer
+    // too large for the bound is refused there.
+    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let refused = coordinate(value, Axis::X);
+        assert!(
+            matches!(
+                refused,
+                Err(CommentRequestError::BadCoordinate {
+                    axis: Axis::X,
+                    why: NotACoordinate::NotFinite
+                })
+            ),
+            "{value} was not refused as a place: {refused:?}"
+        );
+    }
+    // And the finite ones the bound allows go through, unchanged: no rounding
+    // on the way in.
+    assert_eq!(coordinate(12.5, Axis::Y), Ok(12.5));
+    assert_eq!(coordinate(-0.0, Axis::Y), Ok(-0.0));
+}
+
+#[test]
+fn a_thread_placed_before_pins_were_coordinates_is_listed_without_one() {
+    // What migration 3 leaves in a database that already had conversations: a
+    // thread with an element hint and no coordinates. The route has to answer
+    // it as a thread — its conversation is real and a panel has to show it —
+    // with `pageId: null`, which is the client's signal that this one has no
+    // pin to draw. The alternative, hiding it, would delete a review from a
+    // list because the schema under it moved.
+    let dir = TempDir::new("comment-legacy-thread");
+    let store = dir.open();
+    let entry = seed(&store, "Work", None);
+    let mut state = local_state(&store);
+    let access = RequestAccess::local_operator(ServeMode::Local);
+    let route = comments(&entry);
+
+    store
+        .conn()
+        .execute(
+            "INSERT INTO comment_threads (document_key, anchor_hint, created_at, resolved)
+             VALUES (?1, 'n7', 7, 0)",
+            rusqlite::params![entry.key],
+        )
+        .expect("a thread in the migrated shape");
+    store
+        .conn()
+        .execute(
+            "INSERT INTO comments (thread_id, author_id, author_name, body, created_at)
+             SELECT id, 'userA', 'Anya', 'from the old build', 7
+               FROM comment_threads WHERE document_key = ?1",
+            rusqlite::params![entry.key],
+        )
+        .expect("its comment");
+
+    let listed = handle_web_canvas_request("GET", &route, "", &mut state, &access);
+    assert_eq!(listed.status, "200 OK", "{}", listed.body);
+    let thread = body_json(&listed)["threads"][0].clone();
+    assert_eq!(thread["pageId"], serde_json::Value::Null);
+    assert_eq!(thread["x"], serde_json::Value::Null);
+    assert_eq!(thread["y"], serde_json::Value::Null);
+    assert_eq!(thread["anchorHint"], "n7");
+    assert_eq!(bodies(&thread), vec!["from the old build"]);
+}
+
