@@ -8,6 +8,41 @@ Each entry names the version that ships it; the app's top bar shows the same
 version next to its build time, so a running build can be matched to a section
 here at a glance.
 
+## [Unreleased]
+
+### Changed
+
+- **A comment is placed by coordinates instead of being pinned to an element.**
+  A pin hung on a node, so a comment about a small element — an icon, a label,
+  the space between two frames — could only be placed by hitting that element
+  exactly, and it moved with the element afterwards. A comment is now a point
+  on a page: `pageId`, `x`, `y` in the document's own coordinates, so zooming
+  and panning never move it and the pin stays where the reviewer pointed.
+
+  Comments written before this change are kept, with their replies: they have
+  no coordinates, so they are listed without a pin, and the element each one
+  was anchored to is carried along as a hint. The comment routes answer the new
+  fields, and a body that still carries `nodeId` is refused with a reason
+  rather than accepted and placed somewhere else.
+
+- **The comment tool moved into the toolbar, and its thread list into the right
+  rail.** The mode was a pill in the corner of the canvas and its list was a box
+  floating over the design; both were places a reviewer looks for something
+  else. Comments are now an entry in the tool column beside the other modes —
+  it carries the number of open threads on the page, and picking another tool
+  leaves it, as with every other tool — and the list takes the rail the
+  inspector uses, so the canvas keeps its width and nothing sits on the design.
+  Threads are listed for the page being edited, with a count of the rest.
+
+### Fixed
+
+- **A comment field opened in the corner of the canvas instead of where the
+  comment was.** Clicking an element in the middle of the page opened the
+  composer at the canvas' top-left corner, and the pin then appeared somewhere
+  the reviewer never clicked. The field now opens at the point that was
+  clicked — the marker's own place — so what is typed and what is pinned are
+  the same spot, and the box stays inside the window at the edges.
+
 ## [0.9.0] — 2026-09-14
 
 ### Added
