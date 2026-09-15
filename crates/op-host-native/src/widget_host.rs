@@ -213,6 +213,7 @@ mod property_panel_interactions_tests;
 mod property_panel_press_tests;
 mod property_popovers;
 mod property_scroll;
+mod rail_test_support;
 mod release;
 mod release_feedback;
 mod responsive_geometry;

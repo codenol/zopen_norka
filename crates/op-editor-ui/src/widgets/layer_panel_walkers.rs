@@ -10,7 +10,7 @@
 //! conversion at the walk boundary is lossless).
 
 use crate::widgets::icons::Icon;
-use crate::widgets::layer_panel_metrics::LayerPanelMetrics;
+use crate::widgets::layer_panel_metrics::{LayerPanelMetrics, MIN_VISIBLE_LAYER_ROWS};
 use crate::widgets::layer_panel_paint::{approx_text_width, ROW_FONT};
 use crate::Rect;
 use jian_core::scroll::{self, ScrollState};
@@ -424,6 +424,57 @@ pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
         metrics,
     } = input;
 
+    // The layer tree gets a floor, whatever the palettes above it want.
+    //
+    // The pages, component and recipe sections are each capped so they cannot
+    // grow past a few rows, but every cap was skipped unless the layout was a
+    // TOUCH one — so on a short desktop window the three palettes took the
+    // whole rail and `layers_view_h` came out as 0: the layer list was not
+    // scrolled out of view, it was laid out past the bottom edge, and the panel
+    // silently said "this document has no layers" (issue #66). The same
+    // arithmetic every layout now, with the room for three layer rows reserved
+    // before the palettes are measured.
+    let reserve_for_layers = metrics.section_gap
+        + metrics.section_header_height
+        + metrics.layer_row_height * MIN_VISIBLE_LAYER_ROWS
+        + 8.0;
+    // Is there room for the palettes at all? Two rows each is the least that is
+    // worth painting — a section header over one clipped row is noise. When
+    // there is not, the rail shows the LAYER TREE ALONE: the tree is what the
+    // panel is for, and a rail that can only show recipes is worse than a rail
+    // that shows none of them (issue #66).
+    let palette_headers = |shown: u32| {
+        metrics.section_header_height * shown as f32
+            + metrics.section_gap * shown.saturating_sub(1) as f32
+    };
+    let min_palette_view = metrics.page_row_height * 2.0;
+    let fits = |components: bool, recipes: bool| {
+        let shown = 1 + u32::from(components) + u32::from(recipes);
+        rect.size.y - 8.0 - reserve_for_layers - palette_headers(shown)
+            >= min_palette_view * shown as f32
+    };
+    // When the rail is cramped the sections go in order of what the panel is
+    // for: the recipes are shipped documents a person can spare, the component
+    // palette is a convenience, and the PAGES are where the layer tree lives —
+    // they are the last thing to go, and the tree keeps its floor either way
+    // (issue #66).
+    let keep_recipes = (recipes_len > 0) && fits(components_len > 0, true);
+    let keep_components = (components_len > 0) && fits(true, keep_recipes);
+    let keep_pages = fits(false, false);
+    let (pages_len, components_len, recipes_len) = (
+        if keep_pages { pages_len } else { 0 },
+        if keep_components { components_len } else { 0 },
+        if keep_recipes { recipes_len } else { 0 },
+    );
+    let shown_palettes = 1 + u32::from(components_len > 0) + u32::from(recipes_len > 0);
+    let palette_budget =
+        (rect.size.y - 8.0 - reserve_for_layers - palette_headers(shown_palettes)).max(0.0);
+    let palette_share = if shown_palettes == 0 {
+        0.0
+    } else {
+        palette_budget / shown_palettes as f32
+    };
+
     let pages_header_y = rect.origin.y + 8.0;
     let pages_rows_top = pages_header_y + metrics.section_header_height;
     let pages_content = pages_len as f32 * metrics.page_row_height;
@@ -447,6 +498,10 @@ pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
             + 8.0;
         pages_view_h = pages_view_h.min((rect.size.y - fixed_height).max(0.0));
     }
+    if pages_len == 0 {
+        pages_view_h = 0.0;
+    }
+    pages_view_h = pages_view_h.min(palette_share);
     let pages = resolve_layer_scroll(pages, pages_content, pages_view_h, rect.size.x);
 
     let components_header_y = pages_rows_top + pages_view_h + metrics.section_gap;
@@ -469,6 +524,7 @@ pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
         components_view_h = components_view_h
             .min((rect.origin.y + rect.size.y - after - components_rows_top).max(0.0));
     }
+    components_view_h = components_view_h.min(palette_share);
     let components = resolve_layer_scroll(
         components,
         components_content,
@@ -503,6 +559,7 @@ pub fn layer_regions(input: LayerRegionInput) -> LayerRegions {
         recipes_view_h =
             recipes_view_h.min((rect.origin.y + rect.size.y - after - recipes_rows_top).max(0.0));
     }
+    recipes_view_h = recipes_view_h.min(palette_share);
     let recipes = resolve_layer_scroll(recipes, recipes_content, recipes_view_h, rect.size.x);
 
     let layers_header_y = if show_recipes {

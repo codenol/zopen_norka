@@ -26,20 +26,9 @@ fn topbar_point(host: &mut WidgetHostNative, target: TopBarHit) -> Point2D {
 }
 
 fn layer_row_point(host: &WidgetHostNative, target: &NodeId) -> Point2D {
-    // Ask the host for the rail rect its own hit-test resolves — the rail's
-    // tab row and the Recipes section sit above the layer rows, so a rect
-    // rebuilt from TOP_BAR_HEIGHT names rows the host never considers rows.
-    let rect = host.layers_content_rect(VIEWPORT_W, VIEWPORT_H);
-    let panel = LayerPanel::from_editor(host.editor_state());
-    let mut y = rect.origin.y;
-    while y < rect.origin.y + rect.size.y {
-        let point = Point2D::new(48.0, y);
-        if panel.hit_test(rect, point) == Some(LayerPanelHit::Layer(target.clone())) {
-            return point;
-        }
-        y += 1.0;
-    }
-    panic!("no layer row for {target:?}");
+    // The shared helper, so this file cannot drift from the rail the host
+    // actually hit-tests (issues #66, #138).
+    super::rail_test_support::layer_row_point_for_test(host, target, VIEWPORT_W, VIEWPORT_H)
 }
 
 fn image_popup_point(panel: &PropertyPanel, rect: Rect) -> Point2D {
