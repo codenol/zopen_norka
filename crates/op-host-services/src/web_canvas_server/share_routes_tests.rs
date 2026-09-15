@@ -4,9 +4,13 @@ use super::*;
 
 /// The document every share in this file is about.
 const DOCUMENT: &str = "docA";
+use crate::accounts::{AccountsDb, NewUser};
+use crate::document_test_dir::TempDir;
 use crate::mcp_serve::tool_profile::McpScopes;
+use crate::web_canvas_server::account_routes::AccountAuth;
 use crate::web_canvas_server::tenant::{TenantError, TenantLimits};
 use crate::web_canvas_server::tenant_auth::IdentityVia;
+use std::sync::Arc;
 
 fn identity(user_id: &str) -> ResolvedIdentity {
     ResolvedIdentity {
@@ -246,6 +250,300 @@ fn revoking_an_account_that_was_never_granted_is_not_an_error() {
     );
     assert_eq!(reply.status, "200 OK");
     assert_eq!(body_of(&reply)["changed"], false);
+}
+
+/// One mutation dispatched the way the route table dispatches it, against a
+/// deployment that may or may not have an account list.
+fn mutate_as(
+    registry: &TenantRegistry,
+    accounts: Option<&AccountAuth>,
+    caller: &str,
+    route: &'static str,
+    target: &str,
+) -> WebReply {
+    let owner = identity(caller);
+    let lease = registry.lease_for(&owner).expect("lease");
+    handle(
+        "POST",
+        route,
+        &serde_json::json!({ "userId": target }).to_string(),
+        &owner,
+        &lease,
+        registry,
+        accounts,
+        Some(DOCUMENT),
+    )
+}
+
+/// One account in a deployment's list, with an address when the case needs one
+/// — an address is a spelling of an account like any other (issue #130).
+fn create_account(
+    accounts: &AccountAuth,
+    username: &str,
+    email: Option<&str>,
+) -> crate::accounts::User {
+    let mut new = NewUser::active(username, "Person", "basket-lantern-quiet-41");
+    if let Some(email) = email {
+        new = new.with_email(email);
+    }
+    accounts
+        .db()
+        .create_user(&new, crate::accounts::now_secs())
+        .expect("create an account")
+}
+
+/// A deployment's account list, with the accounts named in `usernames`.
+fn accounts_with(label: &str, usernames: &[&str]) -> (TempDir, AccountAuth) {
+    let dir = TempDir::new(label);
+    let accounts = AccountAuth::new(Arc::new(
+        AccountsDb::open(dir.path()).expect("open the account store"),
+    ));
+    for username in usernames {
+        create_account(&accounts, username, None);
+    }
+    (dir, accounts)
+}
+
+/// A revoke resolves the same string a grant does (issue #130) — the invite
+/// field is one field, and a person revoking what they just invited types the
+/// same thing back — and removes only the account it named.
+///
+/// Two handles that share a prefix are the interesting pair: resolving happens
+/// in the directory, once, so `colleague` cannot take `colleague2` with it.
+#[test]
+fn a_revoke_by_account_name_removes_that_account_and_no_other() {
+    let (_dir, accounts) = accounts_with("share-revoke-by-name", &["colleague", "colleague2"]);
+    let registry = registry();
+    let by_name = |target: &str, route: &'static str| {
+        mutate_as(&registry, Some(&accounts), "userA", route, target)
+    };
+    let accounts_of = |username: &str| {
+        accounts
+            .db()
+            .find_user_by_username(username)
+            .expect("lookup")
+            .unwrap_or_else(|| panic!("{username} exists"))
+    };
+    for target in ["colleague", "colleague2"] {
+        assert_eq!(
+            by_name(target, share_routes::GRANT).status,
+            "200 OK",
+            "{target}"
+        );
+    }
+    let listed = registry
+        .lease_for(&identity("userA"))
+        .expect("lease")
+        .tenant()
+        .shared_with(DOCUMENT);
+    assert_eq!(listed.len(), 2, "both accounts are on the list: {listed:?}");
+    assert!(listed.contains(&accounts_of("colleague").id));
+
+    // By handle…
+    let revoked = by_name("colleague", share_routes::REVOKE);
+    assert_eq!(revoked.status, "200 OK", "{}", revoked.body);
+    assert_eq!(body_of(&revoked)["changed"], true);
+
+    // …and by id, which is the other half of the same resolution.
+    let by_id = by_name(&accounts_of("colleague2").id, share_routes::REVOKE);
+    assert_eq!(by_id.status, "200 OK", "{}", by_id.body);
+    assert_eq!(body_of(&by_id)["changed"], true);
+
+    let lease = registry.lease_for(&identity("userA")).expect("lease");
+    assert!(
+        lease.tenant().shared_with(DOCUMENT).is_empty(),
+        "one revoke removed one account, and the name took nobody else with it"
+    );
+
+    // A second revoke of a row that is gone is still fine, and still says so.
+    let again = by_name("colleague", share_routes::REVOKE);
+    assert_eq!(again.status, "200 OK", "{}", again.body);
+    assert_eq!(body_of(&again)["changed"], false);
+}
+
+/// A revoke of a string that names nobody is a no-op, not a refusal
+/// (issue #129).
+///
+/// The two halves answer the same unknown string differently, and this is where
+/// that is held: a grant refuses it, because the row it would write is a row
+/// the product draws as a person and enforces at the door (#117); a revoke
+/// removes the row that spelling keys, if there is one, and reports
+/// `changed:false` when there is not. Refusing the revoke instead would make a
+/// row unremovable in the two cases where a row outlives its account — an
+/// account deleted from the deployment, and a row written before the lookup
+/// existed, keyed by the name somebody typed (#130).
+///
+/// The issue left one thing open: whether a well-formed but unknown ID answers
+/// like a name did. It does.
+#[test]
+fn a_revoke_of_a_string_that_names_nobody_is_reported_rather_than_refused() {
+    let (_dir, accounts) = accounts_with("share-revoke-unknown", &["colleague"]);
+    let registry = registry();
+    let colleague = accounts
+        .db()
+        .find_user_by_username("colleague")
+        .expect("lookup")
+        .expect("the account exists");
+
+    // The row the route wrote BEFORE it resolved anything: the spelling itself,
+    // which is what a person typed (#117). A route without an account list
+    // still writes rows that way.
+    assert_eq!(
+        mutate_as(&registry, None, "userA", share_routes::GRANT, "ghost").status,
+        "200 OK"
+    );
+    // …beside a real account's row, which no revoke of a stranger may touch.
+    assert_eq!(
+        mutate_as(
+            &registry,
+            Some(&accounts),
+            "userA",
+            share_routes::GRANT,
+            "colleague"
+        )
+        .status,
+        "200 OK"
+    );
+
+    // Grant refuses a string that names nobody…
+    for unknown in ["ghost", "u_00000000000000000000000000000000"] {
+        let refused = mutate_as(
+            &registry,
+            Some(&accounts),
+            "userA",
+            share_routes::GRANT,
+            unknown,
+        );
+        assert_eq!(
+            refused.status, "400 Bad Request",
+            "{unknown}: {}",
+            refused.body
+        );
+        assert_eq!(body_of(&refused)["error"], "unknown-account");
+        assert_eq!(
+            body_of(&refused)["message"],
+            "this deployment has no account with that id",
+            "{unknown}"
+        );
+    }
+
+    // …and a revoke does not: it removes the row that spelling keys, if there
+    // is one.
+    let removed = mutate_as(
+        &registry,
+        Some(&accounts),
+        "userA",
+        share_routes::REVOKE,
+        "ghost",
+    );
+    assert_eq!(removed.status, "200 OK", "{}", removed.body);
+    assert_eq!(body_of(&removed)["changed"], true);
+
+    // A well-formed id that holds nobody removes nothing, and says exactly
+    // that.
+    let nothing = mutate_as(
+        &registry,
+        Some(&accounts),
+        "userA",
+        share_routes::REVOKE,
+        "u_00000000000000000000000000000000",
+    );
+    assert_eq!(nothing.status, "200 OK", "{}", nothing.body);
+    assert_eq!(body_of(&nothing)["changed"], false);
+
+    // Through all of it the account that IS there kept its access.
+    let remaining = registry
+        .lease_for(&identity("userA"))
+        .expect("lease")
+        .tenant()
+        .shared_with(DOCUMENT);
+    assert_eq!(
+        remaining.len(),
+        1,
+        "a revoke that named nobody removed somebody: {remaining:?}"
+    );
+    assert!(remaining.contains(&colleague.id));
+}
+
+/// A share is between the caller and SOMEBODY ELSE, and naming the caller is
+/// refused however the caller is spelled (issue #141).
+///
+/// The check used to compare the string the body carried against the caller's
+/// id, and it ran before the field was resolved (#130): an id was refused and a
+/// handle was not — the handle resolved to the caller's own id and the grant
+/// was RECORDED, a row in "Who has access" drawn as a person which is the
+/// person reading it. The address branch had the same hole, which the issue
+/// left open; one comparison against what the lookup answered closes both.
+#[test]
+fn a_grant_that_names_the_caller_itself_is_refused_however_it_is_spelled() {
+    let (_dir, accounts) = accounts_with("share-self-by-name", &[]);
+    let me = create_account(&accounts, "designer", Some("designer@example.com"));
+    let other = create_account(&accounts, "colleague", Some("colleague@example.com"));
+    let registry = registry();
+
+    // All three spellings of the caller's OWN account: the id it is keyed by,
+    // the handle it signs in with, and the address the directory holds for it.
+    for spelling in [me.id.as_str(), "designer", "designer@example.com"] {
+        let refused = mutate_as(
+            &registry,
+            Some(&accounts),
+            &me.id,
+            share_routes::GRANT,
+            spelling,
+        );
+        assert_eq!(
+            refused.status, "400 Bad Request",
+            "{spelling}: {}",
+            refused.body
+        );
+        assert_eq!(
+            body_of(&refused)["error"],
+            "cannot-share-with-self",
+            "{spelling}: {}",
+            refused.body
+        );
+    }
+    // Nothing was recorded by any of them: the row the bug wrote is the point
+    // of the fix, not just the status.
+    assert!(registry
+        .lease_for(&identity(&me.id))
+        .expect("lease")
+        .tenant()
+        .shared_with(DOCUMENT)
+        .is_empty());
+
+    // The case that must keep working — somebody else, by every spelling the
+    // field accepts. The address is one of them: the refusal above must not
+    // have been bought by refusing addresses.
+    for spelling in ["colleague", "colleague@example.com", other.id.as_str()] {
+        let granted = mutate_as(
+            &registry,
+            Some(&accounts),
+            &me.id,
+            share_routes::GRANT,
+            spelling,
+        );
+        assert_eq!(granted.status, "200 OK", "{spelling}: {}", granted.body);
+        assert_eq!(
+            body_of(&granted)["sharedWith"][0]["account"],
+            other.id.as_str(),
+            "{spelling}: {}",
+            granted.body
+        );
+    }
+    let shared = registry
+        .lease_for(&identity(&me.id))
+        .expect("lease")
+        .tenant()
+        .shared_with(DOCUMENT);
+    assert_eq!(shared.len(), 1, "one account, not three rows: {shared:?}");
+    assert!(shared.contains(&other.id));
+
+    // And a deployment with NO account list keeps the guard it always had: the
+    // typed string is the row key there, so the comparison is the same one.
+    let no_list = mutate_as(&registry, None, &me.id, share_routes::GRANT, &me.id);
+    assert_eq!(no_list.status, "400 Bad Request", "{}", no_list.body);
+    assert_eq!(body_of(&no_list)["error"], "cannot-share-with-self");
 }
 
 #[test]

@@ -111,6 +111,12 @@ fn paint_mark(
         // which by the glyph: a triangle for "something changed", an octagon
         // for "what it was built from is gone".
         LinkState::AssetMissing => Icon::AlertOctagon,
+        // A padlock rather than a warning, because there is nothing to fix and
+        // nothing went wrong: the asset this section names exists, and this
+        // reader may not open it (issue #110). Drawing it as a warning would
+        // send somebody hunting for a fault in a document they are simply not
+        // allowed to fetch.
+        LinkState::NotReadable => Icon::Lock,
         _ => Icon::AlertTriangle,
     };
     draw_icon(

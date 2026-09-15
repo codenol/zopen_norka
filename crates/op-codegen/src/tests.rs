@@ -32,7 +32,11 @@ fn empty_doc() -> PenDocument {
         state: None,
         lifecycle: None,
         logic_modules: None,
-        rules: Vec::new(),
+        // The document-level `rules` list this fixture used to set is gone from
+        // the schema: design rules now live under `design_md` (DesignMdSpec), so
+        // "a document with no rules" is an absent `design_md` rather than an
+        // empty vector. Codegen reads neither field, so nothing else moves.
+        design_md: None,
         conversion: None,
         responsive: None,
     }

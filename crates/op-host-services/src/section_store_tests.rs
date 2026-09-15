@@ -214,3 +214,41 @@ fn the_stored_payload_carries_the_sections_own_analytics_links() {
     assert_eq!(link.mockups, SectionDigest::of_text("mockups"));
     assert_eq!(link.linked_by.as_deref(), Some("userA"));
 }
+
+#[test]
+fn the_reverse_lookup_finds_the_document_that_links_an_asset() {
+    // The question issue #110 turns on: an asset is reached by its own key, so
+    // "which document names this asset" is the only thing that can vouch for a
+    // reader who does not own it. Answered per document — the one the request
+    // named — so reading an asset costs that document's rows and not the whole
+    // store's.
+    let (_dir, db, entry) = store("section-reverse-lookup");
+    save(&db, &entry.key, &node("n1"), &properties()).expect("save");
+
+    assert!(references_asset(&db, &entry.key, "k0123456789").expect("lookup"));
+    assert!(
+        !references_asset(&db, &entry.key, "k9999999999").expect("lookup"),
+        "a key nobody linked is not vouched for by a document that links another"
+    );
+    assert!(
+        !references_asset(&db, "a-document-that-does-not-exist", "k0123456789").expect("lookup"),
+        "the lookup is scoped to the document it is asked about"
+    );
+}
+
+#[test]
+fn a_row_this_build_cannot_read_vouches_for_nothing() {
+    // Whether an unreadable row holds the link is exactly what cannot be
+    // established, and a vouch nobody can verify is not one — so this is an
+    // error the caller answers "no" to, never a silent yes.
+    let (_dir, db, entry) = store("section-reverse-lookup-bad-row");
+    db.conn()
+        .execute(
+            "INSERT INTO section_properties (document_key, node_id, properties, updated_at)
+             VALUES (?1, 'n1', '{\"format\":999,\"properties\":{}}', 0)",
+            params![entry.key],
+        )
+        .expect("hand write a row from a newer build");
+
+    assert!(references_asset(&db, &entry.key, "k0123456789").is_err());
+}

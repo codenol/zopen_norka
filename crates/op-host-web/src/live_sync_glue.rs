@@ -525,6 +525,16 @@ fn push_document_if_changed<C: RepaintContext + 'static>(
     sync: &SharedSync,
     oversize_warned: &Rc<Cell<bool>>,
 ) {
+    // A tab that may only READ the document does not push it. The daemon
+    // decides that from the caller's roles and the document's access list, and
+    // says so when the document is opened; before this it said so by refusing,
+    // one rejected request per edit (issue #43).
+    if inner
+        .try_borrow()
+        .is_ok_and(|b| b.host().editor_state().editor_ui.document_read_only)
+    {
+        return;
+    }
     let busy = sync.borrow().push_busy;
     if busy {
         return;
@@ -650,6 +660,9 @@ fn push_document_if_changed<C: RepaintContext + 'static>(
     // current pair is when the response lands — an edit landing while this
     // push is in flight must keep reporting `needs_push`.
     let pushed_pair = pair;
+    // The refusal latch below needs the host, and the closure outlives this
+    // borrow.
+    let inner_for_latch = inner.clone();
     let on_response: Rc<dyn Fn(String)> = Rc::new(move |resp: String| {
         sync_done.borrow_mut().push_busy = false;
         // Conflict check first: a rejected push must never fall through to
@@ -658,6 +671,20 @@ fn push_document_if_changed<C: RepaintContext + 'static>(
         let conflict_version = WebSyncClient::parse_push_conflict(&resp);
         if let Some(server_v) = conflict_version {
             sync_done.borrow_mut().gate.note_conflict(server_v);
+            return;
+        }
+        // A refusal this tab did not know about — a document opened before the
+        // daemon answered `canWrite`, or rights changed under it — latches the
+        // editor read-only rather than retrying a write that cannot succeed.
+        if resp.contains("read-only-role") || resp.contains("not-shared") {
+            if let Ok(mut b) = inner_for_latch.try_borrow_mut() {
+                let state = b.host_mut().editor_state_mut();
+                if !state.editor_ui.document_read_only {
+                    state.editor_ui.document_read_only = true;
+                    b.host_mut().mark_editor_state_dirty();
+                    let _ = b.repaint();
+                }
+            }
             return;
         }
         let accepted_version = WebSyncClient::parse_push_response(&resp);
@@ -694,6 +721,16 @@ fn push_selection_if_changed<C: RepaintContext + 'static>(
     base: &str,
     last_selection_key: &Rc<RefCell<Option<String>>>,
 ) {
+    // Selection is PRESENTATION state, and a caller who may only read the
+    // document has no presentation to publish — every such push was refused
+    // too. The local selection still moves; only the wire is quiet
+    // (issue #43).
+    if inner
+        .try_borrow()
+        .is_ok_and(|b| b.host().editor_state().editor_ui.document_read_only)
+    {
+        return;
+    }
     let (key, body) = {
         let Ok(b) = inner.try_borrow() else {
             return;

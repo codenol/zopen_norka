@@ -407,19 +407,48 @@ fn refuse<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, body: &str, actio
     write(inner, |share| share.record_refusal(refusal));
 }
 
+/// Which refusal this build can name, for a code the daemon answered with.
+///
+/// The strings matched below are the DAEMON's codes — `share_routes::ShareError::code`,
+/// `AccessRefusal::code` and the literals beside them — because they are the
+/// wire vocabulary and this side reads the wire. The dialog's own codes
+/// ([`ShareInviteRefusal::code`]) are a second list; where the two spell a fact
+/// the same way one arm covers both, and where they do not, the daemon's
+/// spelling is the one that must be matched.
+///
+/// Issue #142 is what one drift costs: this function read `share-with-self`
+/// while the daemon answers `cannot-share-with-self`, so the sentence written
+/// for exactly that refusal — "that account is you" — was unreachable and the
+/// person was shown the raw code instead. Renaming a code in `share_routes`
+/// means renaming a line here: `share_routes_tests` pins the daemon's spelling
+/// and `a_refusal_code_maps_onto_the_sentence_this_build_has` pins this one.
 fn refusal_for(code: Option<&str>, action: &ShareAction) -> ShareInviteRefusal {
     let account = match action {
         ShareAction::Grant { account, .. } | ShareAction::Revoke { account } => Some(account),
         _ => None,
     };
     match code {
-        Some("invite-role-required") | Some("read-only-role") => ShareInviteRefusal::NoInviteRight,
+        // What the share routes answer for a caller whose roles do not carry
+        // the invite right (`AccessRefusal::ReadOnly`). `invite-role-required`
+        // is the dialog's own spelling of the same fact, and no daemon route
+        // emits it — kept so a stale tab cannot lose the sentence it has.
+        Some("read-only-role") | Some("invite-role-required") => ShareInviteRefusal::NoInviteRight,
+        // `admin-role-required` is what the invitation route answers
+        // (`AccessRefusal::NotAnAdministrator`) — the one route of this dialog
+        // that has an account list to be refused. The `-for-email` spelling is
+        // the dialog's own.
         Some("admin-role-required") | Some("admin-role-required-for-email") => {
             ShareInviteRefusal::NotAnAdministratorForEmail
         }
-        Some("already-has-access") | Some("share-with-self") => ShareInviteRefusal::AlreadyOnList {
-            account: account.cloned().unwrap_or_default(),
-        },
+        // The daemon's spelling of "that account is you", beside the dialog's
+        // own name for the same sentence. A repeat grant is not refused at all
+        // (it answers `changed:false`), so `already-has-access` arrives from
+        // nowhere today.
+        Some("cannot-share-with-self") | Some("already-has-access") => {
+            ShareInviteRefusal::AlreadyOnList {
+                account: account.cloned().unwrap_or_default(),
+            }
+        }
         Some("level-above-your-own") => match action {
             ShareAction::Grant { level, .. } => ShareInviteRefusal::LevelAboveOwn {
                 level: *level,
@@ -429,8 +458,15 @@ fn refusal_for(code: Option<&str>, action: &ShareAction) -> ShareInviteRefusal {
                 code: "level-above-your-own".to_string(),
             },
         },
-        // A code this build has no sentence for — a full access list, a write
-        // that could not be persisted, or something the daemon learned since.
+        // A code this build has no sentence for. The daemon's codes without one
+        // are `payload-too-large`, `malformed-share-request`,
+        // `tenant-not-shared`, `unknown-account`, `missing-document`,
+        // `account-lookup-unavailable`, `share-limit-reached` and
+        // `share-not-persisted` — a full access list, a write that could not be
+        // persisted, an account this deployment does not have, or something it
+        // learned since. Writing sentences for them is a decision about the
+        // dialog's wording (and fifteen locales), not a spelling to guess at,
+        // so the code is carried for a log line instead.
         other => ShareInviteRefusal::RefusedByServer {
             code: other.unwrap_or("unknown").to_string(),
         },
@@ -586,33 +622,89 @@ mod tests {
         assert_eq!(grants[1].invited_by.as_deref(), Some("userA"));
     }
 
+    /// Every code the daemon answers this dialog with, and the sentence this
+    /// build has for it.
+    ///
+    /// The string on the left of each pair is the DAEMON's spelling — the same
+    /// literal `share_routes_tests` asserts the daemon puts on the wire — so
+    /// the two halves of one refusal are pinned in two places and a rename on
+    /// one side shows up on the other (issue #142: they read `share-with-self`
+    /// against a daemon that answers `cannot-share-with-self`, which left the
+    /// "that account is you" sentence unreachable).
     #[test]
     fn a_refusal_code_maps_onto_the_sentence_this_build_has() {
-        assert_eq!(
-            refusal_for(Some("invite-role-required"), &ShareAction::LoadList),
-            ShareInviteRefusal::NoInviteRight
-        );
-        assert_eq!(
-            refusal_for(Some("admin-role-required"), &ShareAction::LoadList),
-            ShareInviteRefusal::NotAnAdministratorForEmail
-        );
+        // What the share routes answer a caller with no invite right
+        // (`AccessRefusal::ReadOnly`), beside the dialog's own spelling of it.
+        for code in ["read-only-role", "invite-role-required"] {
+            assert_eq!(
+                refusal_for(Some(code), &ShareAction::LoadList),
+                ShareInviteRefusal::NoInviteRight,
+                "{code}"
+            );
+        }
+        // What the invitation route answers (`AccessRefusal::NotAnAdministrator`).
+        for code in ["admin-role-required", "admin-role-required-for-email"] {
+            assert_eq!(
+                refusal_for(Some(code), &ShareAction::LoadList),
+                ShareInviteRefusal::NotAnAdministratorForEmail,
+                "{code}"
+            );
+        }
+        // `ShareError::SelfShare` in `share_routes`, which is the code this
+        // whole issue is about.
+        for code in ["cannot-share-with-self", "already-has-access"] {
+            assert_eq!(
+                refusal_for(
+                    Some(code),
+                    &ShareAction::Grant {
+                        account: "userB".to_string(),
+                        level: ShareLevel::Viewer,
+                    }
+                ),
+                ShareInviteRefusal::AlreadyOnList {
+                    account: "userB".to_string()
+                },
+                "{code}"
+            );
+        }
         assert_eq!(
             refusal_for(
-                Some("share-with-self"),
+                Some("level-above-your-own"),
                 &ShareAction::Grant {
                     account: "userB".to_string(),
-                    level: ShareLevel::Viewer,
+                    level: ShareLevel::Editor,
                 }
             ),
-            ShareInviteRefusal::AlreadyOnList {
-                account: "userB".to_string()
+            ShareInviteRefusal::LevelAboveOwn {
+                level: ShareLevel::Editor,
+                own: ShareLevel::DEFAULT,
             }
         );
-        // A code with no sentence of its own is carried, not guessed at.
+        // A code with no sentence of its own is carried, not guessed at — the
+        // daemon's remaining share-route codes included.
+        for code in [
+            "share-limit-reached",
+            "share-not-persisted",
+            "unknown-account",
+            "missing-document",
+            "payload-too-large",
+            "malformed-share-request",
+            "account-lookup-unavailable",
+            "tenant-not-shared",
+        ] {
+            assert_eq!(
+                refusal_for(Some(code), &ShareAction::LoadList),
+                ShareInviteRefusal::RefusedByServer {
+                    code: code.to_string()
+                },
+                "{code}"
+            );
+        }
+        // Nothing readable at all: the same catch-all, named.
         assert_eq!(
-            refusal_for(Some("share-limit-reached"), &ShareAction::LoadList),
+            refusal_for(None, &ShareAction::LoadList),
             ShareInviteRefusal::RefusedByServer {
-                code: "share-limit-reached".to_string()
+                code: "unknown".to_string()
             }
         );
     }

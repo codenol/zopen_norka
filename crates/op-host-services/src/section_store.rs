@@ -175,6 +175,48 @@ pub(crate) fn list(
     Ok(records)
 }
 
+/// Whether any section of this document links `asset_key`.
+///
+/// The reverse of the reference a section carries, and the only question that
+/// can let an asset be read by somebody who does not own it (issue #110): an
+/// analytics asset is reached by its OWN key, so there is no document in its
+/// address to ask about — the document that vouches for a reader has to be found
+/// from the link instead. Asked of ONE document, the one the request named,
+/// rather than of every document in the store: the caller's own share is the
+/// only thing that may vouch for them, so nothing else has to be looked at, and
+/// the cost of reading one asset stays that document's rows.
+///
+/// A row this build cannot decode is an error rather than a `false`. Whether it
+/// holds the link is exactly what could not be read, and a vouch nobody can
+/// verify is not one — the caller answers "no" and the owner still reads their
+/// own asset.
+pub(crate) fn references_asset(
+    db: &DocumentDb,
+    document_key: &str,
+    asset_key: &str,
+) -> Result<bool, SectionStoreError> {
+    let conn = db.conn();
+    let mut statement = conn
+        .prepare("SELECT properties FROM section_properties WHERE document_key = ?1")
+        .map_err(db_error)?;
+    let payloads = statement
+        .query_map(params![document_key], |row| row.get::<_, String>(0))
+        .map_err(db_error)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(db_error)?;
+    for payload in payloads {
+        let properties = StoredSectionProperties::decode(&payload)?.properties;
+        if properties
+            .analytics
+            .iter()
+            .any(|link| link.key == asset_key)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// Drop a section's properties. `false` when there was nothing to drop.
 ///
 /// What a deleted section frame leaves behind, and what unmarking a frame

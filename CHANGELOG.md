@@ -263,6 +263,80 @@ here at a glance.
 
 ### Fixed
 
+- **Inviting yourself is refused however you spell your own account.** The
+  refusal compared the string in the field against the caller's account id and
+  ran before the field was resolved against the deployment's directory — so the
+  id was refused and a handle was not: typing your own account name resolved to
+  your own id and the grant was RECORDED, a row in "Who has access" drawn as a
+  person who is the person reading it. An address did the same. The comparison
+  now runs on what the directory answered, so all three spellings are refused
+  with `400 cannot-share-with-self` and nothing is recorded, while an ordinary
+  grant to somebody else still works by any of them (issue #141).
+
+- **The Share dialog can read the daemon's "that account is you" refusal.** The
+  dialog matched `share-with-self` while the daemon answers
+  `cannot-share-with-self`, so the sentence written for exactly that refusal was
+  unreachable and the person was shown the raw code instead. The matcher now
+  uses the daemon's spelling, and the sweep of both vocabularies is written
+  beside it: the codes the daemon emits (`read-only-role`,
+  `admin-role-required`, `cannot-share-with-self`, `level-above-your-own`) are
+  what it matches, the three strings no route emits are named as the dialog's
+  own, and the codes with no sentence of their own stay carried rather than
+  guessed at (issue #142).
+
+- **A reader of a shared section can read the analytics it was built from.** An
+  analytics document is addressed by its own key (`/api/analytics/<key>`), so its
+  route had no document in front of it to ask about and decided from ownership
+  alone — while the operator's matrix says reading follows the document ("anyone
+  who may read the document"). A visitor given a section to read could see the
+  link, the name and the fingerprints and could not fetch the markdown behind
+  them: the one click the whole feature exists for, "get from the screen to the
+  reasoning without asking anybody", stopped short for exactly the reader it was
+  designed for (issue #110). An asset is now readable by whoever may read a
+  document that links it **and that belongs to the same account as the asset** —
+  the second half is what keeps a pasted or guessed key from vouching for
+  somebody else's file. Writes are unchanged: a reader's share is not authority
+  over the asset.
+
+  The same change stops the panel and the canvas mark from calling a refusal a
+  deletion: `GET /api/analytics/<key>` answering `403` now paints as a new
+  section state, "you cannot read this analytics document" (a padlock on the
+  canvas), where it used to be reported as "the analytics document is gone".
+
+- **A tab that may only read a shared document stops pushing it.** A visitor
+  reading somebody else's document posted the whole document on every edit and
+  the selection on every click — requests that could never succeed, each refused
+  silently (issue #43). The daemon now says whether the caller may write when it
+  answers the document's `open`, so the tab knows before the first keystroke
+  rather than after a refusal, and a refusal it did not expect (rights changed
+  under it) latches it read-only rather than retrying forever. The local and
+  desktop daemons, which have no accounts to decide about, are unaffected: they
+  never answer the field and never set the flag.
+
+- **A revoke removes the account that was named, and never needs it to still
+  exist.** The invite field is one field, so `POST /api/share/revoke` resolves
+  it exactly as grant does: an id, a sign-in handle or an address all land on the
+  row the directory keeps, and one revoke removes the one account it names.
+  Where the halves part is the string that names nobody: a grant to nobody is
+  still refused with `400 unknown-account`, because a row recorded for an
+  account this deployment does not have is a row the list draws as a person,
+  while a revoke of nobody removes nothing and says so with `changed:false` —
+  a row can outlive its account (an account deleted from the deployment, or a
+  row written before the lookup existed and keyed by the spelling somebody
+  typed), and refusing the revoke would leave the owner unable to prune it
+  (issue #129). What an unknown string sends the browser is the answer it sent
+  before the lookup existed: `200 {"ok":true,"changed":false}`.
+
+- **The retired device-login family says which refusal a caller gets.** Online,
+  `/api/auth/login/begin`, `/api/auth/login/status`, `/api/auth/login/cancel`,
+  `/api/auth/avatar` and `/auth/loading` answer `401` to a caller with no
+  identity, because credentials are resolved before the route table, the static
+  layer and dispatch; the `404` they were documented with is what a caller
+  holding a session sees. The order stays — a `404` handed out before asking who
+  is asking would let anybody enumerate the route table of a public deployment —
+  so the constants and the module docs now say so instead of promising a bare
+  `404` (issue #123).
+
 - **The layer panel keeps room for the layer list.** The sections above the
   tree — pages, components, recipes — each capped their own height, but only on
   the touch layout: on a short desktop window they took the whole rail, and the
@@ -413,6 +487,18 @@ here at a glance.
   account, reads again. Saving and autosaving deliberately do not, because a
   save cannot change a conversation and autosave would turn it into a stream of
   requests.
+
+- **The collaboration panel stops offering a sign-in it cannot open.** The
+  panel's "Sign in" row was painted whenever the collaboration runtime said it
+  needed an account, while the press it answered was refused unless the chrome
+  actually had a sign-in surface — so a local `--serve-web` deployment (no
+  accounts, and `/api/auth/status` answering `available:false`) painted a
+  button that did nothing when clicked, and in an online deployment the row sat
+  behind the account form's full-viewport scrim where nobody could press it
+  (issue #83). The row now exists only where both hold: a press on it is
+  answerable, and the person can reach it. Where it goes, the panel says which
+  of the two is missing instead of promising a door that is not there. The
+  desktop host, whose linked auth backend is what the row opens, is unchanged.
 
 ## [0.9.0] — 2026-09-14
 

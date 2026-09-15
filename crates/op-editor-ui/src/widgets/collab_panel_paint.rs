@@ -3,7 +3,7 @@
 use super::*;
 use crate::widgets::collab_ui::{role_label, CollabAvatarModel};
 use crate::widgets::text_metrics;
-use crate::{Color, TextLayout};
+use crate::{Color, RenderBackend, TextLayout};
 
 impl CollabPanel<'_> {
     pub fn rect_at(&self, anchor: Rect, viewport: Rect) -> Rect {
@@ -26,7 +26,9 @@ impl CollabPanel<'_> {
             0.0
         };
         let body = match &self.model.screen {
-            CollabPanelScreen::Unavailable | CollabPanelScreen::SignInRequired => 82.0,
+            CollabPanelScreen::Unavailable
+            | CollabPanelScreen::SignInRequired
+            | CollabPanelScreen::SignInUnavailable => 82.0,
             CollabPanelScreen::Home => 66.0,
             // Message + the service-region selector (label + option row).
             CollabPanelScreen::Create => 66.0 + REGION_SECTION_HEIGHT,
@@ -125,6 +127,7 @@ impl CollabPanel<'_> {
         );
     }
 
+    /// One line of copy, ellipsized to the body column.
     pub(super) fn paint_message(
         &self,
         cx: &mut PaintCx<'_>,
@@ -147,6 +150,92 @@ impl CollabPanel<'_> {
             Point2D::new(rect.origin.x + PAD, body_top + 29.0),
             400,
         );
+    }
+
+    /// Paint an explanation for a screen that carries no control at all.
+    ///
+    /// [`Self::paint_message`] ellipsizes, which is right for a caption whose
+    /// tail is a detail and wrong here: this sentence IS the reason a row is
+    /// missing, and a translation a word longer than the English would have the
+    /// reason cut off — the same silent half-truth the missing row was. The
+    /// height an explanation screen reserves holds three lines of this face, so
+    /// the sentence is wrapped instead of truncated; only what still does not
+    /// fit after three lines is ellipsized, and that is a signal rather than a
+    /// silent amputation.
+    pub(super) fn paint_explanation(
+        &self,
+        cx: &mut PaintCx<'_>,
+        rect: Rect,
+        body_top: f32,
+        key: &'static str,
+    ) {
+        const FONT: f32 = 12.0;
+        // Room for three lines inside the 82 px body these screens reserve.
+        const LINE_GAP: f32 = 18.0;
+        const MAX_LINES: usize = 3;
+        let mut rest = op_i18n::translate(self.ui.effective_locale(), key);
+        let max_width = (rect.size.x - PAD * 2.0).max(0.0);
+        let origin_x = rect.origin.x + PAD;
+        let mut line = 0;
+        while !rest.is_empty() && line < MAX_LINES {
+            let last = line + 1 == MAX_LINES;
+            let split = if last {
+                rest.len()
+            } else {
+                wrap_split(cx.backend, rest, max_width, FONT)
+            };
+            let (head, tail) = rest.split_at(split);
+            let head = head.trim_end();
+            let painted = if last {
+                text_metrics::fit_chrome(cx.backend, head, max_width, FONT)
+            } else {
+                head.to_string()
+            };
+            paint_text(
+                cx,
+                &painted,
+                FONT,
+                self.theme.muted_foreground,
+                Point2D::new(origin_x, body_top + 29.0 + line as f32 * LINE_GAP),
+                400,
+            );
+            rest = tail.trim_start();
+            line += 1;
+        }
+    }
+}
+
+/// Byte index to break `text` at so its first line fits `max_width`.
+///
+/// Breaks at the last space of the fitting prefix, so an English sentence
+/// splits between words; a script that does not space its words (CJK) has no
+/// such space and is broken at the width itself, which is where those scripts
+/// wrap. `text.len()` means the whole sentence fits one line and must not be
+/// broken at a space it happens to contain.
+fn wrap_split(
+    backend: &mut dyn RenderBackend,
+    text: &str,
+    max_width: f32,
+    font_size: f32,
+) -> usize {
+    // The character boundaries are walked rather than the byte range: the
+    // first prefix that overflows ends the fitting line at the boundary BEFORE
+    // the character that caused it.
+    let mut fitted = 0;
+    let mut overflowed = false;
+    for (index, _) in text.char_indices().skip(1) {
+        if text_metrics::measure_chrome(backend, &text[..index], font_size) > max_width {
+            overflowed = true;
+            break;
+        }
+        fitted = index;
+    }
+    if !overflowed {
+        return text.len();
+    }
+    match text[..fitted].rfind(' ') {
+        Some(space) if space > 0 => space,
+        _ => fitted,
     }
 }
 

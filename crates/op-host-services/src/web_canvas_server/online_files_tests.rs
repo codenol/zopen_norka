@@ -455,3 +455,56 @@ fn the_draft_a_visitor_writes_lands_in_the_workspace_they_were_granted() {
         "no account's draft is the local operator's slot"
     );
 }
+
+/// The open answer says whether this caller may WRITE the document.
+///
+/// Issue #43: a visitor reading a shared document pushed the whole document on
+/// every edit and the selection on every click, and every one of those requests
+/// was refused. The browser used to learn its rights by being refused; it is
+/// told now, once, with the open.
+#[test]
+fn the_open_answer_says_whether_the_caller_may_write() {
+    let registry = registry();
+    let verifier = verifier();
+    let dir = TempDir::new("online-open-can-write");
+    install_shared_store(&registry, &verifier, &dir, &["tokA", "tokB"]);
+    let key = create_as_owner(&registry, &verifier, "Rights");
+
+    // The owner writes it.
+    let owner = serve(
+        &registry,
+        &verifier,
+        Request::json("POST", key_path(&key, "open"), "").with_bearer("tokA"),
+    );
+    assert_eq!(status_line(&owner), "HTTP/1.1 200 OK", "{owner}");
+    assert_eq!(
+        body(&owner)["canWrite"],
+        true,
+        "the owner of a document writes it: {owner}"
+    );
+
+    // A visitor granted viewing does not.
+    let granted = serve(
+        &registry,
+        &verifier,
+        Request::json(
+            "POST",
+            op_editor_core::share_routes::GRANT,
+            &serde_json::json!({ "userId": "userB", "level": "viewer", "file": key }).to_string(),
+        )
+        .with_bearer("tokA"),
+    );
+    assert_eq!(status_line(&granted), "HTTP/1.1 200 OK", "{granted}");
+
+    let visitor = serve(
+        &registry,
+        &verifier,
+        as_visitor("POST", key_path(&key, "open"), "userA"),
+    );
+    assert_eq!(status_line(&visitor), "HTTP/1.1 200 OK", "{visitor}");
+    assert_eq!(
+        body(&visitor)["canWrite"],
+        false,
+        "a viewer is told so with the open, not by a refused push: {visitor}"
+    );
+}

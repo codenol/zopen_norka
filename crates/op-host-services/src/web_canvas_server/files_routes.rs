@@ -598,6 +598,13 @@ fn open_document(
                 "ok": true,
                 "version": state.version,
                 "name": name,
+                // Whether THIS caller may write the document. The browser used
+                // to find out by being refused, one wasted push at a time: a
+                // visitor reading a shared document pushed the whole document
+                // on every edit and the selection on every click, and every one
+                // of those requests was refused (issue #43). One additive field
+                // saves all of them.
+                "canWrite": access.decide(super::request_access::DocumentAction::Edit).is_ok(),
             }))
         }
         Err(error) => WebReply {

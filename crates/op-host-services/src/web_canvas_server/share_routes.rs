@@ -49,6 +49,13 @@ pub enum ShareError {
     BodyTooLarge,
     MalformedRequest,
     /// The body named the caller's own account.
+    ///
+    /// Decided in [`mutate`] against the account the directory resolved the
+    /// string to, so it holds for every spelling of the caller: an id, a handle
+    /// or an address (issue #141). It is not a refusal of a document operation
+    /// — nothing about this document is wrong — so it is its own error rather
+    /// than an [`AccessRefusal`], and the client reads it to say "that account
+    /// is you".
     SelfShare,
     /// The caller may not add people to this document.
     ///
@@ -72,6 +79,10 @@ pub enum ShareError {
     /// account id, so an id nobody holds is a row that grants nothing — and a
     /// `200` for it tells the person who typed a NAME that they shared
     /// something.
+    ///
+    /// The GRANT half's answer only. A revoke of an account that is not there
+    /// removes nothing and says so with `changed:false` instead; the reason is
+    /// written once, at the branch in `mutate` (issue #129).
     UnknownAccount,
     /// The account list could not be read, so whether the account exists is
     /// unknown. Fail closed.
@@ -160,8 +171,9 @@ pub(super) fn handle(
     identity: &ResolvedIdentity,
     lease: &TenantLease,
     registry: &TenantRegistry,
-    // The deployment's account list, when it has one. The grant route asks it
-    // whether the account in the body exists — see `ShareError::UnknownAccount`.
+    // The deployment's account list, when it has one. Both halves of the
+    // mutation ask it what the account in the body is — see `canonical_account`,
+    // and `mutate` for the one answer the halves give differently.
     accounts: Option<&super::account_routes::AccountAuth>,
     // The document this call is about, read from the path, the query or the
     // body by `share_routes::document_from_request`. `None` is refused: a share
@@ -206,42 +218,66 @@ enum Mutation {
     Revoke,
 }
 
+/// What the deployment's account list could make of the string a share body
+/// named.
+///
+/// The three answers are kept apart because the two halves of the mutation use
+/// them differently, and that difference is a decision rather than an
+/// oversight — see the branch in [`mutate`] (issue #129).
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum NamedAccount {
+    /// The directory knows the string. The access list is keyed by account id,
+    /// so this — not what was typed — is the row key.
+    Known(String),
+    /// There is no account list to ask, so the string stands as typed. The
+    /// behaviour every deployment without accounts already had, and the same
+    /// for both halves.
+    Unchecked,
+    /// There IS an account list, and none of its keys is this string.
+    Unknown,
+}
+
 /// The account a share body names, as the account list knows it.
 ///
 /// An id, a sign-in handle, or an address — because the field a person types
 /// into is a text box, and the placeholder has always offered "account name"
 /// (issue #130). Resolving here is what makes that true instead of a promise
-/// the route cannot keep.
+/// the route cannot keep, and BOTH halves resolve through it, so a person may
+/// revoke with whatever they invited with.
 ///
-/// `None` means the deployment has no account list, so nothing can be resolved
-/// and the caller's string is used as it stands — the behaviour every
-/// deployment without accounts already had.
+/// The lookup order is the precedence: an id first — the access list and this
+/// route are keyed by it, so a string that is somebody's id names that somebody
+/// and nobody else — then a handle, then an address a real account holds.
+/// Inviting an address that has no account is a mail feature this deployment
+/// does not have (#55), and the dialog says so — this route must not pretend.
+///
+/// `Err` is the store failing to answer. That is not the same fact as "no such
+/// account": a lookup that cannot run fails closed for both halves with
+/// [`ShareError::LookupUnavailable`], because a share decided on an unread
+/// directory is a share decided on nothing.
 fn canonical_account(
     accounts: Option<&super::account_routes::AccountAuth>,
     input: &str,
-) -> Result<Option<(String, String, String)>, ShareError> {
+) -> Result<NamedAccount, ShareError> {
     let Some(accounts) = accounts else {
-        return Ok(None);
+        return Ok(NamedAccount::Unchecked);
     };
     let db = accounts.db();
     let lookup = |found: Result<Option<crate::accounts::User>, crate::accounts::AccountsError>| {
         found.map_err(|_| ShareError::LookupUnavailable)
     };
     if let Some(user) = lookup(db.find_user_by_id(input))? {
-        return Ok(Some((user.id, user.display_name, user.username)));
+        return Ok(NamedAccount::Known(user.id));
     }
     if let Some(user) = lookup(db.find_user_by_username(input))? {
-        return Ok(Some((user.id, user.display_name, user.username)));
+        return Ok(NamedAccount::Known(user.id));
     }
-    // An address names an account only when one already holds it. Inviting an
-    // address that has no account is a mail feature this deployment does not
-    // have (#55), and the dialog says so — this route must not pretend.
     if input.contains('@') {
         if let Some(user) = lookup(db.find_user_by_email(input))? {
-            return Ok(Some((user.id, user.display_name, user.username)));
+            return Ok(NamedAccount::Known(user.id));
         }
     }
-    Err(ShareError::UnknownAccount)
+    Ok(NamedAccount::Unknown)
 }
 
 /// One grant, dressed with the names the directory holds for it.
@@ -292,7 +328,7 @@ fn mutate(
     key: &str,
     mutation: Mutation,
 ) -> WebReply {
-    let parsed = match parse_account(body, &identity.user_id) {
+    let parsed = match parse_account(body) {
         Ok(parsed) => parsed,
         Err(error) => return error_reply(error),
     };
@@ -304,14 +340,50 @@ fn mutate(
     //
     // The answer is the account's ID, whatever the field was given: an id, a
     // handle or an address all land on the same row (issue #130).
-    let resolved = match canonical_account(accounts, &parsed.account) {
-        Ok(resolved) => resolved,
+    let named = match canonical_account(accounts, &parsed.account) {
+        Ok(named) => named,
         Err(error) => return error_reply(error),
     };
-    let account = resolved
-        .as_ref()
-        .map(|(id, _, _)| id.clone())
-        .unwrap_or_else(|| parsed.account.clone());
+    // …and here the halves part, deliberately (issue #129). A revoke is not a
+    // grant run backwards: a grant CREATES a row that the product draws as a
+    // person and enforces at the door, so a grant that names nobody is a lie
+    // worth refusing (#117); a revoke REMOVES a row, cannot widen access
+    // however it is spelled, and reports `changed:false` when there was nothing
+    // to remove. Refusing that would also make a row unremovable through this
+    // API in exactly the two cases where a row outlives its account — an
+    // account deleted from the deployment (the access list is a separate store
+    // and nothing prunes it), and a row written before this lookup existed,
+    // keyed by the NAME somebody typed (#130). Both are rows an owner is right
+    // to want gone, and a revoke is the only tool that removes one.
+    let account = match named {
+        // Whatever the directory resolved to is the row key, for both halves.
+        // Never the typed string as well: one revoke removes the one account it
+        // names, decided by the lookup order above, and nothing else.
+        NamedAccount::Known(id) => id,
+        NamedAccount::Unknown if mutation == Mutation::Grant => {
+            return error_reply(ShareError::UnknownAccount);
+        }
+        // A revoke of a string that names nobody, and either half of a
+        // mutation on a deployment with no account list, use the string as it
+        // stands — so a row keyed by that exact spelling can still be removed
+        // by typing it.
+        NamedAccount::Unknown | NamedAccount::Unchecked => parsed.account.clone(),
+    };
+    // Whose account is that? Not the caller's, for either half: a share is
+    // between the account doing the sharing and somebody else, and a row naming
+    // the caller is a row drawn in "Who has access" as if it were a person
+    // (issue #141).
+    //
+    // The comparison is against `account` — the id the row will be keyed by —
+    // and not against the string the body carried, which is where this check
+    // used to run. The field accepts a handle or an address as well as an id
+    // (#130), so a request naming the caller by handle or by address walked
+    // past a check meant for the id spelling and recorded the self-grant. It
+    // covers a deployment with no account list too: there the string IS the row
+    // key, and the old comparison is the one that still applies.
+    if account == identity.user_id {
+        return error_reply(ShareError::SelfShare);
+    }
     // May this caller add anybody at all? The same decision the document
     // routes make, from the same place, so "may invite" cannot mean two
     // things. The owner passes by identity; a visitor holding the access list
@@ -507,11 +579,11 @@ fn list(
 
 /// Pull the target account and level out of a share body.
 ///
-/// The account id is not validated against the hub: this deployment has no
-/// user-lookup endpoint yet, so an id that belongs to nobody simply grants
-/// access to nobody. The dialog says so rather than implying a lookup
-/// happened — see `share.invite.placeholder`'s caption.
-fn parse_account(body: &str, caller: &str) -> Result<ShareRequest, ShareError> {
+/// Shape only, and no opinion about the account beyond its presence: whether it
+/// names somebody, and whether that somebody is the caller, is decided against
+/// the deployment's account list in [`mutate`] — the string here can be a name,
+/// a handle or an address, and only the lookup knows which account it names.
+fn parse_account(body: &str) -> Result<ShareRequest, ShareError> {
     if body.len() > MAX_SHARE_BODY_BYTES {
         return Err(ShareError::BodyTooLarge);
     }
@@ -525,9 +597,6 @@ fn parse_account(body: &str, caller: &str) -> Result<ShareRequest, ShareError> {
         .ok_or(ShareError::MalformedRequest)?;
     if account.chars().count() > MAX_ACCOUNT_ID_CHARS {
         return Err(ShareError::MalformedRequest);
-    }
-    if account == caller {
-        return Err(ShareError::SelfShare);
     }
     // A body that names no level gets the weakest one. Fail closed: a client
     // older than levels must not be able to hand out editing by omission.

@@ -13,15 +13,37 @@
 //! interstitial — is the device-login pairing the daemon used to proxy to a
 //! third-party identity service.
 //!
-//! Nothing calls any of that family any more: the daemon answers `404` for it
-//! (`web_canvas_server`), and the browser shell that used to drive it now shows
-//! its own password form ([`LOGIN`]). The constants stay because the daemon's
-//! tests name those exact paths to prove the 404, and a test that asserts
-//! against a string literal instead of the shared spelling is a test that stops
-//! noticing when the spelling moves.
+//! Nothing calls any of that family any more: no route table serves it, so the
+//! daemon answers `404` for it (`web_canvas_server`). Online that answer has a
+//! qualifier, and it is the whole of issue #123: credentials are resolved
+//! BEFORE the route table, before the static layer and before dispatch
+//! (`web_canvas_server::online_run_loop::serve_one_online`), so an ANONYMOUS
+//! caller is refused `401` first and never learns that the path is gone. Only a
+//! caller that already holds an identity reaches the `404`.
+//!
+//! That order is deliberate and stays: answering `404` for a path before asking
+//! who is asking would let anyone enumerate the route table of a public
+//! deployment. The cost is that "is this route still there?" is a question only
+//! a signed-in caller can ask — for a family nothing calls, that is the right
+//! trade, and the answer belongs here rather than in the behaviour. On a local
+//! (non-`--online`) daemon there is no verifier in front of the table at all,
+//! so the same paths answer `404` to anybody.
+//!
+//! The constants stay because the daemon's tests name those exact paths to
+//! prove both answers — `404` for a caller with a session
+//! (`online_account_tests::a_deployment_with_accounts_still_refuses_a_credential_it_cannot_resolve`)
+//! and `401` for one without
+//! (`online_account_tests::an_anonymous_caller_is_refused_the_dead_device_login_family_before_dispatch`)
+//! — and a test that asserts against a string literal instead of the shared
+//! spelling is a test that stops noticing when the spelling moves.
 
-/// Sign-in popup interstitial page (auth-exempt static HTML that shows
-/// a spinner until the popup is navigated to the verification URI).
+/// Sign-in popup interstitial page from the retired device-login pairing.
+///
+/// Nothing links to it, and no deployment serves it as a page: the static layer
+/// answers an explicit list of paths, and this is not one of them — so it
+/// reaches the route table like any unknown path and gets the `404` there, or
+/// online, without a credential, the verifier's `401` before that, exactly as
+/// the API routes of the family do.
 pub const LOADING_PAGE: &str = "/auth/loading";
 
 /// Prefix shared by every JSON auth API route below (used by the
@@ -49,16 +71,24 @@ pub const INVITE_ACCEPT: &str = "/api/auth/invite/accept";
 /// JSON POST is intentional: unlike a GET, a cross-site image element cannot
 /// trigger the daemon's upstream fetch without passing the existing
 /// same-origin and JSON content-type gates.
+///
+/// Retired with the rest of the family: no route table serves it (module docs).
 pub const AVATAR: &str = "/api/auth/avatar";
 
 /// `POST` — begin a device-login pairing. The daemon holds the request
 /// until the pairing's verification URI is known.
+///
+/// Retired with the rest of the family: no route table serves it (module docs).
 pub const LOGIN_BEGIN: &str = "/api/auth/login/begin";
 
 /// `GET` — poll the in-flight login pairing for approval progress.
+///
+/// Retired with the rest of the family: no route table serves it (module docs).
 pub const LOGIN_STATUS: &str = "/api/auth/login/status";
 
 /// `POST` — cancel the in-flight login pairing.
+///
+/// Retired with the rest of the family: no route table serves it (module docs).
 pub const LOGIN_CANCEL: &str = "/api/auth/login/cancel";
 
 /// `POST` — sign out of the current session. `{"all":true}` ends every session

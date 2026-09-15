@@ -401,6 +401,10 @@ fn analytics_line(state: &SectionPanelState) -> Option<(String, Option<&'static 
             MovedSide::Both => "section.state.bothMoved",
         }),
         LinkState::AssetMissing => Some("section.state.assetMissing"),
+        // The document is there and the reader may not open it: saying "gone"
+        // here would state something untrue about somebody else's file, and
+        // nothing the reader could do (a restore, a re-link) would help them.
+        LinkState::NotReadable => Some("section.state.notReadable"),
         // A link with nothing behind it is the caption's business, not a state
         // of a document's name.
         LinkState::NoAnalytics => None,
@@ -584,6 +588,29 @@ mod tests {
         let (name, key) = analytics_line(&state).expect("a link");
         assert_eq!(name, "Checkout analytics");
         assert_eq!(key, Some("section.state.bothMoved"));
+    }
+
+    #[test]
+    fn a_reader_who_may_not_open_the_analytics_is_told_that_and_not_that_it_is_gone() {
+        // Issue #110. The two facts leave the reader equally empty-handed and
+        // are not the same: one is about somebody else's file, the other about
+        // what this reader is allowed to open. The panel says which.
+        let node = NodeId::new("s1");
+        let line_for = |state| {
+            let mut panel = SectionPanelState::default();
+            panel.select(Some(node.clone()));
+            panel.apply(&node, SectionProperties::empty(), vec![attached(state)]);
+            analytics_line(&panel).expect("a link")
+        };
+
+        let (name, key) = line_for(LinkState::NotReadable);
+        assert_eq!(name, "Checkout analytics");
+        assert_eq!(key, Some("section.state.notReadable"));
+        assert_ne!(
+            key,
+            line_for(LinkState::AssetMissing).1,
+            "a refusal must not be painted as a deletion"
+        );
     }
 
     #[test]

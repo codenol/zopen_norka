@@ -205,8 +205,16 @@ fn web_path_context_menu_keeps_hover_priority_over_collab_panel() {
     assert_eq!(host.editor_state.editor_ui.collab.panel.hover, None);
 }
 
+/// Issue #83: the panel's sign-in row exists only where a press on it both
+/// changes something AND can be reached.
+///
+/// This is the online shape — the daemon answered `available:true,
+/// signed_in:false`, so the password form is on screen and is the gate. The
+/// form paints a full-viewport scrim and takes every press before the panel,
+/// so a row painted here is a control nobody can get to; the surface that DOES
+/// answer a sign-in is the form itself.
 #[test]
-fn web_collab_sign_in_row_cannot_open_the_native_popup_modal() {
+fn the_web_collab_sign_in_row_goes_when_the_entry_form_is_the_gate() {
     let (viewport_w, viewport_h) = (1200.0, 800.0);
     let mut host = WidgetHost::new();
     let ui = &mut host.editor_state.editor_ui;
@@ -216,6 +224,13 @@ fn web_collab_sign_in_row_cannot_open_the_native_popup_modal() {
     ui.account_entry.status_received = true;
     ui.collab.availability = CollabAvailability::SignInRequired;
     ui.collab.panel.open = true;
+
+    // The gate is the sign-in surface, and it is reachable: this is the form a
+    // visitor is looking at, and the field the caret goes into.
+    assert!(
+        host.account_entry_form(viewport_w, viewport_h).is_some(),
+        "the entry form is what offers the sign-in in this deployment"
+    );
 
     let top_bar_rect = Rect::xywh(0.0, 0.0, viewport_w, TOP_BAR_HEIGHT);
     let panel = CollabPanel::for_editor_ui(&host.editor_state.editor_ui).unwrap();
@@ -229,19 +244,73 @@ fn web_collab_sign_in_row_cannot_open_the_native_popup_modal() {
         panel_rect.origin.x + panel_rect.size.x / 2.0,
         panel_rect.origin.y + 100.0,
     );
-    assert!(matches!(
+    assert_ne!(
         panel.hit_test(panel_rect, sign_in),
-        Some(op_editor_ui::widgets::CollabPanelHit::OpenSignIn)
-    ));
+        Some(op_editor_ui::widgets::CollabPanelHit::OpenSignIn),
+        "the row is not painted behind a gate that makes it unreachable"
+    );
 
+    // And the press still belongs to the form — never to a phantom row.
     assert!(host.apply_press(sign_in.x, sign_in.y, viewport_w, viewport_h));
-
-    // The form is painted above the panel and consumes every press, scrim
-    // included, so the panel neither takes the click nor loses its state.
     assert!(
         !host.editor_state.editor_ui.login_modal_open,
         "the web host has no popup sign-in modal to open"
     );
+    assert!(host.editor_state.editor_ui.login_modal_status.is_none());
+}
+
+/// The other half of the same rule, from the deployment that has no account
+/// surface at all.
+///
+/// A local `--serve-web` daemon answers `/api/auth/status` with
+/// `available:false` — there are no accounts to sign in to — while its
+/// collaboration runtime still reports `SignInRequired` (the runtime wants an
+/// account; it never asked whether this deployment can issue one). The panel
+/// used to paint "Sign in" there, and `apply_panel_hit` refused the press, so
+/// the row was reachable and did nothing at all.
+#[test]
+fn the_web_collab_sign_in_row_is_absent_when_no_sign_in_can_be_opened() {
+    let (viewport_w, viewport_h) = (1200.0, 800.0);
+    let mut host = WidgetHost::new();
+    let ui = &mut host.editor_state.editor_ui;
+    // `web_auth_sync` folds the daemon's answer into this flag; false means
+    // this deployment offers nobody a sign-in.
+    ui.account_ui_available = false;
+    ui.account_entry.status_received = true;
+    ui.collab.availability = CollabAvailability::SignInRequired;
+    ui.collab.panel.open = true;
+
+    assert!(
+        matches!(
+            host.editor_state.editor_ui.account_entry_mode(),
+            op_editor_core::AccountEntryMode::Hidden
+        ),
+        "no account surface, so nothing is covering the panel either"
+    );
+
+    let top_bar_rect = Rect::xywh(0.0, 0.0, viewport_w, TOP_BAR_HEIGHT);
+    let panel = CollabPanel::for_editor_ui(&host.editor_state.editor_ui).unwrap();
+    let panel_rect = panel.rect_at(
+        TopBar::for_editor_ui(&host.editor_state.editor_ui)
+            .with_traffic_controls(false)
+            .collaboration_chip_rect_estimated(top_bar_rect),
+        Rect::xywh(0.0, 0.0, viewport_w, viewport_h),
+    );
+    let sign_in = Point2D::new(
+        panel_rect.origin.x + panel_rect.size.x / 2.0,
+        panel_rect.origin.y + 100.0,
+    );
+
+    assert_ne!(
+        panel.hit_test(panel_rect, sign_in),
+        Some(op_editor_ui::widgets::CollabPanelHit::OpenSignIn),
+        "the panel paints no sign-in row it could not answer"
+    );
+
+    // The press lands as a plain press inside the open panel: no control was
+    // claimed, no sign-in was opened, and the panel keeps its state.
+    assert!(host.apply_press(sign_in.x, sign_in.y, viewport_w, viewport_h));
+    assert!(!host.editor_state.editor_ui.login_modal_open);
     assert!(host.editor_state.editor_ui.login_modal_status.is_none());
     assert!(host.editor_state.editor_ui.collab.panel.open);
 }

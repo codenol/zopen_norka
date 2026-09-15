@@ -33,6 +33,7 @@ impl Default for EditorUiState {
             now_unix_ms: 0.0,
             file_key: None,
             local_document: false,
+            document_read_only: false,
             sidebar_open: true,
             layer_panel_width: 240.0,
             property_panel_width: 256.0,
