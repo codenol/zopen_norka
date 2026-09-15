@@ -42,6 +42,8 @@ pub enum Icon {
     /// ChevronRight — collapsed tree row (LayerPanel collapsed
     /// container shows `>`; expanding swaps it to `v`).
     ChevronRight,
+    /// SquareDashed — Section tool: a frame that groups screens.
+    Section,
     /// Type — Text tool.
     Type,
     /// Frame — Frame tool.
@@ -298,6 +300,7 @@ impl Icon {
             Icon::ChevronRight => CHEVRON_RIGHT,
             Icon::Type => TYPE,
             Icon::Frame => FRAME,
+            Icon::Section => SQUARE_DASHED,
             Icon::Hand => HAND,
             Icon::Undo => UNDO,
             Icon::Redo => REDO,
@@ -508,6 +511,7 @@ impl Icon {
             "hash" => Icon::Hash,
             "type" | "text" => Icon::Type,
             "frame" => Icon::Frame,
+            "square-dashed" | "section" => Icon::Section,
             "hand" => Icon::Hand,
             "cursor" | "mouse-pointer" | "mouse-pointer-2" => Icon::Cursor,
             "maximize" | "fullscreen" => Icon::Maximize,
