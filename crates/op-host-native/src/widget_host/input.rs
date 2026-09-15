@@ -33,6 +33,8 @@ impl WidgetHostNative {
             // `v`, `p`, `y`, `o`, `l`, `h` — must reach the field, not the
             // tool router.
             || self.editor_state.editor_ui.share.open
+            // The same for a focused summary question (#59).
+            || self.editor_state.editor_ui.section_panel.focus.is_some()
             || self.editor_state.editor_ui.collab_join_input_active()
             || ui.layer_rename.is_some()
             || ui.text_editing.is_some()

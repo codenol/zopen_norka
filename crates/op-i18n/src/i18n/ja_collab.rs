@@ -292,6 +292,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "セクション",
         "section.readFailed" => "このセクションを読み込めませんでした",
         "section.analytics" => "参照元",
+        "section.analytics.attach" => "分析を関連付ける…",
         "section.analytics.none" => "分析ドキュメントは未接続",
         "section.state.inSync" => "同期済み",
         "section.state.analyticsMoved" => "その後、分析が更新されました",

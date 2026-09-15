@@ -288,6 +288,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "Phân đoạn",
         "section.readFailed" => "Không đọc được phân đoạn này",
         "section.analytics" => "Dựng từ",
+        "section.analytics.attach" => "Đính kèm phân tích…",
         "section.analytics.none" => "Chưa gắn tài liệu phân tích",
         "section.state.inSync" => "Đã đồng bộ",
         "section.state.analyticsMoved" => "Tài liệu phân tích đã thay đổi",

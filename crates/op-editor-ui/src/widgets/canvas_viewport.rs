@@ -134,6 +134,10 @@ pub struct CanvasViewport<'a> {
     /// below the local selection overlay, so local edit affordances remain
     /// visually authoritative.
     pub(super) collab_presence: Vec<crate::widgets::canvas_collab_presence::CollabPresencePaint>,
+    /// Sections that no longer match the analytics they were built from (#59).
+    /// Painted as a mark in the corner of each, so a reader sees the drift
+    /// without selecting anything.
+    pub(super) section_marks: op_editor_core::editor_ui_state::section_panel::SectionMarks,
     /// The page's comment threads, as pin sources, numbered.
     ///
     /// Already filtered to this page's pinned threads by the builder (see
@@ -429,6 +433,14 @@ impl<'a> Widget for CanvasViewport<'a> {
                 viewport_origin,
                 viewport,
                 rect,
+            );
+            super::canvas_section_marks::paint(
+                cx,
+                &page.children,
+                &self.section_marks,
+                &self.theme,
+                rect,
+                &viewport,
             );
             super::canvas_collab_presence::paint(
                 cx,

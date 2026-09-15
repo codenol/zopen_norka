@@ -169,6 +169,12 @@ pub struct EditorUiState {
     /// is a state the panel has to be able to say.
     pub section_panel: crate::editor_ui_state::section_panel::SectionPanelState,
 
+    /// Which sections in this document no longer match the analytics they were
+    /// built from (#59). The panel answers that for the selected section; this
+    /// is what the CANVAS paints a mark from, so a reader sees the drift
+    /// without opening anything.
+    pub section_marks: crate::editor_ui_state::section_panel::SectionMarks,
+
     // --- Comments (the review on this document) ----------------------
     /// The document's comment threads plus the review in progress: the open
     /// thread, the two drafts, and whether the next canvas click drops a pin.

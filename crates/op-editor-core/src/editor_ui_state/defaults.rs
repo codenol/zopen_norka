@@ -48,6 +48,7 @@ impl Default for EditorUiState {
             collab: Default::default(),
             share: Default::default(),
             section_panel: Default::default(),
+            section_marks: Default::default(),
             comments: Default::default(),
             file_menu_open: false,
             file_menu: Default::default(),

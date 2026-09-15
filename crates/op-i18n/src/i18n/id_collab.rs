@@ -276,6 +276,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "Seksi",
         "section.readFailed" => "Tidak dapat membaca seksi ini",
         "section.analytics" => "Dibangun dari",
+        "section.analytics.attach" => "Lampirkan analitik…",
         "section.analytics.none" => "Belum ada analitik terlampir",
         "section.state.inSync" => "Selaras",
         "section.state.analyticsMoved" => "Analitik telah berubah sejak itu",

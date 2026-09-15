@@ -276,6 +276,63 @@ impl WidgetHost {
                 return Some(true);
             }
             let point = Point2D::new(x, y);
+            // The Section block (#59) sits above every ordinary section, so it
+            // is asked first: a click on a summary question focuses it, and a
+            // click anywhere else in the block blurs rather than falling
+            // through to the fields the block has pushed down.
+            if let Some(block) = panel.section_block_rect(property_rect) {
+                if block.contains(point) {
+                    // The attach control first: it is a control of its own
+                    // rather than a question, and a press on it must not be
+                    // read as a press on the field beside it.
+                    if let Some(attach) =
+                        op_editor_ui::widgets::property_panel_section_block::section_attach_rect(
+                            &self.editor_state.editor_ui.section_panel,
+                            block.origin.x,
+                            block.origin.y,
+                            block.size.x,
+                        )
+                    {
+                        if attach.contains(point) {
+                            if self
+                                .editor_state
+                                .editor_ui
+                                .section_panel
+                                .request_analytics_file()
+                            {
+                                // The file dialog is opened by the reader on its
+                                // next tick — the widget layer owns no files.
+                                crate::repaint_coalescer::request();
+                                self.mark_dirty();
+                            }
+                            return Some(true);
+                        }
+                    }
+                    let fields =
+                        op_editor_ui::widgets::property_panel_section_block::section_field_rects(
+                            &self.editor_state.editor_ui.section_panel,
+                            block.origin.x,
+                            block.origin.y,
+                            block.size.x,
+                        );
+                    let hit = fields
+                        .into_iter()
+                        .find(|(_, rect)| rect.contains(point))
+                        .map(|(field, _)| field);
+                    match hit {
+                        Some(field) => {
+                            self.editor_state
+                                .editor_ui
+                                .section_panel
+                                .focus_field(field, self.now_ms);
+                        }
+                        None => self.editor_state.editor_ui.section_panel.blur(),
+                    }
+                    self.commit_property_focus_if_any();
+                    self.mark_dirty();
+                    return Some(true);
+                }
+            }
             if let Some(action) = panel.hit_test_action(property_rect, point) {
                 self.editor_state.editor_ui.pressed_button =
                     if let op_editor_ui::widgets::PropertyPanelAction::Codegen(codegen_action) =

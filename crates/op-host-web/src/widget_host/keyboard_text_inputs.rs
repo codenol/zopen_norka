@@ -34,6 +34,12 @@ impl WidgetHost {
             // tool behind the card. Found by clicking through the dialog in a
             // browser, not by a test.
             || self.editor_state.editor_ui.share.open
+            // A focused summary question in the Section block (#59) is the
+            // same story a third time: `Verified.` typed into it lost `V`, `r`
+            // and `f` to the tool router and selected the rectangle tool,
+            // because the router runs before the field's own arm. Found by
+            // typing into the field in a browser.
+            || self.editor_state.editor_ui.section_panel.focus.is_some()
             || ui.layer_rename.is_some()
             || ui.text_editing.is_some()
             || ui.property_focus.is_some()

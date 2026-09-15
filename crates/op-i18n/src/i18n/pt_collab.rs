@@ -276,6 +276,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "Seção",
         "section.readFailed" => "Não foi possível ler esta seção",
         "section.analytics" => "Construída a partir de",
+        "section.analytics.attach" => "Anexar análise…",
         "section.analytics.none" => "Nenhuma análise anexada",
         "section.state.inSync" => "Sincronizada",
         "section.state.analyticsMoved" => "A análise mudou desde então",

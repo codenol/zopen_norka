@@ -309,6 +309,28 @@ impl PropertyPanel {
             && point.y >= panel_rect.origin.y + crate::widgets::property_panel_inputs::TAB_HEIGHT
     }
 
+    /// Where the Section block paints, when the selection is a section (#59).
+    ///
+    /// One answer for paint and hit-test: the block sits directly under the
+    /// node header, inside the scrolled content, so a rect computed twice would
+    /// eventually be computed differently.
+    pub fn section_block_rect(&self, panel_rect: Rect) -> Option<Rect> {
+        if self.section_block_height <= 0.0 {
+            return None;
+        }
+        let scroll = self.effective_scroll(panel_rect);
+        let top = panel_rect.origin.y
+            + crate::widgets::property_panel_inputs::TAB_HEIGHT
+            + crate::widgets::property_panel_inputs::HEADER_HEIGHT
+            - scroll;
+        Some(Rect::xywh(
+            panel_rect.origin.x,
+            top,
+            panel_rect.size.x,
+            self.section_block_height,
+        ))
+    }
+
     /// Total height (px) of the panel's section content — drives the
     /// scroll clamp so the inspector can't scroll past its end.
     pub fn content_height(&self, panel_rect: Rect) -> f32 {

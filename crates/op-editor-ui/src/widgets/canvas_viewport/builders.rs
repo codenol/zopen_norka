@@ -83,6 +83,7 @@ impl<'a> CanvasViewport<'a> {
             collab_presence: crate::widgets::canvas_collab_presence::snapshot(
                 &state.editor_ui.collab,
             ),
+            section_marks: state.editor_ui.section_marks.clone(),
             // The page being shown, named by the one rule both this scene and
             // the comment rail use: the markers below are this page's, and the
             // number each carries is its position in the rail's list.
@@ -153,6 +154,7 @@ impl<'a> CanvasViewport<'a> {
             hovered: None,
             frame_labels: Vec::new(),
             collab_presence: Vec::new(),
+            section_marks: Default::default(),
             // The read-only SDK viewer has no conversation to show: comments
             // are asked for with a document key and an account, and a viewer
             // has neither.

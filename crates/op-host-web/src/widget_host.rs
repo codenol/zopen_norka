@@ -204,6 +204,8 @@ mod resize_drag_tests;
 mod scene_template_ime_tests;
 mod scene_template_press;
 mod scroll;
+#[cfg(test)]
+mod section_panel_press_tests;
 mod settings_caret;
 #[cfg(test)]
 mod settings_caret_tests;
