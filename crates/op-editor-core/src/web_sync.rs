@@ -34,6 +34,14 @@ pub struct WebSyncDocument {
     /// means "unknown", not "no scenario", so appliers keep their current
     /// value rather than clearing it.
     pub scenario: Option<crate::scene_template_catalog::TemplateScene>,
+    /// The STORE's name for this document, when the daemon holds one it took
+    /// from the store. `None` for a daemon holding a document of its own (a
+    /// bare `--file` session) or one too old to send it.
+    ///
+    /// Without this a tab on `/` cannot learn the key: its Save then takes the
+    /// key-less route and silently becomes a download, and autosave writes into
+    /// the draft slot (issue #97).
+    pub file_key: Option<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -160,12 +168,21 @@ impl WebSyncClient {
             .get("scenario")
             .and_then(serde_json::Value::as_str)
             .and_then(|name| std::str::FromStr::from_str(name).ok());
+        // An empty key is not a key: a daemon with no stored document answers
+        // `null`, and a blank string must not become a document identity.
+        let file_key = value
+            .get("fileKey")
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|key| !key.is_empty())
+            .map(str::to_string);
         Ok(Some(WebSyncDocument {
             document: doc,
             version,
             active_page_index,
             preserve_authored_geometry,
             scenario,
+            file_key,
         }))
     }
 
@@ -205,7 +222,9 @@ impl WebSyncClient {
     {
         self.sync_with_editor_meta(
             body,
-            |doc, version, _active_page_index, preserve, _scenario| apply(doc, version, preserve),
+            |doc, version, _active_page_index, preserve, _scenario, _file_key| {
+                apply(doc, version, preserve)
+            },
         )
     }
 
@@ -220,6 +239,7 @@ impl WebSyncClient {
             usize,
             bool,
             Option<crate::scene_template_catalog::TemplateScene>,
+            Option<String>,
         ) -> bool,
     {
         match self.next_document_with_metadata(body)? {
@@ -231,6 +251,7 @@ impl WebSyncClient {
                     next.active_page_index,
                     next.preserve_authored_geometry,
                     next.scenario,
+                    next.file_key,
                 ) {
                     self.mark_applied(version);
                     Ok(true)

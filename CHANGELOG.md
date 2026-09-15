@@ -241,6 +241,19 @@ here at a glance.
 
 ### Fixed
 
+- **A tab on `/` finally learns which document it is showing.** The daemon's
+  document envelope carried the document and its version but not the store's
+  name for it, so a tab opened at the root never learned its key: Save took the
+  key-less route, the daemon refused (no bound file path), and the tab quietly
+  downloaded the document instead — while autosave wrote into the draft slot
+  rather than the document on screen (issue #97). The key travels on the wire
+  now, and the tab adopts it, which also records that this document is the
+  store's and not a local file.
+
+- **The `--online` start-up line no longer says every cookie write will be
+  refused** — its own origin is admitted without being named, so the warning
+  promised the opposite of what the deployment does.
+
 - **Save no longer writes a local document into the file the daemon is
   holding.** A document opened from disk, imported, or started with File → New
   has no key in the store — and neither does the document a daemon shows on `/`,

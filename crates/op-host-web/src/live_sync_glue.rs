@@ -403,7 +403,8 @@ fn apply_document_response<C: RepaintContext + 'static>(
                      _version,
                      active_page_index,
                      preserve_authored_geometry,
-                     wire_scenario| {
+                     wire_scenario,
+                     file_key| {
                         // Capture before `host_mut()` — fit needs the shell
                         // viewport size, not a second host borrow.
                         let fit_viewport = undoable.then(|| inner_ref.viewport_size());
@@ -426,6 +427,19 @@ fn apply_document_response<C: RepaintContext + 'static>(
                                 pinned_style_guide,
                             },
                         );
+                        // Which stored document this is, when the daemon holds
+                        // one from the store. A tab on `/` otherwise never
+                        // learns its key: Save takes the key-less route and
+                        // silently becomes a download, and autosave writes into
+                        // the draft slot instead of the document on screen
+                        // (issue #97). Adopting the key also settles that this
+                        // is the daemon's document and not a local file.
+                        if let Some(key) = file_key {
+                            let state = host.editor_state_mut();
+                            if state.editor_ui.file_key.as_deref() != Some(key.as_str()) {
+                                state.editor_ui.set_document_key(Some(key));
+                            }
+                        }
                         // `replace_document*` preserves the browser camera by
                         // design (user pan/zoom must survive sync). The daemon
                         // already refit its own EditorState after AI applies,
