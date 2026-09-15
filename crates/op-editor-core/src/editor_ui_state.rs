@@ -22,6 +22,7 @@ pub mod groups;
 mod methods;
 pub mod pickers;
 pub mod recovery;
+pub mod share;
 pub mod slides_panel_state;
 #[cfg(test)]
 mod tests;
@@ -152,6 +153,13 @@ pub struct EditorUiState {
     /// widgets. Transport handles, tickets, subjects, and device ids never
     /// enter this paint-state projection.
     pub collab: crate::collab_ui_state::CollabUiState,
+
+    // --- Document access (the Share dialog) --------------------------
+    /// Who may open this document, at what level, and what the Invite button
+    /// would do. Grouped for the same reason `collab` is: it is one surface,
+    /// and its fields are read together by paint, hit-test and the invite
+    /// planner.
+    pub share: crate::editor_ui_state::share::ShareUiState,
 
     // --- Comments (the review on this document) ----------------------
     /// The document's comment threads plus the review in progress: the open

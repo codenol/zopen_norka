@@ -132,5 +132,8 @@ fn configured_builtin_transport_declares_inline_images_only_on_the_plain_path() 
         level: "read".into(),
         input_schema_json: "{}".into(),
     });
-    assert_eq!(provider.attachment_transport(), AttachmentTransport::Dropped);
+    assert_eq!(
+        provider.attachment_transport(),
+        AttachmentTransport::Dropped
+    );
 }

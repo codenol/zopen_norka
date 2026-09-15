@@ -12,8 +12,6 @@ fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
         .collect()
 }
 
-
-
 fn atlas_params() -> StyleParams {
     StyleParams {
         color_palette: "Alloy Blue".to_string(),
@@ -138,7 +136,8 @@ fn subagent_resolved_style_emits_no_variable_commands() {
         "session kit owns style; catalog resolved-style must not append"
     );
     assert!(
-        call.system_prompt.contains("COMPONENT RULES") || call.user_prompt.contains("COMPONENT RULES"),
+        call.system_prompt.contains("COMPONENT RULES")
+            || call.user_prompt.contains("COMPONENT RULES"),
         "the session's rules should reach the subagent prompt"
     );
 

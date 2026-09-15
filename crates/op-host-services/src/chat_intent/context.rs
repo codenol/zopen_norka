@@ -343,7 +343,9 @@ pub fn build_modify_plan_with(
             base.recipe_id, base.name
         ));
     }
-    user_message.push_str(&format!("CONTEXT NODES:\n{context_json}\n\nINSTRUCTION:\n{instruction}"));
+    user_message.push_str(&format!(
+        "CONTEXT NODES:\n{context_json}\n\nINSTRUCTION:\n{instruction}"
+    ));
     if let Some(var_context) = build_variable_context(state) {
         user_message.push_str("\n\n");
         user_message.push_str(&var_context);

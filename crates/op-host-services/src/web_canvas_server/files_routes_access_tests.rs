@@ -30,6 +30,7 @@ use super::*;
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::web_canvas_server::tenant_auth::{IdentityVia, ResolvedIdentity};
 use op_editor_core::access::RoleSet;
+use op_editor_core::ShareLevel;
 
 /// A key this store would never issue, so the store answers before any I/O.
 const INVALID_KEY: &str = "not-a-valid-key";
@@ -138,7 +139,7 @@ fn a_combination_no_route_handles_names_no_right() {
     // A caller who may reach the document, so the 404 can only come from the
     // route table and not from a refusal.
     let visitor = as_visitor(&[]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     for (method, path) in cases {
         let route = parse_route(path);
         if let Some(route) = &route {
@@ -166,7 +167,7 @@ fn a_caller_with_no_role_may_read_the_store() {
             &path,
             "",
             &mut tenant_state(),
-            &RequestAccess::online("userA", &visitor, true),
+            &RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor)),
         );
         // Not the gate's 403: the request reached the store, which refused the
         // key.
@@ -207,7 +208,7 @@ fn a_caller_with_no_role_is_refused_every_write() {
         ("POST", "/api/files/not-a-valid-key/comments/7/reopen", ""),
     ];
     let visitor = as_visitor(&[]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     for (method, path, body) in writes {
         let reply = handle(method, path, body, &mut tenant_state(), &access);
         assert_eq!(reply.status, "403 Forbidden", "{method} {path}");
@@ -221,7 +222,7 @@ fn a_contributor_may_comment_and_still_may_not_write_the_document() {
     // table rather than through the model: the same caller, the same key, one
     // family of routes — admitted to the conversation, refused the document.
     let contributor = as_visitor(&["analyst"]);
-    let access = RequestAccess::online("userA", &contributor, true);
+    let access = RequestAccess::online("userA", &contributor, Some(ShareLevel::Editor));
     let commented = handle(
         "POST",
         &format!("/api/files/{INVALID_KEY}/comments"),
@@ -258,7 +259,7 @@ fn the_refusal_comes_before_the_store_is_reached() {
     // An editor role on the wrong document: the key is never parsed, so the
     // answer is the gate's, not the store's.
     let stranger = account("userC", &["admin"]);
-    let access = RequestAccess::online("userA", &stranger, false);
+    let access = RequestAccess::online("userA", &stranger, None);
     let reply = handle(
         "GET",
         &format!("/api/files/{INVALID_KEY}/thumb"),
@@ -273,7 +274,7 @@ fn the_refusal_comes_before_the_store_is_reached() {
 #[test]
 fn a_visitor_whose_roles_grant_an_edit_reaches_the_store() {
     let visitor = as_visitor(&["ux_ui"]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     let reply = handle(
         "POST",
         &format!("/api/files/{INVALID_KEY}/save"),
@@ -298,7 +299,7 @@ fn the_owner_reaches_their_own_document_without_asking_a_role() {
         &format!("/api/files/{INVALID_KEY}"),
         "",
         &mut tenant_state(),
-        &RequestAccess::online("userA", &owner, false),
+        &RequestAccess::online("userA", &owner, None),
     );
     assert_eq!(reached.status, "400 Bad Request", "{}", reached.body);
 
@@ -309,7 +310,7 @@ fn the_owner_reaches_their_own_document_without_asking_a_role() {
         &format!("/api/files/{INVALID_KEY}"),
         "",
         &mut tenant_state(),
-        &RequestAccess::online("userA", &visitor, true),
+        &RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor)),
     );
     assert_eq!(refused.status, "403 Forbidden");
     assert_eq!(error_code(&refused), "read-only-role");
@@ -321,7 +322,7 @@ fn the_owner_reaches_their_own_document_without_asking_a_role() {
         &format!("/api/files/{INVALID_KEY}"),
         "",
         &mut tenant_state(),
-        &RequestAccess::online("userA", &editor, true),
+        &RequestAccess::online("userA", &editor, Some(ShareLevel::Editor)),
     );
     assert_eq!(allowed.status, "400 Bad Request", "{}", allowed.body);
 }

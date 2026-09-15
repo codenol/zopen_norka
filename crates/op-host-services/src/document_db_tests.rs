@@ -10,6 +10,19 @@ use super::*;
 use crate::document_comments::{self, Author, NewComment};
 use crate::document_test_dir::TempDir;
 
+/// The newest schema version this build knows.
+///
+/// Read from the migration list rather than written as a number: a test that
+/// names the version by hand has to be edited by every migration, and the one
+/// time somebody forgets, it fails in a way that looks like a real defect.
+fn newest_schema_version() -> i64 {
+    MIGRATIONS
+        .iter()
+        .map(|migration| migration.version)
+        .max()
+        .expect("at least one migration")
+}
+
 /// Every object the schema holds, by name.
 fn schema_objects(conn: &Connection) -> Vec<String> {
     let mut statement = conn
@@ -57,6 +70,23 @@ fn open_at_version_two(dir: &TempDir) -> Connection {
     conn
 }
 
+/// A database as the section work found it: migrations 1 to 3 applied, and the
+/// version recorded to match.
+fn open_at_version_three(dir: &TempDir) -> Connection {
+    let conn = Connection::open(dir.join(DB_FILE)).expect("open");
+    conn.execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        .expect("meta");
+    for migration in MIGRATIONS.iter().take(3) {
+        conn.execute_batch(migration.sql).expect("migration");
+    }
+    conn.execute(
+        "INSERT INTO meta (key, value) VALUES (?1, '3')",
+        params![META_SCHEMA_VERSION],
+    )
+    .expect("version 3");
+    conn
+}
+
 /// A stored document with everything spelled out, so a test can compare whole
 /// entries rather than field by field.
 fn entry(
@@ -100,11 +130,7 @@ fn the_schema_migrations_and_pragmas_are_all_in_place() {
     let dir = TempDir::new("schema");
     let db = dir.open();
 
-    let latest = MIGRATIONS
-        .iter()
-        .map(|migration| migration.version)
-        .max()
-        .expect("at least one migration");
+    let latest = newest_schema_version();
     assert_eq!(
         db.meta(META_SCHEMA_VERSION).expect("meta"),
         Some(latest.to_string()),
@@ -140,6 +166,12 @@ fn the_schema_migrations_and_pragmas_are_all_in_place() {
             "comments",
             "comment_threads_by_document",
             "comments_by_thread",
+            // Migration 4: the analytics a section references, and what
+            // hangs off the section itself.
+            "analytics_assets",
+            "analytics_assets_by_recency",
+            "analytics_assets_by_owner",
+            "section_properties",
         ] {
             assert!(
                 objects.contains(&name.to_string()),
@@ -166,9 +198,10 @@ fn a_database_from_before_the_conversation_tables_gains_them_on_open() {
     }
 
     let db = dir.open();
+    let latest = newest_schema_version();
     assert_eq!(
-        db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
-        Some("3"),
+        db.meta(META_SCHEMA_VERSION).expect("meta"),
+        Some(latest.to_string()),
         "an open brings the schema to the newest version"
     );
     {
@@ -189,6 +222,52 @@ fn a_database_from_before_the_conversation_tables_gains_them_on_open() {
     // And what was already there is still there: a migration adds, it does not
     // rebuild.
     assert_eq!(list_entries(&db).expect("list").len(), 1);
+}
+
+#[test]
+fn a_database_from_before_the_section_tables_gains_them_on_open() {
+    // The upgrade a deployment in the field takes next: a database at version
+    // 3, holding the documents and conversations it already had, opened by
+    // this build. Migration 4 only adds — nothing existing is rewritten.
+    let dir = TempDir::new("upgrade-from-v3");
+    {
+        let conn = open_at_version_three(&dir);
+        conn.execute(
+            "INSERT INTO documents
+                 (key, name, owner_id, created_at, updated_at, size, has_thumbnail)
+             VALUES ('aaaaaaaa00000001', 'Older', 'userA', 1, 2, 3, 0)",
+            [],
+        )
+        .expect("a document from before the upgrade");
+    }
+
+    let db = dir.open();
+    {
+        let conn = db.conn();
+        let objects = schema_objects(&conn);
+        for name in [
+            "analytics_assets",
+            "analytics_assets_by_recency",
+            "analytics_assets_by_owner",
+            "section_properties",
+        ] {
+            assert!(
+                objects.contains(&name.to_string()),
+                "{name} missing after the upgrade: {objects:?}"
+            );
+        }
+    }
+    // What was already there is still there, and the new tables start empty:
+    // an upgrade adds tables, it does not touch rows.
+    assert_eq!(list_entries(&db).expect("list").len(), 1);
+    assert_eq!(
+        crate::analytics_store::list(&db, Some("userA")).expect("assets"),
+        Vec::new()
+    );
+    assert_eq!(
+        crate::section_store::list(&db, "aaaaaaaa00000001").expect("sections"),
+        Vec::new()
+    );
 }
 
 #[test]
@@ -213,7 +292,11 @@ fn opening_the_same_database_again_does_not_migrate_it_a_second_time() {
                 y: 5.0,
             },
             NewComment {
-                author: Author { id: None, name: "", role: None },
+                author: Author {
+                    id: None,
+                    name: "",
+                    role: None,
+                },
                 body: "hello",
             },
             10,
@@ -224,8 +307,8 @@ fn opening_the_same_database_again_does_not_migrate_it_a_second_time() {
 
     let db = dir.open();
     assert_eq!(
-        db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
-        Some("3")
+        db.meta(META_SCHEMA_VERSION).expect("meta"),
+        Some(newest_schema_version().to_string())
     );
     assert_eq!(
         list_entries(&db).expect("list").len(),
@@ -292,8 +375,8 @@ fn a_database_of_element_anchored_threads_is_rebuilt_without_losing_a_comment() 
 
     let db = dir.open();
     assert_eq!(
-        db.meta(META_SCHEMA_VERSION).expect("meta").as_deref(),
-        Some("3"),
+        db.meta(META_SCHEMA_VERSION).expect("meta"),
+        Some(newest_schema_version().to_string()),
         "the rebuild is one more version, not a special case"
     );
 
@@ -359,7 +442,10 @@ fn a_database_of_element_anchored_threads_is_rebuilt_without_losing_a_comment() 
         placed.id,
         threads[1].id
     );
-    assert_eq!(placed.placement.map(|placement| placement.page_id), Some("page-1".to_string()));
+    assert_eq!(
+        placed.placement.map(|placement| placement.page_id),
+        Some("page-1".to_string())
+    );
 
     // The tables the rebuild borrowed are gone: a scratch copy left behind is a
     // table somebody will later mistake for data.

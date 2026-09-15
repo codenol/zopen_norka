@@ -8,57 +8,101 @@
 //! The grantor is always the request's VERIFIED identity. The body names the
 //! account being granted, never the account doing the granting — otherwise
 //! any caller could add themselves to any document's access list, which is
-//! the whole security property inverted.
+//! the whole security property inverted. The same identity is what the grant
+//! RECORDS ([`op_editor_core::ShareGrant::invited_by`]), so "who added this
+//! person" is answered from the same fact that authorized the add.
+//!
+//! ## Why a grant now names a level
+//!
+//! Because the dialog offers four (see [`op_editor_core::ShareLevel`]) and a
+//! level the server does not store is a level the server does not enforce —
+//! which would make the picker a decoration. Two checks guard it:
+//!
+//! 1. `RequestAccess::decide(DocumentAction::Invite)` — may this caller add
+//!    anybody at all?
+//! 2. [`ShareLevel::is_grantable_by`] against the caller's rights, floored at
+//!    what ownership confers — you may not hand out what you do not hold.
 //!
 //! Grants run on the connection thread rather than under the document lock:
 //! the access list is its own mutex on the tenant, so sharing is answerable
 //! while a large document push is in flight.
 
-use op_editor_core::share_routes;
+use op_editor_core::access::Rights;
+use op_editor_core::share_routes::{self, LINK_ACCESS};
+use op_editor_core::{ShareGrant, ShareLevel};
 
+use super::request_access::{AccessRefusal, DocumentAction, RequestAccess};
 use super::tenant::{AclChange, TenantLease, TenantRegistry};
 use super::tenant_auth::ResolvedIdentity;
 use super::WebReply;
 
-/// Longest body either POST accepts. Both are a single short account id.
+/// Longest body either POST accepts. Both are a single short account id, an
+/// optional level, and — for the link switch — one flag.
 const MAX_SHARE_BODY_BYTES: usize = 4 * 1024;
 
 /// Longest account id accepted in a body.
 const MAX_ACCOUNT_ID_CHARS: usize = 256;
 
 /// Why a share request was refused.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShareError {
     BodyTooLarge,
     MalformedRequest,
     /// The body named the caller's own account.
     SelfShare,
+    /// The caller may not add people to this document.
+    ///
+    /// Carried as the same [`AccessRefusal`] the document routes answer with,
+    /// so a client that already handles "read-only role" needs no second
+    /// branch for the share route.
+    Access(AccessRefusal),
+    /// The level is above what the caller itself holds.
+    ///
+    /// You may not give away what you do not have. The owner is floored at
+    /// [`Rights::EDITOR`] over its own document — ownership is what makes it
+    /// the owner — so an owner without the account list may hand out anything
+    /// up to editor and no further.
+    LevelAboveOwn {
+        level: ShareLevel,
+        own: ShareLevel,
+    },
 }
 
 impl ShareError {
-    pub const fn code(self) -> &'static str {
+    pub const fn code(&self) -> &'static str {
         match self {
             Self::BodyTooLarge => "payload-too-large",
             Self::MalformedRequest => "malformed-share-request",
             Self::SelfShare => "cannot-share-with-self",
+            Self::Access(refusal) => refusal.code(),
+            Self::LevelAboveOwn { .. } => "level-above-your-own",
         }
     }
 
-    pub const fn http_status(self) -> &'static str {
+    pub const fn http_status(&self) -> &'static str {
         match self {
             Self::BodyTooLarge => "413 Payload Too Large",
             Self::MalformedRequest | Self::SelfShare => "400 Bad Request",
+            Self::Access(refusal) => refusal.http_status(),
+            Self::LevelAboveOwn { .. } => "403 Forbidden",
         }
     }
 }
 
 impl std::fmt::Display for ShareError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::BodyTooLarge => "body too large",
-            Self::MalformedRequest => "malformed share request",
-            Self::SelfShare => "an account already has access to its own document",
-        })
+        match self {
+            Self::BodyTooLarge => f.write_str("body too large"),
+            Self::MalformedRequest => f.write_str("malformed share request"),
+            Self::SelfShare => f.write_str("an account already has access to its own document"),
+            Self::Access(refusal) => refusal.fmt(f),
+            Self::LevelAboveOwn { level, own } => write!(
+                f,
+                "you may not grant the {} level; you hold {}",
+                level.wire(),
+                own.wire()
+            ),
+        }
     }
 }
 
@@ -68,7 +112,7 @@ impl std::error::Error for ShareError {}
 pub(super) fn is_share_route(path: &str) -> bool {
     matches!(
         path,
-        share_routes::GRANT | share_routes::REVOKE | share_routes::LIST
+        share_routes::GRANT | share_routes::REVOKE | share_routes::LIST | LINK_ACCESS
     )
 }
 
@@ -86,9 +130,10 @@ pub(super) fn handle(
     registry: &TenantRegistry,
 ) -> WebReply {
     match (method, path) {
-        ("POST", share_routes::GRANT) => mutate(body, identity, lease, registry, true),
-        ("POST", share_routes::REVOKE) => mutate(body, identity, lease, registry, false),
+        ("POST", share_routes::GRANT) => mutate(body, identity, lease, registry, Mutation::Grant),
+        ("POST", share_routes::REVOKE) => mutate(body, identity, lease, registry, Mutation::Revoke),
         ("GET", share_routes::LIST) => list(identity, lease, registry),
+        ("POST", LINK_ACCESS) => link_access(body, identity, lease, registry),
         _ => WebReply {
             status: "405 Method Not Allowed",
             body: crate::mcp_serve::rest_error_body("method not allowed for this share route"),
@@ -96,21 +141,66 @@ pub(super) fn handle(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mutation {
+    Grant,
+    Revoke,
+}
+
+/// What a share body asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShareRequest {
+    account: String,
+    level: ShareLevel,
+}
+
 fn mutate(
     body: &str,
     identity: &ResolvedIdentity,
     lease: &TenantLease,
     registry: &TenantRegistry,
-    granting: bool,
+    mutation: Mutation,
 ) -> WebReply {
-    let account = match parse_account(body, &identity.user_id) {
-        Ok(account) => account,
+    let parsed = match parse_account(body, &identity.user_id) {
+        Ok(parsed) => parsed,
         Err(error) => return error_reply(error),
     };
-    let change = if granting {
-        AclChange::Grant(account)
-    } else {
-        AclChange::Revoke(account)
+    // May this caller add anybody at all? The same decision the document
+    // routes make, from the same place, so "may invite" cannot mean two
+    // things. The owner passes by identity; a visitor holding the access list
+    // of somebody else's document does not.
+    let rights = identity.roles.rights();
+    let owner_rights = rights.union(Rights::EDITOR);
+    if let Err(refusal) =
+        RequestAccess::online(lease.owner_id(), identity, None).decide(DocumentAction::Invite)
+    {
+        return error_reply(ShareError::Access(refusal));
+    }
+    if mutation == Mutation::Grant {
+        // Ownership is the floor: the owner of a document may always edit it
+        // (`RequestAccess`'s module docs), so the owner may always hand out up
+        // to editing. Above that the caller's own roles decide — only an
+        // account that may manage users may create an administrator.
+        let held = if lease.owner_id() == identity.user_id {
+            owner_rights
+        } else {
+            rights
+        };
+        if !parsed.level.is_grantable_by(held) {
+            return error_reply(ShareError::LevelAboveOwn {
+                level: parsed.level,
+                own: ShareLevel::from_rights(held),
+            });
+        }
+    }
+    let change = match mutation {
+        Mutation::Grant => AclChange::Grant {
+            account: parsed.account,
+            level: parsed.level,
+            // The verified identity, never the body.
+            invited_by: Some(identity.user_id.clone()),
+        },
+        Mutation::Revoke => AclChange::Revoke(parsed.account),
     };
     // The edit and its write are one serialised operation. Persisted
     // immediately rather than at eviction: a share the user was told had
@@ -122,7 +212,11 @@ fn mutate(
             body: serde_json::json!({
                 "ok": true,
                 "changed": update.changed,
-                "sharedWith": update.shared_with.into_iter().collect::<Vec<_>>(),
+                "sharedWith": update
+                    .grants
+                    .iter()
+                    .map(ShareGrant::to_json)
+                    .collect::<Vec<_>>(),
             })
             .to_string(),
         },
@@ -155,13 +249,79 @@ fn mutate(
     }
 }
 
+/// Turn "anybody with the link" on, off, or to another level.
+///
+/// The widest thing this route family can do — it opens the document to every
+/// signed-in account on the deployment — so it takes the same two checks a
+/// grant does, and one rule of its own: the level is capped by what the caller
+/// holds, exactly as a grant is.
+fn link_access(
+    body: &str,
+    identity: &ResolvedIdentity,
+    lease: &TenantLease,
+    registry: &TenantRegistry,
+) -> WebReply {
+    let parsed = match parse_link_access(body) {
+        Ok(parsed) => parsed,
+        Err(error) => return error_reply(error),
+    };
+    let rights = identity.roles.rights();
+    if let Err(refusal) =
+        RequestAccess::online(lease.owner_id(), identity, None).decide(DocumentAction::Invite)
+    {
+        return error_reply(ShareError::Access(refusal));
+    }
+    let held = if lease.owner_id() == identity.user_id {
+        rights.union(Rights::EDITOR)
+    } else {
+        rights
+    };
+    if let Some(level) = parsed {
+        if !level.is_grantable_by(held) {
+            return error_reply(ShareError::LevelAboveOwn {
+                level,
+                own: ShareLevel::from_rights(held),
+            });
+        }
+    }
+    match registry.update_link_access(lease.owner_id(), lease.tenant(), parsed) {
+        Ok(level) => WebReply {
+            status: "200 OK",
+            body: serde_json::json!({
+                "ok": true,
+                "linkAccess": level.map(|level| level.wire()),
+            })
+            .to_string(),
+        },
+        Err(error) => WebReply {
+            status: "500 Internal Server Error",
+            body: serde_json::json!({
+                "ok": false,
+                "error": "share-not-persisted",
+                "message": error.to_string(),
+            })
+            .to_string(),
+        },
+    }
+}
+
 fn list(identity: &ResolvedIdentity, lease: &TenantLease, registry: &TenantRegistry) -> WebReply {
     WebReply {
         status: "200 OK",
         body: serde_json::json!({
             "ok": true,
-            // Who may open this account's document…
-            "sharedWith": lease.tenant().shared_with().into_iter().collect::<Vec<_>>(),
+            // Who may open this account's document, at what level, and who
+            // added them…
+            "sharedWith": lease
+                .tenant()
+                .share_grants()
+                .iter()
+                .map(ShareGrant::to_json)
+                .collect::<Vec<_>>(),
+            "linkAccess": lease
+                .tenant()
+                .link_access()
+                .map(|level| level.wire()),
             // …and whose documents this account may open. Resident owners
             // only; see `TenantRegistry::shared_with_visitor`.
             "sharedWithMe": registry.shared_with_visitor(&identity.user_id),
@@ -170,13 +330,13 @@ fn list(identity: &ResolvedIdentity, lease: &TenantLease, registry: &TenantRegis
     }
 }
 
-/// Pull the target account out of a share body.
+/// Pull the target account and level out of a share body.
 ///
 /// The account id is not validated against the hub: this deployment has no
 /// user-lookup endpoint yet, so an id that belongs to nobody simply grants
-/// access to nobody. M5 should resolve it through the hub so a typo is
-/// reported at grant time instead of silently doing nothing.
-fn parse_account(body: &str, caller: &str) -> Result<String, ShareError> {
+/// access to nobody. The dialog says so rather than implying a lookup
+/// happened — see `share.invite.placeholder`'s caption.
+fn parse_account(body: &str, caller: &str) -> Result<ShareRequest, ShareError> {
     if body.len() > MAX_SHARE_BODY_BYTES {
         return Err(ShareError::BodyTooLarge);
     }
@@ -194,7 +354,39 @@ fn parse_account(body: &str, caller: &str) -> Result<String, ShareError> {
     if account == caller {
         return Err(ShareError::SelfShare);
     }
-    Ok(account.to_string())
+    // A body that names no level gets the weakest one. Fail closed: a client
+    // older than levels must not be able to hand out editing by omission.
+    let level = match parsed.get("level").and_then(|value| value.as_str()) {
+        Some(raw) => ShareLevel::from_wire(raw).map_err(|_| ShareError::MalformedRequest)?,
+        None => ShareLevel::DEFAULT,
+    };
+    Ok(ShareRequest {
+        account: account.to_string(),
+        level,
+    })
+}
+
+/// Pull the link-access switch out of its body: `{"enabled":bool,"level":str}`.
+fn parse_link_access(body: &str) -> Result<Option<ShareLevel>, ShareError> {
+    if body.len() > MAX_SHARE_BODY_BYTES {
+        return Err(ShareError::BodyTooLarge);
+    }
+    let parsed: serde_json::Value =
+        serde_json::from_str(body).map_err(|_| ShareError::MalformedRequest)?;
+    let enabled = parsed
+        .get("enabled")
+        .and_then(|value| value.as_bool())
+        .ok_or(ShareError::MalformedRequest)?;
+    if !enabled {
+        return Ok(None);
+    }
+    let level = parsed
+        .get("level")
+        .and_then(|value| value.as_str())
+        .ok_or(ShareError::MalformedRequest)?;
+    Ok(Some(
+        ShareLevel::from_wire(level).map_err(|_| ShareError::MalformedRequest)?,
+    ))
 }
 
 fn error_reply(error: ShareError) -> WebReply {

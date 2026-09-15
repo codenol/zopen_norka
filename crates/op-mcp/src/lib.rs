@@ -69,7 +69,6 @@ pub mod codegen_tools;
 #[cfg(test)]
 mod codegen_tools_tests;
 pub mod component_tools;
-pub mod recipe_tools;
 #[cfg(test)]
 mod component_tools_tests;
 pub mod conversion_status;
@@ -127,6 +126,7 @@ pub mod read_nodes;
 mod read_nodes_tests;
 pub mod read_tools;
 pub mod read_tools_extra;
+pub mod recipe_tools;
 pub mod reparent_tools;
 #[cfg(test)]
 mod replace_node_tests;
@@ -200,7 +200,6 @@ pub use component_tools::{
     rename_component_snapshot, set_node_collapsed_snapshot, CreateComponent, DeleteComponent,
     InstantiateComponent, RenameComponent, SetNodeCollapsed,
 };
-pub use recipe_tools::{list_recipes_snapshot, use_recipe_snapshot, ListRecipes, UseRecipe};
 pub use conversion_status::{conversion_status_snapshot, ConversionStatus};
 pub use conversion_tools::{
     upsert_component_snapshot, upsert_screen_snapshot, upsert_variables_snapshot,
@@ -212,6 +211,7 @@ pub use debug_tools::{
     debug_validation_report_snapshot, parse_screenshot_args, DebugLogsTail, DebugScreenshot,
     DebugValidationReport, ScreenshotRequest, ScreenshotTarget,
 };
+pub use recipe_tools::{list_recipes_snapshot, use_recipe_snapshot, ListRecipes, UseRecipe};
 #[cfg(not(feature = "debug-tools"))]
 pub fn debug_tools_enabled() -> bool {
     false

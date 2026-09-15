@@ -89,7 +89,11 @@ impl CollabTopBarModel {
         let enabled = collab.availability != CollabAvailability::Unavailable;
         let (label_key, tone) = match collab.phase {
             CollabConnectionPhase::Idle | CollabConnectionPhase::Discovering => {
-                ("collab.topbar.collaborate", CollabTopBarTone::Neutral)
+                // The chip no longer offers a live session to start: it opens
+                // the access dialog (#56). The label says what the button does
+                // now, and the live-session screen moved into that dialog's
+                // footer row.
+                ("share.topbar.share", CollabTopBarTone::Neutral)
             }
             CollabConnectionPhase::Starting => {
                 ("collab.topbar.starting", CollabTopBarTone::Progress)
@@ -126,12 +130,36 @@ impl CollabTopBarModel {
         Self {
             visible,
             enabled,
-            label: op_i18n::translate(ui.effective_locale(), label_key).to_string(),
+            label: top_bar_label(ui, label_key),
             tone,
             avatars,
             participant_overflow: participants.len().saturating_sub(TOP_BAR_AVATAR_LIMIT),
         }
     }
+}
+
+/// The chip's caption: the action, and — once it is known — this account's own
+/// access level beside it.
+///
+/// Figma does the same, and the reason is not decoration: "Share" alone says
+/// nothing about whether the person about to invite somebody can even edit
+/// this file, and a level the button cannot name is a level nobody checks. The
+/// level is omitted while it is unknown rather than defaulted, because a wrong
+/// level reads as a fact and a missing one reads as a missing one.
+///
+/// The fragment is a translatable pattern (`share.topbar.level`) rather than a
+/// hardcoded separator because languages that inflect will want a word in
+/// front of the level ("доступ: {{level}}"), and a format string is the only
+/// place to put one.
+fn top_bar_label(ui: &EditorUiState, label_key: &'static str) -> String {
+    let locale = ui.effective_locale();
+    let action = op_i18n::translate(locale, label_key);
+    let Some(level) = ui.share.own_level() else {
+        return action.to_string();
+    };
+    let fragment = op_i18n::translate(locale, "share.topbar.level")
+        .replace("{{level}}", op_i18n::translate(locale, level.i18n_key()));
+    format!("{action} · {fragment}")
 }
 
 #[derive(Clone, PartialEq, Eq)]

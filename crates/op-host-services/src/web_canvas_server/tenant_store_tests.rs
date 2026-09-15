@@ -1,6 +1,7 @@
 //! Tests for the on-disk tenant store.
 
 use super::*;
+use crate::web_canvas_server::tenant_store::TenantAcl;
 use op_editor_core::EditorState;
 
 /// A store rooted in a fresh temp directory, removed when the guard drops.
@@ -62,8 +63,8 @@ fn node_name(state: &EditorState) -> Option<String> {
 #[test]
 fn a_saved_document_comes_back() {
     let temp = TempStore::new("roundtrip");
-    let mut acl = BTreeSet::new();
-    acl.insert("userB".to_string());
+    let mut acl = TenantAcl::default();
+    acl.shared_with.insert("userB".to_string());
 
     temp.store
         .save("userA", &named_document("kept.op"), &acl)
@@ -71,7 +72,7 @@ fn a_saved_document_comes_back() {
 
     let restored = temp.store.load_document("userA").expect("load");
     assert_eq!(node_name(&restored).as_deref(), Some("kept.op"));
-    assert_eq!(temp.store.load_acl("userA"), acl);
+    assert_eq!(temp.store.load_acl("userA"), acl.shared_with);
 }
 
 #[test]
@@ -95,7 +96,7 @@ fn a_disabled_store_reads_and_writes_nothing() {
     );
     assert_eq!(
         store
-            .save("userA", &EditorState::starter(), &BTreeSet::new())
+            .save("userA", &EditorState::starter(), &TenantAcl::default())
             .unwrap_err(),
         TenantStoreError::Disabled
     );
@@ -106,7 +107,11 @@ fn a_disabled_store_reads_and_writes_nothing() {
 fn a_corrupt_document_is_kept_aside_and_the_account_starts_fresh() {
     let temp = TempStore::new("corrupt");
     temp.store
-        .save("userA", &named_document("original.op"), &BTreeSet::new())
+        .save(
+            "userA",
+            &named_document("original.op"),
+            &TenantAcl::default(),
+        )
         .expect("save");
     let dir = temp.store.tenant_dir("userA").expect("dir");
     let document = dir.join("current.op");
@@ -210,7 +215,11 @@ fn a_hostile_account_id_still_round_trips_its_own_document() {
     let temp = TempStore::new("hostile-roundtrip");
     let hostile = "../../../../etc/passwd";
     temp.store
-        .save(hostile, &named_document("hostile.op"), &BTreeSet::new())
+        .save(
+            hostile,
+            &named_document("hostile.op"),
+            &TenantAcl::default(),
+        )
         .expect("save");
     let restored = temp.store.load_document(hostile).expect("load");
     assert_eq!(node_name(&restored).as_deref(), Some("hostile.op"));
@@ -232,7 +241,7 @@ fn directory_names_are_stable_and_distinct() {
 fn a_write_leaves_no_temp_file_behind() {
     let temp = TempStore::new("atomic");
     temp.store
-        .save("userA", &EditorState::starter(), &BTreeSet::new())
+        .save("userA", &EditorState::starter(), &TenantAcl::default())
         .expect("save");
     let dir = temp.store.tenant_dir("userA").expect("dir");
     let strays: Vec<_> = std::fs::read_dir(&dir)
@@ -249,10 +258,10 @@ fn a_write_leaves_no_temp_file_behind() {
 #[test]
 fn saving_the_access_list_alone_does_not_require_a_document() {
     let temp = TempStore::new("acl-only");
-    let mut acl = BTreeSet::new();
-    acl.insert("userB".to_string());
+    let mut acl = TenantAcl::default();
+    acl.shared_with.insert("userB".to_string());
     temp.store.save_acl_for("userA", &acl).expect("save acl");
-    assert_eq!(temp.store.load_acl("userA"), acl);
+    assert_eq!(temp.store.load_acl("userA"), acl.shared_with);
     assert!(!temp.store.has_document("userA"));
 }
 
@@ -300,7 +309,7 @@ fn a_persisted_tenant_carries_no_thumbnail_data() {
     jian_ops_schema::image_thumbs::store_thumb(ISOLATION_THUMB_ID + 1, vec![1, 2, 3]);
 
     temp.store
-        .save("userA", &named_document("plain.op"), &BTreeSet::new())
+        .save("userA", &named_document("plain.op"), &TenantAcl::default())
         .expect("save");
 
     let written = std::fs::read_to_string(

@@ -124,6 +124,21 @@ impl WidgetHost {
     /// concatenated a new code onto a stale one. IME commits must NOT come
     /// through here — mid-composition text is an insertion, not a paste.
     pub fn apply_clipboard_text(&mut self, text: &str) -> bool {
+        // The Share dialog is modal, so a paste while it is open belongs to its
+        // invite field: a whole field replacement, like the join field below —
+        // a list of addresses pasted as a unit is the case the field exists for.
+        if self.editor_state.editor_ui.share.open {
+            let changed = op_editor_ui::widgets::share_dialog::invite_field_paste(
+                &mut self.editor_state.editor_ui.share,
+                text,
+                self.now_ms,
+            )
+            .unwrap_or(false);
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // The Asset Center takes a paste as a unit for the same reason the
         // join field does, plus one of its own: the style-import box receives
         // a whole DESIGN.md, and a char-by-char route that drops control

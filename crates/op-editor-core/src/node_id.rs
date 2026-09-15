@@ -19,7 +19,14 @@
 /// canonical-schema loads keep whatever arbitrary string the file
 /// authored. Ordering is intentionally NOT derived — a node tree has
 /// no meaningful id order, only insertion order in `children`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+///
+/// Serde is transparent over the inner string, which is what lets a
+/// persisted structure (a section's UX flow, whose steps name the mockup they
+/// are) carry a node id without a second string type for the same thing. The
+/// `NONE` sentinel round-trips as an empty string like any other value; it is
+/// the caller's rule, not serde's, that a real id is never empty.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct NodeId(String);
 
 impl NodeId {

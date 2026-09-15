@@ -266,7 +266,7 @@ fn basic_tier_subtask_prompt_carries_the_sibling_isomorphism_rule() {
         &DesignRequest {
             model: Some("glm-4.6".into()), // Basic arm — the 0814 budget fixture tier
             rules: Vec::new(),
-        ..req()
+            ..req()
         },
         AbortFlag::new(),
         false,
@@ -341,7 +341,7 @@ fn basic_tier_subtask_prompt_carries_the_layout_margin_floor_sentence() {
         &DesignRequest {
             model: Some("glm-4.6".into()),
             rules: Vec::new(),
-        ..req()
+            ..req()
         },
         AbortFlag::new(),
         false,
@@ -367,7 +367,7 @@ fn basic_tier_subtask_prompt_carries_the_node_name_and_image_slot_contract() {
         &DesignRequest {
             model: Some("glm-4.6".into()),
             rules: Vec::new(),
-        ..req()
+            ..req()
         },
         AbortFlag::new(),
         false,

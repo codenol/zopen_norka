@@ -90,6 +90,22 @@ impl std::fmt::Display for TenantStoreError {
 
 impl std::error::Error for TenantStoreError {}
 
+/// The access list, the metadata beside it, and link access — one value.
+///
+/// One struct rather than three parameters threaded through every writer: the
+/// three are written together and read together, and a save that carried two
+/// of them would publish an access list whose levels belong to a different
+/// membership set.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TenantAcl {
+    pub shared_with: BTreeSet<String>,
+    /// Level and grantor per account. Absent for a grant written before this
+    /// existed, which reads as [`super::tenant::TenantGrant::default`].
+    pub grants: std::collections::BTreeMap<String, super::tenant::TenantGrant>,
+    /// `Some(level)` when anybody signed in may open the document.
+    pub link_access: Option<op_editor_core::ShareLevel>,
+}
+
 /// The on-disk tenant store.
 #[derive(Debug, Clone)]
 pub struct TenantStore {
@@ -163,7 +179,7 @@ impl TenantStore {
         &self,
         user_id: &str,
         state: &EditorState,
-        shared_with: &BTreeSet<String>,
+        acl: &TenantAcl,
     ) -> Result<(), TenantStoreError> {
         let Some(dir) = self.tenant_dir(user_id) else {
             return Err(TenantStoreError::Disabled);
@@ -175,27 +191,39 @@ impl TenantStore {
         // last into this account's file.
         crate::doc_io::save_to_path_without_thumbnails(state, &dir.join(DOCUMENT_FILE))
             .map_err(|error| TenantStoreError::Io(error.to_string()))?;
-        self.save_acl(&dir, shared_with)
+        self.save_acl(&dir, acl)
     }
 
     /// Write just the access list. Used when a grant or revoke should survive
     /// a restart even though the document has not changed.
-    pub fn save_acl_for(
-        &self,
-        user_id: &str,
-        shared_with: &BTreeSet<String>,
-    ) -> Result<(), TenantStoreError> {
+    pub fn save_acl_for(&self, user_id: &str, acl: &TenantAcl) -> Result<(), TenantStoreError> {
         let Some(dir) = self.tenant_dir(user_id) else {
             return Err(TenantStoreError::Disabled);
         };
         std::fs::create_dir_all(&dir).map_err(|error| TenantStoreError::Io(error.to_string()))?;
-        self.save_acl(&dir, shared_with)
+        self.save_acl(&dir, acl)
     }
 
-    fn save_acl(&self, dir: &Path, shared_with: &BTreeSet<String>) -> Result<(), TenantStoreError> {
-        let bounded: Vec<&String> = shared_with.iter().take(MAX_SHARED_ACCOUNTS).collect();
-        let body = serde_json::json!({ "sharedWith": bounded }).to_string();
-        atomic_write(&dir.join(ACL_FILE), body.as_bytes())
+    fn save_acl(&self, dir: &Path, acl: &TenantAcl) -> Result<(), TenantStoreError> {
+        let bounded: Vec<&String> = acl.shared_with.iter().take(MAX_SHARED_ACCOUNTS).collect();
+        // The metadata is written only for accounts that are ON the bounded
+        // list: a level for somebody the list had to drop would be metadata
+        // about a share that does not exist, and it would outlive the revoke
+        // that removed them.
+        let grants: std::collections::BTreeMap<&String, serde_json::Value> = acl
+            .grants
+            .iter()
+            .filter(|(account, _)| acl.shared_with.contains(*account))
+            .map(|(account, grant)| (account, grant.to_json()))
+            .collect();
+        let mut body = serde_json::json!({
+            "sharedWith": bounded,
+            "grants": grants,
+        });
+        if let Some(level) = acl.link_access {
+            body["linkAccess"] = serde_json::json!({ "level": level.wire() });
+        }
+        atomic_write(&dir.join(ACL_FILE), body.to_string().as_bytes())
     }
 
     /// Restore a tenant's document, if one was stored.
@@ -230,18 +258,30 @@ impl TenantStore {
     /// Restore a tenant's access list. A missing or unreadable list is an
     /// empty one — failing closed, since the list only ever grants access.
     pub fn load_acl(&self, user_id: &str) -> BTreeSet<String> {
+        self.load_acl_file(user_id).shared_with
+    }
+
+    /// Restore the whole ACL: membership, the metadata beside it, and whether
+    /// the document is open to anybody with the link.
+    ///
+    /// A file that will not parse is quarantined and read as empty, because
+    /// every field here only ever GRANTS access — the fail-closed reading of a
+    /// corrupt access list is an empty one. The metadata is filtered against
+    /// the membership for the same reason: a level for an account the list no
+    /// longer names is a share that does not exist.
+    pub fn load_acl_file(&self, user_id: &str) -> TenantAcl {
         let Some(dir) = self.tenant_dir(user_id) else {
-            return BTreeSet::new();
+            return TenantAcl::default();
         };
         let path = dir.join(ACL_FILE);
         let Ok(body) = std::fs::read_to_string(&path) else {
-            return BTreeSet::new();
+            return TenantAcl::default();
         };
         let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
             quarantine(&path);
-            return BTreeSet::new();
+            return TenantAcl::default();
         };
-        parsed
+        let shared_with: BTreeSet<String> = parsed
             .get("sharedWith")
             .and_then(|value| value.as_array())
             .map(|entries| {
@@ -253,7 +293,33 @@ impl TenantStore {
                     .map(str::to_string)
                     .collect()
             })
-            .unwrap_or_default()
+            .unwrap_or_default();
+        let grants = parsed
+            .get("grants")
+            .and_then(|value| value.as_object())
+            .map(|entries| {
+                entries
+                    .iter()
+                    .filter(|(account, _)| shared_with.contains(account.as_str()))
+                    .map(|(account, value)| {
+                        (
+                            account.clone(),
+                            super::tenant::TenantGrant::from_json(value),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let link_access = parsed
+            .get("linkAccess")
+            .and_then(|value| value.get("level"))
+            .and_then(|level| level.as_str())
+            .and_then(|level| op_editor_core::ShareLevel::from_wire(level).ok());
+        TenantAcl {
+            shared_with,
+            grants,
+            link_access,
+        }
     }
 
     /// Whether anything is stored for `user_id`.

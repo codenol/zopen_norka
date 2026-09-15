@@ -152,8 +152,10 @@ pub mod scene_template_keyboard;
 pub mod scene_template_palette;
 pub mod scene_template_prompt;
 pub mod scene_vars;
+pub mod section;
 pub mod selection;
 pub mod selection_resolve;
+pub mod share_access;
 pub mod share_routes;
 pub mod state;
 pub mod statusbar_state;
@@ -440,6 +442,10 @@ pub use page_mutators::{
 pub use pen_node_ext::PenNodeExt;
 pub use render_backend::*;
 pub use selection::SelectionState;
+pub use share_access::{
+    looks_like_email, parse_invite_entries, ShareGrant, ShareInviteRefusal, ShareLevel,
+    ShareLevelError, ShareListSnapshot, MAX_INVITE_ENTRIES, MAX_INVITE_ENTRY_CHARS,
+};
 pub use state::EditorState;
 pub use statusbar_state::StatusBarButton;
 pub use theme_presets::ThemePreset;

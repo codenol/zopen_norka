@@ -28,6 +28,11 @@ impl WidgetHostNative {
         }
         let ui = &self.editor_state.ui;
         self.editor_state.editor_ui.save_name_dialog.open
+            // The Share dialog is modal and its invite field is a text input
+            // (#56). A letter that is also a canvas tool shortcut — `r`, `t`,
+            // `v`, `p`, `y`, `o`, `l`, `h` — must reach the field, not the
+            // tool router.
+            || self.editor_state.editor_ui.share.open
             || self.editor_state.editor_ui.collab_join_input_active()
             || ui.layer_rename.is_some()
             || ui.text_editing.is_some()

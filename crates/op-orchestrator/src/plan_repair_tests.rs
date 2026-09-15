@@ -421,7 +421,6 @@ fn finalize_plan_never_pins_a_catalog_style_guide() {
     assert_ne!(plan.style_guide_name.as_deref(), Some("design-md-custom"));
 }
 
-
 /// When `design_md` is absent the session kit owns fill and catalog names are dropped.
 #[test]
 fn finalize_plan_no_design_md_uses_session_kit_fill() {

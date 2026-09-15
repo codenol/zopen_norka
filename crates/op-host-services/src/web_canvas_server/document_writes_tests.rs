@@ -11,6 +11,7 @@ use super::*;
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::web_canvas_server::tenant_auth::{IdentityVia, ResolvedIdentity};
 use op_editor_core::access::RoleSet;
+use op_editor_core::ShareLevel;
 
 /// A verified account holding `roles`.
 fn account(user_id: &str, roles: &[&str]) -> ResolvedIdentity {
@@ -266,7 +267,7 @@ fn the_local_and_managed_operators_are_never_refused() {
 #[test]
 fn a_visitor_with_no_editing_role_is_refused_every_write() {
     let visitor = as_visitor(&[]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     for (method, path, body) in WRITE_REQUESTS {
         let reply = check(method, path, body, &access)
             .unwrap_or_else(|| panic!("{method} {path} was not refused"));
@@ -275,7 +276,7 @@ fn a_visitor_with_no_editing_role_is_refused_every_write() {
     }
     // The same answer for a contributor: every non-design product role reads.
     let contributor = as_visitor(&["qa"]);
-    let access = RequestAccess::online("userA", &contributor, true);
+    let access = RequestAccess::online("userA", &contributor, Some(ShareLevel::Editor));
     assert_eq!(
         check("POST", "/api/mcp/document", "", &access).map(|reply| error_code(&reply)),
         Some("read-only-role".to_string())
@@ -285,7 +286,7 @@ fn a_visitor_with_no_editing_role_is_refused_every_write() {
 #[test]
 fn a_visitor_whose_roles_grant_an_edit_passes() {
     let editor = as_visitor(&["ux_ui"]);
-    let access = RequestAccess::online("userA", &editor, true);
+    let access = RequestAccess::online("userA", &editor, Some(ShareLevel::Editor));
     for (method, path, body) in WRITE_REQUESTS {
         assert!(
             check(method, path, body, &access).is_none(),
@@ -299,7 +300,7 @@ fn the_owner_passes_without_asking_a_role() {
     // The operator's decision: a document belongs to someone who may work on
     // it, whatever roles the hub sends.
     let owner = as_owner(&[]);
-    let access = RequestAccess::online("userA", &owner, false);
+    let access = RequestAccess::online("userA", &owner, None);
     for (method, path, body) in WRITE_REQUESTS {
         assert!(
             check(method, path, body, &access).is_none(),
@@ -314,7 +315,7 @@ fn a_stranger_is_refused_the_document_before_the_action_is_read() {
     // the document, not about the roles, and it is the same code the tenant
     // lease answers with.
     let stranger = account("userC", &["admin"]);
-    let access = RequestAccess::online("userA", &stranger, false);
+    let access = RequestAccess::online("userA", &stranger, None);
     for (method, path, body) in WRITE_REQUESTS {
         let reply = check(method, path, body, &access)
             .unwrap_or_else(|| panic!("{method} {path} was not refused"));
@@ -329,7 +330,7 @@ fn a_route_that_asks_nothing_is_never_refused_whatever_the_roles() {
     // a role-less visitor keeps every read, the settings modal and the routes
     // whose own tables already decide.
     let visitor = as_visitor(&[]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     for (method, path, body) in [
         ("GET", "/api/mcp/document", ""),
         ("GET", "/api/mcp/selection", ""),

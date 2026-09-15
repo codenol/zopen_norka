@@ -290,4 +290,91 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         CREATE INDEX comments_by_thread ON comments (thread_id, created_at, id);
     ",
     },
+    Migration {
+        version: 4,
+        sql: "
+        -- Sections (#59): the analytics a section was built from, and the
+        -- properties that hang off it.
+        --
+        -- The section itself is NOT here. It is a frame in the `.op` file — a
+        -- frame whose `role` is `section` — so it travels with the screens it
+        -- groups, survives copy-paste and is visible on the canvas. What a
+        -- database can hold and a file cannot is the ASSET: one markdown
+        -- document, loaded once and referenced by any number of sections.
+        --
+        -- ## Why the analytics is a table of its own
+        --
+        -- An analytics document is not a document of this store, and it is not
+        -- a property of one. The operator's decision is that it is an asset —
+        -- like a component or a recipe — so it is owned by an ACCOUNT, it is
+        -- referenced from more than one place, and deleting a section must not
+        -- delete it. Giving it a row on `documents` would have made it a file
+        -- with a name in the file list, which is not what it is.
+        --
+        -- The markdown itself is a file beside the `.op` files (`analytics/
+        -- <key>.md`), for the same reason the `.op` files are: the point of
+        -- analytics is that a person who is not in the app can read it, which
+        -- means a real file with a real format and not a column. This table is
+        -- the accounting — who it belongs to, what it is called, when it
+        -- changed — exactly the split `documents` already makes.
+        CREATE TABLE analytics_assets (
+            key        TEXT PRIMARY KEY,
+            name       TEXT NOT NULL,
+            -- NULL means 'not attributed to an account': the local operator's
+            -- own assets, and the same meaning this column carries on
+            -- `documents.owner_id`. An unattributed asset is nobody's online,
+            -- which is the fail-closed direction.
+            owner_id   TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            size       INTEGER NOT NULL
+        );
+
+        -- The asset list is a recency list, like the file list, and an index in
+        -- its own order makes the ORDER BY a scan instead of a sort.
+        CREATE INDEX analytics_assets_by_recency
+            ON analytics_assets (updated_at DESC, key DESC);
+
+        -- The list of one account's assets. One directory holds every
+        -- account's, so 'list everything' is the statement that would show one
+        -- account another's work — the same reason `documents` has its owner
+        -- filter.
+        CREATE INDEX analytics_assets_by_owner
+            ON analytics_assets (owner_id, updated_at DESC, key DESC);
+
+        -- ## Why a section's properties are one JSON payload
+        --
+        -- A row per section, keyed by the section's address: the document it
+        -- lives in and the node id that identifies it inside that document.
+        -- The same shape, and the same reason, as a comment thread: nodes live
+        -- inside the `.op` file, so a node id is a name the client and the
+        -- document agree on rather than a row here.
+        --
+        -- The payload holds the analytics references and their fingerprints,
+        -- the summary and the UX flows. It is JSON and not columns because it
+        -- is ONE authored document whose parts are read and written together,
+        -- and because the flow graph inside it will grow: a column per step
+        -- would freeze a structure that is still being designed into SQL, and
+        -- every change to the model would be a migration. It carries its own
+        -- `format` number (`op_editor_core::section::
+        -- SECTION_PROPERTIES_FORMAT`), so a build that does not understand it
+        -- refuses it instead of reading half of somebody's work.
+        --
+        -- ## Why the cascade, and why no index of its own
+        --
+        -- The properties go with the document, exactly as the conversation
+        -- does: a deleted document must not leave rows behind for whoever takes
+        -- its key next. `PRIMARY KEY (document_key, node_id)` is also what the
+        -- cascade from `documents` finds its children by — SQLite scans the
+        -- leading column — so a second index on `document_key` would be a write
+        -- cost with no reader.
+        CREATE TABLE section_properties (
+            document_key TEXT NOT NULL REFERENCES documents (key) ON DELETE CASCADE,
+            node_id      TEXT NOT NULL,
+            properties   TEXT NOT NULL,
+            updated_at   INTEGER NOT NULL,
+            PRIMARY KEY (document_key, node_id)
+        );
+    ",
+    },
 ];

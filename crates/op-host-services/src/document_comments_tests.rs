@@ -50,7 +50,11 @@ fn pin(page_id: &str, x: f64, y: f64) -> Placement {
 /// A comment about to be written.
 fn comment<'a>(id: Option<&'a str>, name: &'a str, body: &'a str) -> NewComment<'a> {
     NewComment {
-        author: Author { id, name, role: None },
+        author: Author {
+            id,
+            name,
+            role: None,
+        },
         body,
     }
 }
@@ -168,9 +172,15 @@ fn the_order_is_creation_time_and_then_the_order_things_were_written() {
         .expect("create")
         .expect("document");
     // Written last, but created first: the timestamp wins over the insert order.
-    let oldest = create_thread(&db, key, pin("p", 3.0, 3.0), comment(None, "", "three"), 400)
-        .expect("create")
-        .expect("document");
+    let oldest = create_thread(
+        &db,
+        key,
+        pin("p", 3.0, 3.0),
+        comment(None, "", "three"),
+        400,
+    )
+    .expect("create")
+    .expect("document");
     assert!(oldest.id > second.id, "ids are handed out in write order");
 
     let ids: Vec<i64> = list_threads(&db, key)
@@ -279,7 +289,7 @@ fn resolving_records_who_closed_the_thread_and_reopening_clears_it() {
             author: Author {
                 id: Some("userB"),
                 name: "Boris",
-            role: None,
+                role: None,
             },
             at: 900,
         },
@@ -306,7 +316,7 @@ fn resolving_records_who_closed_the_thread_and_reopening_clears_it() {
             author: Author {
                 id: Some("userC"),
                 name: "Vera",
-            role: None,
+                role: None,
             },
             at: 950,
         },
@@ -407,8 +417,14 @@ fn a_thread_cannot_be_opened_on_a_document_the_store_does_not_have() {
     let key = "aaaaaaaa00000009";
 
     assert_eq!(
-        create_thread(&db, key, pin("page-1", 1.0, 1.0), comment(None, "", "hello"), 10)
-            .expect("create"),
+        create_thread(
+            &db,
+            key,
+            pin("page-1", 1.0, 1.0),
+            comment(None, "", "hello"),
+            10
+        )
+        .expect("create"),
         None
     );
     assert_eq!(count_rows(&db, "comment_threads"), 0);
@@ -561,9 +577,15 @@ fn a_thread_without_coordinates_still_reads_as_a_thread() {
         Some("n7"),
         "the element it used to point at is what is left to say about it"
     );
-    assert!(threads[0].resolved, "and the rest of the record is untouched");
+    assert!(
+        threads[0].resolved,
+        "and the rest of the record is untouched"
+    );
     assert_eq!(threads[0].comments.len(), 1);
-    assert_eq!(threads[0].comments[0].body, "written before pins were coordinates");
+    assert_eq!(
+        threads[0].comments[0].body,
+        "written before pins were coordinates"
+    );
 }
 
 #[test]

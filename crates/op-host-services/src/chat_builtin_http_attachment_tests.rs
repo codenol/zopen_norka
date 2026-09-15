@@ -138,9 +138,7 @@ fn openai_request_carries_the_screenshot_as_an_inline_data_url() {
         .iter()
         .find(|p| p["type"] == "image_url")
         .expect("an image_url part");
-    let url = image["image_url"]["url"]
-        .as_str()
-        .expect("data URL string");
+    let url = image["image_url"]["url"].as_str().expect("data URL string");
     let encoded = url
         .strip_prefix("data:image/png;base64,")
         .unwrap_or_else(|| panic!("expected a png data URL, got: {url}"));

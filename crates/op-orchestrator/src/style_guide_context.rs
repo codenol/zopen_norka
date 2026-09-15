@@ -513,7 +513,9 @@ pub(crate) fn build_planning_style_guide_context(
     // model gets. The old design.md branch — which replaced this whole block
     // with a hand-written brief and forced `styleGuideName:
     // design-md-custom` — is gone with the brief.
-    let policy = op_editor_core::build_design_rules_policy(&op_editor_core::rules_without_recipes_for_reference(rules, prompt));
+    let policy = op_editor_core::build_design_rules_policy(
+        &op_editor_core::rules_without_recipes_for_reference(rules, prompt),
+    );
     if !policy.is_empty() {
         lines.push(String::new());
         lines.push("SESSION RULES (follow these EXACTLY; they override any default):".to_string());

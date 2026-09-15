@@ -31,6 +31,21 @@ impl WidgetHostNative {
     /// field's `!cloning` lock) still applies. Returns `true` if anything was
     /// inserted.
     pub fn apply_input_paste(&mut self, text: &str) -> bool {
+        // The Share dialog is modal, so a paste while it is open belongs to its
+        // invite field: a whole field replacement — a list of addresses pasted
+        // as a unit is the case the field exists for.
+        if self.editor_state.editor_ui.share.open {
+            let changed = op_editor_ui::widgets::share_dialog::invite_field_paste(
+                &mut self.editor_state.editor_ui.share,
+                text,
+                self.now_ms,
+            )
+            .unwrap_or(false);
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // The save-name dialog is modal and filters characters a file name
         // cannot carry, so it takes the paste as a unit.
         if let Some(changed) =

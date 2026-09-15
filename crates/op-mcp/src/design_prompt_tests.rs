@@ -24,7 +24,10 @@ fn get_design_prompt_defaults_to_all_and_lists_sections() {
                 prompt.contains("COMPONENT RULES"),
                 "the kit's component rules ride along"
             );
-            assert!(prompt.len() > 1000, "the full prompt is still the full prompt");
+            assert!(
+                prompt.len() > 1000,
+                "the full prompt is still the full prompt"
+            );
         }
         other => panic!("expected prompt ok, got {other:?}"),
     }

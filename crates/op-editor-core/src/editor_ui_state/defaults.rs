@@ -46,6 +46,7 @@ impl Default for EditorUiState {
             locale_picker: jian_widgets::components::select::SelectState::default(),
             preferred_agent_team_size: 1,
             collab: Default::default(),
+            share: Default::default(),
             comments: Default::default(),
             file_menu_open: false,
             file_menu: Default::default(),

@@ -412,9 +412,7 @@ impl ConfiguredBuiltinProvider {
                 }
             } else {
                 match provider.kind {
-                    BuiltinAgentKind::Anthropic => {
-                        run_anthropic_chat(provider, turn, &tx).await
-                    }
+                    BuiltinAgentKind::Anthropic => run_anthropic_chat(provider, turn, &tx).await,
                     BuiltinAgentKind::OpenAiCompat => {
                         run_openai_chat(provider, turn, disable_thinking, &tx).await
                     }

@@ -31,16 +31,88 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use op_editor_core::EditorState;
+use op_editor_core::{EditorState, ShareLevel};
 
 use super::tenant_auth::ResolvedIdentity;
 use super::tenant_store::{TenantStore, TenantStoreError};
 
 /// One edit to a tenant's access list.
+///
+/// A grant carries the LEVEL and the GRANTOR, because the two questions the
+/// Share dialog has to answer — "how much may this person do here" and "who
+/// added them" — cannot be reconstructed later. Anyone holding the invite
+/// right may add somebody (the operator's matrix), so "who added this person"
+/// stops being trivia the moment there is more than one person who can.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AclChange {
-    Grant(String),
+    Grant {
+        account: String,
+        level: ShareLevel,
+        /// The verified account that made the grant; `None` only for a caller
+        /// with no account at all (a local deployment never reaches here).
+        invited_by: Option<String>,
+    },
     Revoke(String),
+}
+
+impl AclChange {
+    /// The account this change is about.
+    pub fn account(&self) -> &str {
+        match self {
+            Self::Grant { account, .. } => account,
+            Self::Revoke(account) => account,
+        }
+    }
+}
+
+/// What the access list records about one account beyond its membership.
+///
+/// Membership itself stays the `BTreeSet` it always was — admission is checked
+/// on every request and must stay a set lookup. This is the metadata beside it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TenantGrant {
+    pub level: ShareLevel,
+    /// The account that made the grant. `None` for a grant written before
+    /// attribution existed; the dialog says so rather than naming the owner by
+    /// default, which would be a guess printed as a fact.
+    pub invited_by: Option<String>,
+}
+
+impl Default for TenantGrant {
+    /// The fail-closed reading of a grant with no recorded level: somebody was
+    /// given access, and nothing written says how much — so the least.
+    fn default() -> Self {
+        Self {
+            level: ShareLevel::DEFAULT,
+            invited_by: None,
+        }
+    }
+}
+
+impl TenantGrant {
+    /// One entry of the persisted `grants` map, or the fail-closed default.
+    pub fn from_json(value: &serde_json::Value) -> Self {
+        let level = value
+            .get("level")
+            .and_then(|level| level.as_str())
+            .and_then(|level| ShareLevel::from_wire(level).ok())
+            .unwrap_or(ShareLevel::DEFAULT);
+        let invited_by = value
+            .get("invitedBy")
+            .and_then(|inviter| inviter.as_str())
+            .map(str::trim)
+            .filter(|inviter| !inviter.is_empty())
+            .map(str::to_string);
+        Self { level, invited_by }
+    }
+
+    /// This entry as it is persisted.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "level": self.level.wire(),
+            "invitedBy": self.invited_by,
+        })
+    }
 }
 
 /// The result of an applied access-list change.
@@ -50,6 +122,8 @@ pub struct AclUpdate {
     pub changed: bool,
     /// The list as it now stands, both in memory and on disk.
     pub shared_with: BTreeSet<String>,
+    /// The metadata beside the list, as it now stands.
+    pub grants: Vec<op_editor_core::ShareGrant>,
 }
 use super::{SseHub, WebCanvasState};
 
@@ -189,6 +263,19 @@ pub struct Tenant {
     /// Separate from the state mutex because admission is checked on every
     /// request while the document lock may be held by a long push.
     shared_with: Mutex<BTreeSet<String>>,
+    /// What the access list records about each account beyond membership: the
+    /// level it was granted at, and who granted it.
+    ///
+    /// A map rather than a richer set, so `admits` stays the set lookup it has
+    /// always been. An account that is on the list with no entry here reads as
+    /// [`TenantGrant::default`] — the weakest level, nobody named.
+    grants: Mutex<std::collections::BTreeMap<String, TenantGrant>>,
+    /// Whether ANY signed-in account may open this document, and at what level.
+    ///
+    /// `None` is off, and off is the only safe default: this widens access
+    /// past the access list, so it is written only by an explicit request and
+    /// never inferred.
+    link_access: Mutex<Option<ShareLevel>>,
     /// Live leases. Non-zero means "do not evict".
     leases: AtomicUsize,
     /// Unix seconds of the last lease acquire or release.
@@ -211,17 +298,111 @@ impl Tenant {
             state: Mutex::new(state),
             hub: SseHub::default(),
             shared_with: Mutex::new(shared_with),
+            grants: Mutex::new(std::collections::BTreeMap::new()),
+            link_access: Mutex::new(None),
             leases: AtomicUsize::new(0),
             last_active_unix: AtomicU64::new(now_unix),
         }
     }
 
+    /// Install the persisted metadata that goes beside the access list.
+    ///
+    /// Called once, right after a tenant is materialised from the store — a
+    /// separate call rather than a constructor parameter so the several places
+    /// that build a tenant for a test keep working with the empty default
+    /// (membership with no recorded level, which is exactly what a tenant with
+    /// no stored ACL means).
+    pub(super) fn restore_grants(
+        &self,
+        grants: std::collections::BTreeMap<String, TenantGrant>,
+        link_access: Option<ShareLevel>,
+    ) {
+        *self.grants.lock().unwrap_or_else(|p| p.into_inner()) = grants;
+        *self.link_access.lock().unwrap_or_else(|p| p.into_inner()) = link_access;
+    }
+
     /// Whether `visitor` may reach this tenant's document.
+    ///
+    /// Link access admits anybody at all — that is what it means — and the
+    /// caller's level is still decided separately, so this widening cannot
+    /// promote anyone past what the link hands out.
     pub fn admits(&self, visitor: &str) -> bool {
+        if self.link_access().is_some() {
+            return true;
+        }
         self.shared_with
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .contains(visitor)
+    }
+
+    /// What the access list records about `visitor`, or `None` when it does
+    /// not name them at all.
+    pub fn grant_for(&self, visitor: &str) -> Option<TenantGrant> {
+        let grants = self.grants.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(grant) = grants.get(visitor) {
+            return Some(grant.clone());
+        }
+        // An account on the list with no metadata — a grant written before
+        // levels existed, or by an older build — still has access; what it
+        // does not have is a recorded level.
+        self.shared_with
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .contains(visitor)
+            .then(TenantGrant::default)
+    }
+
+    /// The level this visitor may hold on this tenant's document, or `None`
+    /// when the tenant does not admit them at all.
+    ///
+    /// ONE function for the question, because two callers ask it about the same
+    /// request: admission (`admits`) and the rights ceiling the routes apply.
+    /// A grant names its own level; a caller admitted only by link access takes
+    /// the link's level — which is the whole reason link access can be turned
+    /// on without turning it up.
+    pub fn level_for(&self, visitor: &str) -> Option<ShareLevel> {
+        if let Some(grant) = self.grant_for(visitor) {
+            return Some(grant.level);
+        }
+        self.link_access()
+    }
+
+    /// The level this tenant's document is open to anybody with the link at.
+    pub fn link_access(&self) -> Option<ShareLevel> {
+        *self.link_access.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// The metadata beside the list, for persisting and for answering the
+    /// Share dialog.
+    pub fn grants(&self) -> std::collections::BTreeMap<String, TenantGrant> {
+        self.grants
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
+    }
+
+    /// The whole ACL — membership, metadata and link access — as one value.
+    ///
+    /// `list` is passed in because every writer already holds its guard: taking
+    /// it again here would deadlock on a non-reentrant mutex.
+    pub(super) fn acl_snapshot(&self, list: &BTreeSet<String>) -> super::tenant_store::TenantAcl {
+        super::tenant_store::TenantAcl {
+            shared_with: list.clone(),
+            grants: self.grants(),
+            link_access: self.link_access(),
+        }
+    }
+
+    /// Every account the document is shared with, and at what level.
+    ///
+    /// Membership drives the list: an account on it with no metadata still
+    /// appears, at [`TenantGrant::default`]'s level, because it does have
+    /// access.
+    pub fn share_grants(&self) -> Vec<op_editor_core::ShareGrant> {
+        let list = self.shared_with();
+        let grants = self.grants();
+        collect_grants(&list, &grants)
     }
 
     /// Add an account to the access list. Returns whether it was new.
@@ -508,7 +689,10 @@ impl TenantRegistry {
         if let Some(tenant) = self.lock().get(owner_id) {
             return tenant.admits(visitor);
         }
-        self.store.load_acl(owner_id).contains(visitor)
+        let acl = self.store.load_acl_file(owner_id);
+        // Link access admits anybody, resident or not — the stored flag is the
+        // same fact the resident tenant would answer with.
+        acl.link_access.is_some() || acl.shared_with.contains(visitor)
     }
 
     /// Who has shared with `visitor`, across every resident tenant.
@@ -537,13 +721,18 @@ impl TenantRegistry {
                 if tenants.len() >= self.limits.max_tenants {
                     return Err(TenantError::TooManyTenants);
                 }
+                let stored = self.store.load_acl_file(user_id);
                 let created = Arc::new(Tenant::new(
                     self.port,
                     &self.allow_origins,
                     self.restore_editor(user_id),
-                    self.store.load_acl(user_id),
+                    stored.shared_with.clone(),
                     now,
                 ));
+                // The metadata is installed here rather than passed to the
+                // constructor so a tenant built for a test carries the same
+                // meaning a tenant built from an empty store does.
+                created.restore_grants(stored.grants, stored.link_access);
                 tenants.insert(user_id.to_string(), Arc::clone(&created));
                 created
             }
@@ -605,7 +794,8 @@ impl TenantRegistry {
             // grant landing mid-flush is written by one path and overwritten
             // by the other, and the user's share silently disappears.
             let shared = tenant.shared_with_guard();
-            match self.store.save(id, &guard.editor, &shared) {
+            let acl = tenant.acl_snapshot(&shared);
+            match self.store.save(id, &guard.editor, &acl) {
                 Ok(()) => written += 1,
                 Err(error) => eprintln!(
                     "openpencil --serve-web --online: could not flush a tenant on shutdown \
@@ -637,7 +827,8 @@ impl TenantRegistry {
         change: AclChange,
     ) -> Result<AclUpdate, TenantStoreError> {
         let mut list = tenant.shared_with_guard();
-        if let AclChange::Grant(account) = &change {
+        let mut grants = tenant.grants.lock().unwrap_or_else(|p| p.into_inner());
+        if let AclChange::Grant { account, .. } = &change {
             // The store writes at most `MAX_SHARED_ACCOUNTS`, so accepting a
             // grant past the ceiling would report success for a share that
             // silently vanishes on the next save. Refuse it instead.
@@ -649,29 +840,118 @@ impl TenantRegistry {
                 ));
             }
         }
+        // Both the membership and the metadata are captured before the edit so
+        // a failed write can put BOTH back; restoring only one would leave
+        // memory claiming a level for somebody it no longer lists (or the
+        // reverse), which is the kind of disagreement that is invisible until
+        // somebody's access is wrong.
+        let previous_grant = grants.get(change.account()).cloned();
         let changed = match &change {
-            AclChange::Grant(account) => list.insert(account.clone()),
-            AclChange::Revoke(account) => list.remove(account.as_str()),
+            AclChange::Grant {
+                account,
+                level,
+                invited_by,
+            } => {
+                let new = TenantGrant {
+                    level: *level,
+                    invited_by: invited_by.clone(),
+                };
+                let moved = grants.get(account) != Some(&new);
+                grants.insert(account.clone(), new);
+                list.insert(account.clone()) || moved
+            }
+            AclChange::Revoke(account) => {
+                grants.remove(account.as_str());
+                list.remove(account.as_str()) || previous_grant.is_some()
+            }
+        };
+        let link = tenant.link_access();
+        let acl = super::tenant_store::TenantAcl {
+            shared_with: list.clone(),
+            grants: grants.clone(),
+            link_access: link,
         };
         if !changed || !self.store.is_enabled() {
             return Ok(AclUpdate {
                 changed,
                 shared_with: list.clone(),
+                grants: collect_grants(&list, &grants),
             });
         }
-        match self.store.save_acl_for(user_id, &list) {
+        match self.store.save_acl_for(user_id, &acl) {
             Ok(()) => Ok(AclUpdate {
                 changed,
                 shared_with: list.clone(),
+                grants: collect_grants(&list, &grants),
             }),
             Err(error) => {
                 match &change {
-                    AclChange::Grant(account) => list.remove(account.as_str()),
-                    AclChange::Revoke(account) => list.insert(account.clone()),
+                    AclChange::Grant { account, .. } => {
+                        list.remove(account.as_str());
+                        match previous_grant {
+                            Some(previous) => {
+                                grants.insert(account.clone(), previous);
+                            }
+                            None => {
+                                grants.remove(account.as_str());
+                            }
+                        }
+                    }
+                    AclChange::Revoke(account) => {
+                        list.insert(account.clone());
+                        if let Some(previous) = previous_grant {
+                            grants.insert(account.clone(), previous);
+                        }
+                    }
                 };
                 Err(error)
             }
         }
+    }
+
+    /// Turn link access on, off, or to another level.
+    ///
+    /// Persisted immediately and rolled back on a failed write, exactly as a
+    /// grant is: this is a widening of who may open the document, and a
+    /// widening that exists in memory but not on disk is one that silently
+    /// disappears on the next restart.
+    fn update_link_access_inner(
+        &self,
+        user_id: &str,
+        tenant: &Tenant,
+        level: Option<ShareLevel>,
+    ) -> Result<Option<ShareLevel>, TenantStoreError> {
+        let list = tenant.shared_with_guard();
+        let grants = tenant.grants.lock().unwrap_or_else(|p| p.into_inner());
+        let previous = tenant.link_access();
+        if previous == level {
+            return Ok(previous);
+        }
+        let acl = super::tenant_store::TenantAcl {
+            shared_with: list.clone(),
+            grants: grants.clone(),
+            link_access: level,
+        };
+        if self.store.is_enabled() {
+            self.store.save_acl_for(user_id, &acl)?;
+        }
+        *tenant.link_access.lock().unwrap_or_else(|p| p.into_inner()) = level;
+        Ok(previous)
+    }
+
+    /// Turn link access on, off, or to another level, and persist it.
+    ///
+    /// Delegates to the tenant's own access-list machinery so the write, the
+    /// rollback and the "is persistence even on" question are answered in one
+    /// place — a second writer would be a second chance to publish a widening
+    /// that does not survive a restart.
+    pub fn update_link_access(
+        &self,
+        user_id: &str,
+        tenant: &Tenant,
+        level: Option<ShareLevel>,
+    ) -> Result<Option<ShareLevel>, TenantStoreError> {
+        self.update_link_access_inner(user_id, tenant, level)
     }
 
     /// Reclaim tenants that hold no lease and have been idle past the limit.
@@ -700,7 +980,8 @@ impl TenantRegistry {
             if self.store.is_enabled() {
                 let guard = victim.state.lock().unwrap_or_else(|p| p.into_inner());
                 let shared = victim.shared_with_guard();
-                if let Err(error) = self.store.save(&id, &guard.editor, &shared) {
+                let acl = victim.acl_snapshot(&shared);
+                if let Err(error) = self.store.save(&id, &guard.editor, &acl) {
                     // A tenant that cannot be written is kept resident. Evicting
                     // it anyway would discard the document to reclaim memory,
                     // which is the wrong trade for the user whose work it is.
@@ -725,6 +1006,27 @@ impl TenantRegistry {
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, Arc<Tenant>>> {
         self.tenants.lock().unwrap_or_else(|p| p.into_inner())
     }
+}
+
+/// Pair the membership set with its metadata, in list order.
+///
+/// One function so the answer `/api/share/list` gives and the answer a grant
+/// response gives are built the same way — two builders is two chances for a
+/// row to carry a level one of them did not read.
+pub(super) fn collect_grants(
+    list: &BTreeSet<String>,
+    grants: &std::collections::BTreeMap<String, TenantGrant>,
+) -> Vec<op_editor_core::ShareGrant> {
+    list.iter()
+        .map(|account| {
+            let grant = grants.get(account).cloned().unwrap_or_default();
+            op_editor_core::ShareGrant {
+                account: account.clone(),
+                level: grant.level,
+                invited_by: grant.invited_by,
+            }
+        })
+        .collect()
 }
 
 /// Seconds since the Unix epoch, saturating to 0 before it.

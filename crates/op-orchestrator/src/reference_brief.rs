@@ -111,7 +111,9 @@ pub fn resolve_reference_brief(
             if let VisionResponse::Skipped { reason } = &response {
                 eprintln!(
                     "[reference-brief] no screenshot inventory: {}",
-                    reason.as_deref().unwrap_or("vision unavailable (no reason given)")
+                    reason
+                        .as_deref()
+                        .unwrap_or("vision unavailable (no reason given)")
                 );
             } else {
                 eprintln!("[reference-brief] no screenshot inventory: vision returned empty text");

@@ -168,10 +168,7 @@ fn push_undelivered_notice(prompt: &mut String, att: &ChatAttachment) {
 /// The wire builder chooses which attachments are inlined from the same
 /// byte-level test (`inline_image_attachments`), so prompt and body cannot
 /// disagree about what the model received.
-pub fn prompt_with_inline_images(
-    user_message: &str,
-    attachments: &[ChatAttachment],
-) -> String {
+pub fn prompt_with_inline_images(user_message: &str, attachments: &[ChatAttachment]) -> String {
     let mut prompt = user_message.to_string();
     for att in attachments {
         if sniff_image_media_type(&att.data).is_some() {
@@ -583,7 +580,10 @@ mod tests {
         let attachments = vec![png("shot.png"), text_file("notes.txt")];
         let prompt = prompt_with_undelivered_attachments("design this", &attachments);
 
-        assert!(prompt.matches("attachment NOT delivered").count() == 2, "{prompt}");
+        assert!(
+            prompt.matches("attachment NOT delivered").count() == 2,
+            "{prompt}"
+        );
         assert!(prompt.contains("image \"shot.png\""), "{prompt}");
         assert!(prompt.contains("file \"notes.txt\""), "{prompt}");
         assert!(

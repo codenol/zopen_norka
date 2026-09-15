@@ -202,4 +202,3 @@ pub(crate) fn anthropic_user_content(prompt: &str, attachments: &[ChatAttachment
     }
     Value::Array(blocks)
 }
-

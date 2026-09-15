@@ -21,6 +21,21 @@ impl WidgetHost {
         if self.apply_account_entry_text(c) {
             return true;
         }
+        // The Share dialog is modal too, and its invite field is the only text
+        // input it has. An unfocused field still swallows the key: a bare
+        // letter must not reach the canvas shortcuts behind the card.
+        if self.editor_state.editor_ui.share.open {
+            let changed = op_editor_ui::widgets::share_dialog::invite_field_text(
+                &mut self.editor_state.editor_ui.share,
+                c,
+                self.now_ms,
+            )
+            .unwrap_or(false);
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // The comment field owns the keystroke while it has focus — checked
         // before every other arm, because a bare letter would otherwise switch
         // the tool behind a comment somebody is typing.
@@ -162,6 +177,20 @@ impl WidgetHost {
 
     pub fn apply_backspace(&mut self) -> bool {
         if self.apply_account_entry_backspace() {
+            return true;
+        }
+        // Same gate as `apply_text`: the open Share dialog owns Backspace even
+        // when its field is not focused, so the key cannot delete a canvas node
+        // behind the card.
+        if self.editor_state.editor_ui.share.open {
+            let changed = op_editor_ui::widgets::share_dialog::invite_field_backspace(
+                &mut self.editor_state.editor_ui.share,
+                self.now_ms,
+            )
+            .unwrap_or(false);
+            if changed {
+                self.mark_dirty();
+            }
             return true;
         }
         if self.comment_backspace() {
@@ -306,6 +335,19 @@ impl WidgetHost {
         // Enter walks the account entry form, and submits it from its last
         // field. Above everything else: the form is a gate.
         if self.apply_account_entry_send() {
+            return true;
+        }
+        // Enter on the Share dialog's invite field is the same press as its
+        // Invite button — including the refusal sentence, which is the button's
+        // whole reason for staying pressable.
+        if self.editor_state.editor_ui.share.open {
+            let submitted = op_editor_ui::widgets::share_dialog::invite_field_submit(
+                &mut self.editor_state.editor_ui.share,
+            )
+            .unwrap_or(false);
+            if submitted {
+                self.mark_dirty();
+            }
             return true;
         }
         // Enter in the comment field sends the comment. Above the rename

@@ -75,6 +75,9 @@ mod web_mcp_tokens;
 // Daemon collaboration relay (action drain + projection pull + presence).
 #[cfg(feature = "canvaskit")]
 mod collab_sync;
+// Share dialog host half (#56): drains its queued work to `/api/share/*`.
+#[cfg(feature = "canvaskit")]
+mod share_sync;
 // Shared daemon base-URL resolution (page origin when served by the daemon,
 // localhost fallback for the dev smoke page).
 #[cfg(feature = "canvaskit")]

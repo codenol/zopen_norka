@@ -325,11 +325,8 @@ pub fn stream_standard_turn<W: Write>(
             name,
         }
     });
-    let modify_plan = crate::chat_intent::build_modify_plan_with(
-        &snapshot,
-        &req.ai.user,
-        recipe_hint.as_ref(),
-    );
+    let modify_plan =
+        crate::chat_intent::build_modify_plan_with(&snapshot, &req.ai.user, recipe_hint.as_ref());
     let page_children_empty = snapshot.active_children().is_empty();
     let intent = if has_reference_image {
         // "Make it like this picture" with the picture attached is a build
@@ -609,7 +606,11 @@ fn stream_modify_route<W: Write>(
     // Rewriting a whole placed screen — every column header and every sample
     // row — does not fit in the default reply budget, and a reply cut short
     // is what "it changed the headers but not the data" looks like.
-    let max_output_tokens = if plan.rewrites_a_placed_recipe { 16384 } else { 8192 };
+    let max_output_tokens = if plan.rewrites_a_placed_recipe {
+        16384
+    } else {
+        8192
+    };
     let request = ChatRequest {
         system_prompt: plan.system_prompt,
         user_message: plan.user_message,
@@ -727,8 +728,7 @@ fn stream_new_design_route<W: Write>(
             .into_iter()
             .map(|entry| entry.rule)
             .collect();
-    if let Some(recipe) =
-        op_editor_core::select_recipe(&req.ai.user, op_editor_core::session_kit())
+    if let Some(recipe) = op_editor_core::select_recipe(&req.ai.user, op_editor_core::session_kit())
     {
         // Placed through the daemon's own lock, like every other write on
         // this path, so the browser sees the base on its next sync.

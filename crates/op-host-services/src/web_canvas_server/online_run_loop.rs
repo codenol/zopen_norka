@@ -629,11 +629,14 @@ pub(super) fn serve_one_online<S: Read + Write>(
     // that owner's access list. So the flag below cannot claim a share the
     // registry never checked — a visitor whose grant was revoked is refused
     // here, before a route ever asks.
-    let access = RequestAccess::online(
-        lease.owner_id(),
-        &identity,
-        lease.owner_id() != identity.user_id,
-    );
+    // The level the owner's access list granted this caller, read off the same
+    // tenant the lease admitted them through — so the ceiling the routes apply
+    // and the membership that let the request in cannot disagree. `None` for
+    // the owner's own tenant, where membership is not what admits them.
+    let granted = (lease.owner_id() != identity.user_id)
+        .then(|| lease.tenant().level_for(&identity.user_id))
+        .flatten();
+    let access = RequestAccess::online(lease.owner_id(), &identity, granted);
     dispatch(
         stream,
         &req,

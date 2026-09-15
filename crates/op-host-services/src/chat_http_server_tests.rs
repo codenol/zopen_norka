@@ -712,7 +712,9 @@ fn image_parts_carry_raster_images_only() {
         "the wire label follows the bytes: {parts:?}"
     );
     assert!(
-        !serde_json::to_string(&parts).unwrap().contains("text/plain"),
+        !serde_json::to_string(&parts)
+            .unwrap()
+            .contains("text/plain"),
         "a document is not image input: {parts:?}"
     );
 

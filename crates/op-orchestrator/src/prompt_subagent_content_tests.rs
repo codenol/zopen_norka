@@ -11,8 +11,6 @@ fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
         .collect()
 }
 
-
-
 #[test]
 fn subagent_prompt_injects_exact_json_quoted_screen_route_inventory() {
     let subtask = subtask();

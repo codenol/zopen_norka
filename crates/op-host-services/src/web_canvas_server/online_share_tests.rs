@@ -617,8 +617,11 @@ fn concurrent_grants_all_survive() {
             let temp = std::sync::Arc::clone(&temp);
             let lease = &lease;
             scope.spawn(move || {
-                let change =
-                    crate::web_canvas_server::tenant::AclChange::Grant(format!("guest-{index}"));
+                let change = crate::web_canvas_server::tenant::AclChange::Grant {
+                    account: format!("guest-{index}"),
+                    level: op_editor_core::ShareLevel::Viewer,
+                    invited_by: Some("userA".to_string()),
+                };
                 temp.registry
                     .update_acl(lease.owner_id(), lease.tenant(), change)
                     .expect("persisted");
