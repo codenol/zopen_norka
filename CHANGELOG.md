@@ -239,7 +239,35 @@ here at a glance.
   `OPENPENCIL_ONLINE_DATA_DIR` (which `--online` already required) and either
   the `NORKA_ADMIN_*` pair or `op admin create`.
 
+### Changed
+
+- **Sharing is a property of a document, not of the account that owns it.**
+  A grant made in one document's Share dialog used to open EVERY document that
+  account owned, and the "anyone with the link" switch did the same for all of
+  them — measured against a real deployment, where a colleague granted access
+  while looking at document A could open and comment on document B that was
+  never shared. Access lists are keyed by document now: `/api/share/grant`,
+  `/revoke`, `/list` and `/link` take the document (`?file=<key>`, or `file` in
+  the body), and a request that names an owner without a document is refused
+  with `missing-document` rather than guessed at. The browser names the document
+  on every request — from the address for a link that has one, and from the key
+  the daemon reports for a tab on `/`.
+
+- **An access list written before this change is NOT migrated.** The old file
+  held one list for the whole account and never recorded which document it was
+  about, so applying it to whichever document the account opens next would hand
+  out access nobody granted for that document. It is moved aside as
+  `acl.v1.json` and reported at start-up; every share has to be issued again.
+  This is a breaking change for an existing deployment, and the only safe
+  reading of a file that cannot say what it was about.
+
 ### Fixed
+
+- **The Share button appears where sharing exists.** Its visibility was gated
+  on the LIVE RELAY session's availability, so an online deployment — accounts,
+  documents, access lists, and no relay — showed no share entry point at all,
+  while a local daemon with nobody to share with showed one. It waits for a
+  document with a key now, which is a document that can be shared.
 
 - **A tab on `/` finally learns which document it is showing.** The daemon's
   document envelope carried the document and its version but not the store's

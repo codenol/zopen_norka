@@ -84,9 +84,18 @@ impl Default for CollabTopBarModel {
 impl CollabTopBarModel {
     pub fn for_editor_ui(ui: &EditorUiState) -> Self {
         let collab = &ui.collab;
-        let visible = collab.availability != CollabAvailability::Unavailable
+        // Sharing is a property of the DOCUMENT, and this button opens the
+        // access dialog — it is not the relay-session chip it once was. Gating
+        // it on the relay's availability hid the entry point to sharing in an
+        // online deployment (which runs no relay session) and showed it on a
+        // local daemon that has no accounts and nobody to share with
+        // (issue #134). A document with a key is a document that can be
+        // shared, so that is what the button waits for.
+        let shareable = ui.file_key.is_some();
+        let visible = shareable
+            || collab.availability != CollabAvailability::Unavailable
             || collab.phase != CollabConnectionPhase::Idle;
-        let enabled = collab.availability != CollabAvailability::Unavailable;
+        let enabled = shareable || collab.availability != CollabAvailability::Unavailable;
         let (label_key, tone) = match collab.phase {
             CollabConnectionPhase::Idle | CollabConnectionPhase::Discovering => {
                 // The chip no longer offers a live session to start: it opens

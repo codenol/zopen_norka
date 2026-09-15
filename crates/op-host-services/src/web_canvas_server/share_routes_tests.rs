@@ -1,6 +1,9 @@
 //! Tests for the share administration routes and their admission rules.
 
 use super::*;
+
+/// The document every share in this file is about.
+const DOCUMENT: &str = "docA";
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::web_canvas_server::tenant::{TenantError, TenantLimits};
 use crate::web_canvas_server::tenant_auth::IdentityVia;
@@ -40,6 +43,7 @@ fn grant(registry: &TenantRegistry, owner: &str, target: &str) -> WebReply {
         &lease,
         registry,
         None,
+        Some(DOCUMENT),
     )
 }
 
@@ -73,6 +77,7 @@ fn a_grant_for_an_account_that_does_not_exist_is_refused() {
         &lease,
         &registry,
         Some(&accounts),
+        Some(DOCUMENT),
     );
 
     assert_eq!(reply.status, "400 Bad Request", "{}", reply.body);
@@ -87,11 +92,15 @@ fn a_grant_admits_the_named_account_and_nobody_else() {
     assert_eq!(body_of(&reply)["changed"], true);
 
     let visitor = identity("userB");
-    assert!(registry.lease_for_shared("userA", &visitor).is_ok());
+    assert!(registry
+        .lease_for_shared("userA", &visitor, DOCUMENT)
+        .is_ok());
 
     let stranger = identity("userC");
     assert_eq!(
-        registry.lease_for_shared("userA", &stranger).unwrap_err(),
+        registry
+            .lease_for_shared("userA", &stranger, DOCUMENT)
+            .unwrap_err(),
         TenantError::NotShared
     );
 }
@@ -101,7 +110,9 @@ fn a_revoke_takes_effect_on_the_next_request() {
     let registry = registry();
     grant(&registry, "userA", "userB");
     let visitor = identity("userB");
-    assert!(registry.lease_for_shared("userA", &visitor).is_ok());
+    assert!(registry
+        .lease_for_shared("userA", &visitor, DOCUMENT)
+        .is_ok());
 
     let owner = identity("userA");
     let lease = registry.lease_for(&owner).expect("lease");
@@ -113,6 +124,7 @@ fn a_revoke_takes_effect_on_the_next_request() {
         &lease,
         &registry,
         None,
+        Some(DOCUMENT),
     );
     assert_eq!(reply.status, "200 OK");
     assert_eq!(body_of(&reply)["changed"], true);
@@ -120,7 +132,9 @@ fn a_revoke_takes_effect_on_the_next_request() {
     // The access list is consulted per request, so this is immediate — no
     // session to expire first.
     assert_eq!(
-        registry.lease_for_shared("userA", &visitor).unwrap_err(),
+        registry
+            .lease_for_shared("userA", &visitor, DOCUMENT)
+            .unwrap_err(),
         TenantError::NotShared
     );
 }
@@ -129,7 +143,7 @@ fn a_revoke_takes_effect_on_the_next_request() {
 fn an_owner_always_reaches_their_own_document() {
     let registry = registry();
     let owner = identity("userA");
-    assert!(registry.lease_for_shared("userA", &owner).is_ok());
+    assert!(registry.lease_for_shared("userA", &owner, DOCUMENT).is_ok());
 }
 
 #[test]
@@ -158,6 +172,7 @@ fn revoking_an_account_that_was_never_granted_is_not_an_error() {
         &lease,
         &registry,
         None,
+        Some(DOCUMENT),
     );
     assert_eq!(reply.status, "200 OK");
     assert_eq!(body_of(&reply)["changed"], false);
@@ -179,6 +194,7 @@ fn the_list_reports_both_directions() {
         &lease,
         &registry,
         None,
+        Some(DOCUMENT),
     );
     let body = body_of(&reply);
     assert_eq!(reply.status, "200 OK");
@@ -209,12 +225,16 @@ fn a_visitor_cannot_reshare_the_document_they_were_given() {
 
     let stranger = identity("userC");
     assert_eq!(
-        registry.lease_for_shared("userA", &stranger).unwrap_err(),
+        registry
+            .lease_for_shared("userA", &stranger, DOCUMENT)
+            .unwrap_err(),
         TenantError::NotShared,
         "userB must not be able to widen userA's access list"
     );
     assert!(
-        registry.lease_for_shared("userB", &stranger).is_ok(),
+        registry
+            .lease_for_shared("userB", &stranger, DOCUMENT)
+            .is_ok(),
         "userB may of course share their own document"
     );
 }
@@ -248,6 +268,7 @@ fn a_malformed_share_body_is_refused() {
             &lease,
             &registry,
             None,
+            Some(DOCUMENT),
         );
         assert_eq!(reply.status, "400 Bad Request", "{body:?}");
     }
@@ -267,6 +288,7 @@ fn an_oversized_share_body_is_refused_before_it_is_parsed() {
         &lease,
         &registry,
         None,
+        Some(DOCUMENT),
     );
     assert_eq!(reply.status, "413 Payload Too Large");
 }
@@ -284,6 +306,7 @@ fn a_wrong_method_on_a_share_route_is_405() {
         &lease,
         &registry,
         None,
+        Some(DOCUMENT),
     );
     assert_eq!(reply.status, "405 Method Not Allowed");
 }
@@ -309,10 +332,12 @@ fn a_forbidden_share_and_an_unknown_one_answer_identically() {
     let registry = registry();
     let stranger = identity("userC");
     let unknown = registry
-        .lease_for_shared("nobody-at-all", &stranger)
+        .lease_for_shared("nobody-at-all", &stranger, DOCUMENT)
         .unwrap_err();
     grant(&registry, "userA", "userB");
-    let forbidden = registry.lease_for_shared("userA", &stranger).unwrap_err();
+    let forbidden = registry
+        .lease_for_shared("userA", &stranger, DOCUMENT)
+        .unwrap_err();
     assert_eq!(unknown, forbidden);
 }
 
@@ -332,6 +357,7 @@ fn the_grant_past_the_ceiling_is_refused_rather_than_silently_dropped() {
             &lease,
             &registry,
             None,
+            Some(DOCUMENT),
         );
         assert_eq!(reply.status, "200 OK", "grant {index}");
     }
@@ -343,11 +369,15 @@ fn the_grant_past_the_ceiling_is_refused_rather_than_silently_dropped() {
         &lease,
         &registry,
         None,
+        Some(DOCUMENT),
     );
     assert_eq!(overflow.status, "400 Bad Request", "{}", overflow.body);
     assert_eq!(body_of(&overflow)["error"], "share-limit-reached");
     // And the refused account really is absent, not quietly present in memory.
-    assert!(!lease.tenant().shared_with().contains("one-too-many"));
+    assert!(!lease
+        .tenant()
+        .shared_with(DOCUMENT)
+        .contains("one-too-many"));
 }
 
 #[test]
@@ -366,6 +396,7 @@ fn a_repeat_grant_at_the_ceiling_still_succeeds() {
             &lease,
             &registry,
             None,
+            Some(DOCUMENT),
         );
     }
     let repeat = handle(
@@ -376,6 +407,7 @@ fn a_repeat_grant_at_the_ceiling_still_succeeds() {
         &lease,
         &registry,
         None,
+        Some(DOCUMENT),
     );
     assert_eq!(repeat.status, "200 OK", "{}", repeat.body);
 }

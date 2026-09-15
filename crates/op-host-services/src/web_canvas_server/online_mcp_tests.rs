@@ -465,6 +465,10 @@ fn serve_roles(registry: &TenantRegistry, request: Request) -> String {
 /// Address a request at another account's tenant.
 fn as_tenant(mut request: Request, owner: &'static str) -> Request {
     request.tenant = Some(owner);
+    // A request addressed at another account's tenant must also say WHICH
+    // document: admission is a property of that document's access list
+    // (issue #127).
+    request.file = Some(SHARED_DOC);
     request
 }
 
@@ -485,7 +489,12 @@ fn grant_at(registry: &TenantRegistry, owner_token: &'static str, target: &str, 
         Request::json(
             "POST",
             op_editor_core::share_routes::GRANT,
-            &serde_json::json!({ "userId": target, "level": level }).to_string(),
+            &serde_json::json!({
+                "userId": target,
+                "level": level,
+                "file": SHARED_DOC,
+            })
+            .to_string(),
         )
         .with_bearer(owner_token),
     );
