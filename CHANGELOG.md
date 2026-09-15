@@ -263,6 +263,12 @@ here at a glance.
 
 ### Fixed
 
+- **The Share button appears where sharing exists.** Its visibility was gated
+  on the LIVE RELAY session's availability, so an online deployment — accounts,
+  documents, access lists, and no relay — showed no share entry point at all,
+  while a local daemon with nobody to share with showed one. It waits for a
+  document with a key now, which is a document that can be shared.
+
 - **A tab on `/` finally learns which document it is showing.** The daemon's
   document envelope carried the document and its version but not the store's
   name for it, so a tab opened at the root never learned its key: Save took the
