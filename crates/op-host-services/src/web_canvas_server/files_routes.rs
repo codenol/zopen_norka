@@ -95,6 +95,19 @@ enum FilesRoute<'a> {
         /// `""` for the collection itself, else `reply` / `resolve` / `reopen`.
         action: &'a str,
     },
+    /// `/api/files/<key>/sections`, and `/api/files/<key>/sections/<node>`.
+    ///
+    /// What a section carries — the analytics it came from, what it says, and
+    /// the flows drawn from it. Part of this family for the reason `Comments`
+    /// is: a section is a frame in the document, so everything in front of its
+    /// handler is a property of the key in the path and of nothing else.
+    Sections {
+        key: &'a str,
+        /// The frame that marks the section, as the client spelled it. Parsed
+        /// where it is used (`super::section_routes`), so this parser keeps
+        /// saying only what the shape of a path is.
+        node: Option<&'a str>,
+    },
 }
 
 impl FilesRoute<'_> {
@@ -107,7 +120,9 @@ impl FilesRoute<'_> {
     fn key(&self) -> Option<&str> {
         match self {
             Self::List | Self::Create => None,
-            Self::Document { key, .. } | Self::Comments { key, .. } => Some(key),
+            Self::Document { key, .. }
+            | Self::Comments { key, .. }
+            | Self::Sections { key, .. } => Some(key),
         }
     }
 }
@@ -129,6 +144,22 @@ fn parse_route(path: &str) -> Option<FilesRoute<'_>> {
     let Some(second) = segments.next() else {
         return Some(FilesRoute::Document { key, action: "" });
     };
+    if second == "sections" {
+        return match (segments.next(), segments.next()) {
+            // `/api/files/<key>/sections` — every section that says something.
+            (None, None) => Some(FilesRoute::Sections { key, node: None }),
+            // `/api/files/<key>/sections/<node>`.
+            (Some(node), None) => Some(FilesRoute::Sections {
+                key,
+                node: Some(node),
+            }),
+            // Deeper than a section is not a route: the properties are written
+            // whole (see `super::section_routes` on why the route compares
+            // rather than trusting a field list), so there is no per-field path
+            // to parse.
+            _ => None,
+        };
+    }
     if second != "comments" {
         return match segments.next() {
             // `/api/files/<key>` — the document itself.
@@ -207,6 +238,16 @@ fn required_action(method: &str, route: &FilesRoute<'_>) -> Option<DocumentActio
         // decide_thread_resolution`). Asking it here instead would decide from a
         // path that does not name an author.
         ("POST", FilesRoute::Comments { .. }) => Some(DocumentAction::Comment),
+        // What a section carries asks for `View` — the floor a read has — even
+        // when the request writes. That is not a weaker gate: the right to
+        // change a summary or a flow is a question about the SUBJECT rather
+        // than about the document (see `super::section_rights`), it can only be
+        // answered against the properties actually being replaced, and this
+        // table runs before a handler has read them. So the gate asks what it
+        // can answer from a path — "may this caller reach this document at
+        // all" — and `super::section_routes` asks the subject question with the
+        // stored value in hand.
+        (_, FilesRoute::Sections { .. }) => Some(DocumentAction::View),
         _ => None,
     }
 }
@@ -354,6 +395,15 @@ pub(super) fn handle(
                 action,
             },
         ) => super::comment_routes::handle(method, key, thread, action, body, &store, access),
+        // What a section carries. Its handlers live next door for the same
+        // reason the conversation's do — this file stays about the file — and
+        // they are reached only from here, after the gate, the key's shape and
+        // the row's owner. The subject question (may this caller change THIS
+        // subject) is asked there, because only a handler can read what is
+        // being replaced.
+        (_, FilesRoute::Sections { key, node }) => {
+            super::section_routes::handle(method, key, node, body, &store, access)
+        }
         _ => not_found_reply(),
     }
 }
