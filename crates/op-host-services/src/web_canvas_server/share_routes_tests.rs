@@ -39,7 +39,44 @@ fn grant(registry: &TenantRegistry, owner: &str, target: &str) -> WebReply {
         &identity,
         &lease,
         registry,
+        None,
     )
+}
+
+/// A grant that names an account the deployment does not have.
+///
+/// The invite field of the Share dialog is a text box, and a text box accepts a
+/// NAME. Before this check the route recorded the name as a grant and answered
+/// `200 changed:true`: the row appeared in "Who has access" as if it were a
+/// person, and the person it named was refused with `tenant-not-shared`. Found
+/// by running the share scenario against a real deployment.
+#[test]
+fn a_grant_for_an_account_that_does_not_exist_is_refused() {
+    use crate::accounts::AccountsDb;
+    use crate::document_test_dir::TempDir;
+    use crate::web_canvas_server::account_routes::AccountAuth;
+    use std::sync::Arc;
+
+    let dir = TempDir::new("share-unknown-account");
+    let accounts = AccountAuth::new(Arc::new(
+        AccountsDb::open(dir.path()).expect("open the account store"),
+    ));
+    let registry = registry();
+    let identity = identity("userA");
+    let lease = registry.lease_for(&identity).expect("lease");
+
+    let reply = handle(
+        "POST",
+        share_routes::GRANT,
+        &serde_json::json!({ "userId": "fourth" }).to_string(),
+        &identity,
+        &lease,
+        &registry,
+        Some(&accounts),
+    );
+
+    assert_eq!(reply.status, "400 Bad Request", "{}", reply.body);
+    assert_eq!(body_of(&reply)["error"], "unknown-account");
 }
 
 #[test]
@@ -75,6 +112,7 @@ fn a_revoke_takes_effect_on_the_next_request() {
         &owner,
         &lease,
         &registry,
+        None,
     );
     assert_eq!(reply.status, "200 OK");
     assert_eq!(body_of(&reply)["changed"], true);
@@ -119,6 +157,7 @@ fn revoking_an_account_that_was_never_granted_is_not_an_error() {
         &owner,
         &lease,
         &registry,
+        None,
     );
     assert_eq!(reply.status, "200 OK");
     assert_eq!(body_of(&reply)["changed"], false);
@@ -132,7 +171,15 @@ fn the_list_reports_both_directions() {
 
     let visitor = identity("userB");
     let lease = registry.lease_for(&visitor).expect("lease");
-    let reply = handle("GET", share_routes::LIST, "", &visitor, &lease, &registry);
+    let reply = handle(
+        "GET",
+        share_routes::LIST,
+        "",
+        &visitor,
+        &lease,
+        &registry,
+        None,
+    );
     let body = body_of(&reply);
     assert_eq!(reply.status, "200 OK");
     // userB has shared with nobody…
@@ -188,7 +235,15 @@ fn a_malformed_share_body_is_refused() {
         r#"{"userId":123}"#,
         r#"{"user":"x"}"#,
     ] {
-        let reply = handle("POST", share_routes::GRANT, body, &owner, &lease, &registry);
+        let reply = handle(
+            "POST",
+            share_routes::GRANT,
+            body,
+            &owner,
+            &lease,
+            &registry,
+            None,
+        );
         assert_eq!(reply.status, "400 Bad Request", "{body:?}");
     }
 }
@@ -206,6 +261,7 @@ fn an_oversized_share_body_is_refused_before_it_is_parsed() {
         &owner,
         &lease,
         &registry,
+        None,
     );
     assert_eq!(reply.status, "413 Payload Too Large");
 }
@@ -215,7 +271,15 @@ fn a_wrong_method_on_a_share_route_is_405() {
     let registry = registry();
     let owner = identity("userA");
     let lease = registry.lease_for(&owner).expect("lease");
-    let reply = handle("GET", share_routes::GRANT, "", &owner, &lease, &registry);
+    let reply = handle(
+        "GET",
+        share_routes::GRANT,
+        "",
+        &owner,
+        &lease,
+        &registry,
+        None,
+    );
     assert_eq!(reply.status, "405 Method Not Allowed");
 }
 
@@ -262,6 +326,7 @@ fn the_grant_past_the_ceiling_is_refused_rather_than_silently_dropped() {
             &owner,
             &lease,
             &registry,
+            None,
         );
         assert_eq!(reply.status, "200 OK", "grant {index}");
     }
@@ -272,6 +337,7 @@ fn the_grant_past_the_ceiling_is_refused_rather_than_silently_dropped() {
         &owner,
         &lease,
         &registry,
+        None,
     );
     assert_eq!(overflow.status, "400 Bad Request", "{}", overflow.body);
     assert_eq!(body_of(&overflow)["error"], "share-limit-reached");
@@ -294,6 +360,7 @@ fn a_repeat_grant_at_the_ceiling_still_succeeds() {
             &owner,
             &lease,
             &registry,
+            None,
         );
     }
     let repeat = handle(
@@ -303,6 +370,7 @@ fn a_repeat_grant_at_the_ceiling_still_succeeds() {
         &owner,
         &lease,
         &registry,
+        None,
     );
     assert_eq!(repeat.status, "200 OK", "{}", repeat.body);
 }

@@ -349,16 +349,16 @@ pub struct EditorUiState {
     /// settings-modal input.
     pub settings_input: jian_core::text_input::TextInputState,
 
-    // --- Account (platform + zseven-sso user system) ---------------
+    // --- Account (this deployment's own accounts) ------------------
     /// Runtime release gate for the account experience. Hosts set this
     /// at startup when a working auth backend is linked (the
     /// `op-auth-bridge` prebuilt library, or the dev fake-login env);
     /// stub builds and the wasm host leave it false, hiding every
     /// account entry point exactly like the old compile-time gate.
     pub account_ui_available: bool,
-    /// Signed-in / signed-out identity, fed by the zseven-sso device
-    /// login flow (browser pairing + WebSocket push) — see
-    /// `AccountState::dev_fake_signed_in` for the dev-only fast path.
+    /// Signed-in / signed-out identity, fed by the deployment's own
+    /// `/api/auth/status` — see `AccountState::dev_fake_signed_in` for the
+    /// dev-only fast path.
     pub account: crate::account_state::AccountState,
     /// TopBar avatar-button dropdown (signed-in state) open.
     pub account_menu_open: bool,

@@ -519,7 +519,11 @@ pub(super) fn serve_one_online<S: Read + Write>(
     // token is exempt: it is only ever attached by code that already holds it.
     if identity.via == super::tenant_auth::IdentityVia::SessionCookie
         && !matches!(req.method.as_str(), "GET" | "HEAD" | "OPTIONS")
-        && !online_policy::cookie_write_origin_allowed(allow_origins, req.origin.as_deref())
+        && !online_policy::cookie_write_origin_allowed(
+            allow_origins,
+            req.origin.as_deref(),
+            req.host.as_deref(),
+        )
     {
         crate::mcp_serve::write_mcp_http_response_with_origin(
             stream,
@@ -611,6 +615,7 @@ pub(super) fn serve_one_online<S: Read + Write>(
             &identity,
             &own,
             registry,
+            accounts,
         );
         crate::mcp_serve::write_mcp_http_response_with_origin(
             stream,

@@ -241,6 +241,30 @@ here at a glance.
 
 ### Fixed
 
+- **A copied share link finally reaches the colleague it is sent to.** The link
+  named the document but not its owner, and the daemon serves another account's
+  document only when the address says whose it is — so a colleague who pasted
+  the link was refused with `tenant-not-shared`. The copy now carries the
+  owner's account key, and the dialog's own identity in "Who has access" comes
+  from that key rather than from a username the access list has never heard of.
+
+- **A fresh online deployment is no longer read-only in a browser.** A
+  cookie-authenticated write was admitted only when the deployment's own origin
+  appeared in `OPENPENCIL_WEB_ALLOWED_ORIGINS`, so creating a document, saving,
+  commenting or sharing from the deployment's own editor was refused with
+  `cross-origin-write-forbidden` until an operator named their own page. The
+  request's own host is now trusted for it — a page cannot forge that header —
+  and the allowlist keeps its meaning for everybody else.
+
+- **The link-access switch no longer reports the state from one click ago.**
+  `POST /api/share/link` answered with the level the document handed out BEFORE
+  the change, and the dialog stores that answer.
+
+- **A share grant naming an account that does not exist is refused** rather than
+  recorded: the invite field is a text box that accepts a name, and the route
+  used to answer `200 changed:true` for one, adding a row to "Who has access"
+  that grants nobody anything and looks exactly like a person.
+
 - **A letter that is also a canvas tool shortcut no longer switches the tool
   while the Share dialog's invite field has focus.** Typing `userB` left the
   field holding `useB` and selected the rectangle tool behind the card, because

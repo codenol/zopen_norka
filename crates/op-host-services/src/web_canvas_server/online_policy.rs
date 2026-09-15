@@ -185,8 +185,48 @@ pub(super) fn online_cors_origin(allow: &[String], origin: Option<&str>) -> Opti
 ///
 /// Fails closed on a missing `Origin` too. Every browser sends one on a
 /// non-GET, and a non-browser client that does not should be using a token.
-pub(super) fn cookie_write_origin_allowed(allow: &[String], origin: Option<&str>) -> bool {
-    online_cors_origin(allow, origin).is_some()
+///
+/// ## Why the deployment's own origin is trusted without configuration
+///
+/// `host` is the `Host` header of the request being decided. A browser sets it
+/// from the URL it dialled and a page cannot forge it, so "the `Origin` equals
+/// the host this request arrived at" IS the same-origin case — the one a
+/// deployment's own page is in, and the one every write from its own editor
+/// makes. Requiring the operator to name their own origin in
+/// `OPENPENCIL_WEB_ALLOWED_ORIGINS` instead made a fresh online deployment
+/// refuse every cookie write from its own page, with `GET`s working and only
+/// bearer tokens able to write: found by running the share scenario against a
+/// real deployment (issue filed for it).
+///
+/// The allowlist keeps its meaning: an origin that is not this host is still
+/// refused unless somebody wrote it down.
+pub(super) fn cookie_write_origin_allowed(
+    allow: &[String],
+    origin: Option<&str>,
+    host: Option<&str>,
+) -> bool {
+    if online_cors_origin(allow, origin).is_some() {
+        return true;
+    }
+    origin_matches_host(origin, host)
+}
+
+/// Whether `origin` is the origin of the host this request arrived at.
+///
+/// Scheme-agnostic on purpose: a deployment behind a TLS terminator is reached
+/// over `https` by a browser while the daemon sees the forwarded host, and
+/// demanding an exact scheme would refuse the deployment's own page. Host and
+/// port must match exactly — a different port is a different origin.
+fn origin_matches_host(origin: Option<&str>, host: Option<&str>) -> bool {
+    let (Some(origin), Some(host)) = (origin, host) else {
+        return false;
+    };
+    let origin = origin.trim().trim_end_matches('/');
+    let origin_host = origin
+        .split_once("://")
+        .map(|(_, rest)| rest)
+        .unwrap_or(origin);
+    !origin_host.is_empty() && origin_host.eq_ignore_ascii_case(host.trim())
 }
 
 /// The agent-indicator payload an online daemon relays instead of the

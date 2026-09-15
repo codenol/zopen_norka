@@ -936,7 +936,11 @@ impl TenantRegistry {
             self.store.save_acl_for(user_id, &acl)?;
         }
         *tenant.link_access.lock().unwrap_or_else(|p| p.into_inner()) = level;
-        Ok(previous)
+        // The level the document hands out NOW. Answering with `previous` made
+        // every caller — the Share dialog included — show the state from one
+        // click ago, and a switch that reports the wrong state is worse than
+        // one that lags.
+        Ok(level)
     }
 
     /// Turn link access on, off, or to another level, and persist it.

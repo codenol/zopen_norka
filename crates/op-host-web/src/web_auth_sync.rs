@@ -229,12 +229,15 @@ pub(crate) fn account_from_status(body: &str) -> AccountState {
     if !parsed["signed_in"].as_bool().unwrap_or(false) {
         return AccountState::Anonymous;
     }
-    AccountState::signed_in_profile(
+    AccountState::signed_in_account(
         parsed["display_name"]
             .as_str()
             .unwrap_or_default()
             .to_string(),
         parsed["username"].as_str().map(str::to_string),
+        // The stable key the deployment issued. An access list is keyed by it,
+        // not by the handle beside it.
+        parsed["subject"].as_str().map(str::to_string),
     )
 }
 
