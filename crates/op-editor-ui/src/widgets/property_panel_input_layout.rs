@@ -64,6 +64,9 @@ pub fn editable_input_rects(
     let mut y = panel_rect.origin.y;
     y += TAB_HEIGHT;
     y += HEADER_HEIGHT;
+    // The Section block, when the selection is a section (#59) — the same
+    // shift the action-rect walker makes, so paint and hit-test agree.
+    y += visible.section_block_height;
     if visible.create_component {
         // Variant-aware: the instance pair adds a second button row.
         y += crate::widgets::property_panel_inputs::create_component_block_height(

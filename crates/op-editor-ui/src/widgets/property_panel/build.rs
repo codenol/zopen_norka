@@ -272,6 +272,11 @@ impl PropertyPanel {
         // default-derives each frame). Anchor-scoping stops one node's
         // pinned mode leaking into the next selection.
         let pin_applies = ui.padding_edit_mode_anchor == state.selection.anchor.as_str();
+        // The Section block (#59) reads a state the daemon fills in, not the
+        // document, so it is copied here rather than derived from the snapshot.
+        let section_panel = ui.section_panel.clone();
+        let section_block_height =
+            crate::widgets::property_panel_section_block::section_block_height(&section_panel);
         let padding_edit_mode = ui
             .padding_edit_mode
             .filter(|_| pin_applies)
@@ -327,6 +332,8 @@ impl PropertyPanel {
             page_name: String::new(),
             page_background: None,
             labels: sections::PropertyLabels::for_editor_ui(ui),
+            section_block_height,
+            section_panel,
             // Multi-select inputs are inert in v1 — broadcast edits
             // to all selected nodes lands later. Force focus to None
             // so the panel paints all values muted and hit_test

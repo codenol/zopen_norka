@@ -78,6 +78,9 @@ mod collab_sync;
 // Share dialog host half (#56): drains its queued work to `/api/share/*`.
 #[cfg(feature = "canvaskit")]
 mod share_sync;
+// Section block host half (#59): reads the selected section's properties.
+#[cfg(feature = "canvaskit")]
+mod section_sync;
 // Shared daemon base-URL resolution (page origin when served by the daemon,
 // localhost fallback for the dev smoke page).
 #[cfg(feature = "canvaskit")]

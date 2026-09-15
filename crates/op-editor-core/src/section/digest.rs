@@ -72,6 +72,17 @@ impl SectionDigest {
         Self::from_hasher(Self::fold_node(Sha256::new(), node))
     }
 
+    /// Read a digest a caller spelled in hex — a fingerprint that came back
+    /// over the wire.
+    ///
+    /// Not a validator: the value is compared with another digest and nothing
+    /// else, so text that is not hex simply never compares equal. Its own
+    /// constructor rather than `of_text` because hashing the hex would answer a
+    /// different question and look right doing it.
+    pub fn of_hex(hex: &str) -> Self {
+        Self(hex.to_string())
+    }
+
     /// The hex form.
     pub fn as_str(&self) -> &str {
         &self.0

@@ -233,6 +233,8 @@ pub fn action_button_rects_with_fill_picker(
     let mut y = panel_rect.origin.y;
     y += TAB_HEIGHT;
     y += HEADER_HEIGHT;
+    // The Section block, when the selection is a section (#59).
+    y += visible.section_block_height;
     if visible.create_component {
         out.extend(crate::widgets::property_panel_instance::action_rects(
             x0,

@@ -23,6 +23,7 @@ pub(super) fn state_from(src: &str) -> EditorState {
 pub(super) fn visible_for(panel: &PropertyPanel) -> sections::VisibleSections {
     let caps = SectionCapabilities::for_kind(&panel.snapshot.kind_variant);
     sections::VisibleSections {
+        section_block_height: 0.0,
         create_component: panel.snapshot.is_instance
             || (caps.create_component && panel.snapshot.can_create_component),
         component_button: if panel.snapshot.is_instance {

@@ -160,6 +160,7 @@ fn pressed_font_weight_picker_row_uses_shared_feedback() {
         size: Point2D::new(280.0, 700.0),
     };
     let visible = crate::widgets::property_panel_layout::VisibleSections {
+        section_block_height: 0.0,
         create_component: false,
         flex_layout: false,
         size_options: false,

@@ -22,6 +22,7 @@ pub mod groups;
 mod methods;
 pub mod pickers;
 pub mod recovery;
+pub mod section_panel;
 pub mod share;
 pub mod slides_panel_state;
 #[cfg(test)]
@@ -160,6 +161,13 @@ pub struct EditorUiState {
     /// and its fields are read together by paint, hit-test and the invite
     /// planner.
     pub share: crate::editor_ui_state::share::ShareUiState,
+
+    /// What the property panel says about the selected SECTION: the analytics
+    /// it was built from, its summary and its flows (#59). Separate from the
+    /// rest of the inspector because the values are not in the document — they
+    /// come from the daemon's store — and because "we have not read them yet"
+    /// is a state the panel has to be able to say.
+    pub section_panel: crate::editor_ui_state::section_panel::SectionPanelState,
 
     // --- Comments (the review on this document) ----------------------
     /// The document's comment threads plus the review in progress: the open

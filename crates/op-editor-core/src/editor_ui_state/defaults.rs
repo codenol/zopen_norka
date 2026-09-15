@@ -47,6 +47,7 @@ impl Default for EditorUiState {
             preferred_agent_team_size: 1,
             collab: Default::default(),
             share: Default::default(),
+            section_panel: Default::default(),
             comments: Default::default(),
             file_menu_open: false,
             file_menu: Default::default(),
