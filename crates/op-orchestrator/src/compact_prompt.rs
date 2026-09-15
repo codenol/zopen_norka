@@ -173,7 +173,9 @@ pub fn build_compact_planning_prompt(
     lines.push(format!(
         "Always set rootFrame layout=\"vertical\" and gap={default_gap}."
     ));
-    let policy = build_design_rules_policy(&op_editor_core::rules_without_recipes_for_reference(rules, prompt));
+    let policy = build_design_rules_policy(&op_editor_core::rules_without_recipes_for_reference(
+        rules, prompt,
+    ));
     if !policy.is_empty() {
         lines.push(String::new());
         lines.push(
@@ -320,11 +322,10 @@ mod tests {
     fn compact_prompt_carries_the_session_rules_and_the_kit() {
         // The rules a real turn carries come from the resolver, which is
         // where the shipped working agreement and the recipe rules enter.
-        let rules: Vec<jian_ops_schema::DesignRule> =
-            op_editor_core::effective_design_rules(None)
-                .into_iter()
-                .map(|entry| entry.rule)
-                .collect();
+        let rules: Vec<jian_ops_schema::DesignRule> = op_editor_core::effective_design_rules(None)
+            .into_iter()
+            .map(|entry| entry.rule)
+            .collect();
         let cp = build_compact_planning_prompt("a page", &rules, None);
         assert!(
             cp.selected_style_guide_name.is_empty(),
@@ -345,5 +346,4 @@ mod tests {
             "recipes are part of the rules the planner reads"
         );
     }
-
 }

@@ -99,11 +99,10 @@ fn a_blank_pin_is_no_pin() {
 fn a_catalog_pin_does_not_replace_the_session_rules() {
     // The rules a real turn carries come from the resolver, which is where
     // the shipped working agreement and the component rules enter.
-    let rules: Vec<jian_ops_schema::DesignRule> =
-        op_editor_core::effective_design_rules(None)
-            .into_iter()
-            .map(|entry| entry.rule)
-            .collect();
+    let rules: Vec<jian_ops_schema::DesignRule> = op_editor_core::effective_design_rules(None)
+        .into_iter()
+        .map(|entry| entry.rule)
+        .collect();
     let ctx = build_planning_style_guide_context(
         FOOD_PROMPT,
         Some("claude-opus"),
@@ -112,7 +111,10 @@ fn a_catalog_pin_does_not_replace_the_session_rules() {
         Some(AGAINST_THE_GRAIN),
     );
 
-    assert_eq!(ctx.top_guide_names, vec![op_editor_core::session_kit().id.clone()]);
+    assert_eq!(
+        ctx.top_guide_names,
+        vec![op_editor_core::session_kit().id.clone()]
+    );
     assert!(ctx.available_style_guides.contains("SESSION RULES"));
     assert!(ctx.available_style_guides.contains("WORKING AGREEMENT"));
     assert!(
@@ -120,7 +122,6 @@ fn a_catalog_pin_does_not_replace_the_session_rules() {
         "the markdown brief is gone; nothing may pin it"
     );
 }
-
 
 #[test]
 fn a_pin_also_short_circuits_compact_planning() {

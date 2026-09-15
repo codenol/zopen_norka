@@ -96,10 +96,28 @@ impl WidgetHost {
             dlg.paint(&mut *backend, &self.theme, &self.editor_state.editor_ui);
         }
 
+        // Share dialog (#56) — the TopBar chip opens this instead of the live
+        // collaboration panel, which the dialog's footer keeps reachable.
+        // Painted over every panel and under the account entry form, which
+        // owns the viewport whenever it exists; the dialog paints its own
+        // scrim, so a closed one cannot dim the editor (see `for_editor`).
+        if let Some(dialog) = op_editor_ui::widgets::share_dialog::ShareDialog::for_editor(
+            &self.editor_state,
+            viewport_width,
+            viewport_height,
+        ) {
+            use op_editor_ui::widgets::Widget;
+            let dialog_rect = dialog.rect();
+            let mut cx = PaintCx {
+                backend: &mut *backend,
+            };
+            dialog.paint(&mut cx, dialog_rect);
+        }
+
         // Account entry — the password form, the invitation form, or the
         // explanation a deployment with no accounts gets instead of one. The
         // widget paints its own full-viewport scrim and decides for itself when
-        // it exists at all (see `EditorUiState::account_entry_mode`), so this
+        // it exists at all (see `EditorState::account_entry_mode`), so this
         // is one call with no condition of its own to get wrong.
         if let Some(form) = self.account_entry_form(viewport_width, viewport_height) {
             use op_editor_ui::widgets::Widget;

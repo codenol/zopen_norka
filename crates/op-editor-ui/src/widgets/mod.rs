@@ -179,9 +179,9 @@ mod canvas_agent_cursor_motion_tests;
 mod canvas_agent_cursor_presence_tests;
 #[cfg(test)]
 mod canvas_agent_cursor_tests;
+mod canvas_collab_presence;
 #[cfg(test)]
 mod canvas_comment_pins_tests;
-mod canvas_collab_presence;
 mod canvas_doc_mapping;
 mod canvas_frame_labels;
 mod canvas_generation_scan;
@@ -190,12 +190,6 @@ mod canvas_generation_scan_tests;
 
 // Comment threads: the pins on elements, the popover they open, and the list
 // of every conversation the document carries.
-pub mod comment_identity;
-pub(crate) mod comment_paint;
-pub mod comment_pins;
-pub mod comment_thread_popover;
-pub mod comments_flow;
-pub mod comments_panel;
 pub mod canvas_layout_transition;
 pub mod canvas_overlay_transform;
 mod canvas_path_overlay;
@@ -205,6 +199,12 @@ pub mod canvas_viewport;
 mod canvas_viewport_background;
 mod canvas_viewport_fill_layers;
 mod canvas_viewport_grid;
+pub mod comment_identity;
+pub(crate) mod comment_paint;
+pub mod comment_pins;
+pub mod comment_thread_popover;
+pub mod comments_flow;
+pub mod comments_panel;
 // `pub` for the remote-image miss-queue API (`take_remote_image_requests`
 // / `store_remote_image_bytes` / …) the desktop host drains per frame;
 // the paint entry point itself stays `pub(super)`.
@@ -353,6 +353,7 @@ pub(crate) mod ai_chat_transcript_text;
 pub(crate) mod ai_chat_transcript_tools;
 pub mod align_toolbar;
 pub mod assets_panel;
+pub mod build_stamp;
 pub mod color_picker;
 mod component_browser_kits;
 pub mod component_browser_panel;
@@ -370,9 +371,9 @@ pub mod export_menu_rows;
 pub mod export_quick_menu;
 pub mod figma_import;
 pub mod figma_import_progress;
-pub mod files_screen;
 pub mod file_drop_overlay;
 pub mod file_menu;
+pub mod files_screen;
 pub mod git_panel;
 mod git_panel_clone;
 mod git_panel_commit_card;
@@ -414,13 +415,15 @@ mod property_panel_color_variables_tests;
 pub mod save_name_dialog;
 pub(crate) mod settings_form;
 pub mod shape_picker;
+pub mod share_dialog;
+pub mod share_dialog_layout;
+pub mod share_dialog_model;
 pub mod slides_panel;
 pub mod slides_panel_actions;
 pub mod slides_panel_flow;
 pub mod slideshow_toolbar;
 pub mod status_bar;
 pub mod tooltip;
-pub mod build_stamp;
 pub mod top_bar;
 mod top_bar_geometry;
 mod top_bar_paint;

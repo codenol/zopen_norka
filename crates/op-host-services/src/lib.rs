@@ -25,6 +25,7 @@ pub mod accounts;
 pub mod acp_agent_probe_host;
 pub mod ai_proxy;
 pub mod ai_proxy_error;
+pub mod analytics_store;
 pub mod builtin_model_discovery;
 pub mod chat_agent_loop;
 pub mod chat_attachment;
@@ -111,6 +112,8 @@ pub mod provider_probe_host;
 pub mod provider_probe_models;
 pub mod public_https_client;
 pub mod quality_credential;
+pub mod section_store;
+pub mod section_store_error;
 // Settings persistence moved to op-editor-host-core (feature `settings-io`)
 // so the mobile FFI hosts share the exact desktop load/save path; these
 // re-exports keep every `op_host_services::settings_io*` import stable.

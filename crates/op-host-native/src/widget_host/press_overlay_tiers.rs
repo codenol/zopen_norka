@@ -158,6 +158,14 @@ impl WidgetHostNative {
             }
             return Some(true);
         }
+        // Share dialog (#56) — modal, and the last check of this tier: it is
+        // painted under the floating panels above, so whatever is painted over
+        // it takes the press first. It consumes EVERY press, the scrim
+        // included — see `dispatch_share_press`.
+        if self.dispatch_share_press(x, y, viewport_width, viewport_height) {
+            self.close_image_popovers_for_higher_overlay();
+            return Some(true);
+        }
         None
     }
 

@@ -393,18 +393,17 @@ pub fn apply_shared_top_bar_hit(
             TopBarPress::Handled
         }
         TopBarHit::Collaboration => {
-            let phase = state.editor_ui.collab.phase;
-            let panel = &mut state.editor_ui.collab.panel;
-            panel.open = !panel.open;
-            panel.hover = None;
-            if panel.open {
-                panel.view = if phase.is_authenticated() {
-                    op_editor_core::CollabPanelView::Session
-                } else if phase == op_editor_core::CollabConnectionPhase::Discovering {
-                    op_editor_core::CollabPanelView::Join
-                } else {
-                    op_editor_core::CollabPanelView::Home
-                };
+            // The chip opens the ACCESS dialog (#56), not the live-session
+            // panel: "Share" and "start a session" are different questions, and
+            // the button named the second one while being read as the first.
+            // The panel is not orphaned — the dialog's footer row opens it.
+            let share = &mut state.editor_ui.share;
+            if share.open {
+                share.close();
+            } else {
+                let link = share.link.take();
+                share.open_with(link);
+                share.request(op_editor_core::editor_ui_state::share::ShareAction::LoadList);
                 state.editor_ui.file_menu_open = false;
                 state.editor_ui.import_menu_open = false;
                 state.editor_ui.import_menu.open = false;

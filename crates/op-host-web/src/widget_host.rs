@@ -211,6 +211,7 @@ mod shape_create;
 #[cfg(test)]
 mod shape_create_tests;
 mod shape_picker_press;
+mod share_press;
 mod slides_panel;
 mod text_drag;
 mod text_edit_caret;

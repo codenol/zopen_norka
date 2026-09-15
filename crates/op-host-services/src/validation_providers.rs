@@ -187,7 +187,10 @@ impl ChatVisionLlmClient {
             // The extension has to match the bytes: a path transport spills
             // this name to a temp file and the model's Read step (or its SDK
             // file attachment) infers the type from it.
-            name: format!("design-screenshot.{}", media_type.trim_start_matches("image/")),
+            name: format!(
+                "design-screenshot.{}",
+                media_type.trim_start_matches("image/")
+            ),
             media_type: media_type.to_string(),
             data,
         })

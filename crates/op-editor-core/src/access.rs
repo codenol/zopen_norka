@@ -133,6 +133,29 @@ impl Rights {
         Self(self.0 | other.0)
     }
 
+    /// The rights both sets hold.
+    ///
+    /// The second combiner, and it exists for one job: a document grant is a
+    /// CEILING over an account's roles, not a grant of its own
+    /// (`crate::share_access`). Intersecting is what makes that a statement
+    /// about authority rather than about which of the two was read last — an
+    /// editor's roles cannot raise a grant that says "can view", and a grant
+    /// of "can edit" cannot promote an account whose roles never included it.
+    pub const fn intersect(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+
+    /// Whether every right in `other` is also held here.
+    ///
+    /// The question a grant ceiling asks: "does this person hold the level
+    /// they are handing out". Set containment rather than a rank comparison
+    /// because the rights are not a ladder — a set may hold `Edit` without
+    /// `Comment` — and a rank would answer for a case that does not exist
+    /// instead of failing closed on the one that might.
+    pub const fn contains_all(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
     pub const fn has(self, right: Right) -> bool {
         self.0 & right.bit() != 0
     }

@@ -256,7 +256,9 @@ mod tests {
         // Saving the document makes a new revision, and a new preview is fair
         // to ask for.
         request_thumb(&key, 8);
-        assert!(take_thumb_requests(MAX_PENDING).iter().any(|taken| taken == &key));
+        assert!(take_thumb_requests(MAX_PENDING)
+            .iter()
+            .any(|taken| taken == &key));
     }
 
     #[test]

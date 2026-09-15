@@ -19,6 +19,7 @@ use crate::document_test_dir::TempDir;
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::web_canvas_server::tenant_auth::{IdentityVia, ResolvedIdentity};
 use op_editor_core::access::RoleSet;
+use op_editor_core::ShareLevel;
 
 /// A verified account holding `roles`.
 fn account(user_id: &str, roles: &[&str]) -> ResolvedIdentity {
@@ -84,7 +85,7 @@ fn a_caller_with_no_role_may_ask_about_the_draft_but_not_touch_it() {
     // drawn for every caller who may see the document.
     let dir = TempDir::new("recovery-access-roles");
     let visitor = account("userB", &[]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     let read = handle("GET", "/api/recovery", "", &mut tenant_state(&dir), &access);
     assert_eq!(read.status, "200 OK", "{}", read.body);
 
@@ -105,7 +106,7 @@ fn a_stranger_is_refused_the_draft_whole() {
     // it. So the document question is asked first here too — and the refusal
     // lands before the store is even opened, which is why this state has none.
     let stranger = account("userC", &["admin"]);
-    let access = RequestAccess::online("userA", &stranger, false);
+    let access = RequestAccess::online("userA", &stranger, None);
     for (method, path) in [
         ("GET", "/api/recovery"),
         ("POST", "/api/recovery"),
@@ -129,7 +130,7 @@ fn an_owner_with_an_editing_role_reaches_the_draft_routes() {
     // The autosave path for unsaved work is what this proves is not blocked.
     let dir = TempDir::new("recovery-access-owner");
     let owner = account("userA", &["ux_ui"]);
-    let access = RequestAccess::online("userA", &owner, false);
+    let access = RequestAccess::online("userA", &owner, None);
     let read = handle("GET", "/api/recovery", "", &mut tenant_state(&dir), &access);
     assert_eq!(read.status, "200 OK", "{}", read.body);
     let body: serde_json::Value = serde_json::from_str(&read.body).expect("json");
@@ -145,8 +146,8 @@ fn two_accounts_never_see_each_others_draft() {
     let dir = TempDir::new("recovery-access-isolation");
     let a = account("userA", &["ux_ui"]);
     let b = account("userB", &["ux_ui"]);
-    let access_a = RequestAccess::online("userA", &a, false);
-    let access_b = RequestAccess::online("userB", &b, false);
+    let access_a = RequestAccess::online("userA", &a, None);
+    let access_b = RequestAccess::online("userB", &b, None);
 
     let written = handle(
         "POST",

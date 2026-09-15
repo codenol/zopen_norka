@@ -9,6 +9,7 @@ use super::*;
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::web_canvas_server::tenant_auth::IdentityVia;
 use op_editor_core::access::RoleSet;
+use op_editor_core::ShareLevel;
 
 /// A verified account holding `roles`, spelled the way the hub spells them.
 fn identity(user_id: &str, roles: &[&str]) -> ResolvedIdentity {
@@ -29,6 +30,28 @@ fn owner(roles: &[&str]) -> ResolvedIdentity {
 
 fn assert_all_allowed(access: &RequestAccess<'_>) {
     for action in DocumentAction::ALL {
+        assert_eq!(access.decide(action), Ok(()), "{action:?}");
+    }
+}
+
+/// Every action a caller may take on somebody else's document.
+///
+/// Invite is deliberately outside the list, and the asymmetry is the rule rather
+/// than an omission: a document's access list belongs to the account whose list
+/// it is, so a visitor may not re-share what was shared with them however much
+/// their own roles allow at home. The `/api/share/*` routes enforce the same
+/// thing structurally — they edit the CALLER's list and never the one a
+/// `?tenant=` parameter pointed at — and this is the reader-facing half of it.
+fn assert_all_allowed_except_invite(access: &RequestAccess<'_>) {
+    for action in DocumentAction::ALL {
+        if action == DocumentAction::Invite {
+            assert_eq!(
+                access.decide(action),
+                Err(AccessRefusal::ReadOnly),
+                "{action:?}"
+            );
+            continue;
+        }
         assert_eq!(access.decide(action), Ok(()), "{action:?}");
     }
 }
@@ -96,7 +119,7 @@ fn local_and_managed_deployments_refuse_nothing() {
 fn an_owner_with_an_editing_role_may_do_everything() {
     for role in ["ux_ui", "admin", "UX/UI", "Админ"] {
         let caller = owner(&[role]);
-        let access = RequestAccess::online("userA", &caller, false);
+        let access = RequestAccess::online("userA", &caller, None);
         assert_all_allowed(&access);
     }
 }
@@ -107,13 +130,17 @@ fn an_owner_without_a_role_still_works_on_their_own_document() {
     // roles the hub sends — otherwise a deployment whose hub sends none would
     // be read-only for the people the documents belong to.
     let caller = owner(&[]);
-    assert_all_allowed(&RequestAccess::online("userA", &caller, false));
+    assert_all_allowed(&RequestAccess::online("userA", &caller, None));
 }
 
 #[test]
-fn a_shared_visitor_with_an_editing_role_may_do_everything() {
+fn a_shared_visitor_with_an_editing_role_may_do_everything_but_re_share() {
     let visitor = identity("userB", &["ux_ui"]);
-    assert_all_allowed(&RequestAccess::online("userA", &visitor, true));
+    assert_all_allowed_except_invite(&RequestAccess::online(
+        "userA",
+        &visitor,
+        Some(ShareLevel::Editor),
+    ));
 }
 
 #[test]
@@ -121,7 +148,7 @@ fn a_shared_visitor_without_a_role_reads_but_never_writes() {
     // The case the whole "empty means no roles, not no access" rule exists
     // for: someone handed a link, with nothing in their account yet.
     let visitor = identity("userB", &[]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     assert_reads_only(&access);
     assert_eq!(access.caller_id(), Some("userB"));
 }
@@ -134,14 +161,14 @@ fn a_shared_contributor_role_reads_but_never_writes_someone_elses_document() {
     // these roles carry.
     for role in ["software", "analyst", "frontend", "backend", "qa"] {
         let visitor = identity("userB", &[role]);
-        let access = RequestAccess::online("userA", &visitor, true);
+        let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
         assert_read_only(&access);
         // …and the one write they DO hold: taking part in the conversation. It
         // changes what is said about the document, not the document, which is
         // the line the operator's matrix draws through the middle of "write".
         assert_eq!(access.decide(DocumentAction::Comment), Ok(()), "{role}");
         let proprietor = owner(&[role]);
-        assert_all_allowed(&RequestAccess::online("userA", &proprietor, false));
+        assert_all_allowed(&RequestAccess::online("userA", &proprietor, None));
     }
 }
 
@@ -150,7 +177,7 @@ fn a_stranger_is_refused_the_document_before_the_action_is_considered() {
     // Not on the access list, no matter what roles: the document itself is
     // out of reach, and every action answers the same way.
     let stranger = identity("userC", &["admin"]);
-    assert_refused_whole(&RequestAccess::online("userA", &stranger, false));
+    assert_refused_whole(&RequestAccess::online("userA", &stranger, None));
 }
 
 #[test]
@@ -164,7 +191,11 @@ fn an_unknown_role_grants_nothing() {
         let caller = identity("userB", &[raw]);
         assert!(caller.roles.is_empty(), "{raw:?}");
         assert!(!caller.roles.unrecognized().is_empty(), "{raw:?}");
-        assert_reads_only(&RequestAccess::online("userA", &caller, true));
+        assert_reads_only(&RequestAccess::online(
+            "userA",
+            &caller,
+            Some(ShareLevel::Editor),
+        ));
     }
 }
 
@@ -174,7 +205,7 @@ fn a_partly_unknown_role_list_keeps_the_half_it_understood() {
     // edit that a recognised one grants.
     let caller = owner(&["wizard", "ux_ui"]);
     assert_eq!(caller.roles.unrecognized(), vec!["wizard".to_string()]);
-    assert_all_allowed(&RequestAccess::online("userA", &caller, false));
+    assert_all_allowed(&RequestAccess::online("userA", &caller, None));
 }
 
 #[test]
@@ -182,11 +213,15 @@ fn ownership_is_decided_by_identity_and_not_by_the_access_list() {
     // A missing (or stale) access-list entry must not lock an owner out of
     // their own document.
     let caller = owner(&["ux_ui"]);
-    assert_all_allowed(&RequestAccess::online("userA", &caller, false));
+    assert_all_allowed(&RequestAccess::online("userA", &caller, None));
     // …and the flag cannot admit someone the ids do not match.
     let impostor = identity("userB", &["ux_ui"]);
-    assert_all_allowed(&RequestAccess::online("userB", &impostor, true));
-    assert_refused_whole(&RequestAccess::online("userA", &impostor, false));
+    assert_all_allowed(&RequestAccess::online(
+        "userB",
+        &impostor,
+        Some(ShareLevel::Editor),
+    ));
+    assert_refused_whole(&RequestAccess::online("userA", &impostor, None));
 }
 
 #[test]
@@ -221,7 +256,7 @@ fn a_caller_reaches_its_own_documents_whatever_its_roles() {
     // with no roles at all, and this check is about addressing.
     for roles in [&[][..], &["wizard"][..]] {
         let caller = owner(roles);
-        let access = RequestAccess::online("userA", &caller, false);
+        let access = RequestAccess::online("userA", &caller, None);
         assert!(access.reaches_stored_document(Some("userA")));
     }
 }
@@ -232,7 +267,7 @@ fn a_shared_visitor_reaches_the_owners_documents_and_only_those() {
     // visitor names is reachable — and a third account's is not, however the
     // visitor's roles read.
     let visitor = identity("userB", &["admin"]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     assert!(access.reaches_stored_document(Some("userA")));
     assert!(access.reaches_stored_document(Some("userB")));
     assert!(!access.reaches_stored_document(Some("userC")));
@@ -246,7 +281,7 @@ fn an_account_that_owns_nothing_reaches_nobody_elses_documents() {
     // must not reach it — the lease is on THEIR workspace, not on the document
     // the key names.
     let stranger = identity("userB", &["admin"]);
-    let access = RequestAccess::online("userB", &stranger, false);
+    let access = RequestAccess::online("userB", &stranger, None);
     assert!(access.reaches_stored_document(Some("userB")));
     assert!(!access.reaches_stored_document(Some("userA")));
     assert!(!access.reaches_stored_document(None));
@@ -258,9 +293,12 @@ fn an_ownerless_row_is_reached_by_no_account() {
     // accounts made. There is no account to match them against, so the answer
     // is no — for an owner, for a granted visitor, for everyone.
     let proprietor = owner(&["admin"]);
-    assert!(!RequestAccess::online("userA", &proprietor, false).reaches_stored_document(None));
+    assert!(!RequestAccess::online("userA", &proprietor, None).reaches_stored_document(None));
     let visitor = identity("userB", &["admin"]);
-    assert!(!RequestAccess::online("userA", &visitor, true).reaches_stored_document(None));
+    assert!(
+        !RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor))
+            .reaches_stored_document(None)
+    );
 }
 
 #[test]
@@ -270,7 +308,7 @@ fn the_share_flag_is_what_admits_a_visitor_and_nothing_else_is() {
     // is the fail-closed direction of a check that would otherwise be "the
     // request mentioned the right account".
     let visitor = identity("userB", &["admin"]);
-    assert!(!RequestAccess::online("userA", &visitor, false).reaches_stored_document(Some("userA")));
+    assert!(!RequestAccess::online("userA", &visitor, None).reaches_stored_document(Some("userA")));
     // And a carrier with no verified caller reaches nothing, owner or not.
     let bare = RequestAccess::local_operator(ServeMode::Online);
     assert!(!bare.reaches_stored_document(Some("userA")));
@@ -280,12 +318,17 @@ fn the_share_flag_is_what_admits_a_visitor_and_nothing_else_is() {
 #[test]
 fn the_actions_name_themselves_and_split_into_reads_and_writes() {
     let names: Vec<&str> = DocumentAction::ALL.iter().map(|a| a.as_str()).collect();
-    assert_eq!(names, ["view", "comment", "edit", "delete", "restore"]);
+    assert_eq!(
+        names,
+        ["view", "comment", "invite", "edit", "delete", "restore"]
+    );
     assert!(!DocumentAction::View.is_write());
     for action in [
         // A comment writes a row — to the conversation, not to the document —
-        // and reading is still the only action that changes nothing.
+        // and an invitation writes a row on the access list, which is also not
+        // the document. Reading is still the only action that changes nothing.
         DocumentAction::Comment,
+        DocumentAction::Invite,
         DocumentAction::Edit,
         DocumentAction::Delete,
         DocumentAction::Restore,
@@ -300,7 +343,7 @@ fn commenting_is_the_write_the_contributor_roles_hold_and_editing_is_not() {
     // the conversation and may change nothing else, and a visitor whose roles
     // grant only a view may not even do that.
     let contributor = identity("userB", &["analyst"]);
-    let access = RequestAccess::online("userA", &contributor, true);
+    let access = RequestAccess::online("userA", &contributor, Some(ShareLevel::Editor));
     assert_eq!(access.decide(DocumentAction::View), Ok(()));
     assert_eq!(access.decide(DocumentAction::Comment), Ok(()));
     assert_eq!(
@@ -309,7 +352,7 @@ fn commenting_is_the_write_the_contributor_roles_hold_and_editing_is_not() {
     );
 
     let reader = identity("userB", &[]);
-    let access = RequestAccess::online("userA", &reader, true);
+    let access = RequestAccess::online("userA", &reader, Some(ShareLevel::Editor));
     assert_eq!(access.decide(DocumentAction::View), Ok(()));
     assert_eq!(
         access.decide(DocumentAction::Comment),
@@ -319,7 +362,7 @@ fn commenting_is_the_write_the_contributor_roles_hold_and_editing_is_not() {
 
     // An unrecognised role grants nothing, comments included.
     let unknown = identity("userB", &["reviewer"]);
-    let access = RequestAccess::online("userA", &unknown, true);
+    let access = RequestAccess::online("userA", &unknown, Some(ShareLevel::Editor));
     assert_eq!(
         access.decide(DocumentAction::Comment),
         Err(AccessRefusal::ReadOnly)
@@ -329,7 +372,7 @@ fn commenting_is_the_write_the_contributor_roles_hold_and_editing_is_not() {
 #[test]
 fn a_thread_belongs_to_its_author_and_to_whoever_may_edit_the_document() {
     let author_identity = identity("userB", &["analyst"]);
-    let author = RequestAccess::online("userA", &author_identity, true);
+    let author = RequestAccess::online("userA", &author_identity, Some(ShareLevel::Editor));
     assert_eq!(author.decide_thread_resolution(Some("userB")), Ok(()));
     // The same caller on somebody else's thread: they may comment, not close.
     assert_eq!(
@@ -338,11 +381,11 @@ fn a_thread_belongs_to_its_author_and_to_whoever_may_edit_the_document() {
     );
     // An editor may close anyone's, which is what triaging a review is.
     let editor_identity = identity("userC", &["ux_ui"]);
-    let editor = RequestAccess::online("userA", &editor_identity, true);
+    let editor = RequestAccess::online("userA", &editor_identity, Some(ShareLevel::Editor));
     assert_eq!(editor.decide_thread_resolution(Some("userB")), Ok(()));
     // The document's owner may, whatever roles the hub sent them.
     let owner_identity = identity("userA", &[]);
-    let owner = RequestAccess::online("userA", &owner_identity, false);
+    let owner = RequestAccess::online("userA", &owner_identity, None);
     assert_eq!(owner.decide_thread_resolution(Some("userB")), Ok(()));
     // A thread with no account behind it — the local operator's — has no author
     // to pass the first half, so only the editing half answers.
@@ -353,7 +396,7 @@ fn a_thread_belongs_to_its_author_and_to_whoever_may_edit_the_document() {
     // A stranger is refused before the thread is looked at, so the answer cannot
     // tell them whether the thread they named exists.
     let stranger_identity = identity("userC", &["admin"]);
-    let stranger = RequestAccess::online("userA", &stranger_identity, false);
+    let stranger = RequestAccess::online("userA", &stranger_identity, None);
     assert_eq!(
         stranger.decide_thread_resolution(Some("userB")),
         Err(AccessRefusal::NotShared)
@@ -465,7 +508,7 @@ fn the_deployment_carrier_is_not_a_tenant_and_gives_no_document_rights() {
     // And the same account holding the same roles DOES reach its own workspace
     // through the tenant carrier, so the two carriers are not interchangeable
     // by accident.
-    let as_tenant = RequestAccess::online("userA", &admin, false);
+    let as_tenant = RequestAccess::online("userA", &admin, None);
     assert_eq!(as_tenant.decide(DocumentAction::View), Ok(()));
 }
 

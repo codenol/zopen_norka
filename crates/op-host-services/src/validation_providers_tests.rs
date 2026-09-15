@@ -111,9 +111,8 @@ fn b64_png() -> String {
     // The full 8-byte PNG signature: the client now derives the wire
     // media type from the payload's magic, so a truncated header is no
     // longer a PNG as far as the transport is concerned.
-    base64::engine::general_purpose::STANDARD.encode([
-        0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a,
-    ])
+    base64::engine::general_purpose::STANDARD
+        .encode([0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
 }
 
 fn b64_jpeg() -> String {
@@ -523,7 +522,7 @@ fn request_with_validation(enabled: bool) -> op_orchestrator::DesignRequest {
         visual_ref_enabled: false,
         pinned_style_guide: None,
         reference_attachments: Vec::new(),
-    reference_brief: None,
+        reference_brief: None,
     }
 }
 

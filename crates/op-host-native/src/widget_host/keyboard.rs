@@ -14,6 +14,21 @@ impl WidgetHostNative {
     /// Typed-char router: settings → rename → text-edit → variable
     /// row → property → chat.
     pub fn apply_text(&mut self, c: char) -> bool {
+        // The Share dialog is modal, and its invite field is the only text input
+        // it has. An unfocused field still swallows the key: a bare letter must
+        // not reach the canvas shortcuts behind the card.
+        if self.editor_state.editor_ui.share.open {
+            let changed = op_editor_ui::widgets::share_dialog::invite_field_text(
+                &mut self.editor_state.editor_ui.share,
+                c,
+                self.now_ms,
+            )
+            .unwrap_or(false);
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // The mobile save-name dialog is fully modal — it owns every
         // keystroke while open, above every other input surface.
         if let Some(changed) =

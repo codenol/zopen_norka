@@ -9,6 +9,20 @@ use op_editor_core::host_keyboard_transitions as shared;
 
 impl WidgetHostNative {
     pub fn apply_send(&mut self) -> bool {
+        // Enter on the Share dialog's invite field is the same press as its
+        // Invite button — including the refusal sentence, which is the button's
+        // whole reason for staying pressable.
+        if self.editor_state.editor_ui.share.open {
+            let submitted = op_editor_ui::widgets::share_dialog::invite_field_submit(
+                &mut self.editor_state.editor_ui.share,
+            )
+            .unwrap_or(false);
+            if submitted {
+                self.drain_share_actions();
+                self.mark_dirty();
+            }
+            return true;
+        }
         // Enter in the save-name dialog confirms (mobile keyboards send it
         // as the "done" action); a blank name swallows the key instead.
         if self.editor_state.editor_ui.save_name_dialog.open {

@@ -17,6 +17,7 @@ use crate::document_test_dir::TempDir;
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::web_canvas_server::tenant_auth::{IdentityVia, ResolvedIdentity};
 use op_editor_core::access::RoleSet;
+use op_editor_core::ShareLevel;
 
 fn body_json(reply: &WebReply) -> serde_json::Value {
     serde_json::from_str(&reply.body).unwrap_or_else(|error| panic!("{}: {error}", reply.body))
@@ -194,7 +195,7 @@ fn owner_access() -> RequestAccess<'static> {
     // Leaked on purpose: `RequestAccess` borrows the identity, and a test that
     // has to keep one alive beside the value it is passed to buys nothing.
     let identity: &'static ResolvedIdentity = Box::leak(Box::new(account("userA", &[])));
-    RequestAccess::online("userA", identity, false)
+    RequestAccess::online("userA", identity, None)
 }
 
 #[test]
@@ -222,7 +223,7 @@ fn an_account_lists_only_its_own_documents() {
     let other: &'static ResolvedIdentity = Box::leak(Box::new(account("userB", &[])));
     let theirs_listed = serve_online(
         &store,
-        &RequestAccess::online("userB", other, false),
+        &RequestAccess::online("userB", other, None),
         "GET",
         "/api/files",
         "",
@@ -388,7 +389,7 @@ fn a_granted_visitor_reads_the_owners_document_and_cannot_write_it() {
     let unshared = seed(&store, "Other", Some("userA"));
 
     let visitor: &'static ResolvedIdentity = Box::leak(Box::new(account("userB", &[])));
-    let granted = RequestAccess::online("userA", visitor, true);
+    let granted = RequestAccess::online("userA", visitor, Some(ShareLevel::Editor));
     let opened = serve_online(
         &store,
         &granted,
@@ -455,7 +456,7 @@ fn a_granted_visitor_reads_the_owners_document_and_cannot_write_it() {
     // And a visitor with no grant addresses nothing, not even their own
     // workspace's rows — they have none, and the store's rows are not theirs.
     let stranger: &'static ResolvedIdentity = Box::leak(Box::new(account("userC", &["admin"])));
-    let unshared_access = RequestAccess::online("userA", stranger, false);
+    let unshared_access = RequestAccess::online("userA", stranger, None);
     let refused = serve_online(
         &store,
         &unshared_access,
@@ -479,7 +480,7 @@ fn a_document_a_visitor_creates_belongs_to_the_visitor() {
     let dir = TempDir::new("visitor-create");
     let store = dir.open();
     let editor: &'static ResolvedIdentity = Box::leak(Box::new(account("userB", &["ux_ui"])));
-    let granted = RequestAccess::online("userA", editor, true);
+    let granted = RequestAccess::online("userA", editor, Some(ShareLevel::Editor));
 
     let created = serve_online(
         &store,
@@ -507,7 +508,7 @@ fn a_document_a_visitor_creates_belongs_to_the_visitor() {
         "the creator's own list"
     );
     let owner_identity: &'static ResolvedIdentity = Box::leak(Box::new(account("userA", &[])));
-    let owner = RequestAccess::online("userA", owner_identity, false);
+    let owner = RequestAccess::online("userA", owner_identity, None);
     assert!(keys_of(&serve_online(&store, &owner, "GET", "/api/files", "")).is_empty());
     let refused = serve_online(
         &store,

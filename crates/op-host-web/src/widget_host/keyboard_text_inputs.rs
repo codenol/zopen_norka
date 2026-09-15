@@ -25,6 +25,15 @@ impl WidgetHost {
             // canvas tool shortcuts and the tool won. A person typing a correct
             // password was told it was wrong, with no way to see why.
             || self.account_entry_takes_keyboard()
+            // The Share dialog is modal and its invite field is a text input
+            // (#56). Same story as the comment composer above and the sign-in
+            // form just above it: without this line a letter that is also a
+            // canvas tool shortcut — `r`, `t`, `v`, `p`, `y`, `o`, `l`, `h` —
+            // switches the tool instead of appearing in the field, so typing
+            // `userB` left the field holding `useB` and selected the rectangle
+            // tool behind the card. Found by clicking through the dialog in a
+            // browser, not by a test.
+            || self.editor_state.editor_ui.share.open
             || ui.layer_rename.is_some()
             || ui.text_editing.is_some()
             || ui.property_focus.is_some()

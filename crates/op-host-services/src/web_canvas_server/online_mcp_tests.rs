@@ -470,12 +470,22 @@ fn as_tenant(mut request: Request, owner: &'static str) -> Request {
 
 /// Put `target` on `owner_token`'s access list, through the real share route.
 fn grant(registry: &TenantRegistry, owner_token: &'static str, target: &str) {
+    grant_at(registry, owner_token, target, "editor");
+}
+
+/// The same at a named level.
+///
+/// Editing rather than the default, because a level is a CEILING over the
+/// caller's roles (#56): a grant of viewing leaves an editor's roles capped, so
+/// a test about what a ROLE may do has to hand out the level that role could
+/// actually use. Tests about the cap itself pass the level they mean.
+fn grant_at(registry: &TenantRegistry, owner_token: &'static str, target: &str, level: &str) {
     let granted = serve_roles(
         registry,
         Request::json(
             "POST",
             op_editor_core::share_routes::GRANT,
-            &serde_json::json!({ "userId": target }).to_string(),
+            &serde_json::json!({ "userId": target, "level": level }).to_string(),
         )
         .with_bearer(owner_token),
     );

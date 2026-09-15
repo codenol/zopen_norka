@@ -94,6 +94,7 @@
 //! rather than policy it models.
 
 use op_editor_core::access::Rights;
+use op_editor_core::ShareLevel;
 
 use super::online_policy::ServeMode;
 use super::tenant_auth::ResolvedIdentity;
@@ -118,6 +119,15 @@ pub enum DocumentAction {
     Comment,
     /// Change it: create, save, autosave, rename, or write a draft.
     Edit,
+    /// Add somebody else to it: write an entry on this document's access list.
+    ///
+    /// Its own action rather than a spelling of [`DocumentAction::Edit`],
+    /// because the operator's matrix gives the invite right to a level that
+    /// does not edit: the five contributor roles may add people and may not
+    /// change the document. It is the right the Share dialog's Invite button
+    /// asks about, and the same question the `/api/share/*` routes decide —
+    /// asked here so there is one answer rather than two.
+    Invite,
     /// Remove it from the store.
     Delete,
     /// Adopt the recovery draft as the open document.
@@ -126,9 +136,10 @@ pub enum DocumentAction {
 
 impl DocumentAction {
     /// Every action, in ascending authority.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::View,
         Self::Comment,
+        Self::Invite,
         Self::Edit,
         Self::Delete,
         Self::Restore,
@@ -139,6 +150,7 @@ impl DocumentAction {
         match self {
             Self::View => "view",
             Self::Comment => "comment",
+            Self::Invite => "invite",
             Self::Edit => "edit",
             Self::Delete => "delete",
             Self::Restore => "restore",
@@ -244,13 +256,18 @@ pub struct RequestAccess<'a> {
     owner_id: Option<&'a str>,
     /// The verified caller. `None` in a deployment that has no accounts.
     caller: Option<&'a ResolvedIdentity>,
-    /// Whether `owner_id`'s access list admits the caller.
+    /// The level `owner_id`'s access list grants the caller, or `None` when it
+    /// does not name them.
     ///
     /// Supplied by the caller of this constructor because only the tenant
     /// registry can answer it — and it must be answered by the same check that
     /// decided the request may be served at all (`TenantRegistry::
     /// lease_for_shared`), so the two can never disagree.
-    shared_with_caller: bool,
+    ///
+    /// A level rather than a `bool` because a share is not all-or-nothing any
+    /// more: the document's access list says HOW MUCH, and the answer is a
+    /// ceiling over the caller's roles (see [`Self::rights`]).
+    grant: Option<ShareLevel>,
 }
 
 impl<'a> RequestAccess<'a> {
@@ -267,28 +284,28 @@ impl<'a> RequestAccess<'a> {
             mode,
             owner_id: None,
             caller: None,
-            shared_with_caller: false,
+            grant: None,
         }
     }
 
     /// An online request, served on `owner_id`'s document on behalf of
     /// `caller`.
     ///
-    /// `shared_with_caller` is the answer to "does the owner's access list
-    /// name this account", which the tenant registry has already given when it
-    /// handed out the lease. The owner needs no such answer: ownership is
-    /// checked from the two ids, so a missing list entry cannot lock an owner
-    /// out of their own document.
+    /// `grant` is the answer to "does the owner's access list name this
+    /// account, and at what level" — which the tenant registry has already
+    /// given when it handed out the lease. The owner needs no such answer:
+    /// ownership is checked from the two ids, so a missing list entry cannot
+    /// lock an owner out of their own document.
     pub fn online(
         owner_id: &'a str,
         caller: &'a ResolvedIdentity,
-        shared_with_caller: bool,
+        grant: Option<ShareLevel>,
     ) -> Self {
         Self {
             mode: ServeMode::Online,
             owner_id: Some(owner_id),
             caller: Some(caller),
-            shared_with_caller,
+            grant,
         }
     }
 
@@ -317,7 +334,7 @@ impl<'a> RequestAccess<'a> {
             mode: ServeMode::Online,
             owner_id: None,
             caller: Some(caller),
-            shared_with_caller: false,
+            grant: None,
         }
     }
 
@@ -360,6 +377,18 @@ impl<'a> RequestAccess<'a> {
             // match is what makes the next action a decision.
             DocumentAction::View => true,
             DocumentAction::Comment => rights.can_comment(),
+            // Inviting is about a document's ACCESS LIST, and only the account
+            // whose list it is may rewrite it. The owner returned above; here
+            // the caller is a visitor, and the invite right a contributor role
+            // carries is the right to add people to their OWN document rather
+            // than a licence to re-share somebody else's. The `/api/share/*`
+            // routes say the same thing structurally — they edit the caller's
+            // list and never the one a `?tenant=` parameter pointed at — and
+            // this line is what makes the two agree instead of merely
+            // coinciding. An account that manages users (a deployment
+            // administrator) is the deliberate exception: that power belongs to
+            // the deployment rather than to the document.
+            DocumentAction::Invite => self.role_rights().can_manage_users(),
             DocumentAction::Edit | DocumentAction::Delete | DocumentAction::Restore => {
                 rights.can_edit()
             }
@@ -452,7 +481,7 @@ impl<'a> RequestAccess<'a> {
         if self.owner_id.is_none() || self.caller.is_none() {
             return Err(AccessRefusal::NotShared);
         }
-        if self.is_owner() || self.rights().can_manage_users() {
+        if self.is_owner() || self.role_rights().can_manage_users() {
             Ok(())
         } else {
             Err(AccessRefusal::ReadOnly)
@@ -534,7 +563,7 @@ impl<'a> RequestAccess<'a> {
     ///
     /// 1. the caller owns it;
     /// 2. the lease names its owner AND that owner's access list admitted this
-    ///    caller (which is what `shared_with_caller` records — the registry
+    ///    caller (which is what `grant` records — the registry
     ///    answered it when it handed out the lease, so this cannot claim a
     ///    share nobody checked);
     /// 3. nothing else. A caller whose roles are empty reaches exactly the same
@@ -558,7 +587,7 @@ impl<'a> RequestAccess<'a> {
         if owner == caller.user_id {
             return true;
         }
-        self.shared_with_caller && owner == lease_owner
+        self.grant.is_some() && owner == lease_owner
     }
 
     /// Whether this caller may see the document at all.
@@ -567,11 +596,14 @@ impl<'a> RequestAccess<'a> {
     /// halves must be present: an online request with no owner or no verified
     /// caller answers `false`, so a carrier built without an identity refuses
     /// rather than falling open.
-    fn reaches_document(&self) -> bool {
+    ///
+    /// `pub(super)` because the subject decisions a section needs
+    /// ([`super::section_rights`]) ask the same question about the same
+    /// document, and a second copy of this rule is exactly where the two would
+    /// drift apart.
+    pub(super) fn reaches_document(&self) -> bool {
         match (self.owner_id, self.caller) {
-            (Some(owner), Some(caller)) => {
-                owner == caller.user_id.as_str() || self.shared_with_caller
-            }
+            (Some(owner), Some(caller)) => owner == caller.user_id.as_str() || self.grant.is_some(),
             _ => false,
         }
     }
@@ -580,10 +612,52 @@ impl<'a> RequestAccess<'a> {
     ///
     /// Outside online there is no caller and this is never consulted: the mode
     /// branch in [`Self::decide`] answers before it.
+    /// A visitor reaches the document through a grant, and the grant names a
+    /// LEVEL — so the effective rights are the INTERSECTION of the caller's
+    /// product roles with what was granted. Intersecting, not choosing: an
+    /// editor's roles must not silently raise a grant that says "can view",
+    /// and a grant of "can edit" must not promote an account whose roles never
+    /// included editing.
+    ///
+    /// The owner is exempt because ownership is not a grant — it is answered
+    /// by [`Self::decide`] before this is consulted, and an owner of a
+    /// document necessarily holds it.
+    ///
+    /// [`ShareLevel::document_rights`] carries no `ManageUsers`, which is what
+    /// keeps this cap from reaching the deployment's account list: the rights
+    /// this returns are what [`Self::decide_workspace_settings`] reads.
     fn rights(&self) -> Rights {
+        let roles = self
+            .caller
+            .map(|caller| caller.roles.rights())
+            .unwrap_or(Rights::NONE);
+        match self.grant {
+            Some(level) if !self.is_owner() => roles.intersect(level.document_rights()),
+            _ => roles,
+        }
+    }
+
+    /// What the caller's product ROLES alone allow, with no grant applied.
+    ///
+    /// The question about the WORKSPACE is asked of this, not of [`Self::rights`],
+    /// and the difference is deliberate. A document grant is a ceiling on what
+    /// may be done TO A DOCUMENT; it says nothing about what an account may do
+    /// to the workspace it signs in to. The operator's decision — recorded in
+    /// the test that pins it — is that an admin maintains the workspace, so an
+    /// admin who was given a read-only link to somebody's file may still
+    /// configure that deployment's credentials; and conversely an account whose
+    /// roles grant nothing may not configure its own workspace's secrets merely
+    /// because it owns the document. Two questions, two answers, one function
+    /// each.
+    fn role_rights(&self) -> Rights {
         self.caller
             .map(|caller| caller.roles.rights())
             .unwrap_or(Rights::NONE)
+    }
+
+    /// The level the caller was granted, when it was granted one.
+    pub const fn granted_level(&self) -> Option<ShareLevel> {
+        self.grant
     }
 
     /// The deployment mode this decision is being made under.
@@ -594,6 +668,22 @@ impl<'a> RequestAccess<'a> {
     /// The verified caller's account id, when there is one.
     pub fn caller_id(&self) -> Option<&str> {
         self.caller.map(|caller| caller.user_id.as_str())
+    }
+
+    /// The product roles the caller holds, in the order the hub sent them.
+    ///
+    /// Empty for the local operator (no account, no roles) and for an account
+    /// whose roles this build does not recognise — the same answer
+    /// [`RequestAccess::decide`] acts on, so a subject decision cannot be made
+    /// from a role string nobody understood.
+    ///
+    /// `pub(super)`: the subject matrix in [`super::section_rights`] asks which
+    /// roles a caller holds, and it must ask the same set this module answers
+    /// rights from.
+    pub(super) fn caller_roles(&self) -> &[op_editor_core::access::ProductRole] {
+        self.caller
+            .map(|caller| caller.roles.roles())
+            .unwrap_or(&[])
     }
 
     /// The name to record against something this caller says or does.

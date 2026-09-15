@@ -48,6 +48,31 @@ a feature that ships without them is an unfinished feature.
   manifest is `include_str!`-embedded, so config edits need a rebuild, and a
   browser tab can hold an older bundle.
 
+## Disk: a new debug artifact retires the old one
+
+Cargo never deletes what it supersedes. Every edit to a crate's source or to its
+dependencies lands new hashed artifacts in `target/debug/deps`, and every debug
+build opens another incremental session in `target/debug/incremental`; both are
+kept forever, so the directory only grows. Measured in this checkout on
+2026-09-14: `target/` was **95 GB** — 90 GB of it `target/debug` (`deps` 76 GB,
+`incremental` 18 GB) — against **5.7 GB free** on the data volume. A full disk
+does not slow a build down, it stops it.
+
+- When a debug build leaves a new artifact, the one it replaced goes in the same
+  step: `rm -rf target/debug/incremental` (a rebuild cache, safe to drop) or
+  `cargo clean --profile dev` (all of it, then rebuild).
+- Read `df -h /System/Volumes/Data` **before** a workspace-wide build, not after
+  it fails. Under ~20 GB free, clean first.
+- `target/debug/deps` is the bulk and cannot be pruned selectively: only cargo's
+  fingerprint knows which hashed artifact is stale, and it offers no delete. The
+  real choices are `cargo clean --profile dev` plus a rebuild, or accepting the
+  growth knowingly.
+- `cargo check` and `cargo test` write there too. A workspace check run "just to
+  look at something" counts, and a cancelled one leaves its partial artifacts
+  behind — which is how the numbers above were produced.
+- Stray files agents leave in `target/` (`Cargo.lock.after-add`, `target/doc`,
+  `target/issue-bodies`) are not build output; delete them when you see them.
+
 ## Findings become issues, immediately
 
 Anything discovered while working — a defect, a design flaw, a security

@@ -16,8 +16,6 @@ fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
         .collect()
 }
 
-
-
 /// Build a `ComponentLibrary` with `n` reusable masters whose names cycle
 /// through a few categories so the grouped manifest exercises bucketing.
 /// The manifest only reads each component's `id` + `name`, so the `root`

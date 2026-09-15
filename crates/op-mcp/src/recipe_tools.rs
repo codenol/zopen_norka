@@ -90,9 +90,7 @@ impl McpTool for ListRecipes {
             "recipes".into(),
             kit.recipes
                 .iter()
-                .map(|recipe| {
-                    format!("{}|{}|{}", recipe.id, recipe.template, recipe.name)
-                })
+                .map(|recipe| format!("{}|{}|{}", recipe.id, recipe.template, recipe.name))
                 .collect::<Vec<_>>()
                 .join("\n"),
         );
@@ -121,7 +119,10 @@ mod tests {
         let kit = op_editor_core::session_kit();
         let recipe = kit.recipes.first().expect("the kit ships recipes");
         match UseRecipe.call(&args(&[("recipe_id", &recipe.id)])) {
-            ToolOutcome::OkWithCommand(out, EditorCommand::InstantiateComponent { component_id }) => {
+            ToolOutcome::OkWithCommand(
+                out,
+                EditorCommand::InstantiateComponent { component_id },
+            ) => {
                 assert_eq!(component_id, NodeId::new(recipe.template.clone()));
                 assert_eq!(out.get("master_id"), Some(&recipe.template));
             }

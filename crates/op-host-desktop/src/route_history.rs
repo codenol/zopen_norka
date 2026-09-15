@@ -109,11 +109,12 @@ impl DesktopApp {
         }
         match route.node.clone() {
             Some(node) => {
-                self.host.editor_state_mut().set_single_selection(node.clone());
+                self.host
+                    .editor_state_mut()
+                    .set_single_selection(node.clone());
                 changed = true;
                 // Camera only: retracing history must not land on undo.
-                self.host
-                    .reveal_node(node.as_str(), viewport_w, viewport_h);
+                self.host.reveal_node(node.as_str(), viewport_w, viewport_h);
             }
             None => {
                 if !self.host.editor_state().selection.set.is_empty() {
@@ -231,11 +232,10 @@ impl DesktopApp {
         let Some(node) = self.pending_node.take() else {
             return false;
         };
-        if self.host.reveal_node(
-            &node,
-            self.viewport_width,
-            self.viewport_height,
-        ) {
+        if self
+            .host
+            .reveal_node(&node, self.viewport_width, self.viewport_height)
+        {
             self.host
                 .editor_state_mut()
                 .set_single_selection(op_editor_core::NodeId::new(node));

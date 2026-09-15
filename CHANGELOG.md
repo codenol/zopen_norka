@@ -12,6 +12,27 @@ here at a glance.
 
 ### Added
 
+- **Share, not Collaborate — the dialog a designer actually reaches for.** The
+  top bar's chip now opens a Figma-shaped access dialog instead of the
+  live-session panel: copy the document link, add comma-separated emails or
+  account names to invite, see who has access and at what level, switch
+  "anyone with the link" on or off — and every press ends in a sentence: the
+  grant, the links an invitation produced, or the reason nothing happened. The
+  dialog's footer keeps the live collaboration session reachable, because the
+  chip was its only entrance. The four levels are the ones the daemon already
+  enforces (admin / editor / commenter / viewer), and the dialog shows that
+  mapping rather than assuming Figma's two.
+
+  The browser host drains the dialog's queued work to
+  `POST /api/share/{grant,revoke,link}` and `GET /api/share/list`, and issues an
+  invitation through `POST /api/auth/admin/invites` — which hands back a link
+  and sends nothing, because this deployment has no mail. What the caller may do
+  is read from the address (`?tenant=` means somebody else's document), which is
+  the same answer the routes give, so the button cannot offer what the server
+  would refuse. The desktop host answers the questions it can answer locally —
+  the clipboard, the collaboration panel — and says plainly that the rest needs
+  an online deployment.
+
 - **The release binary is built in CI, not on the production server.** A new
   `Web deploy build` workflow (on demand, on a `v*` tag, and on pull requests
   without publishing) builds `op-host-web-server` for
@@ -164,6 +185,14 @@ here at a glance.
   the `NORKA_ADMIN_*` pair or `op admin create`.
 
 ### Fixed
+
+- **A letter that is also a canvas tool shortcut no longer switches the tool
+  while the Share dialog's invite field has focus.** Typing `userB` left the
+  field holding `useB` and selected the rectangle tool behind the card, because
+  the bare-letter tool router ran before the invite field's own arm. The dialog
+  is modal and now takes the keyboard the way the comment composer (#49) and the
+  sign-in form (#87) already do. Found by clicking through the dialog in a
+  browser, not by a test.
 
 - **On the desktop, an attached image no longer disappears.** If a turn ran as a
   chat or a modify request rather than a design request, the attachment had been

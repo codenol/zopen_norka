@@ -21,6 +21,7 @@ use crate::web_canvas_server::{
 };
 use op_editor_core::access::RoleSet;
 use op_editor_core::EditorState;
+use op_editor_core::ShareLevel;
 
 fn body_json(reply: &WebReply) -> serde_json::Value {
     serde_json::from_str(&reply.body).unwrap_or_else(|error| panic!("{}: {error}", reply.body))
@@ -302,7 +303,7 @@ fn a_contributor_opens_a_thread_and_may_not_write_the_document() {
     let entry = seed(&store, "Shared", Some("userA"));
     let mut state = tenant_state(&store);
     let analyst = named_account("userB", "Boris", &["analyst"]);
-    let access = RequestAccess::online("userA", &analyst, true);
+    let access = RequestAccess::online("userA", &analyst, Some(ShareLevel::Editor));
     let route = comments(&entry);
 
     let opened = handle_web_canvas_request(
@@ -353,7 +354,7 @@ fn a_guest_given_a_link_to_read_is_refused_the_conversation() {
     let entry = seed(&store, "Shared", Some("userA"));
     let mut state = tenant_state(&store);
     let guest = account("userB", &[]);
-    let access = RequestAccess::online("userA", &guest, true);
+    let access = RequestAccess::online("userA", &guest, Some(ShareLevel::Editor));
     let route = comments(&entry);
 
     let read = handle_web_canvas_request("GET", &route, "", &mut state, &access);
@@ -402,7 +403,7 @@ fn a_stranger_cannot_reach_a_conversation_by_key() {
     let theirs = seed(&store, "Theirs", Some("userB"));
     let mut state = tenant_state(&store);
     let stranger = account("userA", &["admin"]);
-    let access = RequestAccess::online("userA", &stranger, false);
+    let access = RequestAccess::online("userA", &stranger, None);
     let route = comments(&theirs);
 
     for (method, path, body) in [
@@ -441,7 +442,7 @@ fn a_thread_is_closed_by_its_author_or_by_whoever_may_edit_the_document() {
 
     // An analyst opens a thread: it is theirs to close.
     let analyst = named_account("userB", "Boris", &["analyst"]);
-    let author = RequestAccess::online("userA", &analyst, true);
+    let author = RequestAccess::online("userA", &analyst, Some(ShareLevel::Editor));
     let opened = handle_web_canvas_request(
         "POST",
         &route,
@@ -455,7 +456,7 @@ fn a_thread_is_closed_by_its_author_or_by_whoever_may_edit_the_document() {
     // Another analyst may answer in it and may not close it: they may take part
     // in the conversation, and the thread is not theirs.
     let other = named_account("userC", "Vera", &["qa"]);
-    let peer = RequestAccess::online("userA", &other, true);
+    let peer = RequestAccess::online("userA", &other, Some(ShareLevel::Editor));
     let replied = handle_web_canvas_request(
         "POST",
         &format!("{route}/{id}/reply"),
@@ -498,7 +499,7 @@ fn a_thread_is_closed_by_its_author_or_by_whoever_may_edit_the_document() {
 
     // An editor closes anyone's — which is what triaging a review is.
     let designer = named_account("userD", "Dina", &["ux_ui"]);
-    let editor = RequestAccess::online("userA", &designer, true);
+    let editor = RequestAccess::online("userA", &designer, Some(ShareLevel::Editor));
     let reopened = handle_web_canvas_request(
         "POST",
         &format!("{route}/{id}/reopen"),

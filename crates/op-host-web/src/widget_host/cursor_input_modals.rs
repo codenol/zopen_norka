@@ -87,6 +87,12 @@ impl WidgetHost {
             }
             return Some(changed);
         }
+        // Share dialog (#56) — owns the cursor while it is open. It answers
+        // for every point, so the rows it covers cannot light up through its
+        // scrim; the row it reports is the one it would actually act on.
+        if self.editor_state.editor_ui.share.open {
+            return Some(self.update_share_hover(x, y, self.last_viewport_w, self.last_viewport_h));
+        }
         if self.editor_state.editor_ui.agent_settings_open {
             return Some(self.update_agent_settings_hover(x, y));
         }

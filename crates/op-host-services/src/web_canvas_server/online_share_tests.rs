@@ -210,7 +210,10 @@ fn the_share_list_reports_both_directions_over_the_wire() {
         &verifier(),
         Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokA"),
     );
-    assert_eq!(body(&owner)["sharedWith"][0], "userB", "{owner}");
+    // One entry per account, with the level it was given: the list answers
+    // "what may they do", not merely "are they on it" (#56).
+    assert_eq!(body(&owner)["sharedWith"][0]["account"], "userB", "{owner}");
+    assert_eq!(body(&owner)["sharedWith"][0]["level"], "viewer", "{owner}");
 
     let visitor = serve(
         &registry,
@@ -617,8 +620,11 @@ fn concurrent_grants_all_survive() {
             let temp = std::sync::Arc::clone(&temp);
             let lease = &lease;
             scope.spawn(move || {
-                let change =
-                    crate::web_canvas_server::tenant::AclChange::Grant(format!("guest-{index}"));
+                let change = crate::web_canvas_server::tenant::AclChange::Grant {
+                    account: format!("guest-{index}"),
+                    level: op_editor_core::ShareLevel::Viewer,
+                    invited_by: Some("userA".to_string()),
+                };
                 temp.registry
                     .update_acl(lease.owner_id(), lease.tenant(), change)
                     .expect("persisted");

@@ -22,6 +22,15 @@ pub const REVOKE: &str = "/api/share/revoke";
 /// `GET` — who the caller shares with, and who shares with the caller.
 pub const LIST: &str = "/api/share/list";
 
+/// `POST` — turn "anybody with the link" on or off, and at what level.
+///
+/// Body: `{"enabled":bool,"level":"viewer"|"commenter"|"editor"|"admin"}`.
+/// Its own route rather than a field of [`GRANT`], because it is not about an
+/// account: it widens the document to every signed-in caller at once, and a
+/// client that had to express that as a grant would have to invent an account
+/// to grant to.
+pub const LINK_ACCESS: &str = "/api/share/link";
+
 /// Query parameter naming the tenant a request is addressed to.
 ///
 /// A header would be the more usual choice, but `EventSource` cannot set

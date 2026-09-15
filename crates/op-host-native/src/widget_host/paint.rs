@@ -638,6 +638,22 @@ impl WidgetHostNative {
             dlg.paint(&mut *frame, &self.theme, &self.editor_state.editor_ui);
         }
 
+        // 10d'. Share dialog (#56) — the TopBar chip opens this instead of the
+        // live collaboration panel, which the dialog's footer keeps reachable.
+        // It paints its own scrim, so a closed one cannot dim the editor.
+        if let Some(dialog) = op_editor_ui::widgets::share_dialog::ShareDialog::for_editor(
+            &self.editor_state,
+            viewport_width,
+            viewport_height,
+        ) {
+            use op_editor_ui::widgets::Widget;
+            let dialog_rect = dialog.rect();
+            let mut cx = PaintCx {
+                backend: &mut *frame,
+            };
+            dialog.paint(&mut cx, dialog_rect);
+        }
+
         // 10e. Sign-in modal — full-viewport scrim + centred card.
         if !touch_presenting
             && (ui.account_ui_available || ui.touch_chrome())

@@ -11,6 +11,7 @@ use crate::web_canvas_server::request_access::DocumentAction;
 use crate::web_canvas_server::tenant_auth::{IdentityVia, ResolvedIdentity};
 use crate::web_canvas_server::ServeMode;
 use op_editor_core::access::RoleSet;
+use op_editor_core::ShareLevel;
 
 /// A verified account holding `roles`.
 fn account(user_id: &str, roles: &[&str]) -> ResolvedIdentity {
@@ -52,7 +53,7 @@ fn a_request_that_does_not_change_the_configuration_names_no_right() {
     // Reads of the same surface, and the document routes — which the other
     // table owns, and which must not be answered twice.
     let visitor = account("userB", &[]);
-    let access = RequestAccess::online("userA", &visitor, true);
+    let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
     for (method, path) in [
         ("GET", "/api/settings/credential-policy"),
         ("GET", "/api/mcp/server"),
@@ -86,7 +87,7 @@ fn the_local_and_managed_operators_configure_their_own_daemon() {
 #[test]
 fn the_owner_configures_their_own_workspace_whatever_roles_the_hub_sends() {
     let owner = account("userA", &[]);
-    let access = RequestAccess::online("userA", &owner, false);
+    let access = RequestAccess::online("userA", &owner, None);
     for (method, path) in CONFIGURATION_REQUESTS {
         assert!(
             check(method, path, &access).is_none(),
@@ -100,7 +101,7 @@ fn an_admin_configures_a_workspace_shared_with_them() {
     // The operator's decision: an admin maintains the workspace, so the
     // account list is not the only thing their role reaches.
     let admin = account("userB", &["admin"]);
-    let access = RequestAccess::online("userA", &admin, true);
+    let access = RequestAccess::online("userA", &admin, Some(ShareLevel::Editor));
     for (method, path) in CONFIGURATION_REQUESTS {
         assert!(
             check(method, path, &access).is_none(),
@@ -115,7 +116,7 @@ fn an_editing_role_on_a_shared_document_is_not_a_key_to_the_workspace() {
     // must not touch what that account pays for.
     for roles in [&[][..], &["ux_ui"][..], &["qa"][..], &["po"][..]] {
         let visitor = account("userB", roles);
-        let access = RequestAccess::online("userA", &visitor, true);
+        let access = RequestAccess::online("userA", &visitor, Some(ShareLevel::Editor));
         for (method, path) in CONFIGURATION_REQUESTS {
             let reply = check(method, path, &access)
                 .unwrap_or_else(|| panic!("{roles:?} {method} {path} was not refused"));
@@ -130,7 +131,7 @@ fn an_editing_role_on_a_shared_document_is_not_a_key_to_the_workspace() {
     // And the same visitor is still allowed to write the document it was given
     // an editing role for: this gate narrows settings, not the document.
     let editor = account("userB", &["ux_ui"]);
-    let access = RequestAccess::online("userA", &editor, true);
+    let access = RequestAccess::online("userA", &editor, Some(ShareLevel::Editor));
     assert_eq!(access.decide(DocumentAction::Edit), Ok(()));
 }
 

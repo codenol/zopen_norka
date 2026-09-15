@@ -11,6 +11,20 @@ use op_editor_core::host_preset_name_draft as preset_name;
 
 impl WidgetHostNative {
     pub fn apply_backspace(&mut self) -> bool {
+        // Same gate as `apply_text`: the open Share dialog owns Backspace even
+        // when its field is not focused, so the key cannot delete a canvas node
+        // behind the card.
+        if self.editor_state.editor_ui.share.open {
+            let changed = op_editor_ui::widgets::share_dialog::invite_field_backspace(
+                &mut self.editor_state.editor_ui.share,
+                self.now_ms,
+            )
+            .unwrap_or(false);
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // Save-name dialog first — same modal priority as `apply_text`.
         if let Some(changed) =
             op_editor_core::save_name_keyboard::backspace(&mut self.editor_state, self.now_ms)

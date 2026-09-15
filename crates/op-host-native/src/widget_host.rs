@@ -238,6 +238,7 @@ mod settings_caret;
 mod settings_caret_tests;
 mod settings_dispatch;
 mod shape_picker_press;
+mod share_press;
 #[cfg(test)]
 mod shortcut_surface_tests;
 mod shortcuts;

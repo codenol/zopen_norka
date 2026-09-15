@@ -31,3 +31,9 @@ glam = { version = "0.29", default-features = false, features = ["std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
+
+# Section fingerprints (section/digest.rs). Not a new crate in this build
+# graph: jian-core — which op-editor-core already depends on — hashes with
+# sha2, so a section's digests are computed with something already compiled
+# into the desktop binary and the wasm bundle alike.
+sha2 = "0.10"

@@ -574,9 +574,12 @@ fn paint_collaboration_chip(
     let center_y = rect.origin.y + rect.size.y / 2.0;
     let mut x = rect.origin.x + 9.0;
     if model.avatars.is_empty() {
+        // Share, not Users: the chip opens the access dialog now, and an icon
+        // that still promised a participant list would be the old button's
+        // icon on the new button's job.
         draw_icon(
             cx.backend,
-            Icon::Users,
+            Icon::Share,
             Point2D::new(x, center_y - ICON_SIZE / 2.0),
             ICON_SIZE,
             tone,

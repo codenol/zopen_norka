@@ -65,6 +65,18 @@ pub const LOGIN_CANCEL: &str = "/api/auth/login/cancel";
 /// of the account instead of this one.
 pub const LOGOUT: &str = "/api/auth/logout";
 
+/// `POST` — issue an invitation, and answer with the link it produced.
+///
+/// `{"email"?, "roles"?}`; the answer carries `path` (`/invite/<token>`), the
+/// only moment the token exists on this side. This is what the Share dialog's
+/// "invite by email" means in a deployment that sends no mail: an account is
+/// created by an administrator and a link comes back for a human to carry.
+///
+/// The account list is a power of its own — `Rights::can_manage_users` — and
+/// not the document's invite right, which is why the route lives under the
+/// admin surface rather than beside `/api/share/*`.
+pub const ADMIN_INVITES: &str = "/api/auth/admin/invites";
+
 #[cfg(test)]
 mod tests {
     use super::*;
