@@ -175,6 +175,10 @@ pub(super) fn new_document<C: RepaintContext + 'static>(inner: &InnerRc<C>) {
     file_actions::preserve_app_preferences(b.host().editor_state(), &mut state);
     op_pen_loader::ensure_skala_session(&mut state);
     state.editor_ui.file_name_display = None;
+    // A brand-new document belongs to nobody yet: it has no file behind it in
+    // the store, so Save offers it as a download rather than writing it over a
+    // file the daemon is holding (issue #98).
+    state.editor_ui.local_document = true;
     // File → New is a local, unsaved document: no key, and no conversation
     // inherited from the document it replaces. `starter()` already carries
     // neither — stated here so a future addition to
@@ -211,11 +215,41 @@ pub(super) fn new_document<C: RepaintContext + 'static>(inner: &InnerRc<C>) {
 /// File → Save / Save As. Pick the destination before serializing so the
 /// common daemon path does not also build a pretty canonical download, and
 /// Save As does not build a daemon body it will never send.
-pub(super) fn save_document<C: RepaintContext + 'static>(inner: &InnerRc<C>, daemon_first: bool) {
-    if daemon_first {
-        save_to_daemon(inner);
+/// Where a Save goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SaveDestination {
+    /// `POST /api/file/save` — the daemon writes the document into the file it
+    /// is holding.
+    Daemon,
+    /// The browser's own download.
+    Browser,
+}
+
+/// Which destination a Save takes.
+///
+/// `daemon_first` is the difference between Save and Save-as. It does NOT
+/// decide whether the daemon is the right destination: a document that came
+/// from a local file, an import or File → New is not the daemon's document, and
+/// saving it there writes the browser's work into whatever file path the daemon
+/// happens to hold — a different document, reported as a success (issue #98).
+fn save_destination(daemon_first: bool, local_document: bool) -> SaveDestination {
+    if daemon_first && !local_document {
+        SaveDestination::Daemon
     } else {
-        save_to_browser(inner);
+        SaveDestination::Browser
+    }
+}
+
+pub(super) fn save_document<C: RepaintContext + 'static>(inner: &InnerRc<C>, daemon_first: bool) {
+    let local = inner
+        .borrow()
+        .host()
+        .editor_state()
+        .editor_ui
+        .local_document;
+    match save_destination(daemon_first, local) {
+        SaveDestination::Daemon => save_to_daemon(inner),
+        SaveDestination::Browser => save_to_browser(inner),
     }
 }
 
@@ -587,5 +621,25 @@ fn apply_opened_document<C: RepaintContext + 'static>(
             let _ = b.repaint();
         }
         Err(e) => console_error(&format!("[open] {file_name}: {e}")),
+    }
+}
+
+#[cfg(test)]
+mod save_destination_tests {
+    use super::{save_destination, SaveDestination};
+
+    #[test]
+    fn save_writes_to_the_daemon_only_for_the_daemons_own_document() {
+        // Save, on a document the daemon holds.
+        assert_eq!(save_destination(true, false), SaveDestination::Daemon);
+        // Save, on a document that came from this machine: the daemon's bound
+        // file path belongs to a different document (issue #98).
+        assert_eq!(save_destination(true, true), SaveDestination::Browser);
+    }
+
+    #[test]
+    fn save_as_never_writes_over_a_file_the_daemon_holds() {
+        assert_eq!(save_destination(false, false), SaveDestination::Browser);
+        assert_eq!(save_destination(false, true), SaveDestination::Browser);
     }
 }
