@@ -16,14 +16,15 @@
 //! and is reached by nobody's key but its own: it is an ASSET, referenced by any
 //! number of sections in any number of documents (the operator's decision), so
 //! there is no document to hang the access preamble on. What it has instead is
-//! an owner — the account that loaded it — and that is what these routes decide
-//! from.
+//! an owner — the account that loaded it — which answers every WRITE here, and a
+//! READ is answered by that owner or by a section that links the asset (the
+//! table below, and [`load_readable`] for the rule itself).
 //!
-//! ## Who may, and the one that is deliberately narrow
+//! ## Who may, and what makes that answer wider than owning
 //!
 //! | What | Who |
 //! | --- | --- |
-//! | Read an asset | the account that owns it |
+//! | Read an asset | the account that owns it, or a reader of a document that links it and belongs to the same account |
 //! | Create, edit, rename, delete | the owner, holding a role that may write analytics: admin, UX/UI, analyst |
 //!
 //! The write rule is the `AnalyticsWrite` row of the operator's matrix
@@ -33,12 +34,13 @@
 //! asset is reached by its own key. A local deployment (no accounts) has nobody
 //! to distinguish between callers, exactly as `RequestAccess::decide` says.
 //!
-//! Reading is narrower than the matrix's "anyone who may read the document", and
-//! that is a known gap rather than a decision: a visitor given a section to read
-//! cannot fetch the analytics that section names, because the asset's route has
-//! no document in it to ask about. Filed as issue #110 — see it before widening
-//! this, because the fix is to decide how a section vouches for its asset, not
-//! to open the route to every signed-in caller.
+//! The READ rule is the matrix's other row — "Reading any of it: anyone who may
+//! read the document" — and it is narrower than that sentence sounds, because an
+//! asset is reached by a key rather than by a document. See [`load_readable`] for
+//! the rule as it is implemented and why each half of it is load-bearing. Until
+//! issue #110 landed this route answered from ownership alone, and a visitor
+//! given a section to read could see the analytics its link named and not fetch
+//! the markdown behind it — the one click the whole feature exists for.
 //!
 //! ## What these routes never touch
 //!
@@ -144,7 +146,7 @@ fn create(store: &DocumentDb, body: &str, access: &RequestAccess<'_>) -> WebRepl
 }
 
 fn read(store: &DocumentDb, key: &str, access: &RequestAccess<'_>) -> WebReply {
-    match load_owned(store, key, access) {
+    match load_readable(store, key, access) {
         Ok(document) => ok_json(serde_json::json!({
             "ok": true,
             "asset": asset_json(&document.asset),
@@ -215,6 +217,9 @@ fn delete(store: &DocumentDb, key: &str, access: &RequestAccess<'_>) -> WebReply
 /// it, and an account that may write analytics in general may not rewrite
 /// somebody else's asset. A local deployment has no accounts, so both sides are
 /// `None` and the operator reaches their own files exactly as they always have.
+///
+/// Reading is [`load_readable`], not this: a WRITE is the owner's alone, where a
+/// read may be vouched for by a section.
 fn load_owned(
     store: &DocumentDb,
     key: &str,
@@ -238,6 +243,105 @@ fn load_owned(
         Ok(document) => Ok(document),
         Err(error) => Err(store_error_reply(error)),
     }
+}
+
+/// The asset, if this caller may READ it. The reply is the refusal to send.
+///
+/// Reading is wider than owning, and the matrix says so in as many words
+/// ("Reading any of it — anyone who may read the document",
+/// [`super::section_rights`]). The rule this implements is the narrowest honest
+/// spelling of that sentence, and issue #110 is where the gap was found:
+///
+/// > An asset is readable by whoever may read a document that links it, when
+/// > the asset belongs to the same account as that document.
+///
+/// Both halves are needed. The first is the operator's sentence: a section that
+/// names an analytics document is what makes it part of the document a reader
+/// was given, and without it the feature's whole promise — "get from the screen
+/// to the reasoning without asking anybody" — stops one click short for exactly
+/// the reader it was designed for. The second is what keeps that promise from
+/// becoming a key hunt: anybody who may write a section could otherwise paste a
+/// guessed key into their own document and read whatever it named, which is the
+/// leak the issue refuses to trade the gap for. The document that vouches must
+/// belong to the account the asset belongs to, so a link can only ever vouch for
+/// an asset of its own workspace.
+///
+/// The document is the one this request was ADMITTED through
+/// ([`RequestAccess::lease_document`]), not merely one the caller may open:
+/// admission is per document (`TenantRegistry::lease_for_shared`), so the request
+/// already had to name a document the caller is on the access list of, and the
+/// share that lets them here is the same share that lets them read the section
+/// naming the asset. A caller who cannot name one — a request that says nothing
+/// about which document it is about — is refused, which is the fail-closed
+/// direction.
+///
+/// Writes are deliberately not widened with it: [`write`], [`rename`] and
+/// [`delete`] still go through [`load_owned`], because a reader's share of an
+/// asset is not authority over it.
+fn load_readable(
+    store: &DocumentDb,
+    key: &str,
+    access: &RequestAccess<'_>,
+) -> Result<AnalyticsDocument, WebReply> {
+    let found = match analytics_store::find(store, key) {
+        Ok(found) => found,
+        Err(error) => return Err(store_error_reply(error)),
+    };
+    let Some(asset) = found else {
+        return Err(not_found_asset_reply());
+    };
+    if asset.owner_id.as_deref() != access.caller_id()
+        && !linked_from_a_readable_document(store, key, &asset, access)
+    {
+        return Err(forbidden_reply());
+    }
+    match analytics_store::read(store, key) {
+        Ok(document) => Ok(document),
+        Err(error) => Err(store_error_reply(error)),
+    }
+}
+
+/// Whether a section of a document this caller may read links the asset.
+///
+/// The facts the rule above is made of, and nothing else: the document this
+/// request was admitted through, its owner (which must be the asset's, or a link
+/// would vouch across accounts), that the caller reaches it, and a stored
+/// section of it naming the asset's key. A store failure anywhere in here
+/// answers `false`: the question is "does something vouch for this reader", and
+/// a link this daemon cannot read is not something that can.
+fn linked_from_a_readable_document(
+    store: &DocumentDb,
+    asset_key: &str,
+    asset: &AnalyticsAsset,
+    access: &RequestAccess<'_>,
+) -> bool {
+    // One operator, one directory: everything in it is theirs, and the ownership
+    // branch above has already answered. This is the branch that keeps a local
+    // deployment out of the rest of this function.
+    if !access.mode().is_online() {
+        return false;
+    }
+    let Some(document) = access.lease_document() else {
+        return false;
+    };
+    // The row's owner, not the lease's: a document row is what a share is
+    // actually about, and the asset must belong to the same account as the
+    // document that links it. `None` on either side matches nothing online — an
+    // unattributed asset is nobody's, so nobody's link vouches for it.
+    let owner = match crate::document_store::find(store, document) {
+        Ok(Some(entry)) => entry.owner_id,
+        _ => return false,
+    };
+    if owner.as_deref() != asset.owner_id.as_deref() || owner.is_none() {
+        return false;
+    }
+    if !access.reaches_stored_document(owner.as_deref()) {
+        return false;
+    }
+    matches!(
+        crate::section_store::references_asset(store, document, asset_key),
+        Ok(true)
+    )
 }
 
 /// Whether this caller may change an analytics asset at all.

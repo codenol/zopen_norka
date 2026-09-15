@@ -703,7 +703,12 @@ pub(super) fn serve_one_online<S: Read + Write>(
             )
         })
         .flatten();
-    let access = RequestAccess::online(lease.owner_id(), &identity, granted);
+    let access = RequestAccess::online(lease.owner_id(), &identity, granted)
+        // The document this request was admitted through. A share is per
+        // document, and a route that names no document of its own — the
+        // analytics asset family, reached by the asset's key — has to ask which
+        // document vouched for the caller (#110).
+        .on_document(document_key.as_deref());
     dispatch(
         stream,
         &req,

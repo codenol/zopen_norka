@@ -56,8 +56,8 @@
 //!
 //! ## What is here
 //!
-//! - [`AnalyticsLink`] / [`LinkState`] — the binary link: in sync, or broken,
-//!   and which side moved. See [`link`].
+//! - [`AnalyticsLink`] / [`LinkState`] — the binary link: in sync, or broken
+//!   and which side moved, or gone, or not this reader's to open. See [`link`].
 //! - [`UxFlow`] — steps and connections as a graph, validated by
 //!   [`check_flow`]. Mermaid is a notation, not the source: see [`mermaid`].
 //! - [`SectionDigest`] — the fingerprints a link remembers. See [`digest`].
@@ -80,7 +80,9 @@ pub use digest::{analytics_fingerprint, mockup_fingerprint, SectionDigest};
 pub use flow::{
     check_flow, FlowCheck, FlowEdge, FlowGap, FlowIssue, FlowStep, FlowStepId, FlowStepKind, UxFlow,
 };
-pub use link::{link_state, section_link_state, AnalyticsLink, LinkState, MovedSide};
+pub use link::{
+    link_state, louder, refused_link_state, section_link_state, AnalyticsLink, LinkState, MovedSide,
+};
 pub use mermaid::{flow_from_mermaid, flow_to_mermaid, MermaidError, MermaidErrorKind};
 
 /// The `role` value that makes an ordinary frame a section.

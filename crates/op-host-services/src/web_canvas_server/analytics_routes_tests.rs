@@ -6,6 +6,7 @@
 //! matrix names, and the answer a panel reads.
 
 use super::*;
+use crate::document_store::DocumentEntry;
 use crate::document_test_dir::TempDir;
 use crate::mcp_serve::tool_profile::McpScopes;
 use crate::web_canvas_server::tenant_auth::{IdentityVia, ResolvedIdentity};
@@ -13,7 +14,8 @@ use crate::web_canvas_server::{
     handle_web_canvas_request, RequestAccess, ServeMode, WebCanvasState,
 };
 use op_editor_core::access::RoleSet;
-use op_editor_core::{EditorState, ShareLevel};
+use op_editor_core::section::{AnalyticsLink, SectionDigest, SectionProperties};
+use op_editor_core::{EditorState, NodeId, ShareLevel};
 
 /// The daemon state of the local operator, backed by `store`.
 fn local_state(store: &DocumentDb) -> WebCanvasState {
@@ -303,4 +305,244 @@ fn an_account_sees_only_its_own_assets() {
         Some(0),
         "one directory holds every account's assets; the list is what keeps them apart"
     );
+}
+
+/// A stored document belonging to `owner`, with a real file behind it.
+fn seed(store: &DocumentDb, name: &str, owner: Option<&str>) -> DocumentEntry {
+    crate::document_store::create_with(store, Some(name), owner, |path| {
+        crate::doc_io::save_to_path(&op_pen_loader::new_skala_editor_state(), path).map_err(
+            |error| {
+                crate::document_store::DocumentStoreError::Io(format!(
+                    "save {}: {error}",
+                    path.display()
+                ))
+            },
+        )
+    })
+    .expect("seed a document")
+}
+
+/// A section whose only content is a link to `asset_key`.
+fn linked_to(asset_key: &str, name: &str) -> SectionProperties {
+    SectionProperties {
+        analytics: vec![AnalyticsLink::new(
+            asset_key,
+            name,
+            SectionDigest::of_text("the markdown"),
+            SectionDigest::of_text("the screens"),
+            1_700_000_000,
+            Some("userA"),
+        )],
+        ..SectionProperties::empty()
+    }
+}
+
+/// Store `properties` as the section `frame-1` of `document`.
+fn link_section(store: &DocumentDb, document: &str, properties: &SectionProperties) {
+    crate::section_store::save(store, document, &NodeId::new("frame-1"), properties)
+        .expect("write the section");
+}
+
+#[test]
+fn a_visitor_who_may_read_the_document_reads_the_analytics_its_section_links() {
+    // Issue #110, the half that was missing. A section names the analytics it
+    // was built from, and the reader the feature exists for — somebody who was
+    // given the document and not the workspace — has to be able to fetch the
+    // markdown behind that name. Otherwise the panel offers a link it cannot
+    // resolve and the one click from screen to reasoning stops short.
+    let dir = TempDir::new("analytics-routes-vouched-read");
+    let store = dir.open();
+    let mut state = tenant_state(&store);
+    let markdown = "# Why\n\nPeople abandon the basket at the total.";
+
+    let owner = account("userA", &["analyst"]);
+    let own = RequestAccess::online("userA", &owner, None);
+    let key = create_asset(&mut state, &own, "Checkout analytics", markdown);
+    let document = seed(&store, "Work", Some("userA"));
+    link_section(
+        &store,
+        &document.key,
+        &linked_to(&key, "Checkout analytics"),
+    );
+
+    // A guest with the weakest grant there is: may view this one document, and
+    // holds no role at all.
+    let guest = account("userB", &[]);
+    let access = RequestAccess::online("userA", &guest, Some(ShareLevel::Viewer))
+        .on_document(Some(&document.key));
+    let read = handle_web_canvas_request(
+        "GET",
+        &format!("/api/analytics/{key}"),
+        "",
+        &mut state,
+        &access,
+    );
+
+    assert_eq!(read.status, "200 OK", "{}", read.body);
+    let body = body_json(&read);
+    assert_eq!(body["markdown"], markdown);
+    assert_eq!(body["asset"]["name"], "Checkout analytics");
+    assert!(
+        body["digest"]
+            .as_str()
+            .is_some_and(|digest| digest.len() == 64),
+        "a reader is given the fingerprint a link is compared against: {}",
+        body["digest"]
+    );
+}
+
+#[test]
+fn a_document_that_does_not_link_the_asset_does_not_vouch_for_a_reader() {
+    // Reading follows the LINK, not the key: being on the access list of some
+    // document is not being given every asset its account ever loaded.
+    let dir = TempDir::new("analytics-routes-not-linked");
+    let store = dir.open();
+    let mut state = tenant_state(&store);
+
+    let owner = account("userA", &["analyst"]);
+    let own = RequestAccess::online("userA", &owner, None);
+    let key = create_asset(&mut state, &own, "Checkout analytics", "text");
+    let document = seed(&store, "Work", Some("userA"));
+    // The document has a section; it links something else.
+    link_section(
+        &store,
+        &document.key,
+        &linked_to("another-key", "Elsewhere"),
+    );
+
+    let guest = account("userB", &[]);
+    let access = RequestAccess::online("userA", &guest, Some(ShareLevel::Viewer))
+        .on_document(Some(&document.key));
+    let reply = handle_web_canvas_request(
+        "GET",
+        &format!("/api/analytics/{key}"),
+        "",
+        &mut state,
+        &access,
+    );
+
+    assert_eq!(reply.status, "403 Forbidden", "{}", reply.body);
+    assert_eq!(error_code(&reply), "analytics-not-yours");
+}
+
+#[test]
+fn a_link_in_my_own_document_does_not_vouch_for_somebody_elses_asset() {
+    // The escalation this rule must not open. A link is just a key in a body:
+    // if any document that references an asset vouched for its reader, an
+    // account holding the right to write sections could paste a guessed key
+    // into a document of its own and read whatever it named. So the document
+    // that vouches must belong to the same account as the asset — and here it
+    // does not, so nothing is vouched for.
+    let dir = TempDir::new("analytics-routes-cross-account-link");
+    let store = dir.open();
+    let mut state = tenant_state(&store);
+
+    let victim = account("userA", &["analyst"]);
+    let own = RequestAccess::online("userA", &victim, None);
+    let key = create_asset(&mut state, &own, "Somebody else's analytics", "secret");
+
+    // userB's own document, linking the key it guessed.
+    let document = seed(&store, "Mine", Some("userB"));
+    link_section(&store, &document.key, &linked_to(&key, "Stolen"));
+
+    let thief = account("userB", &["admin"]);
+    let access = RequestAccess::online("userB", &thief, None).on_document(Some(&document.key));
+    let reply = handle_web_canvas_request(
+        "GET",
+        &format!("/api/analytics/{key}"),
+        "",
+        &mut state,
+        &access,
+    );
+
+    assert_eq!(reply.status, "403 Forbidden", "{}", reply.body);
+    assert_eq!(error_code(&reply), "analytics-not-yours");
+}
+
+#[test]
+fn a_reader_the_named_document_is_not_shared_with_is_not_vouched_for() {
+    // The refusal direction of the same rule: a carrier that names a document
+    // the caller is not on the access list of reaches nothing. The admit loop
+    // refuses such a request before a route sees it; this is the same answer
+    // asked at the route, so a carrier built without a grant cannot fall open.
+    let dir = TempDir::new("analytics-routes-stranger");
+    let store = dir.open();
+    let mut state = tenant_state(&store);
+
+    let owner = account("userA", &["analyst"]);
+    let own = RequestAccess::online("userA", &owner, None);
+    let key = create_asset(&mut state, &own, "Checkout analytics", "text");
+    let document = seed(&store, "Work", Some("userA"));
+    link_section(
+        &store,
+        &document.key,
+        &linked_to(&key, "Checkout analytics"),
+    );
+
+    let stranger = account("userB", &["analyst"]);
+    let access = RequestAccess::online("userA", &stranger, None).on_document(Some(&document.key));
+    let reply = handle_web_canvas_request(
+        "GET",
+        &format!("/api/analytics/{key}"),
+        "",
+        &mut state,
+        &access,
+    );
+
+    assert_eq!(reply.status, "403 Forbidden", "{}", reply.body);
+    assert_eq!(error_code(&reply), "analytics-not-yours");
+}
+
+#[test]
+fn being_vouched_for_a_read_is_not_authority_over_the_asset() {
+    // A reader's share of a document is not a share of the asset: the write
+    // rules are unchanged, and an analyst who may write analytics in general
+    // still may not rewrite somebody else's asset.
+    let dir = TempDir::new("analytics-routes-vouched-write");
+    let store = dir.open();
+    let mut state = tenant_state(&store);
+
+    let owner = account("userA", &["analyst"]);
+    let own = RequestAccess::online("userA", &owner, None);
+    let key = create_asset(&mut state, &own, "Checkout analytics", "first");
+    let document = seed(&store, "Work", Some("userA"));
+    link_section(
+        &store,
+        &document.key,
+        &linked_to(&key, "Checkout analytics"),
+    );
+
+    // The analyst holds the role the matrix names for writing analytics, and
+    // may read this document — and is still not the asset's owner.
+    let analyst = account("userB", &["analyst"]);
+    let access = RequestAccess::online("userA", &analyst, Some(ShareLevel::Viewer))
+        .on_document(Some(&document.key));
+    let written = handle_web_canvas_request(
+        "POST",
+        &format!("/api/analytics/{key}"),
+        r#"{"markdown":"rewritten"}"#,
+        &mut state,
+        &access,
+    );
+    assert_eq!(written.status, "403 Forbidden", "{}", written.body);
+    assert_eq!(error_code(&written), "analytics-not-yours");
+
+    let deleted = handle_web_canvas_request(
+        "DELETE",
+        &format!("/api/analytics/{key}"),
+        "",
+        &mut state,
+        &access,
+    );
+    assert_eq!(deleted.status, "403 Forbidden", "{}", deleted.body);
+
+    // And the text is untouched by either attempt.
+    let read = handle_web_canvas_request(
+        "GET",
+        &format!("/api/analytics/{key}"),
+        "",
+        &mut state,
+        &own,
+    );
+    assert_eq!(body_json(&read)["markdown"], "first");
 }

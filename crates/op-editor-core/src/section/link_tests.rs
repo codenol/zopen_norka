@@ -100,6 +100,55 @@ fn an_asset_that_is_gone_is_its_own_state() {
 }
 
 #[test]
+fn a_refused_reader_is_not_told_the_asset_is_gone() {
+    // Issue #110. Both cases leave the reader without a digest, and they are
+    // not the same fact: one is about the asset, the other about the reader. A
+    // panel that answered "gone" to a refused visitor would state something
+    // untrue about somebody else's file and send them to a repair that cannot
+    // help them.
+    let link = link("analytics", "mockups");
+    assert_eq!(
+        refused_link_state(Some(&link)),
+        LinkState::NotReadable,
+        "a refusal is its own state, not a spelling of `AssetMissing`"
+    );
+    assert_ne!(refused_link_state(Some(&link)), LinkState::AssetMissing);
+    // The refusal is not "nothing attached" either: the section names a
+    // document, and says so.
+    assert!(refused_link_state(Some(&link)).has_analytics());
+    assert_eq!(refused_link_state(None), LinkState::NoAnalytics);
+}
+
+#[test]
+fn a_mark_that_cannot_be_compared_outranks_one_that_merely_moved() {
+    // The ordering a single canvas mark has to stand for, when a section
+    // carries several links.
+    let broken = LinkState::Broken {
+        side: MovedSide::Both,
+    };
+    assert_eq!(
+        louder(Some(broken), LinkState::NotReadable),
+        LinkState::NotReadable
+    );
+    assert_eq!(
+        louder(Some(LinkState::NotReadable), broken),
+        LinkState::NotReadable
+    );
+    assert_eq!(louder(Some(broken), LinkState::InSync), broken);
+    // A document that is gone is a fault of the store, and the one somebody
+    // has to repair for everybody — where a refusal is a fact about the reader.
+    assert_eq!(
+        louder(Some(LinkState::NotReadable), LinkState::AssetMissing),
+        LinkState::AssetMissing
+    );
+    assert_eq!(
+        louder(None, LinkState::NotReadable),
+        LinkState::NotReadable,
+        "the first link seen is the one to beat"
+    );
+}
+
+#[test]
 fn restoring_rewrites_both_fingerprints() {
     let mut link = link("analytics", "mockups");
     let analytics = digest("analytics v2");

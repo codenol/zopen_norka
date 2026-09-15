@@ -25,6 +25,16 @@
 //! and this module answers. That is what makes every case below a test rather
 //! than a scenario, and it keeps the same answer available to the daemon and to
 //! the browser bundle.
+//!
+//! ## The one case the caller decides, and why it is here all the same
+//!
+//! `None` for the current digest means the store does not have the asset: GONE,
+//! and [`LinkState::AssetMissing`] is the answer. A store that HAS the asset and
+//! will not hand it to this reader leaves the caller with no digest either, and
+//! this function cannot tell the two apart — only the caller sees a status code.
+//! So a refusal is [`refused_link_state`], and the rule that a refusal must
+//! never be spelled as a deletion lives in this module rather than at each call
+//! site, because that conflation is exactly the lie issue #110 was filed for.
 
 use serde::{Deserialize, Serialize};
 
@@ -128,6 +138,18 @@ pub enum LinkState {
     /// four states do not cover it, and flattening it into "the analytics
     /// changed" would tell a reader something untrue.
     AssetMissing,
+    /// Attached, and this READER may not fetch the asset.
+    ///
+    /// Its own case rather than a spelling of [`LinkState::AssetMissing`], and
+    /// the distinction is the point of it: "gone" is a fact about the store —
+    /// the document was deleted or never arrived — and this is a fact about
+    /// whoever is looking, who may open the section and not the document it
+    /// names. A panel that answered "the analytics document is gone" to a
+    /// reader who was simply refused would state something untrue about
+    /// somebody else's file and send them to the wrong repair: nothing is
+    /// broken, and no restore would help them; they need access, or they need
+    /// to be told to ask for it. Issue #110 is where this case was found.
+    NotReadable,
 }
 
 impl LinkState {
@@ -144,10 +166,13 @@ impl LinkState {
     /// How loudly this state has to be reported, when a section has several
     /// links and one mark has to stand for all of them.
     ///
-    /// Ordered deliberately: a document that is gone outranks a document that
-    /// changed (a reader cannot compare against something that is not there, and
-    /// the repair is different), and a change on both sides outranks a change on
-    /// one (it is strictly more to say). Everything broken outranks everything
+    /// Ordered deliberately. A document that is gone outranks a document this
+    /// reader may not open, because a fault of the store is the one somebody
+    /// has to repair for everybody, where a refusal is a fact about the reader
+    /// alone. Both outrank a document that merely changed: neither can be
+    /// compared against at all, and "the screens may be out of date" is the
+    /// smaller thing to say. A change on both sides outranks a change on one
+    /// (it is strictly more to say), and everything marked outranks everything
     /// in sync.
     const fn severity(self) -> u8 {
         match self {
@@ -162,15 +187,52 @@ impl LinkState {
             Self::Broken {
                 side: MovedSide::Both,
             } => 4,
-            Self::AssetMissing => 5,
+            Self::NotReadable => 5,
+            Self::AssetMissing => 6,
         }
+    }
+}
+
+/// The louder of two states, for a section that carries several links.
+///
+/// Here rather than at each caller because the ORDER is a rule, not a detail:
+/// the panel, the canvas mark and [`section_link_state`] all have to pick the
+/// same one of a section's links to speak for the section, and three copies of
+/// that comparison is how they would come to disagree.
+pub fn louder(seen: Option<LinkState>, next: LinkState) -> LinkState {
+    match seen {
+        Some(seen) if seen.severity() > next.severity() => seen,
+        _ => next,
+    }
+}
+
+/// The state of one link the store REFUSED this reader.
+///
+/// [`link_state`] cannot answer this, and the reason is the whole point of the
+/// case: its second argument is "the digest as it is now, or `None` when the
+/// store does not have the asset", so `None` means GONE and nothing else.
+/// Collapsing a refusal into it is the lie issue #110 names — a visitor told
+/// "the analytics document is gone" for an asset they simply may not fetch. The
+/// caller is the only side that sees a status code, so the caller says which of
+/// the two happened, and this is the constructor for the refusal — here rather
+/// than spelled out at the call sites so that the rule stays with the rest of
+/// the state machine.
+pub fn refused_link_state(link: Option<&AnalyticsLink>) -> LinkState {
+    match link {
+        Some(_) => LinkState::NotReadable,
+        // A refusal about nothing attached is still nothing attached: there is
+        // no link to be unable to read.
+        None => LinkState::NoAnalytics,
     }
 }
 
 /// The state of one link, from what is there now.
 ///
 /// `current` is the analytics document's digest as resolved by the caller, or
-/// `None` when the asset is not in the store any more.
+/// `None` when the asset is not in the store any more. `None` means GONE and
+/// never "not for you": a caller the store REFUSED has no digest either, and
+/// passing `None` for that would make this function say the asset was deleted.
+/// That case is [`refused_link_state`].
 pub fn link_state(
     link: Option<&AnalyticsLink>,
     current: Option<&SectionDigest>,
@@ -218,9 +280,7 @@ where
     for link in &properties.analytics {
         let resolved = current(&link.key);
         let state = link_state(Some(link), resolved.as_ref(), mockups);
-        if state.severity() > worst.severity() {
-            worst = state;
-        }
+        worst = louder(Some(worst), state);
     }
     worst
 }

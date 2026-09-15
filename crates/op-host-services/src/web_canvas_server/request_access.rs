@@ -268,6 +268,15 @@ pub struct RequestAccess<'a> {
     /// more: the document's access list says HOW MUCH, and the answer is a
     /// ceiling over the caller's roles (see [`Self::rights`]).
     grant: Option<ShareLevel>,
+    /// The DOCUMENT this request was admitted through, when it named one.
+    ///
+    /// Read off the same lease as `owner_id`, and needed because `grant` is a
+    /// level on ONE document: a share is per document
+    /// ([`super::tenant::TenantRegistry::lease_for_shared`]), so the key is the
+    /// only way to say which document the level is about. The analytics routes
+    /// ask it because their own address names no document — an asset is reached
+    /// by its own key, so a section has to vouch for the reader (issue #110).
+    lease_document: Option<&'a str>,
 }
 
 impl<'a> RequestAccess<'a> {
@@ -285,6 +294,7 @@ impl<'a> RequestAccess<'a> {
             owner_id: None,
             caller: None,
             grant: None,
+            lease_document: None,
         }
     }
 
@@ -306,6 +316,7 @@ impl<'a> RequestAccess<'a> {
             owner_id: Some(owner_id),
             caller: Some(caller),
             grant,
+            lease_document: None,
         }
     }
 
@@ -335,7 +346,28 @@ impl<'a> RequestAccess<'a> {
             owner_id: None,
             caller: Some(caller),
             grant: None,
+            lease_document: None,
         }
+    }
+
+    /// Name the DOCUMENT this request was admitted through.
+    ///
+    /// A builder rather than a constructor argument because only the accept loop
+    /// has the answer, and a carrier that names none refuses rather than falls
+    /// open.
+    pub const fn on_document(mut self, key: Option<&'a str>) -> Self {
+        self.lease_document = key;
+        self
+    }
+
+    /// The document this request was admitted through, when it named one.
+    ///
+    /// `pub(super)` for the same reason [`Self::reaches_document`] is: the
+    /// analytics routes ask it to find the section that vouches for a reader,
+    /// and a second copy of "which document was this about" is how the route
+    /// and the lease would come to disagree.
+    pub(super) const fn lease_document(&self) -> Option<&'a str> {
+        self.lease_document
     }
 
     /// The decision. See the module docs for the model it implements.
