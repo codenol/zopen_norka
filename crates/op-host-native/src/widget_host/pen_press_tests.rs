@@ -43,6 +43,38 @@ fn screen(host: &WidgetHostNative, doc_x: f32, doc_y: f32) -> (f32, f32) {
     (cx0 + doc_x, cy0 + doc_y)
 }
 
+/// Doc origin for every pen-authoring probe in this file.
+///
+/// Geometry discipline (same as `canvas_select_drag_tests.rs`): the
+/// default-open AI chat float owns the canvas' lower-left — screen
+/// x <= 612 plus its resize gutter — and the floating toolbar its
+/// top-left (x ~ 252-296, y ~ 52-450), and `apply_click` routes a press
+/// on either BEFORE the canvas ladder. Pen presses therefore start at
+/// doc x = 500 (screen x = 740). The suite's older doc x = 300 landed
+/// inside the chat float, so the first press of every session was eaten
+/// by the panel and the pen saw one anchor fewer than the test assumed.
+const PEN_ORIGIN: (f32, f32) = (500.0, 300.0);
+
+/// Screen point for a doc offset from [`PEN_ORIGIN`].
+///
+/// The guard below is the regression tripwire for the drift described
+/// above: when a probe slides back under the chat float it fails HERE,
+/// with one sentence naming the cause, instead of surfacing as eight
+/// unrelated "the pen state machine lost its first press" failures.
+fn pen_screen(host: &WidgetHostNative, dx: f32, dy: f32) -> (f32, f32) {
+    let point = screen(host, PEN_ORIGIN.0 + dx, PEN_ORIGIN.1 + dy);
+    if let Some(chat) = host.ai_chat_rect(VW, VH) {
+        assert!(
+            !chat.contains(op_editor_ui::Point2D::new(point.0, point.1)),
+            "pen probe {:?} lands on the AI chat float {:?} — the press would be \
+             routed to the panel and never reach the pen",
+            point,
+            chat
+        );
+    }
+    point
+}
+
 fn pen_node_anchors(host: &WidgetHostNative) -> Vec<jian_ops_schema::node::PenPathAnchor> {
     let id = host
         .editor_state()
@@ -72,7 +104,7 @@ fn find_path<'a>(host: &'a WidgetHostNative, id: &str) -> &'a jian_ops_schema::n
 fn pen_press_drag_mints_mirrored_handles_on_last_anchor() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     assert!(host.apply_press(px, py, VW, VH));
     assert!(host.editor_state().ui.pen_dragging_handle);
     // Drag 30 doc px right while the press is held.
@@ -101,7 +133,7 @@ fn pen_drag_within_two_px_clears_back_to_corner() {
     // TS: hypot <= 2 resets the handles + pointType 'corner'.
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     host.apply_press(px, py, VW, VH);
     host.apply_cursor_move(px + 30.0, py);
     host.apply_cursor_move(px + 1.0, py);
@@ -118,13 +150,13 @@ fn click_on_first_anchor_closes_the_path() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
     host.set_now_ms(0);
-    for (i, (x, y)) in [(300.0, 300.0), (380.0, 300.0), (380.0, 360.0)]
+    for (i, (x, y)) in [(0.0, 0.0), (80.0, 0.0), (80.0, 60.0)]
         .into_iter()
         .enumerate()
     {
         // Space presses 1 s apart so the double-click detector never fires.
         host.set_now_ms(i as u64 * 1000);
-        let (px, py) = screen(&host, x, y);
+        let (px, py) = pen_screen(&host, x, y);
         host.apply_press(px, py, VW, VH);
         host.apply_release_with_viewport(VW, VH);
     }
@@ -136,7 +168,7 @@ fn click_on_first_anchor_closes_the_path() {
         .expect("3-anchor session open");
     // Press within 8 px / zoom of the FIRST anchor.
     host.set_now_ms(5000);
-    let (px, py) = screen(&host, 303.0, 302.0);
+    let (px, py) = pen_screen(&host, 3.0, 2.0);
     let history_before = host.editor_state().history.past.len();
     host.apply_press(px, py, VW, VH);
     assert!(
@@ -164,15 +196,15 @@ fn close_hit_needs_at_least_three_anchors() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
     host.set_now_ms(0);
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     host.apply_press(px, py, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     host.set_now_ms(1000);
-    let (qx, qy) = screen(&host, 380.0, 300.0);
+    let (qx, qy) = pen_screen(&host, 80.0, 0.0);
     host.apply_press(qx, qy, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     host.set_now_ms(2000);
-    let (rx, ry) = screen(&host, 303.0, 302.0);
+    let (rx, ry) = pen_screen(&host, 3.0, 2.0);
     host.apply_press(rx, ry, VW, VH);
     assert!(
         host.editor_state().ui.pen_in_progress.is_some(),
@@ -188,11 +220,11 @@ fn double_click_finishes_the_path_open() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
     host.set_now_ms(0);
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     host.apply_press(px, py, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     host.set_now_ms(1000);
-    let (qx, qy) = screen(&host, 380.0, 340.0);
+    let (qx, qy) = pen_screen(&host, 80.0, 40.0);
     host.apply_press(qx, qy, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     let id = host.editor_state().ui.pen_in_progress.clone().unwrap();
@@ -220,12 +252,12 @@ fn backspace_pops_last_anchor_without_killing_the_session() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
     host.set_now_ms(0);
-    for (i, (x, y)) in [(300.0, 300.0), (380.0, 300.0), (380.0, 360.0)]
+    for (i, (x, y)) in [(0.0, 0.0), (80.0, 0.0), (80.0, 60.0)]
         .into_iter()
         .enumerate()
     {
         host.set_now_ms(i as u64 * 1000);
-        let (px, py) = screen(&host, x, y);
+        let (px, py) = pen_screen(&host, x, y);
         host.apply_press(px, py, VW, VH);
         host.apply_release_with_viewport(VW, VH);
     }
@@ -242,7 +274,7 @@ fn backspace_pops_last_anchor_without_killing_the_session() {
 fn backspace_on_lone_anchor_cancels_and_returns_to_select() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     host.apply_press(px, py, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     let history_before = host.editor_state().history.past.len();
@@ -271,11 +303,11 @@ fn escape_discards_the_in_progress_path() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
     host.set_now_ms(0);
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     host.apply_press(px, py, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     host.set_now_ms(1000);
-    let (qx, qy) = screen(&host, 380.0, 340.0);
+    let (qx, qy) = pen_screen(&host, 80.0, 40.0);
     host.apply_press(qx, qy, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     let history_before = host.editor_state().history.past.len();
@@ -295,11 +327,11 @@ fn tool_switch_discards_the_in_progress_path() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
     host.set_now_ms(0);
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     host.apply_press(px, py, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     host.set_now_ms(1000);
-    let (qx, qy) = screen(&host, 380.0, 340.0);
+    let (qx, qy) = pen_screen(&host, 80.0, 40.0);
     host.apply_press(qx, qy, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     host.apply_set_tool(Tool::Rect);
@@ -315,11 +347,11 @@ fn committed_path_persists_d_closed_fill_and_stroke() {
     let mut host = empty_host();
     host.editor_state_mut().tool = Tool::Pen;
     host.set_now_ms(0);
-    let (px, py) = screen(&host, 300.0, 300.0);
+    let (px, py) = pen_screen(&host, 0.0, 0.0);
     host.apply_press(px, py, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     host.set_now_ms(1000);
-    let (qx, qy) = screen(&host, 380.0, 340.0);
+    let (qx, qy) = pen_screen(&host, 80.0, 40.0);
     host.apply_press(qx, qy, VW, VH);
     host.apply_release_with_viewport(VW, VH);
     let id = host.editor_state().ui.pen_in_progress.clone().unwrap();

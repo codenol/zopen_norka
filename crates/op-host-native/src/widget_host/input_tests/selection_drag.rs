@@ -140,7 +140,6 @@ fn marquee_drag_with_shift_extends_existing_selection() {
 
 #[test]
 fn layer_drag_to_reorder_commits_on_release_with_threshold_move() {
-    use op_editor_ui::widgets::TOP_BAR_HEIGHT;
     let mut host = WidgetHostNative::new();
     // Three top-level nodes painted as flat layer rows.
     seed(
@@ -155,16 +154,17 @@ fn layer_drag_to_reorder_commits_on_release_with_threshold_move() {
         ),
     );
     host.editor_state_mut().clear_selection();
-    let row_h = 28.0; // LAYER_ROW_HEIGHT
-    let page_row_h = 32.0; // PAGE_ROW_HEIGHT
-    let section_header_h = 28.0;
-    let section_gap = 8.0;
     let viewport_w = 1440.0;
     let viewport_h = 900.0;
-    let layers_top =
-        TOP_BAR_HEIGHT + 8.0 + section_header_h + page_row_h + section_gap + section_header_h;
-    let row_y = |i: usize| layers_top + (i as f32) * row_h + row_h / 2.0;
-    let row_x = host.editor_state().editor_ui.layer_panel_width / 2.0;
+    // Row tops come from the panel's own regions over the rect the host
+    // hit-tests: the rail's Layers/Slides/Assets tab row and the Recipes
+    // section both sit above the layer rows, so a hand-rolled offset table
+    // built from TOP_BAR_HEIGHT aims at rows that no longer exist.
+    let rail = host.layers_content_rect(viewport_w, viewport_h);
+    let regions = op_editor_ui::widgets::LayerPanel::from_editor(host.editor_state()).regions(rail);
+    let row_h = 28.0; // LAYER_ROW_HEIGHT
+    let row_y = |i: usize| regions.layers_rows_top + (i as f32) * row_h + row_h / 2.0;
+    let row_x = rail.size.x / 2.0;
     host.apply_press(row_x, row_y(0), viewport_w, viewport_h);
     assert!(host.layer_drag.is_some());
     assert!(!host.layer_drag.as_ref().unwrap().active);
@@ -185,7 +185,6 @@ fn layer_drag_to_reorder_commits_on_release_with_threshold_move() {
 
 #[test]
 fn layer_drag_below_activation_threshold_is_a_click_not_a_reorder() {
-    use op_editor_ui::widgets::TOP_BAR_HEIGHT;
     let mut host = WidgetHostNative::new();
     seed(
         &mut host,
@@ -199,10 +198,15 @@ fn layer_drag_below_activation_threshold_is_a_click_not_a_reorder() {
         ),
     );
     host.editor_state_mut().clear_selection();
-    let row_y_first = TOP_BAR_HEIGHT + 8.0 + 28.0 + 32.0 + 8.0 + 28.0 + 14.0;
-    let row_x = host.editor_state().editor_ui.layer_panel_width / 2.0;
     let viewport_w = 1440.0;
     let viewport_h = 900.0;
+    // Row tops from the panel's own regions over the host's rail rect — the
+    // tab row and the Recipes section moved the layer rows down, so the old
+    // TOP_BAR_HEIGHT arithmetic lands on a header instead of the first row.
+    let rail = host.layers_content_rect(viewport_w, viewport_h);
+    let regions = op_editor_ui::widgets::LayerPanel::from_editor(host.editor_state()).regions(rail);
+    let row_y_first = regions.layers_rows_top + 14.0;
+    let row_x = rail.size.x / 2.0;
     host.apply_press(row_x, row_y_first, viewport_w, viewport_h);
     host.apply_cursor_move(row_x, row_y_first + 2.0);
     assert!(
@@ -240,7 +244,9 @@ fn layer_context_create_component_click_promotes_frame() {
         menu: Default::default(),
     });
 
-    let create_row_y = 100.0 + 6.0 + 32.0 * 2.0 + 16.0;
+    // Row 3, not row 2: the "Copy link" row (#14) was inserted between
+    // Duplicate and Group selection, pushing Create component one row down.
+    let create_row_y = 100.0 + 6.0 + 32.0 * 3.0 + 16.0;
     assert!(host.apply_press(120.0, create_row_y, 1440.0, 900.0));
     assert!(host
         .editor_state()
@@ -282,7 +288,6 @@ fn property_panel_create_component_click_promotes_selected_frame() {
 
 #[test]
 fn layer_context_group_preserves_multi_selection_and_groups() {
-    use op_editor_ui::widgets::TOP_BAR_HEIGHT;
     let mut host = WidgetHostNative::new();
     seed(
         &mut host,
@@ -300,8 +305,12 @@ fn layer_context_group_preserves_multi_selection_and_groups() {
 
     let viewport_w = 1440.0;
     let viewport_h = 900.0;
-    let row_x = host.editor_state().editor_ui.layer_panel_width / 2.0;
-    let first_row_y = TOP_BAR_HEIGHT + 8.0 + 28.0 + 32.0 + 8.0 + 28.0 + 14.0;
+    // Row top from the panel's own regions over the host's rail rect — the
+    // tab row and the Recipes section moved the layer rows down.
+    let rail = host.layers_content_rect(viewport_w, viewport_h);
+    let regions = op_editor_ui::widgets::LayerPanel::from_editor(host.editor_state()).regions(rail);
+    let row_x = rail.size.x / 2.0;
+    let first_row_y = regions.layers_rows_top + 14.0;
     assert!(host.apply_right_press(row_x, first_row_y, viewport_w, viewport_h));
     assert_eq!(
         host.editor_state().selection.set.len(),
@@ -309,7 +318,9 @@ fn layer_context_group_preserves_multi_selection_and_groups() {
         "right-clicking an already-selected layer must keep the multi-selection"
     );
 
-    let group_row_y = first_row_y + 6.0 + 32.0 * 2.0 + 16.0;
+    // Group selection sits at row 3 of the layer menu — "Copy link" (#14)
+    // was inserted above it, so the row that used to be index 2 moved down.
+    let group_row_y = first_row_y + 6.0 + 32.0 * 3.0 + 16.0;
     assert!(host.apply_press(row_x + 20.0, group_row_y, viewport_w, viewport_h));
     assert!(matches!(
         host.editor_state().doc.children.first(),
