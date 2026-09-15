@@ -276,6 +276,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "区块",
         "section.readFailed" => "无法读取该区块",
         "section.analytics" => "来自",
+        "section.analytics.attach" => "关联分析文档…",
         "section.analytics.none" => "尚未关联分析文档",
         "section.state.inSync" => "已同步",
         "section.state.analyticsMoved" => "此后分析文档已变更",

@@ -276,6 +276,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "Bölüm",
         "section.readFailed" => "Bu bölüm okunamadı",
         "section.analytics" => "Şundan üretildi",
+        "section.analytics.attach" => "Analitik ekle…",
         "section.analytics.none" => "Bağlı analitik yok",
         "section.state.inSync" => "Güncel",
         "section.state.analyticsMoved" => "Analitik o zamandan beri değişti",

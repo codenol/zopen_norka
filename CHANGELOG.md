@@ -64,6 +64,15 @@ here at a glance.
   keyboard back without saving, and a write that fails keeps the sentence, so the
   retry is a keystroke rather than retyping it.
 
+- **A section can be attached to the analytics it came from.** "Attach
+  analytics…" opens a file dialog; pick a markdown document and it is loaded into
+  the store as an asset and linked to the section in one step, with both
+  fingerprints recorded — the analytics' own digest as the store hashes it, and
+  the section's screens as the document holds them. The name a person reads is
+  the file's, without its extension. The link is written in the same gesture
+  rather than living in the panel, because a link that was never saved would be
+  gone the moment the selection moved.
+
 - **Analytics is an asset with an address.** `POST /api/analytics` loads a
   markdown document, `GET /api/analytics/<key>` returns it with the digest of
   what it says now, and a rename keeps the address a section's link points at.

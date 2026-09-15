@@ -276,6 +276,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "Abschnitt",
         "section.readFailed" => "Dieser Abschnitt konnte nicht gelesen werden",
         "section.analytics" => "Gebaut aus",
+        "section.analytics.attach" => "Analyse verknüpfen…",
         "section.analytics.none" => "Keine Analyse verknüpft",
         "section.state.inSync" => "Aktuell",
         "section.state.analyticsMoved" => "Die Analyse hat sich seither geändert",

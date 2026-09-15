@@ -278,6 +278,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "เซกชัน",
         "section.readFailed" => "อ่านเซกชันนี้ไม่ได้",
         "section.analytics" => "สร้างจาก",
+        "section.analytics.attach" => "เชื่อมข้อมูลวิเคราะห์…",
         "section.analytics.none" => "ยังไม่ได้เชื่อมข้อมูลวิเคราะห์",
         "section.state.inSync" => "ตรงกัน",
         "section.state.analyticsMoved" => "ข้อมูลวิเคราะห์เปลี่ยนไปแล้ว",

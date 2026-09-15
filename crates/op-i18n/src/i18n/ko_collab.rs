@@ -292,6 +292,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "섹션",
         "section.readFailed" => "이 섹션을 읽을 수 없습니다",
         "section.analytics" => "근거 자료",
+        "section.analytics.attach" => "분석 연결…",
         "section.analytics.none" => "연결된 분석 문서가 없습니다",
         "section.state.inSync" => "동기화됨",
         "section.state.analyticsMoved" => "이후 분석이 변경되었습니다",

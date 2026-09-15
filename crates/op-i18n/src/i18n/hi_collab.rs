@@ -280,6 +280,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "सेक्शन",
         "section.readFailed" => "यह सेक्शन पढ़ा नहीं जा सका",
         "section.analytics" => "इससे बनाया गया",
+        "section.analytics.attach" => "एनालिटिक्स जोड़ें…",
         "section.analytics.none" => "कोई एनालिटिक्स जुड़ी नहीं है",
         "section.state.inSync" => "समन्वित",
         "section.state.analyticsMoved" => "इसके बाद एनालिटिक्स बदल गई",

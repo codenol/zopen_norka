@@ -306,6 +306,7 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "section.title" => "Секция",
         "section.readFailed" => "Не удалось прочитать секцию",
         "section.analytics" => "Собрана из",
+        "section.analytics.attach" => "Привязать аналитику…",
         "section.analytics.none" => "Аналитика не привязана",
         "section.state.inSync" => "В синхроне",
         "section.state.analyticsMoved" => "Аналитика изменилась после",

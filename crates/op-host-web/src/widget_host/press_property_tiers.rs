@@ -282,6 +282,32 @@ impl WidgetHost {
             // through to the fields the block has pushed down.
             if let Some(block) = panel.section_block_rect(property_rect) {
                 if block.contains(point) {
+                    // The attach control first: it is a control of its own
+                    // rather than a question, and a press on it must not be
+                    // read as a press on the field beside it.
+                    if let Some(attach) =
+                        op_editor_ui::widgets::property_panel_section_block::section_attach_rect(
+                            &self.editor_state.editor_ui.section_panel,
+                            block.origin.x,
+                            block.origin.y,
+                            block.size.x,
+                        )
+                    {
+                        if attach.contains(point) {
+                            if self
+                                .editor_state
+                                .editor_ui
+                                .section_panel
+                                .request_analytics_file()
+                            {
+                                // The file dialog is opened by the reader on its
+                                // next tick — the widget layer owns no files.
+                                crate::repaint_coalescer::request();
+                                self.mark_dirty();
+                            }
+                            return Some(true);
+                        }
+                    }
                     let fields =
                         op_editor_ui::widgets::property_panel_section_block::section_field_rects(
                             &self.editor_state.editor_ui.section_panel,

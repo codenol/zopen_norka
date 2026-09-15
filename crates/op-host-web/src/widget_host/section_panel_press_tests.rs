@@ -158,6 +158,38 @@ fn enter_queues_one_write_of_the_whole_properties_object() {
 }
 
 #[test]
+fn the_attach_control_asks_the_host_for_a_file() {
+    let mut host = host_with_a_section();
+    let block = block_rect(&host);
+    let attach = op_editor_ui::widgets::property_panel_section_block::section_attach_rect(
+        &host.editor_state.editor_ui.section_panel,
+        block.origin.x,
+        block.origin.y,
+        block.size.x,
+    )
+    .expect("the control paints with the block");
+
+    assert!(host.apply_press(
+        attach.origin.x + attach.size.x / 2.0,
+        attach.origin.y + attach.size.y / 2.0,
+        VIEWPORT_W,
+        VIEWPORT_H,
+    ));
+
+    assert!(
+        host.editor_state
+            .editor_ui
+            .section_panel
+            .wants_analytics_file,
+        "the widget layer owns no files: it asks the host"
+    );
+    assert_eq!(
+        host.editor_state.editor_ui.section_panel.focus, None,
+        "and the press is not read as a press on a question"
+    );
+}
+
+#[test]
 fn escape_gives_the_keyboard_back_without_saving() {
     let mut host = host_with_a_section();
     let point = first_field_point(&host);

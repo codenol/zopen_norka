@@ -37,6 +37,7 @@ use op_editor_core::editor_ui_state::section_panel::SectionLink;
 use op_editor_core::section::{link_state, mockup_fingerprint, SectionDigest, SectionProperties};
 use op_editor_core::{section, section_routes, NodeId};
 
+use crate::dom_io::{open_file_picker, read_file, ReadMode};
 use crate::live_sync;
 use crate::repaint_ctx::RepaintContext;
 
@@ -78,6 +79,7 @@ pub(crate) fn start<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let inner = inner.clone();
     let tick: Rc<dyn Fn()> = Rc::new(move || {
         watch_selection(&inner);
+        attach_requested(&inner, &base);
         save_pending(&inner, &base);
         resolve_next(&inner, &base);
     });
@@ -209,6 +211,179 @@ fn apply_properties<C: RepaintContext + 'static>(
             resolved,
         })
     });
+}
+
+/// The panel asked for an analytics document: open the file dialog, read what
+/// the person picks, load it into the store, and attach what comes back.
+///
+/// The order is forced by where the facts live. The store issues the KEY and
+/// knows the DIGEST of the markdown it just took; the document in this tab has
+/// the section's own screens, which is the other half of the link. Neither side
+/// can build the link alone, and this function is the one place both are in
+/// hand.
+fn attach_requested<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str) -> bool {
+    let wanted = {
+        let Ok(mut context) = inner.try_borrow_mut() else {
+            return false;
+        };
+        context
+            .host_mut()
+            .editor_state_mut()
+            .editor_ui
+            .section_panel
+            .take_analytics_file_request()
+    };
+    if !wanted {
+        return false;
+    }
+    let inner_for_file = inner.clone();
+    let base = base.to_string();
+    open_file_picker(
+        ".md,.markdown,.txt,text/markdown",
+        Box::new(move |file| {
+            let name = file.name();
+            let inner_for_read = inner_for_file.clone();
+            let base = base.clone();
+            read_file(
+                file,
+                ReadMode::Text,
+                Box::new(move |value| match value.as_string() {
+                    Some(markdown) => create_asset(&inner_for_read, &base, &name, &markdown),
+                    None => finish_load(&inner_for_read),
+                }),
+            );
+        }),
+    );
+    true
+}
+
+/// Load the markdown into the store, then attach what it answers.
+fn create_asset<C: RepaintContext + 'static>(
+    inner: &Rc<RefCell<C>>,
+    base: &str,
+    file_name: &str,
+    markdown: &str,
+) {
+    // The name a person reads is the file's, without the extension: "checkout.md"
+    // is an analytics document called "checkout", and the extension is the
+    // store's business rather than the section's.
+    let name = file_name
+        .rsplit_once('.')
+        .map(|(stem, _)| stem)
+        .filter(|stem| !stem.trim().is_empty())
+        .unwrap_or(file_name)
+        .to_string();
+    let body = serde_json::json!({ "name": name, "markdown": markdown }).to_string();
+    let url = format!("{base}{}", section_routes::ANALYTICS);
+    let inner_for_reply = inner.clone();
+    let started = live_sync::post_json_with_status(
+        &url,
+        &body,
+        Rc::new(move |status, response| {
+            if status >= 400 {
+                finish_load(&inner_for_reply);
+                return;
+            }
+            let created = serde_json::from_str::<serde_json::Value>(&response)
+                .ok()
+                .and_then(|value| {
+                    let asset = value.get("asset")?;
+                    Some((
+                        asset.get("key")?.as_str()?.to_string(),
+                        asset
+                            .get("name")
+                            .and_then(|name| name.as_str())
+                            .unwrap_or_default()
+                            .to_string(),
+                    ))
+                });
+            let Some((key, name)) = created else {
+                finish_load(&inner_for_reply);
+                return;
+            };
+            read_digest(&inner_for_reply, base_for(&inner_for_reply), &key, &name);
+        }),
+    );
+    if !started {
+        finish_load(inner);
+    }
+}
+
+/// The digest of the markdown as the store has it — the half of the link only
+/// the store can answer.
+fn read_digest<C: RepaintContext + 'static>(
+    inner: &Rc<RefCell<C>>,
+    base: String,
+    key: &str,
+    name: &str,
+) {
+    let url = format!("{base}{}", section_routes::analytics(key));
+    let inner_for_reply = inner.clone();
+    let key = key.to_string();
+    let name = name.to_string();
+    let _ = live_sync::get_with_status(
+        &url,
+        Rc::new(move |status, body| {
+            let digest = (status < 400)
+                .then(|| serde_json::from_str::<serde_json::Value>(&body).ok())
+                .flatten()
+                .and_then(|value| value.get("digest")?.as_str().map(SectionDigest::of_hex));
+            let Some(digest) = digest else {
+                finish_load(&inner_for_reply);
+                return;
+            };
+            attach(&inner_for_reply, &key, &name, digest);
+        }),
+    );
+}
+
+/// Build the link from both halves and queue the write that makes it real.
+fn attach<C: RepaintContext + 'static>(
+    inner: &Rc<RefCell<C>>,
+    key: &str,
+    name: &str,
+    digest: SectionDigest,
+) {
+    let Ok(mut context) = inner.try_borrow_mut() else {
+        return;
+    };
+    let state = context.host_mut().editor_state_mut();
+    let Some(selected) = state.selected_node() else {
+        state.editor_ui.section_panel.analytics_load_finished();
+        return;
+    };
+    let mockups = mockup_fingerprint(selected);
+    let link =
+        op_editor_core::section::AnalyticsLink::new(key, name, digest, mockups, now_secs(), None);
+    state.editor_ui.section_panel.attach_analytics(link);
+    context.host_mut().mark_editor_state_dirty();
+    let _ = context.repaint();
+}
+
+/// The load stopped somewhere: the dialog was dismissed, the read failed, or
+/// the store refused. The control comes back rather than staying inert.
+fn finish_load<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
+    let Ok(mut context) = inner.try_borrow_mut() else {
+        return;
+    };
+    context
+        .host_mut()
+        .editor_state_mut()
+        .editor_ui
+        .section_panel
+        .analytics_load_finished();
+    context.host_mut().mark_editor_state_dirty();
+    let _ = context.repaint();
+}
+
+/// The daemon base the reader was started with.
+fn base_for<C: RepaintContext + 'static>(_inner: &Rc<RefCell<C>>) -> String {
+    crate::daemon_base::daemon_base()
+}
+
+/// Seconds since the epoch, for a link's `linkedAt`.
+fn now_secs() -> u64 {
+    (js_sys::Date::now() / 1000.0) as u64
 }
 
 /// Send the section the panel has been edited into, when it asked to be saved.

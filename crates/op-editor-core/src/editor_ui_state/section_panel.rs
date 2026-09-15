@@ -125,6 +125,14 @@ pub struct SectionPanelState {
     /// so a commit queues the write and the host drains it — the same
     /// arrangement the Share dialog uses for its own requests.
     pub pending_save: Option<SectionProperties>,
+    /// The panel has asked the host to open a file dialog for an analytics
+    /// document. The widget layer cannot open one, and the host is the layer
+    /// that knows what a file is.
+    pub wants_analytics_file: bool,
+    /// A load of an analytics document is on its way — through the file picker,
+    /// the store and back. The attach control is inert while it is true, so two
+    /// presses cannot mint two assets for one file.
+    pub attaching: bool,
 }
 
 impl SectionPanelState {
@@ -292,6 +300,48 @@ impl SectionPanelState {
     pub fn save_refused(&mut self) {
         self.saving = false;
         self.save_failed = true;
+    }
+
+    /// Ask the host to open a file dialog for one.
+    ///
+    /// Refused while one is already in flight or a save is: the answer that
+    /// comes back would land on top of work in progress.
+    pub fn request_analytics_file(&mut self) -> bool {
+        if self.attaching || self.saving || self.wants_analytics_file {
+            return false;
+        }
+        self.wants_analytics_file = true;
+        true
+    }
+
+    /// Take the request. The host calls this from its own tick.
+    pub fn take_analytics_file_request(&mut self) -> bool {
+        std::mem::take(&mut self.wants_analytics_file)
+    }
+
+    /// The load did not happen — the dialog was dismissed, or the store refused.
+    pub fn analytics_load_finished(&mut self) {
+        self.attaching = false;
+        self.wants_analytics_file = false;
+    }
+
+    /// A file was read and loaded into the store: attach what came back.
+    ///
+    /// The link is built by the host, which is the only layer that holds both
+    /// halves of it: the asset's key and digest from the store, and the
+    /// section's own screens from the document. Attaching queues the write in
+    /// the same step, because a link that lived only in this panel would be
+    /// gone the moment the selection moved.
+    pub fn attach_analytics(&mut self, link: AnalyticsLink) -> bool {
+        if self.node.is_none() {
+            return false;
+        }
+        self.attaching = false;
+        self.properties.link(link);
+        self.pending_save = Some(self.properties.clone());
+        self.saving = true;
+        self.save_failed = false;
+        true
     }
 
     /// The state of the link to one analytics document, when it is attached.
@@ -515,6 +565,81 @@ mod tests {
 
         assert_eq!(state.draft.text(), "Checkout!");
         assert!(state.dirty, "the draft is still unsaved and still theirs");
+    }
+
+    #[test]
+    fn attaching_asks_the_host_for_a_file_once() {
+        let mut state = SectionPanelState::default();
+        state.select(Some(NodeId::new("s1")));
+
+        assert!(state.request_analytics_file());
+        assert!(!state.request_analytics_file(), "one dialog, not two");
+        assert!(state.take_analytics_file_request());
+        assert!(
+            !state.take_analytics_file_request(),
+            "the host takes it once"
+        );
+    }
+
+    #[test]
+    fn a_dismissed_dialog_does_not_leave_the_control_stuck() {
+        let mut state = SectionPanelState::default();
+        state.select(Some(NodeId::new("s1")));
+        state.request_analytics_file();
+        state.attaching = true;
+
+        state.analytics_load_finished();
+
+        assert!(!state.attaching);
+        assert!(state.request_analytics_file(), "the control works again");
+    }
+
+    #[test]
+    fn attaching_a_link_queues_the_write_that_makes_it_real() {
+        let mut state = SectionPanelState::default();
+        let node = NodeId::new("s1");
+        state.select(Some(node));
+        let link = AnalyticsLink::new(
+            "abc",
+            "Checkout analytics",
+            crate::section::SectionDigest::of_text("now"),
+            crate::section::SectionDigest::of_text("screens"),
+            7,
+            None,
+        );
+
+        assert!(state.attach_analytics(link));
+
+        let queued = state.pending_save.as_ref().expect("a queued write");
+        assert_eq!(queued.analytics.len(), 1);
+        assert_eq!(queued.analytics[0].key, "abc");
+        assert!(
+            state.saving,
+            "a link that lived only in this panel would be gone the moment the selection moved"
+        );
+    }
+
+    #[test]
+    fn attaching_a_second_document_keeps_the_first() {
+        let mut state = SectionPanelState::default();
+        let node = NodeId::new("s1");
+        state.select(Some(node.clone()));
+        state.apply(&node, SectionProperties::empty(), Vec::new());
+        for (key, name) in [("abc", "First"), ("def", "Second")] {
+            state.attach_analytics(AnalyticsLink::new(
+                key,
+                name,
+                crate::section::SectionDigest::of_text(key),
+                crate::section::SectionDigest::of_text("screens"),
+                7,
+                None,
+            ));
+        }
+
+        let queued = state.pending_save.as_ref().expect("a queued write");
+        assert_eq!(queued.analytics.len(), 2);
+        assert_eq!(queued.analytics[0].key, "abc");
+        assert_eq!(queued.analytics[1].key, "def");
     }
 
     #[test]

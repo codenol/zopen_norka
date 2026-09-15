@@ -69,6 +69,8 @@ enum Row {
         name: String,
         state_key: Option<&'static str>,
     },
+    /// The control that attaches one.
+    Attach,
     /// One answered question, and which one it is.
     Field {
         field: SummaryField,
@@ -107,6 +109,11 @@ fn rows(state: &SectionPanelState) -> Vec<(Row, f32)> {
             NAMED_ROW - CAPTION_ROW,
         )),
     }
+
+    // The way to attach an analytics document, whether or not one is attached:
+    // a section may be built from more than one, and replacing a link is the
+    // same gesture as making it.
+    rows.push((Row::Attach, CAPTION_ROW));
 
     // A section nobody has read says so and stops. Four empty fields under a
     // sentence that means "unknown" would be a second, quieter claim that they
@@ -188,6 +195,21 @@ pub fn section_field_rects(
     out
 }
 
+/// The rect the attach control occupies, when the block paints.
+pub fn section_attach_rect(state: &SectionPanelState, x0: f32, y: f32, w: f32) -> Option<Rect> {
+    if !state.is_visible() {
+        return None;
+    }
+    let mut top = y;
+    for (row, height) in rows(state) {
+        if matches!(row, Row::Attach) {
+            return Some(Rect::xywh(x0 + PAD_X, top, w - PAD_X * 2.0, height));
+        }
+        top += height;
+    }
+    None
+}
+
 /// How tall the block is, for the panel's content-height walker.
 pub fn section_block_height(state: &SectionPanelState) -> f32 {
     if !state.is_visible() {
@@ -264,6 +286,26 @@ pub fn paint_section_block(
                         );
                     }
                 }
+            }
+            Row::Attach => {
+                // Muted while a load is in flight rather than hidden: a control
+                // that disappears when pressed leaves the person wondering
+                // whether anything happened at all.
+                let color = if state.attaching {
+                    theme.muted_foreground
+                } else {
+                    theme.primary
+                };
+                line(
+                    cx,
+                    t(locale, "section.analytics.attach"),
+                    LABEL_SIZE,
+                    color,
+                    x0,
+                    top,
+                    w,
+                    12.0,
+                );
             }
             Row::Field { field, key, value } => {
                 line(
