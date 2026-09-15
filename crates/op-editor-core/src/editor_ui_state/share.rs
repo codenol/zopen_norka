@@ -415,7 +415,11 @@ impl ShareUiState {
         if self.self_account.as_deref() == Some(granted.account.as_str()) {
             return op_i18n::translate(locale, "share.row.you").to_string();
         }
-        granted.account.clone()
+        // The name the deployment's directory gave, then the handle, and the
+        // account id only when neither is known. Painting a raw id where a
+        // person belongs made "Who has access" unreadable to anybody who did
+        // not already know the ids (issue #119).
+        granted.label().to_string()
     }
 
     /// The sentence describing who added somebody, or the honest gap.
@@ -425,7 +429,16 @@ impl ShareUiState {
                 op_i18n::translate(locale, "share.row.invitedByYou").to_string()
             }
             Some(inviter) => {
-                op_i18n::translate(locale, "share.row.invitedBy").replace("{{account}}", inviter)
+                // The same naming rule as the row itself: a sentence that says
+                // "invited by u_262d…" is no more readable than the row was.
+                let named = self
+                    .list
+                    .shared_with
+                    .iter()
+                    .find(|grant| grant.account == inviter)
+                    .map(|grant| grant.label())
+                    .unwrap_or(inviter);
+                op_i18n::translate(locale, "share.row.invitedBy").replace("{{account}}", named)
             }
             // A grant from before attribution was recorded. Saying so is the
             // whole point of the field existing.

@@ -1124,6 +1124,10 @@ pub(super) fn collect_grants(
                 account: account.clone(),
                 level: grant.level,
                 invited_by: grant.invited_by,
+                // The directory is the route's to consult, not the tenant's:
+                // an access list is stored by id and stays readable without one.
+                display_name: None,
+                username: None,
             }
         })
         .collect()

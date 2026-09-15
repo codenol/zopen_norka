@@ -84,6 +84,76 @@ fn a_grant_for_an_account_that_does_not_exist_is_refused() {
     assert_eq!(body_of(&reply)["error"], "unknown-account");
 }
 
+/// The invite field offers "account name", so a name has to work.
+///
+/// It used to be accepted verbatim and grant nothing — a row that looked like a
+/// person and refused them at the door (issue #117). What the field holds is now
+/// resolved against the deployment's account list: an id, a handle, or an
+/// address, and what gets RECORDED is always the id (issue #130).
+#[test]
+fn a_grant_by_account_name_grants_that_account() {
+    use crate::accounts::{AccountsDb, NewUser};
+    use crate::document_test_dir::TempDir;
+    use crate::web_canvas_server::account_routes::AccountAuth;
+    use std::sync::Arc;
+
+    let dir = TempDir::new("share-by-name");
+    let accounts = AccountAuth::new(Arc::new(
+        AccountsDb::open(dir.path()).expect("open the account store"),
+    ));
+    let colleague = accounts
+        .db()
+        .create_user(
+            &NewUser {
+                id: None,
+                username: "colleague",
+                display_name: "Ada Colleague",
+                email: None,
+                password: Some("basket-lantern-quiet-41"),
+                roles: &["contributor"],
+            },
+            crate::accounts::now_secs(),
+        )
+        .expect("create an account");
+
+    let registry = registry();
+    let identity = identity("userA");
+    let lease = registry.lease_for(&identity).expect("lease");
+    for named in ["colleague", "Ada Colleague", &colleague.id] {
+        let reply = handle(
+            "POST",
+            share_routes::GRANT,
+            &serde_json::json!({ "userId": named }).to_string(),
+            &identity,
+            &lease,
+            &registry,
+            Some(&accounts),
+            Some(DOCUMENT),
+        );
+        // A display name is not a handle and is not an id: only the two the
+        // account list is keyed by resolve.
+        let expected = if named == "Ada Colleague" {
+            "400 Bad Request"
+        } else {
+            "200 OK"
+        };
+        assert_eq!(reply.status, expected, "{named}: {}", reply.body);
+        if named == "colleague" {
+            // The row records the ID, whatever was typed.
+            assert_eq!(
+                body_of(&reply)["sharedWith"][0]["account"],
+                colleague.id.as_str()
+            );
+            assert_eq!(
+                body_of(&reply)["sharedWith"][0]["displayName"],
+                "Ada Colleague"
+            );
+            assert_eq!(body_of(&reply)["sharedWith"][0]["username"], "colleague");
+        }
+    }
+    assert_eq!(lease.tenant().shared_with(DOCUMENT).len(), 1);
+}
+
 #[test]
 fn a_grant_admits_the_named_account_and_nobody_else() {
     let registry = registry();

@@ -191,7 +191,7 @@ pub(super) fn handle(
             key,
             Mutation::Revoke,
         ),
-        ("GET", share_routes::LIST) => list(identity, lease, registry, key),
+        ("GET", share_routes::LIST) => list(identity, lease, registry, accounts, key),
         ("POST", LINK_ACCESS) => link_access(body, identity, lease, registry, key),
         _ => WebReply {
             status: "405 Method Not Allowed",
@@ -204,6 +204,76 @@ pub(super) fn handle(
 enum Mutation {
     Grant,
     Revoke,
+}
+
+/// The account a share body names, as the account list knows it.
+///
+/// An id, a sign-in handle, or an address — because the field a person types
+/// into is a text box, and the placeholder has always offered "account name"
+/// (issue #130). Resolving here is what makes that true instead of a promise
+/// the route cannot keep.
+///
+/// `None` means the deployment has no account list, so nothing can be resolved
+/// and the caller's string is used as it stands — the behaviour every
+/// deployment without accounts already had.
+fn canonical_account(
+    accounts: Option<&super::account_routes::AccountAuth>,
+    input: &str,
+) -> Result<Option<(String, String, String)>, ShareError> {
+    let Some(accounts) = accounts else {
+        return Ok(None);
+    };
+    let db = accounts.db();
+    let lookup = |found: Result<Option<crate::accounts::User>, crate::accounts::AccountsError>| {
+        found.map_err(|_| ShareError::LookupUnavailable)
+    };
+    if let Some(user) = lookup(db.find_user_by_id(input))? {
+        return Ok(Some((user.id, user.display_name, user.username)));
+    }
+    if let Some(user) = lookup(db.find_user_by_username(input))? {
+        return Ok(Some((user.id, user.display_name, user.username)));
+    }
+    // An address names an account only when one already holds it. Inviting an
+    // address that has no account is a mail feature this deployment does not
+    // have (#55), and the dialog says so — this route must not pretend.
+    if input.contains('@') {
+        if let Some(user) = lookup(db.find_user_by_email(input))? {
+            return Ok(Some((user.id, user.display_name, user.username)));
+        }
+    }
+    Err(ShareError::UnknownAccount)
+}
+
+/// One grant, dressed with the names the directory holds for it.
+///
+/// Shared by the list route and the grant route: the dialog replaces its rows
+/// with what a grant answers, so a grant that came back without names would
+/// turn the list back into account ids on the next click (issue #119).
+fn named_grant(
+    accounts: Option<&super::account_routes::AccountAuth>,
+    grant: &op_editor_core::ShareGrant,
+) -> op_editor_core::ShareGrant {
+    let (display_name, username) = names_for(accounts, &grant.account);
+    let mut grant = grant.clone();
+    grant.display_name = display_name;
+    grant.username = username;
+    grant
+}
+
+/// The names to show for an account id, when the directory has them.
+fn names_for(
+    accounts: Option<&super::account_routes::AccountAuth>,
+    id: &str,
+) -> (Option<String>, Option<String>) {
+    let Some(accounts) = accounts else {
+        return (None, None);
+    };
+    match accounts.db().find_user_by_id(id) {
+        Ok(Some(user)) => (Some(user.display_name), Some(user.username)),
+        // A store that cannot answer leaves the id on screen, which is what the
+        // list showed before names existed — honest, and no worse.
+        _ => (None, None),
+    }
 }
 
 /// What a share body asked for.
@@ -226,23 +296,22 @@ fn mutate(
         Ok(parsed) => parsed,
         Err(error) => return error_reply(error),
     };
-    // Does that account exist? A deployment that has an account list can answer,
-    // and it must: without this the route accepts a NAME, records it as a grant,
-    // answers `200 changed:true` and grants nothing — the person it names is
-    // refused with `tenant-not-shared` and the list shows a row that looks like
+    // Which account is that? A deployment that has an account list can answer,
+    // and it must: without this the route recorded a NAME as a grant, answered
+    // `200 changed:true` and granted nothing — the person it named was refused
+    // with `tenant-not-shared` and the list showed a row that looked like
     // somebody. Found by running the share scenario against a real deployment.
-    if mutation == Mutation::Grant {
-        if let Some(accounts) = accounts {
-            match accounts.db().find_user_by_id(&parsed.account) {
-                Ok(Some(_)) => {}
-                Ok(None) => return error_reply(ShareError::UnknownAccount),
-                // A store that cannot answer must not turn into a grant: the
-                // caller is told the deployment could not check, not that the
-                // account is fine.
-                Err(_) => return error_reply(ShareError::LookupUnavailable),
-            }
-        }
-    }
+    //
+    // The answer is the account's ID, whatever the field was given: an id, a
+    // handle or an address all land on the same row (issue #130).
+    let resolved = match canonical_account(accounts, &parsed.account) {
+        Ok(resolved) => resolved,
+        Err(error) => return error_reply(error),
+    };
+    let account = resolved
+        .as_ref()
+        .map(|(id, _, _)| id.clone())
+        .unwrap_or_else(|| parsed.account.clone());
     // May this caller add anybody at all? The same decision the document
     // routes make, from the same place, so "may invite" cannot mean two
     // things. The owner passes by identity; a visitor holding the access list
@@ -273,12 +342,12 @@ fn mutate(
     }
     let change = match mutation {
         Mutation::Grant => AclChange::Grant {
-            account: parsed.account,
+            account: account.clone(),
             level: parsed.level,
             // The verified identity, never the body.
             invited_by: Some(identity.user_id.clone()),
         },
-        Mutation::Revoke => AclChange::Revoke(parsed.account),
+        Mutation::Revoke => AclChange::Revoke(account.clone()),
     };
     // The edit and its write are one serialised operation. Persisted
     // immediately rather than at eviction: a share the user was told had
@@ -293,7 +362,8 @@ fn mutate(
                 "sharedWith": update
                     .grants
                     .iter()
-                    .map(ShareGrant::to_json)
+                    .map(|grant| named_grant(accounts, grant))
+                    .map(|grant| grant.to_json())
                     .collect::<Vec<_>>(),
             })
             .to_string(),
@@ -388,8 +458,13 @@ fn list(
     identity: &ResolvedIdentity,
     lease: &TenantLease,
     registry: &TenantRegistry,
+    accounts: Option<&super::account_routes::AccountAuth>,
     key: &str,
 ) -> WebReply {
+    // A list of account ids is a list of strangers (issue #119): every row is
+    // dressed with the name the directory holds, and an id stays only when the
+    // directory has nothing to say.
+
     WebReply {
         status: "200 OK",
         body: serde_json::json!({
@@ -400,7 +475,8 @@ fn list(
                 .tenant()
                 .share_grants(key)
                 .iter()
-                .map(ShareGrant::to_json)
+                .map(|grant| named_grant(accounts, grant))
+                .map(|grant| grant.to_json())
                 .collect::<Vec<_>>(),
             "linkAccess": lease
                 .tenant()
@@ -413,11 +489,16 @@ fn list(
             "sharedWithMe": registry
                 .shared_with_visitor(&identity.user_id)
                 .iter()
-                .map(|shared| serde_json::json!({
-                    "owner": shared.owner,
-                    "file": shared.key,
-                    "level": shared.level.wire(),
-                }))
+                .map(|shared| {
+                    let (display_name, username) = names_for(accounts, &shared.owner);
+                    serde_json::json!({
+                        "owner": shared.owner,
+                        "file": shared.key,
+                        "level": shared.level.wire(),
+                        "displayName": display_name,
+                        "username": username,
+                    })
+                })
                 .collect::<Vec<_>>(),
         })
         .to_string(),
