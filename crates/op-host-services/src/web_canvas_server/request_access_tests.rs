@@ -34,6 +34,28 @@ fn assert_all_allowed(access: &RequestAccess<'_>) {
     }
 }
 
+/// Every action a caller may take on somebody else's document.
+///
+/// Invite is deliberately outside the list, and the asymmetry is the rule rather
+/// than an omission: a document's access list belongs to the account whose list
+/// it is, so a visitor may not re-share what was shared with them however much
+/// their own roles allow at home. The `/api/share/*` routes enforce the same
+/// thing structurally — they edit the CALLER's list and never the one a
+/// `?tenant=` parameter pointed at — and this is the reader-facing half of it.
+fn assert_all_allowed_except_invite(access: &RequestAccess<'_>) {
+    for action in DocumentAction::ALL {
+        if action == DocumentAction::Invite {
+            assert_eq!(
+                access.decide(action),
+                Err(AccessRefusal::ReadOnly),
+                "{action:?}"
+            );
+            continue;
+        }
+        assert_eq!(access.decide(action), Ok(()), "{action:?}");
+    }
+}
+
 /// A caller who may read the document and may change nothing about it.
 ///
 /// Commenting is deliberately outside the loop: it writes to the CONVERSATION
@@ -112,9 +134,9 @@ fn an_owner_without_a_role_still_works_on_their_own_document() {
 }
 
 #[test]
-fn a_shared_visitor_with_an_editing_role_may_do_everything() {
+fn a_shared_visitor_with_an_editing_role_may_do_everything_but_re_share() {
     let visitor = identity("userB", &["ux_ui"]);
-    assert_all_allowed(&RequestAccess::online(
+    assert_all_allowed_except_invite(&RequestAccess::online(
         "userA",
         &visitor,
         Some(ShareLevel::Editor),
@@ -296,12 +318,17 @@ fn the_share_flag_is_what_admits_a_visitor_and_nothing_else_is() {
 #[test]
 fn the_actions_name_themselves_and_split_into_reads_and_writes() {
     let names: Vec<&str> = DocumentAction::ALL.iter().map(|a| a.as_str()).collect();
-    assert_eq!(names, ["view", "comment", "edit", "delete", "restore"]);
+    assert_eq!(
+        names,
+        ["view", "comment", "invite", "edit", "delete", "restore"]
+    );
     assert!(!DocumentAction::View.is_write());
     for action in [
         // A comment writes a row — to the conversation, not to the document —
-        // and reading is still the only action that changes nothing.
+        // and an invitation writes a row on the access list, which is also not
+        // the document. Reading is still the only action that changes nothing.
         DocumentAction::Comment,
+        DocumentAction::Invite,
         DocumentAction::Edit,
         DocumentAction::Delete,
         DocumentAction::Restore,

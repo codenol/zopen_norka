@@ -377,7 +377,18 @@ impl<'a> RequestAccess<'a> {
             // match is what makes the next action a decision.
             DocumentAction::View => true,
             DocumentAction::Comment => rights.can_comment(),
-            DocumentAction::Invite => rights.can_invite(),
+            // Inviting is about a document's ACCESS LIST, and only the account
+            // whose list it is may rewrite it. The owner returned above; here
+            // the caller is a visitor, and the invite right a contributor role
+            // carries is the right to add people to their OWN document rather
+            // than a licence to re-share somebody else's. The `/api/share/*`
+            // routes say the same thing structurally — they edit the caller's
+            // list and never the one a `?tenant=` parameter pointed at — and
+            // this line is what makes the two agree instead of merely
+            // coinciding. An account that manages users (a deployment
+            // administrator) is the deliberate exception: that power belongs to
+            // the deployment rather than to the document.
+            DocumentAction::Invite => self.role_rights().can_manage_users(),
             DocumentAction::Edit | DocumentAction::Delete | DocumentAction::Restore => {
                 rights.can_edit()
             }
