@@ -161,3 +161,80 @@ fn the_format_error_names_what_it_could_not_read() {
         "section properties format 7 is not supported"
     );
 }
+
+#[test]
+fn the_section_tool_draws_a_section_and_the_frame_tool_does_not() {
+    use crate::id_allocator::SequentialIdAllocator;
+    use crate::walkers::find_node;
+    use crate::{EditorState, Tool};
+
+    let mut state = EditorState::new();
+    let mut allocator = SequentialIdAllocator::new(1);
+    let frame = state
+        .create_node_for_tool_with_allocator(Tool::Frame, &mut allocator, 0.0, 0.0, 100.0, 80.0)
+        .expect("an id")
+        .expect("a node");
+    let section = state
+        .create_node_for_tool_with_allocator(
+            Tool::Section,
+            &mut allocator,
+            200.0,
+            0.0,
+            400.0,
+            300.0,
+        )
+        .expect("an id")
+        .expect("a node");
+
+    let frame_node = find_node(state.active_children(), &frame).expect("the frame");
+    let section_node = find_node(state.active_children(), &section).expect("the section");
+    assert!(!is_section(frame_node), "a frame is an ordinary frame");
+    assert!(
+        is_section(section_node),
+        "the section tool marks what it draws"
+    );
+    assert_eq!(
+        section_id(section_node),
+        Some(section.clone()),
+        "the frame's own id is the section's identity — it is what the properties row is keyed by"
+    );
+}
+
+#[test]
+fn marking_is_refused_for_anything_that_is_not_a_frame() {
+    // A section groups SCREENS, and the canvas only lets a screen be dropped
+    // into a frame. Promoting a group would create a section nothing can be
+    // put into.
+    let mut group = test_support::group("g1", "Group", Vec::new());
+    assert!(!mark_as_section(&mut group));
+    assert!(!is_section(&group));
+
+    let mut frame = frame("n1", None);
+    assert!(mark_as_section(&mut frame));
+    assert!(is_section(&frame));
+    assert!(unmark_section(&mut frame));
+    assert!(!is_section(&frame));
+    // Unmarking what was never marked is not a change.
+    assert!(!unmark_section(&mut frame));
+}
+
+#[test]
+fn unmarking_keeps_the_screens_the_section_grouped() {
+    let mut node = section("s1", vec![frame("m1", None), frame("m2", None)]);
+
+    assert!(unmark_section(&mut node));
+
+    assert_eq!(
+        section_mockups(&node).len(),
+        0,
+        "it is not a section any more"
+    );
+    let PenNode::Frame(frame) = &node else {
+        panic!("still a frame");
+    };
+    assert_eq!(
+        frame.children.as_deref().map(<[PenNode]>::len),
+        Some(2),
+        "the screens stay: unmarking is not deleting"
+    );
+}

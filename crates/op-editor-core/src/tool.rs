@@ -22,6 +22,11 @@ pub enum Tool {
     Pen,
     Text,
     Frame,
+    /// A frame that groups screens and carries what they were built from
+    /// (#59). The node it builds is an ordinary frame whose `role` is
+    /// `section` — see [`crate::section`] — so a section travels with its
+    /// screens, survives copy-paste, and is visible on the canvas.
+    Section,
     Hand,
     // --- Form widgets (Phase D2) -------------------------------------
     TextInput,
@@ -39,7 +44,7 @@ pub enum Tool {
 impl Tool {
     /// All tools, in toolbar display order. Single source of truth for
     /// the toolbar build path.
-    pub const ALL: [Tool; 19] = [
+    pub const ALL: [Tool; 20] = [
         Tool::Select,
         Tool::Rect,
         Tool::Ellipse,
@@ -48,6 +53,7 @@ impl Tool {
         Tool::Pen,
         Tool::Text,
         Tool::Frame,
+        Tool::Section,
         Tool::Hand,
         Tool::TextInput,
         Tool::TextArea,
@@ -89,6 +95,7 @@ impl Tool {
             Tool::Pen => "pen",
             Tool::Text => "text",
             Tool::Frame => "frame",
+            Tool::Section => "section",
             Tool::Hand => "hand",
             Tool::TextInput => "text_input",
             Tool::TextArea => "text_area",

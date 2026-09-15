@@ -119,6 +119,10 @@ impl Toolbar {
             ToolbarItem::ShapeSlot,
             ToolbarItem::Tool(Tool::Text, Icon::Type),
             ToolbarItem::Tool(Tool::Frame, Icon::Frame),
+            // The section tool sits beside Frame because that is what it
+            // draws: a frame that groups screens and carries what they were
+            // built from (#59).
+            ToolbarItem::Tool(Tool::Section, Icon::Section),
             ToolbarItem::Tool(Tool::Hand, Icon::Hand),
         ];
         // The comment tool closes the tool group: it is a mode like the others,

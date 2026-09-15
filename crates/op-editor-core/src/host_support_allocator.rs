@@ -2,6 +2,7 @@
 
 use crate::command_node::build_leaf_node;
 use crate::fills::{set_primary_fill_hex, set_primary_stroke_hex};
+use crate::section::mark_as_section;
 use crate::walkers::find_node;
 use crate::{EditorState, IdAllocError, IdAllocator, NodeId, Tool};
 use jian_ops_schema::node::image::ImageNode;
@@ -35,6 +36,11 @@ impl EditorState {
             Tool::Line => ("line", "Line"),
             Tool::Pen => ("path", "Path"),
             Tool::Frame => ("frame", "Frame"),
+            // A section is a frame that says so. The marker is the whole
+            // difference — see `crate::section` — so the node is built the way
+            // a frame is and stamped below, which keeps one construction path
+            // for both and one place where "a section is a frame" is true.
+            Tool::Section => ("frame", "Section"),
             Tool::Text => ("text", "Text"),
             Tool::TextInput => ("text_input", "Text Input"),
             Tool::TextArea => ("text_area", "Text Area"),
@@ -77,6 +83,10 @@ impl EditorState {
             }
             Tool::Frame => {
                 set_primary_fill_hex(&mut node, "#FFFFFF");
+            }
+            Tool::Section => {
+                set_primary_fill_hex(&mut node, "#FFFFFF");
+                mark_as_section(&mut node);
             }
             _ => {}
         }

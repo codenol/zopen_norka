@@ -30,12 +30,12 @@ fn default_set_has_base_tools_shape_slot_and_actions_no_widgets() {
         .iter()
         .filter(|i| matches!(i, ToolbarItem::ShapeSlot))
         .count();
-    // Select / Text / Frame / Hand are direct tool buttons;
+    // Select / Text / Frame / Section / Hand are direct tool buttons;
     // Rect / Ellipse / Polygon / Line / Pen live behind the single
     // ShapeSlot dropdown. Form widgets are NOT toolbar tools — they
     // are authored via the component kit / AI+MCP, not primitive
     // drop tools.
-    assert_eq!(tool_count, 4);
+    assert_eq!(tool_count, 5);
     assert_eq!(widget_tool_count, 0);
     assert_eq!(shape_slot_count, 1);
     assert_eq!(action_count, 4);
@@ -46,8 +46,8 @@ fn default_set_has_base_tools_shape_slot_and_actions_no_widgets() {
 fn intrinsic_height_accommodates_all_items() {
     let toolbar = Toolbar::default_set();
     let h = toolbar.intrinsic_height();
-    // 4 direct tools + shape slot + 4 action buttons = 9 button
-    // slots; total is at least 9 * BUTTON_SIZE plus padding + gaps.
+    // 5 direct tools + shape slot + 4 action buttons = 10 button
+    // slots; total is at least 10 * BUTTON_SIZE plus padding + gaps.
     let buttons = 9.0;
     assert!(
         h > buttons * BUTTON_SIZE,

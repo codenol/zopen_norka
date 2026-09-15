@@ -195,6 +195,7 @@ impl WidgetHostNative {
             | Tool::Line
             | Tool::Pen
             | Tool::Frame
+            | Tool::Section
             | Tool::TextInput
             | Tool::TextArea
             | Tool::NumberInput

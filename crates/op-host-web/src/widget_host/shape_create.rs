@@ -38,7 +38,7 @@ fn min_size_for_tool(tool: Tool) -> (f32, f32) {
 fn defers_until_drag(tool: Tool) -> bool {
     matches!(
         tool,
-        Tool::Rect | Tool::Ellipse | Tool::Polygon | Tool::Line | Tool::Frame
+        Tool::Rect | Tool::Ellipse | Tool::Polygon | Tool::Line | Tool::Frame | Tool::Section
     )
 }
 

@@ -107,6 +107,37 @@ pub fn is_section(node: &PenNode) -> bool {
     section_frame(node).is_some()
 }
 
+/// Mark a frame as a section. `false` when the node is not a frame.
+///
+/// What the section tool does to the frame it has just drawn, and what a
+/// "make this a section" press would do to one that already exists. A group is
+/// refused rather than promoted: a section groups SCREENS, and a group is not a
+/// container the canvas lets somebody drop a screen into.
+pub fn mark_as_section(node: &mut PenNode) -> bool {
+    let PenNode::Frame(frame) = node else {
+        return false;
+    };
+    frame.base.role = Some(SECTION_ROLE.to_string());
+    true
+}
+
+/// Remove the marker. `true` when the node was a section.
+///
+/// The frame and its children stay: unmarking says "this is an ordinary frame
+/// again", not "delete what was grouped". What happens to the properties row
+/// that hung off the id is the caller's decision — a store keeps the row, and a
+/// document that no longer has the section simply stops reading it.
+pub fn unmark_section(node: &mut PenNode) -> bool {
+    let PenNode::Frame(frame) = node else {
+        return false;
+    };
+    if frame.base.role.as_deref() != Some(SECTION_ROLE) {
+        return false;
+    }
+    frame.base.role = None;
+    true
+}
+
 /// The id of a section node, when this node is one.
 ///
 /// The id is the section's identity across a save: it is what the properties
