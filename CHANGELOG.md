@@ -263,6 +263,21 @@ here at a glance.
 
 ### Fixed
 
+- **'Who has access' names people instead of account ids.** The list painted
+  `u_262d2b166fbbd9f1c4b1c9650271610d` where a person belongs, and the only way
+  to read it was to already know the ids (issue #119). Every row — and the
+  "invited by" sentence beside it — carries the name the deployment's directory
+  holds, falling back to the sign-in handle and then to the id.
+
+- **The invite field accepts what its own placeholder offers.** It has always
+  said "name@example.com, account name" while the route took an account id
+  alone: a name was accepted verbatim, answered `200 changed:true`, and granted
+  nothing — the row looked like a person and refused them at the door
+  (issue #130). A name, an id or an address that a real account holds now
+  resolves to that account, and what is recorded is always the id. A name that
+  belongs to nobody is refused with a sentence about names, ids and addresses
+  rather than about "that id".
+
 - **The Share button appears where sharing exists.** Its visibility was gated
   on the LIVE RELAY session's availability, so an online deployment — accounts,
   documents, access lists, and no relay — showed no share entry point at all,

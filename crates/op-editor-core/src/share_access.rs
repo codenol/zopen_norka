@@ -318,6 +318,15 @@ pub struct ShareGrant {
     pub account: String,
     pub level: ShareLevel,
     pub invited_by: Option<String>,
+    /// The name to show for `account`, when the deployment's directory has one.
+    ///
+    /// A list of opaque account ids is a list of strangers: "Who has access"
+    /// painted `u_262d2b166fbbd9f1c4b1c9650271610d` where a person belongs, and
+    /// the only way to read it was to already know the ids (issue #119).
+    pub display_name: Option<String>,
+    /// The sign-in handle, carried beside the display name because it is how
+    /// somebody is addressed when inviting them.
+    pub username: Option<String>,
 }
 
 impl ShareGrant {
@@ -327,7 +336,25 @@ impl ShareGrant {
             account: account.into(),
             level,
             invited_by: None,
+            display_name: None,
+            username: None,
         }
+    }
+
+    /// How to name this account to a person.
+    ///
+    /// The display name first, then the handle, and the raw id only when the
+    /// directory knows nothing — an id is still better than a blank row, and it
+    /// is what somebody would have to quote to a different account.
+    pub fn label(&self) -> &str {
+        self.display_name
+            .as_deref()
+            .filter(|name| !name.trim().is_empty())
+            .or(self
+                .username
+                .as_deref()
+                .filter(|name| !name.trim().is_empty()))
+            .unwrap_or(self.account.as_str())
     }
 
     /// Read one entry of a `sharedWith` array.
@@ -354,23 +381,32 @@ impl ShareGrant {
             .unwrap_or(ShareLevel::DEFAULT);
         let invited_by = value
             .get("invitedBy")
-            .and_then(|inviter| inviter.as_str())
-            .map(str::trim)
-            .filter(|inviter| !inviter.is_empty())
+            .and_then(|by| by.as_str())
             .map(str::to_string);
+        let name = |field: &str| {
+            value
+                .get(field)
+                .and_then(|name| name.as_str())
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+        };
         Some(Self {
             account: account.to_string(),
             level,
             invited_by,
+            display_name: name("displayName"),
+            username: name("username"),
         })
     }
 
-    /// This grant as the wire object `/api/share/*` answers with.
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "account": self.account,
             "level": self.level.wire(),
             "invitedBy": self.invited_by,
+            "displayName": self.display_name,
+            "username": self.username,
         })
     }
 }
@@ -392,6 +428,24 @@ pub struct SharedOwner {
     pub owner: String,
     /// What the owner's access list gives the asker.
     pub level: ShareLevel,
+    /// The name to show for the owner, when the directory has one.
+    pub display_name: Option<String>,
+    /// The owner's sign-in handle.
+    pub username: Option<String>,
+}
+
+impl SharedOwner {
+    /// How to name the owner to a person. See [`ShareGrant::label`].
+    pub fn label(&self) -> &str {
+        self.display_name
+            .as_deref()
+            .filter(|name| !name.trim().is_empty())
+            .or(self
+                .username
+                .as_deref()
+                .filter(|name| !name.trim().is_empty()))
+            .unwrap_or(self.owner.as_str())
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -440,6 +494,8 @@ impl ShareListSnapshot {
                             return (!owner.is_empty()).then(|| SharedOwner {
                                 owner: owner.to_string(),
                                 level: ShareLevel::DEFAULT,
+                                display_name: None,
+                                username: None,
                             });
                         }
                         let owner = entry.get("owner")?.as_str()?.trim();
@@ -451,9 +507,19 @@ impl ShareListSnapshot {
                             .and_then(|level| level.as_str())
                             .and_then(|level| ShareLevel::from_wire(level).ok())
                             .unwrap_or(ShareLevel::DEFAULT);
+                        let name = |field: &str| {
+                            entry
+                                .get(field)
+                                .and_then(|name| name.as_str())
+                                .map(str::trim)
+                                .filter(|name| !name.is_empty())
+                                .map(str::to_string)
+                        };
                         Some(SharedOwner {
                             owner: owner.to_string(),
                             level,
+                            display_name: name("displayName"),
+                            username: name("username"),
                         })
                     })
                     .collect()

@@ -137,6 +137,8 @@ fn a_grant_reads_both_wire_shapes_and_the_older_one_fails_closed() {
             account: "userB".to_string(),
             level: ShareLevel::Editor,
             invited_by: Some("userA".to_string()),
+            display_name: None,
+            username: None,
         })
     );
     // Every list written before levels existed is an array of account ids.
@@ -171,6 +173,8 @@ fn a_grant_round_trips_through_its_wire_object() {
         account: "userB".to_string(),
         level: ShareLevel::Commenter,
         invited_by: Some("userA".to_string()),
+        display_name: None,
+        username: None,
     };
     assert_eq!(ShareGrant::from_json(&grant.to_json()), Some(grant));
 }
@@ -195,6 +199,8 @@ fn the_list_snapshot_parses_a_success_and_refuses_to_guess_at_anything_else() {
         [SharedOwner {
             owner: "userE".to_string(),
             level: ShareLevel::DEFAULT,
+            display_name: None,
+            username: None,
         }]
     );
     assert_eq!(snapshot.level_of("userB"), Some(ShareLevel::Editor));

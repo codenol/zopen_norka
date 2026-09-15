@@ -223,6 +223,8 @@ fn attribution_says_who_added_somebody_and_admits_when_nobody_recorded_it() {
         account: "userB".to_string(),
         level: ShareLevel::Viewer,
         invited_by: Some("userA".to_string()),
+        display_name: None,
+        username: None,
     };
     assert_eq!(
         state.attribution_label(locale, &mine),
@@ -230,6 +232,8 @@ fn attribution_says_who_added_somebody_and_admits_when_nobody_recorded_it() {
     );
     let theirs = ShareGrant {
         invited_by: Some("userE".to_string()),
+        display_name: None,
+        username: None,
         ..mine.clone()
     };
     assert!(state.attribution_label(locale, &theirs).contains("userE"));
@@ -237,6 +241,8 @@ fn attribution_says_who_added_somebody_and_admits_when_nobody_recorded_it() {
     // owner by default — which would be a guess printed as a fact.
     let unknown = ShareGrant {
         invited_by: None,
+        display_name: None,
+        username: None,
         ..mine.clone()
     };
     assert_eq!(
@@ -263,6 +269,8 @@ fn a_recorded_grant_updates_the_row_in_place_and_clears_the_field() {
         account: "userB".to_string(),
         level: ShareLevel::Commenter,
         invited_by: Some("userA".to_string()),
+        display_name: None,
+        username: None,
     }]);
     assert_eq!(state.invite_input.text(), "");
     assert_eq!(state.people().len(), 1);
@@ -274,6 +282,8 @@ fn a_recorded_grant_updates_the_row_in_place_and_clears_the_field() {
         account: "userB".to_string(),
         level: ShareLevel::Editor,
         invited_by: Some("userA".to_string()),
+        display_name: None,
+        username: None,
     }]);
     assert_eq!(state.people().len(), 1);
     assert_eq!(state.count_at(ShareLevel::Editor), 1);
@@ -309,6 +319,8 @@ fn re_leveling_somebody_is_the_admins_right_and_not_the_editors() {
             account: "userB".to_string(),
             level: ShareLevel::Viewer,
             invited_by: Some("userA".to_string()),
+            display_name: None,
+            username: None,
         }]
     };
     // An editor who does NOT own this document may not re-level anybody: the
