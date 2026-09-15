@@ -227,6 +227,17 @@ pub struct EditorUiState {
     /// It is what the address bar names (`/f/<key>`) and what Save writes
     /// back to; `None` for a document that was never stored on the server.
     pub file_key: Option<String>,
+    /// Whether the open document came from a LOCAL file — the picker, a
+    /// drag-and-drop, an import, or File → New — rather than from this
+    /// deployment's store.
+    ///
+    /// Two things look identical from the client otherwise: a document the
+    /// daemon holds and is showing on `/` has no key, and neither does one the
+    /// person just dragged in. Save treats them the same way today, and that is
+    /// the bug: the browser's document is written into the daemon's bound file
+    /// path — a different document (issue #98). This is the fact the daemon
+    /// cannot see and the client can.
+    pub local_document: bool,
     /// Derived from `EditorState::revision != saved_revision`; painted
     /// by the TopBar only, never serialized.
     pub document_dirty: bool,

@@ -608,6 +608,12 @@ impl EditorUiState {
     /// knows WHERE the document came from, not by the one that only knows a
     /// document was replaced.
     pub fn set_document_key(&mut self, key: Option<String>) {
+        // A document from the store is not a local file, and vice versa: the
+        // key is the daemon's answer about which document this is, so adopting
+        // one settles the question (issue #98).
+        if key.is_some() {
+            self.local_document = false;
+        }
         self.file_key = key;
         // `clear_for_document` keeps the list when the key is unchanged — the
         // daemon files threads under the key, so the same key is the same

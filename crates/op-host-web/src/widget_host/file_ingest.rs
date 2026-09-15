@@ -39,6 +39,10 @@ impl WidgetHost {
         preserved.file_name_display = state.editor_ui.file_name_display.take();
         preserved.preserve_authored_geometry = state.editor_ui.preserve_authored_geometry;
         preserved.set_document_key(None);
+        // Opened from disk, or imported: the file on this machine is the
+        // document, and the daemon has never seen it. Save must not write it
+        // into whatever path the daemon happens to hold (issue #98).
+        preserved.local_document = true;
         state.editor_ui = preserved;
         // Chat sessions and the discovered model catalogue are app chrome, not
         // document contents. Importing HTML/Figma must not silently replace

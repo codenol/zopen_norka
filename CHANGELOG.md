@@ -241,6 +241,14 @@ here at a glance.
 
 ### Fixed
 
+- **Save no longer writes a local document into the file the daemon is
+  holding.** A document opened from disk, imported, or started with File → New
+  has no key in the store — and neither does the document a daemon shows on `/`,
+  so Save treated the two the same and wrote the browser's work into the daemon's
+  bound file path: a different document, told it had saved (issue #98). The tab
+  knows where its document came from; Save honours it now, and a local document
+  goes to the browser's own download instead of over somebody else's file.
+
 - **A visitor cannot change who else may open a document they were given.** The
   share routes administer the CALLER's own access list, so a visitor's grant
   used to land on their own list and be answered `200 changed:true` — a success
