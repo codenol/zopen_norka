@@ -164,13 +164,19 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
     }
     let allow_origins = online_policy::allowed_origins_from_env();
     if allow_origins.is_empty() {
-        // Not fatal: a same-origin deployment behind a reverse proxy needs no
-        // CORS header at all. It IS fatal for cookie-authenticated writes,
-        // which have no other CSRF boundary — so say so rather than letting
-        // the first failed save be the discovery.
+        // Not fatal, and not a refusal either: the deployment's own origin is
+        // admitted without being named (the request's own `Host` is the
+        // same-origin case — see `online_policy::cookie_write_origin_allowed`),
+        // and a same-origin deployment behind a reverse proxy needs no CORS
+        // header at all. What the variable adds is EVERY OTHER origin.
+        //
+        // This warning used to promise that every cookie write would be
+        // refused; it kept printing after the own-origin rule landed, which
+        // made the first thing an operator reads a lie (found by running the
+        // share scenario against a real deployment).
         eprintln!(
-            "openpencil --serve-web --online: no public origin configured (set {}); \
-             cookie-authenticated writes will be refused",
+            "openpencil --serve-web --online: no additional origin configured (set {} to \
+             allow one); a signed-in browser may write only from this deployment's own origin",
             super::origin_guard::WEB_ALLOWED_ORIGINS_ENV
         );
     }

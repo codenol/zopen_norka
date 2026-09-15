@@ -59,10 +59,13 @@ fn sync_applies_active_page_and_geometry_as_one_version() {
     let body = r#"{"document":{"version":"1.0","children":[],"editorMeta":{"activePageIndex":6,"preserveAuthoredGeometry":true}},"version":8,"activePageIndex":3}"#;
     let mut applied = None;
     assert!(client
-        .sync_with_editor_meta(body, |_doc, version, page, preserve, _scenario| {
-            applied = Some((version, page, preserve));
-            true
-        })
+        .sync_with_editor_meta(
+            body,
+            |_doc, version, page, preserve, _scenario, _file_key| {
+                applied = Some((version, page, preserve));
+                true
+            }
+        )
         .expect("valid response"));
     assert_eq!(applied, Some((8, 3, true)));
     assert_eq!(client.applied_version(), 8);
@@ -107,4 +110,50 @@ fn push_adds_active_page_and_preserve_mode() {
     let value: serde_json::Value = serde_json::from_str(&metadata_only).expect("push json");
     assert_eq!(value["metadataOnly"], true);
     assert_eq!(value["activePageIndex"], 4);
+}
+
+#[test]
+fn the_envelope_carries_the_store_key_when_the_daemon_holds_one() {
+    let mut client = WebSyncClient::new();
+    let seen = std::cell::Cell::new(false);
+    client
+        .sync_with_editor_meta(
+            r#"{"document":{"version":"1.0","children":[]},"version":1,"fileKey":"abc123"}"#,
+            |_doc, _version, _page, _preserve, _scenario, file_key| {
+                assert_eq!(file_key.as_deref(), Some("abc123"));
+                seen.set(true);
+                true
+            },
+        )
+        .expect("the envelope parses");
+    assert!(seen.get(), "the key reaches the applier");
+}
+
+#[test]
+fn a_daemon_with_no_stored_document_sends_no_key() {
+    let mut client = WebSyncClient::new();
+    client
+        .sync_with_editor_meta(
+            r#"{"document":{"version":"1.0","children":[]},"version":1,"fileKey":null}"#,
+            |_doc, _version, _page, _preserve, _scenario, file_key| {
+                assert_eq!(
+                    file_key, None,
+                    "a document the daemon holds of its own has no key, and a blank one is not a key"
+                );
+                true
+            },
+        )
+        .expect("the envelope parses");
+
+    // An older daemon does not send the field at all: also no key.
+    let mut client = WebSyncClient::new();
+    client
+        .sync_with_editor_meta(
+            r#"{"document":{"version":"1.0","children":[]},"version":1}"#,
+            |_doc, _version, _page, _preserve, _scenario, file_key| {
+                assert_eq!(file_key, None);
+                true
+            },
+        )
+        .expect("the envelope parses");
 }
