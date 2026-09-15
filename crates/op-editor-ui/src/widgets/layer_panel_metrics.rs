@@ -7,6 +7,14 @@ use crate::widgets::comment_paint;
 use crate::{Point2D, Rect};
 use op_editor_core::editor_ui_state::EditorUiState;
 
+/// How many layer rows stay visible whatever the palettes above them want.
+///
+/// A rail that can show only recipes is a rail that lies about the document:
+/// "there are no layers" and "you cannot see them from here" are different
+/// messages (issue #66). The palettes are capped against this floor, so the
+/// tree below them always has room.
+pub(super) const MIN_VISIBLE_LAYER_ROWS: f32 = 3.0;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct LayerPanelMetrics {
     pub section_header_height: f32,

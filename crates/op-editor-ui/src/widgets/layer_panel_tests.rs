@@ -799,3 +799,60 @@ fn recipe_rows_are_hittable_in_the_rail() {
         other => panic!("expected the first recipe row, got {other:?}"),
     }
 }
+
+/// The layer tree keeps a floor at any height the rail can be given.
+///
+/// Issue #66: the palettes above the tree (pages, components, recipes) each
+/// capped their own height, but only on the touch layout — so on a short desktop
+/// window they took the whole rail, `layers_view_h` came out as 0, and the panel
+/// said "this document has no layers" while the document had them. The row was
+/// not scrolled out of view; it was laid out past the bottom edge.
+#[test]
+fn the_layer_tree_keeps_room_at_every_panel_height() {
+    let state = EditorState::sample();
+    let panel = LayerPanel::from_editor(&state);
+    assert!(
+        !panel.recipes.is_empty(),
+        "the fixture has recipes to crowd it"
+    );
+    let metrics = panel.metrics;
+
+    // From a rail shorter than its own fixed sections to a comfortable one.
+    for height in [120.0_f32, 168.0, 200.0, 260.0, 340.0, 720.0] {
+        let rect = Rect {
+            origin: Point2D::new(0.0, 0.0),
+            size: Point2D::new(LAYER_PANEL_WIDTH, height),
+        };
+        let r = panel.regions(rect);
+        assert!(
+            r.layers_view_h >= metrics.layer_row_height,
+            "at height {height} the layer viewport collapsed to {}",
+            r.layers_view_h
+        );
+        assert!(
+            r.layers_rows_top + metrics.layer_row_height <= rect.origin.y + rect.size.y,
+            "at height {height} the first layer row (y={}) is below the panel \
+             (bottom={})",
+            r.layers_rows_top,
+            rect.origin.y + rect.size.y
+        );
+    }
+}
+
+/// A tall rail still lets the palettes show what they have.
+#[test]
+fn a_roomy_rail_still_shows_palette_rows() {
+    let state = EditorState::sample();
+    let panel = LayerPanel::from_editor(&state);
+    let rect = Rect {
+        origin: Point2D::new(0.0, 0.0),
+        size: Point2D::new(LAYER_PANEL_WIDTH, 720.0),
+    };
+    let r = panel.regions(rect);
+    assert!(r.pages_view_h > 0.0, "pages keep their rows");
+    assert!(
+        r.recipes_view_h >= PAGE_ROW_HEIGHT,
+        "and so do the recipes, when there is room for them: {}",
+        r.recipes_view_h
+    );
+}

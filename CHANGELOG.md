@@ -263,6 +263,16 @@ here at a glance.
 
 ### Fixed
 
+- **The layer panel keeps room for the layer list.** The sections above the
+  tree — pages, components, recipes — each capped their own height, but only on
+  the touch layout: on a short desktop window they took the whole rail, and the
+  tree below them came out with no height at all. The row was not scrolled out
+  of view, it was laid out past the bottom edge, so the panel said "this
+  document has no layers" while the document had them (issue #66). The tree now
+  has a floor of three rows whatever the palettes want, and when the rail is too
+  short for both, the sections give way in order of what the panel is for: the
+  recipes first, then the component palette, and the pages last.
+
 - **'Who has access' names people instead of account ids.** The list painted
   `u_262d2b166fbbd9f1c4b1c9650271610d` where a person belongs, and the only way
   to read it was to already know the ids (issue #119). Every row — and the
