@@ -254,6 +254,7 @@ mod tests {
             account: op_editor_core::AccountState::SignedIn {
                 display_name: "Fini".to_string(),
                 username: "fini".to_string(),
+                account_id: None,
             },
             ..EditorUiState::default()
         }

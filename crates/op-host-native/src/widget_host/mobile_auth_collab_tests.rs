@@ -72,6 +72,7 @@ fn signed_in_more_account_requests_the_native_account_center() {
         host.editor_state_mut().editor_ui.account = AccountState::SignedIn {
             display_name: "Fini".into(),
             username: "fini".into(),
+            account_id: None,
         };
         assert!(!host.editor_state().editor_ui.account_ui_available);
 

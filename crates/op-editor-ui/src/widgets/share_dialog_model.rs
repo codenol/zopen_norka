@@ -178,7 +178,12 @@ impl ShareDialogModel {
             you_caption: if ui.is_owner {
                 t("share.row.owner")
             } else {
-                t(ShareLevel::from_rights(ui.own_rights).i18n_key())
+                // What the owner's list gives the caller, when that is known.
+                // Without it a guest was drawn as view-only whatever the grant
+                // said (#121).
+                t(ui.granted_level
+                    .unwrap_or_else(|| ShareLevel::from_rights(ui.own_rights))
+                    .i18n_key())
             },
             link_label: t("share.row.anyoneWithLink"),
             link_caption: t("share.row.anyoneWithLink.caption"),

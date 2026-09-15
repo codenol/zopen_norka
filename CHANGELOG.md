@@ -241,6 +241,18 @@ here at a glance.
 
 ### Fixed
 
+- **A visitor cannot change who else may open a document they were given.** The
+  share routes administer the CALLER's own access list, so a visitor's grant
+  used to land on their own list and be answered `200 changed:true` — a success
+  reported for a document they have no authority over, and a row that appeared
+  in the wrong "Who has access". It is refused with `cannot-reshare` now, and
+  reading the list stays allowed.
+
+- **A guest is told what level they hold.** `GET /api/share/list` answered
+  `sharedWithMe` as bare owner ids, so a colleague given "can comment" was told
+  nothing about it and the Share dialog drew them as view-only whatever the
+  grant said. The list carries the level now, and the dialog's own row shows it.
+
 - **A copied share link finally reaches the colleague it is sent to.** The link
   named the document but not its owner, and the daemon serves another account's
   document only when the address says whose it is — so a colleague who pasted

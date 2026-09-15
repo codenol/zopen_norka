@@ -97,6 +97,7 @@ mod tests {
         AccountState::SignedIn {
             display_name: "Kayshen".into(),
             username: "kayshen".into(),
+            account_id: None,
         }
     }
 

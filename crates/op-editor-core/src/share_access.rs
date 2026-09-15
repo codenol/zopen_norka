@@ -381,13 +381,27 @@ impl ShareGrant {
 /// read it — the browser shell paints the dialog from it today and the desktop
 /// app will — and a second parser is a second place for "who has access" to
 /// mean something different.
+/// One document shared with the asking account, and how much of it.
+///
+/// A guest who is never told what they hold cannot act on it — the dialog drew
+/// them as view-only whatever the grant said (#121) — so the level travels with
+/// the owner's id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SharedOwner {
+    /// The account whose document it is.
+    pub owner: String,
+    /// What the owner's access list gives the asker.
+    pub level: ShareLevel,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ShareListSnapshot {
     /// Who may open the caller's document, with their levels.
     pub shared_with: Vec<ShareGrant>,
-    /// Whose documents the caller may open. Owner ids, no levels: the level
-    /// belongs to the owner's list and is reported there.
-    pub shared_with_me: Vec<String>,
+    /// Whose documents the caller may open, with the level each one gives
+    /// them. Read by the dialog to say what the caller holds in a document
+    /// somebody else owns.
+    pub shared_with_me: Vec<SharedOwner>,
     /// Whether the deployment offers sharing at all.
     pub available: bool,
 }
@@ -415,10 +429,33 @@ impl ShareListSnapshot {
             .map(|entries| {
                 entries
                     .iter()
-                    .filter_map(|entry| entry.as_str())
-                    .map(str::trim)
-                    .filter(|entry| !entry.is_empty())
-                    .map(str::to_string)
+                    .filter_map(|entry| {
+                        // The bare-id shape is what a deployment older than
+                        // levels answered. It reads as the weakest level, which
+                        // is the fail-closed direction and the truth: whoever it
+                        // names was given access, and nothing written says how
+                        // much.
+                        if let Some(owner) = entry.as_str() {
+                            let owner = owner.trim();
+                            return (!owner.is_empty()).then(|| SharedOwner {
+                                owner: owner.to_string(),
+                                level: ShareLevel::DEFAULT,
+                            });
+                        }
+                        let owner = entry.get("owner")?.as_str()?.trim();
+                        if owner.is_empty() {
+                            return None;
+                        }
+                        let level = entry
+                            .get("level")
+                            .and_then(|level| level.as_str())
+                            .and_then(|level| ShareLevel::from_wire(level).ok())
+                            .unwrap_or(ShareLevel::DEFAULT);
+                        Some(SharedOwner {
+                            owner: owner.to_string(),
+                            level,
+                        })
+                    })
                     .collect()
             })
             .unwrap_or_default();
@@ -427,6 +464,17 @@ impl ShareListSnapshot {
             shared_with_me,
             available: true,
         }
+    }
+
+    /// What this snapshot says the caller holds in `owner`'s document.
+    ///
+    /// `None` when the list does not name that owner at all, which the dialog
+    /// must not read as "view only": it means the answer has not arrived.
+    pub fn level_from(&self, owner: &str) -> Option<ShareLevel> {
+        self.shared_with_me
+            .iter()
+            .find(|shared| shared.owner == owner)
+            .map(|shared| shared.level)
     }
 
     /// The level `account` holds, if the list names it.

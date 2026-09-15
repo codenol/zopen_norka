@@ -494,8 +494,15 @@ mod tests {
         assert_eq!(
             ui.account,
             AccountState::SignedIn {
+                // The stable key the deployment issued travels with the profile:
+                // an access list is keyed by it, and the Share dialog needs it
+                // to build a link somebody else can open.
                 display_name: "Kay Shen".to_string(),
                 username: "kay".to_string(),
+                // The stable key the deployment issued travels with the
+                // profile: an access list is keyed by it, and the Share dialog
+                // needs it to build a link somebody else can open.
+                account_id: Some("u1".to_string()),
             }
         );
     }
@@ -532,6 +539,7 @@ mod tests {
             AccountState::SignedIn {
                 display_name: String::new(),
                 username: "kay".to_string(),
+                account_id: None,
             }
         );
     }

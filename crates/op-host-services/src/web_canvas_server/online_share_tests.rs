@@ -67,6 +67,65 @@ fn share(
     )
 }
 
+/// A visitor cannot change who else may open the document they were given.
+///
+/// The route family administers sharing on the CALLER's own tenant, so a
+/// visitor's grant used to land on their own access list and be answered
+/// `200 changed:true` — a success reported for a document they have no
+/// authority over. Found by running the share scenario against a real
+/// deployment (issue #120).
+#[test]
+fn a_visitor_cannot_change_who_else_may_open_the_document() {
+    let registry = registry();
+    share(
+        &registry,
+        "tokA",
+        op_editor_core::share_routes::GRANT,
+        "userB",
+    );
+    let verifier = verifier();
+
+    // Rows before: the owner's list names userB.
+    let before = serve(
+        &registry,
+        &verifier,
+        Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokA"),
+    );
+
+    for route in [
+        op_editor_core::share_routes::GRANT,
+        op_editor_core::share_routes::REVOKE,
+    ] {
+        let hostile = serve(
+            &registry,
+            &verifier,
+            as_tenant(
+                Request::json(
+                    "POST",
+                    route,
+                    &serde_json::json!({ "userId": "userC" }).to_string(),
+                )
+                .with_bearer("tokB"),
+                "userA",
+            ),
+        );
+        assert_eq!(
+            status_line(&hostile),
+            "HTTP/1.1 403 Forbidden",
+            "{route}: {hostile}"
+        );
+        assert_eq!(body(&hostile)["error"], "cannot-reshare", "{route}");
+    }
+
+    // And nothing moved: the owner's list is the one it was.
+    let after = serve(
+        &registry,
+        &verifier,
+        Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokA"),
+    );
+    assert_eq!(body(&before), body(&after));
+}
+
 #[test]
 fn a_visitor_reaches_the_owner_document_only_after_a_grant() {
     let registry = registry();
@@ -220,13 +279,24 @@ fn the_share_list_reports_both_directions_over_the_wire() {
         &verifier(),
         Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokB"),
     );
-    assert_eq!(body(&visitor)["sharedWithMe"][0], "userA", "{visitor}");
+    assert_eq!(
+        body(&visitor)["sharedWithMe"][0]["owner"],
+        "userA",
+        "{visitor}"
+    );
+    assert_eq!(
+        body(&visitor)["sharedWithMe"][0]["level"],
+        "viewer",
+        "the visitor is told what they hold, not only whose document it is"
+    );
 }
 
 #[test]
-fn a_share_route_always_administers_the_callers_own_tenant() {
-    // Even with a `?tenant=` parameter pointing at the owner, a visitor's
-    // grant lands on the visitor's own access list.
+fn a_share_route_never_lets_a_visitor_change_the_owners_list() {
+    // A `?tenant=` parameter pointing at somebody else's document used to make
+    // the visitor's grant land on the VISITOR's own list while answering
+    // `200 changed:true` — a success reported for a document they have no
+    // authority over (#120). It is refused now.
     let registry = registry();
     share(
         &registry,
@@ -247,7 +317,12 @@ fn a_share_route_always_administers_the_callers_own_tenant() {
             "userA",
         ),
     );
-    assert_eq!(status_line(&response), "HTTP/1.1 200 OK", "{response}");
+    assert_eq!(
+        status_line(&response),
+        "HTTP/1.1 403 Forbidden",
+        "{response}"
+    );
+    assert_eq!(body(&response)["error"], "cannot-reshare", "{response}");
 
     // userC still cannot reach userA.
     let stranger = serve(

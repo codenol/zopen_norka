@@ -748,6 +748,7 @@ fn for_editor_ui_carries_signed_in_account() {
         account: op_editor_core::AccountState::SignedIn {
             display_name: "Fini".to_string(),
             username: "fini".to_string(),
+            account_id: Some("u1".to_string()),
         },
         ..EditorUiState::default()
     };

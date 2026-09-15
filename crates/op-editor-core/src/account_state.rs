@@ -114,6 +114,7 @@ mod tests {
             AccountState::SignedIn {
                 display_name: "Kay Shen".to_string(),
                 username: "kayshen_7".to_string(),
+                account_id: None,
             }
         );
     }
@@ -126,6 +127,7 @@ mod tests {
                 AccountState::SignedIn {
                     display_name: "Kay Shen".to_string(),
                     username: "Kay Shen".to_string(),
+                    account_id: None,
                 }
             );
         }

@@ -209,6 +209,11 @@ pub struct ShareUiState {
     pub rights_known: bool,
     /// Whether the caller owns this document.
     pub is_owner: bool,
+    /// What the owner's access list gives the caller, when the document is
+    /// somebody else's. Read from `sharedWithMe`, and `None` while no answer has
+    /// arrived — which is why the row falls back to the rights rather than
+    /// claiming the weakest level.
+    pub granted_level: Option<ShareLevel>,
     /// The caller's own account id, for the "you" row and for refusing a
     /// self-invite before it becomes a `cannot-share-with-self` round trip.
     pub self_account: Option<String>,
@@ -244,6 +249,7 @@ impl Default for ShareUiState {
             own_rights: Rights::VIEW_ONLY,
             rights_known: false,
             is_owner: false,
+            granted_level: None,
             self_account: None,
             link: None,
             notice: None,

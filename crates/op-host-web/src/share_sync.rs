@@ -118,6 +118,18 @@ fn refresh_context<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
             share.link = link;
             changed = true;
         }
+        // A tab showing somebody else's document knows whose it is from the
+        // address; what that owner gives this account comes back with the
+        // access list, and is written there (see `apply_list`).
+        if !own_document && share.granted_level.is_none() {
+            if let Some(level) = crate::daemon_base::tenant_param()
+                .as_deref()
+                .and_then(|owner| share.list.level_from(owner))
+            {
+                share.granted_level = Some(level);
+                changed = true;
+            }
+        }
         if !share.rights_known || share.is_owner != own_document || share.own_rights != own_rights {
             share.is_owner = own_document;
             share.own_rights = own_rights;
@@ -280,6 +292,11 @@ fn apply_list<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, status: u16, 
             if let Some((enabled, level)) = link_access {
                 share.link_enabled = enabled;
                 share.link_level = level;
+            }
+            // What this account holds in the document on screen, when the
+            // document is somebody else's: the dialog's own row says so.
+            if let Some(owner) = crate::daemon_base::tenant_param() {
+                share.granted_level = share.list.level_from(&owner);
             }
         }
     });

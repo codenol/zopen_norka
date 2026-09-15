@@ -368,9 +368,18 @@ fn list(identity: &ResolvedIdentity, lease: &TenantLease, registry: &TenantRegis
                 .tenant()
                 .link_access()
                 .map(|level| level.wire()),
-            // …and whose documents this account may open. Resident owners
-            // only; see `TenantRegistry::shared_with_visitor`.
-            "sharedWithMe": registry.shared_with_visitor(&identity.user_id),
+            // …and whose documents this account may open, with the level each
+            // one gives them — a guest who is not told what they hold cannot
+            // act on it. Resident owners only; see
+            // `TenantRegistry::shared_with_visitor`.
+            "sharedWithMe": registry
+                .shared_with_visitor(&identity.user_id)
+                .iter()
+                .map(|shared| serde_json::json!({
+                    "owner": shared.owner,
+                    "level": shared.level.wire(),
+                }))
+                .collect::<Vec<_>>(),
         })
         .to_string(),
     }

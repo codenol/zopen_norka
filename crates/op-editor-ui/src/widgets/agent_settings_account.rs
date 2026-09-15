@@ -395,6 +395,7 @@ mod tests {
         ui.account = AccountState::SignedIn {
             display_name: "Kayshen".into(),
             username: "kayshen".into(),
+            account_id: None,
         };
         assert_eq!(hit_test(content, &ui, center), AccountTabHit::SignOut);
     }
