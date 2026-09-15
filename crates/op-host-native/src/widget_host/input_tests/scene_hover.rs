@@ -17,13 +17,10 @@ fn layer_hover_does_not_refresh_stale_canvas_layout_scene() {
     host.mark_paint_dirty_for_test();
 
     let panel = op_editor_ui::widgets::LayerPanel::from_editor(host.editor_state());
-    let rect = op_editor_ui::Rect {
-        origin: op_editor_ui::Point2D::new(0.0, op_editor_ui::widgets::TOP_BAR_HEIGHT),
-        size: op_editor_ui::Point2D::new(
-            host.editor_state().editor_ui.layer_panel_width,
-            800.0 - op_editor_ui::widgets::TOP_BAR_HEIGHT,
-        ),
-    };
+    // Ask the host for the rail rect it hit-tests against: the Layers/Slides/
+    // Assets tab row and the Recipes section both sit above the layer rows,
+    // so a rect re-derived from TOP_BAR_HEIGHT lands on the wrong row.
+    let rect = host.layers_content_rect(1200.0, 800.0);
     let regions = panel.regions(rect);
     let x = 48.0;
     let y = regions.layers_rows_top + 8.0;
@@ -156,13 +153,8 @@ fn layer_row_selection_does_not_dirty_canvas_layout_scene() {
     assert!(!host.editor_state_dirty);
 
     let panel = op_editor_ui::widgets::LayerPanel::from_editor(host.editor_state());
-    let rect = op_editor_ui::Rect {
-        origin: op_editor_ui::Point2D::new(0.0, op_editor_ui::widgets::TOP_BAR_HEIGHT),
-        size: op_editor_ui::Point2D::new(
-            host.editor_state().editor_ui.layer_panel_width,
-            800.0 - op_editor_ui::widgets::TOP_BAR_HEIGHT,
-        ),
-    };
+    // Host-owned rail rect — see the note in the hover test above.
+    let rect = host.layers_content_rect(1200.0, 800.0);
     let regions = panel.regions(rect);
     let x = 48.0;
     let y = regions.layers_rows_top + 8.0;
@@ -186,13 +178,8 @@ fn layer_right_press_does_not_dirty_canvas_layout_scene() {
     assert!(!host.editor_state_dirty);
 
     let panel = op_editor_ui::widgets::LayerPanel::from_editor(host.editor_state());
-    let rect = op_editor_ui::Rect {
-        origin: op_editor_ui::Point2D::new(0.0, op_editor_ui::widgets::TOP_BAR_HEIGHT),
-        size: op_editor_ui::Point2D::new(
-            host.editor_state().editor_ui.layer_panel_width,
-            800.0 - op_editor_ui::widgets::TOP_BAR_HEIGHT,
-        ),
-    };
+    // Host-owned rail rect — see the note in the hover test above.
+    let rect = host.layers_content_rect(1200.0, 800.0);
     let regions = panel.regions(rect);
     let x = 48.0;
     let y = regions.layers_rows_top + 8.0;
@@ -216,13 +203,8 @@ fn layer_right_press_does_not_refresh_stale_canvas_layout_scene() {
     host.mark_paint_dirty_for_test();
 
     let panel = op_editor_ui::widgets::LayerPanel::from_editor(host.editor_state());
-    let rect = op_editor_ui::Rect {
-        origin: op_editor_ui::Point2D::new(0.0, op_editor_ui::widgets::TOP_BAR_HEIGHT),
-        size: op_editor_ui::Point2D::new(
-            host.editor_state().editor_ui.layer_panel_width,
-            800.0 - op_editor_ui::widgets::TOP_BAR_HEIGHT,
-        ),
-    };
+    // Host-owned rail rect — see the note in the hover test above.
+    let rect = host.layers_content_rect(1200.0, 800.0);
     let regions = panel.regions(rect);
     let x = 48.0;
     let y = regions.layers_rows_top + 8.0;

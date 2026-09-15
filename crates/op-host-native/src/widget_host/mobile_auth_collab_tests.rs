@@ -94,7 +94,10 @@ fn signed_in_more_account_requests_the_native_account_center() {
 }
 
 #[test]
-fn unavailable_more_collaboration_opens_a_modal_panel_without_queueing_actions() {
+fn unavailable_more_collaboration_opens_the_access_dialog() {
+    // The chip asks "who may open this document", not "start a live session"
+    // (#56): the panel moved behind the dialog's footer row, and this is the
+    // entry point a phone actually has.
     for (class, width, height) in [
         (EditorSizeClass::Compact, 390.0, 844.0),
         (EditorSizeClass::Medium, 834.0, 1_112.0),
@@ -113,8 +116,44 @@ fn unavailable_more_collaboration_opens_a_modal_panel_without_queueing_actions()
             height,
         ));
         assert_eq!(host.editor_state().editor_ui.mobile_sheet, None);
-        assert!(host.editor_state().editor_ui.collab.panel.open);
-        assert_eq!(host.editor_state().editor_ui.collab.pending_action, None);
+        assert!(
+            host.editor_state().editor_ui.share.open,
+            "{class:?}: the access dialog is what this row opens"
+        );
+        assert!(
+            !host.editor_state().editor_ui.collab.panel.open,
+            "{class:?}: the session panel is the dialog's own footer row now"
+        );
+        // Opening asks for the access list — that is what the dialog is for —
+        // and NOTHING that would change access: a phone has no daemon to ask,
+        // and a queued grant nobody answers is a promise the row already made.
+        let queued = &host.editor_state().editor_ui.share.pending;
+        assert!(
+            queued.iter().all(|action| matches!(
+                action,
+                op_editor_core::editor_ui_state::share::ShareAction::LoadList
+            )),
+            "{class:?}: only the list request may be queued, found {queued:?}"
+        );
+    }
+}
+
+#[test]
+fn an_unavailable_collaboration_panel_stays_inert_and_closes() {
+    // Opened the way a person opens it — from the access dialog's footer
+    // (`ShareAction::OpenSession`) — the panel keeps its old manners: a press
+    // on its body changes nothing, and the cross closes it.
+    for (class, width, height) in [
+        (EditorSizeClass::Compact, 390.0, 844.0),
+        (EditorSizeClass::Medium, 834.0, 1_112.0),
+        (EditorSizeClass::Expanded, 1_194.0, 834.0),
+    ] {
+        let mut host = touch_host(class);
+        assert_eq!(
+            host.editor_state().editor_ui.collab.availability,
+            CollabAvailability::Unavailable
+        );
+        host.editor_state_mut().editor_ui.collab.panel.open = true;
 
         let panel = CollabPanel::for_editor_ui(&host.editor_state().editor_ui)
             .expect("unavailable panel remains visible");

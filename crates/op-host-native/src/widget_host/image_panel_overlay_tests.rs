@@ -26,12 +26,10 @@ fn topbar_point(host: &mut WidgetHostNative, target: TopBarHit) -> Point2D {
 }
 
 fn layer_row_point(host: &WidgetHostNative, target: &NodeId) -> Point2D {
-    let rect = Rect::xywh(
-        0.0,
-        TOP_BAR_HEIGHT,
-        host.editor_state().editor_ui.layer_panel_width,
-        VIEWPORT_H - TOP_BAR_HEIGHT,
-    );
+    // Ask the host for the rail rect its own hit-test resolves — the rail's
+    // tab row and the Recipes section sit above the layer rows, so a rect
+    // rebuilt from TOP_BAR_HEIGHT names rows the host never considers rows.
+    let rect = host.layers_content_rect(VIEWPORT_W, VIEWPORT_H);
     let panel = LayerPanel::from_editor(host.editor_state());
     let mut y = rect.origin.y;
     while y < rect.origin.y + rect.size.y {

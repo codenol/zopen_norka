@@ -2,6 +2,7 @@
 //! the single click that brings the panel back.
 
 use super::WidgetHostNative;
+use op_editor_ui::widgets::host_canvas_geometry::{AICHAT_INSET_BOTTOM, AICHAT_INSET_LEFT};
 use op_editor_ui::widgets::AI_CHAT_MINIMIZED_HEIGHT;
 
 const VIEWPORT: (f32, f32) = (1200.0, 800.0);
@@ -37,8 +38,14 @@ fn the_bar_docks_to_the_canvas_bottom_left_at_the_panel_width() {
 
     assert_eq!(bar.size.x, host.editor_state().chat.panel_width);
     assert_eq!(bar.size.y, AI_CHAT_MINIMIZED_HEIGHT);
-    assert_eq!(bar.origin.x, cx0 + 12.0);
-    assert_eq!(bar.origin.y, cy0 + ch - AI_CHAT_MINIMIZED_HEIGHT - 12.0);
+    // The gutters are the geometry module's own constants, not literals: the
+    // bottom one was raised from 12 to 52 so the bar clears a short viewport's
+    // edge, and a test that hard-codes the old number only tells us it moved.
+    assert_eq!(bar.origin.x, cx0 + AICHAT_INSET_LEFT);
+    assert_eq!(
+        bar.origin.y,
+        cy0 + ch - AI_CHAT_MINIMIZED_HEIGHT - AICHAT_INSET_BOTTOM
+    );
 }
 
 /// Minimizing changes the panel's HEIGHT. The bar used to carry a width
@@ -107,7 +114,10 @@ fn the_bar_still_ignores_the_dragged_y_and_docks_to_the_canvas_floor() {
         .ai_chat_rect(VIEWPORT.0, VIEWPORT.1)
         .expect("bar placed");
 
-    assert_eq!(bar.origin.y, cy0 + ch - AI_CHAT_MINIMIZED_HEIGHT - 12.0);
+    assert_eq!(
+        bar.origin.y,
+        cy0 + ch - AI_CHAT_MINIMIZED_HEIGHT - AICHAT_INSET_BOTTOM
+    );
     assert_eq!(bar.origin.x, 600.0);
 }
 

@@ -43,6 +43,10 @@ fn state_with(rights: Rights, people: usize, links: usize) -> EditorState {
                     ShareLevel::Commenter
                 },
                 invited_by: Some("userA".to_string()),
+                // The directory knows these people; the dialog must paint the
+                // name rather than the account id (issue #119).
+                display_name: Some(format!("Person {index}")),
+                username: Some(format!("user{index}")),
             })
             .collect(),
         shared_with_me: Vec::new(),
@@ -288,6 +292,9 @@ fn the_people_rows_carry_their_level_and_who_added_them() {
     let model = ShareDialogModel::for_state(&state);
     assert_eq!(model.people.len(), 2);
     assert_eq!(model.people[0].account, "user0");
+    // The row a person reads says a NAME. An account id in this column is what
+    // made "Who has access" unreadable (issue #119).
+    assert_eq!(model.people[0].label, "Person 0");
     assert_eq!(model.people[0].level, ShareLevel::Viewer);
     assert_eq!(model.people[1].level, ShareLevel::Commenter);
     assert_eq!(
