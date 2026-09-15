@@ -28,24 +28,10 @@ fn page_switch_host() -> WidgetHostNative {
 }
 
 fn point_for_page_row(host: &WidgetHostNative, page_index: usize) -> Point2D {
-    let panel = host.layer_panel();
-    // Ask the host for the rail rect its own hit-test uses: the Layers/Slides/
-    // Assets tab row and the Recipes section sit above the page rows, so a
-    // rect re-derived from TOP_BAR_HEIGHT scans rows the host never sees.
-    let rect = host.layers_content_rect(VIEWPORT_W, VIEWPORT_H);
-    let regions = panel.regions(rect);
-    let mut y = regions.pages_rows_top + 2.0;
-    while y < regions.pages_rows_top + regions.pages_view_h {
-        let point = Point2D::new(rect.origin.x + 48.0, y);
-        if matches!(
-            panel.hit_test(rect, point),
-            Some(LayerPanelHit::Page(index)) if index == page_index
-        ) {
-            return point;
-        }
-        y += 2.0;
-    }
-    panic!("no page row point found for index {page_index}");
+    // The shared helper: the rail rect comes from the host, and a page row that
+    // a cramped rail has hidden fails with a name rather than scanning forever
+    // (issues #66, #138).
+    super::rail_test_support::page_row_point_for_test(host, page_index, VIEWPORT_W, VIEWPORT_H)
 }
 
 #[test]
