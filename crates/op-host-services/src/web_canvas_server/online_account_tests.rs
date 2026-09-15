@@ -239,8 +239,7 @@ fn a_deployment_with_accounts_still_refuses_a_credential_it_cannot_resolve() {
 
     // The routes the device-login pairing used to own are not there for an
     // account either: signed in, they are still unknown paths. (Anonymous they
-    // answer 401, because nothing reaches the route table without an identity
-    // — which is also why these tests sign in first.)
+    // answer 401 before dispatch — the test below holds that half.)
     let user = account(&accounts, "signed-in", &[]);
     let session = accounts
         .db()
@@ -267,6 +266,47 @@ fn a_deployment_with_accounts_still_refuses_a_credential_it_cannot_resolve() {
             status_line(&response),
             "HTTP/1.1 404 Not Found",
             "{path}: {response}"
+        );
+    }
+}
+
+/// The other half of the same fact, and the half that used to be missing from
+/// the docs rather than from the daemon (issue #123).
+///
+/// Online, credentials are resolved BEFORE the route table, the static layer
+/// and dispatch (`serve_one_online`), so a caller with no identity is refused
+/// `401` for the dead device-login family and never learns that the path is
+/// gone. That order is deliberate — a `404` handed out before asking who is
+/// asking would let anybody enumerate a public deployment's route table — so
+/// `op_editor_core::auth_routes` says so now instead of promising a bare `404`,
+/// and this is the test that holds the sentence. The `404` is real, and the
+/// test above signs in to see it: it is what an identity buys.
+#[test]
+fn an_anonymous_caller_is_refused_the_dead_device_login_family_before_dispatch() {
+    let (_dir, accounts, verifier) = deployment();
+    for request in [
+        Request::json("POST", op_editor_core::auth_routes::LOGIN_BEGIN, "{}")
+            .with_origin(PUBLIC_ORIGIN),
+        Request::new("GET", op_editor_core::auth_routes::LOGIN_STATUS),
+        Request::json("POST", op_editor_core::auth_routes::LOGIN_CANCEL, "{}")
+            .with_origin(PUBLIC_ORIGIN),
+        Request::json("POST", op_editor_core::auth_routes::AVATAR, "{}").with_origin(PUBLIC_ORIGIN),
+        // The interstitial is a GET, so it also passes the anonymous prefix's
+        // static layer — which does not know this path either, and never did:
+        // it is not one the daemon serves a page for.
+        Request::new("GET", op_editor_core::auth_routes::LOADING_PAGE),
+    ] {
+        let path = request.path;
+        let response = serve_as(&registry(), &verifier, Some(&accounts), request);
+        assert_eq!(
+            status_line(&response),
+            "HTTP/1.1 401 Unauthorized",
+            "{path}: {response}"
+        );
+        assert_eq!(
+            body(&response)["error"],
+            "unauthorized",
+            "the verifier's own refusal, not the route table's 404: {path}: {response}"
         );
     }
 }
