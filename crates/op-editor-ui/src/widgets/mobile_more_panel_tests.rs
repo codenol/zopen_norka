@@ -281,6 +281,7 @@ fn account_state_swaps_one_tile_without_moving_collaboration_or_changing_count()
     state.editor_ui.account = op_editor_core::AccountState::SignedIn {
         display_name: "Fini".into(),
         username: "fini".into(),
+        account_id: None,
     };
     let signed_in = MobileMoreEntry::visible(&state);
     assert_eq!(signed_in.len(), anonymous.len());

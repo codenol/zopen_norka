@@ -350,6 +350,7 @@ mod tests {
             AccountState::SignedIn {
                 display_name: "Kay Shen".to_string(),
                 username: "kayshen_7".to_string(),
+                account_id: None,
             }
         );
         assert!(!host.adopt_auth_session_profile(

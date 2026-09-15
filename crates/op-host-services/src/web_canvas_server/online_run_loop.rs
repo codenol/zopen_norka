@@ -608,6 +608,36 @@ pub(super) fn serve_one_online<S: Read + Write>(
                 return Ok(false);
             }
         };
+        // A visitor addressing somebody else's document with `?tenant=` cannot
+        // change who may open it. The comment above says so; this is the check
+        // that makes it true. Without it the grant was applied to the CALLER's
+        // own access list and answered `200 changed:true` — a success reported
+        // for a document the caller has no authority over, and a row that
+        // appeared in their own "Who has access" instead of the owner's.
+        // Reading the list stays allowed: the answer is the caller's own list
+        // either way (see #121).
+        if let Some(owner) = requested_owner.as_deref() {
+            let changes_access = matches!(
+                req.path.as_str(),
+                op_editor_core::share_routes::GRANT
+                    | op_editor_core::share_routes::REVOKE
+                    | op_editor_core::share_routes::LINK_ACCESS
+            );
+            if changes_access && owner != identity.user_id.as_str() {
+                crate::mcp_serve::write_mcp_http_response_with_origin(
+                    stream,
+                    "403 Forbidden",
+                    &serde_json::json!({
+                        "ok": false,
+                        "error": "cannot-reshare",
+                        "message": "who may open a document is decided by its owner; a visitor cannot change it",
+                    })
+                    .to_string(),
+                    cors_origin.as_deref(),
+                )?;
+                return Ok(false);
+            }
+        }
         let reply = super::share_routes::handle(
             &req.method,
             &req.path,

@@ -89,6 +89,7 @@ fn account_release_gate_blocks_menu_for_signed_in_state() {
     host.editor_state_mut().editor_ui.account = AccountState::SignedIn {
         display_name: "Fini".into(),
         username: "fini".into(),
+        account_id: None,
     };
     let top_bar = TopBar::for_editor_ui(&host.editor_state().editor_ui);
     let account_rect = top_bar.account_button_rect(top_bar_rect());
@@ -137,6 +138,7 @@ fn stale_account_menu_state_does_not_dispatch_while_release_gate_is_hidden() {
     let signed_in = AccountState::SignedIn {
         display_name: "Fini".into(),
         username: "fini".into(),
+        account_id: None,
     };
     host.editor_state_mut().editor_ui.account = signed_in.clone();
     host.editor_state_mut().editor_ui.account_menu_open = true;
@@ -225,6 +227,7 @@ fn login_modal_sign_in_with_dev_flag_signs_in_and_closes() {
         AccountState::SignedIn {
             display_name: "Fini".into(),
             username: "fini".into(),
+            account_id: None,
         }
     );
     assert!(!host.editor_state().editor_ui.login_modal_open);
@@ -236,6 +239,7 @@ fn account_menu_settings_row_opens_settings_on_account_tab() {
     host.editor_state_mut().editor_ui.account = AccountState::SignedIn {
         display_name: "Fini".into(),
         username: "fini".into(),
+        account_id: None,
     };
     host.editor_state_mut().editor_ui.account_menu_open = true;
 
@@ -270,6 +274,7 @@ fn account_menu_settings_row_releases_hidden_property_input_owner() {
         state.editor_ui.account = AccountState::SignedIn {
             display_name: "Fini".into(),
             username: "fini".into(),
+            account_id: None,
         };
         state.editor_ui.account_menu_open = true;
         state.ui.property_focus = Some(PropertyFocus::PositionX);
@@ -300,6 +305,7 @@ fn account_menu_sign_out_row_clears_account() {
     host.editor_state_mut().editor_ui.account = AccountState::SignedIn {
         display_name: "Fini".into(),
         username: "fini".into(),
+        account_id: None,
     };
     host.editor_state_mut().editor_ui.account_menu_open = true;
 

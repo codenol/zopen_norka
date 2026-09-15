@@ -65,6 +65,15 @@ impl AclChange {
     }
 }
 
+/// One document shared with the asking account, and how much of it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SharedWithVisitor {
+    /// The account whose document it is.
+    pub owner: String,
+    /// What the owner's access list gives the asker.
+    pub level: op_editor_core::ShareLevel,
+}
+
 /// What the access list records about one account beyond its membership.
 ///
 /// Membership itself stays the `BTreeSet` it always was — admission is checked
@@ -701,14 +710,27 @@ impl TenantRegistry {
     /// directory in the store on every call. The owners a visitor is actually
     /// working with are resident by definition, and the visitor can always
     /// open a share they were told about directly.
-    pub fn shared_with_visitor(&self, visitor: &str) -> Vec<String> {
+    ///
+    /// Each entry carries the LEVEL the visitor holds, because a guest who is
+    /// never told what they were given cannot act on it: the Share dialog drew
+    /// them as view-only whatever the grant said (#121). The level is the
+    /// grant's own, or the link's when the document is open to anybody signed
+    /// in.
+    pub fn shared_with_visitor(&self, visitor: &str) -> Vec<SharedWithVisitor> {
         let tenants = self.lock();
-        let mut owners: Vec<String> = tenants
+        let mut owners: Vec<SharedWithVisitor> = tenants
             .iter()
             .filter(|(owner, tenant)| owner.as_str() != visitor && tenant.admits(visitor))
-            .map(|(owner, _)| owner.clone())
+            .map(|(owner, tenant)| SharedWithVisitor {
+                owner: owner.clone(),
+                level: tenant
+                    .grant_for(visitor)
+                    .map(|grant| grant.level)
+                    .or_else(|| tenant.link_access())
+                    .unwrap_or(ShareLevel::DEFAULT),
+            })
             .collect();
-        owners.sort_unstable();
+        owners.sort_by(|a, b| a.owner.cmp(&b.owner));
         owners
     }
 

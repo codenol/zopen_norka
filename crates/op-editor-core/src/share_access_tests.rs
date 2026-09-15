@@ -190,7 +190,13 @@ fn the_list_snapshot_parses_a_success_and_refuses_to_guess_at_anything_else() {
     let snapshot = ShareListSnapshot::parse(&body);
     assert!(snapshot.available);
     assert_eq!(snapshot.shared_with.len(), 3);
-    assert_eq!(snapshot.shared_with_me, ["userE"]);
+    assert_eq!(
+        snapshot.shared_with_me,
+        [SharedOwner {
+            owner: "userE".to_string(),
+            level: ShareLevel::DEFAULT,
+        }]
+    );
     assert_eq!(snapshot.level_of("userB"), Some(ShareLevel::Editor));
     assert_eq!(snapshot.level_of("userD"), Some(ShareLevel::Viewer));
     assert_eq!(snapshot.count_at(ShareLevel::Viewer), 2);

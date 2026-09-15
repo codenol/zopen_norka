@@ -184,14 +184,19 @@ fn the_list_reports_both_directions() {
     assert_eq!(reply.status, "200 OK");
     // userB has shared with nobody…
     assert_eq!(body["sharedWith"].as_array().map(Vec::len), Some(0));
-    // …and two accounts have shared with userB.
+    // …and two accounts have shared with userB, each with the level it gives
+    // them: a guest who is not told what they hold cannot act on it.
     let mine: Vec<&str> = body["sharedWithMe"]
         .as_array()
         .expect("array")
         .iter()
-        .filter_map(|value| value.as_str())
+        .filter_map(|value| value.get("owner").and_then(|owner| owner.as_str()))
         .collect();
     assert_eq!(mine, vec!["userA", "userC"]);
+    assert_eq!(
+        body["sharedWithMe"][0]["level"], "viewer",
+        "the level the owner's list recorded, fail-closed for a list written before levels"
+    );
 }
 
 #[test]
