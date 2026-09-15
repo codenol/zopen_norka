@@ -180,12 +180,88 @@ pub fn daemon_url(path: &str) -> String {
     with_tenant_param(&format!("{}{path}", daemon_base()))
 }
 
-/// Browser wrapper over [`append_tenant_param`].
+/// The document the address bar names, when it names one.
+///
+/// Read once, from `location.pathname` — the same address `route::parse` reads
+/// to decide what the tab is showing. It is what makes a request say WHICH
+/// document it is about, which a share needs (a grant that named only an owner
+/// opened every document that account owned — issue #127) and which a
+/// tenant-addressed read needs (issue #128).
+pub fn document_param() -> Option<String> {
+    thread_local! {
+        static KEY: std::cell::OnceCell<Option<String>> = const {
+            std::cell::OnceCell::new()
+        };
+    }
+    let from_address = KEY.with(|cell| {
+        cell.get_or_init(|| {
+            let path = web_sys::window()?.location().pathname().ok()?;
+            match op_editor_core::route::parse(&path, "") {
+                op_editor_core::route::RoutePath::Known(
+                    op_editor_core::route::RouteTarget::Document(route),
+                ) => route.key().map(str::to_string),
+                _ => None,
+            }
+        })
+        .clone()
+    });
+    if from_address.is_some() {
+        return from_address;
+    }
+    // No key in the address — a tab on `/`, where the daemon decides which
+    // document is on screen. It says so in the document envelope, and the
+    // shell remembers it here so every later request can name the document it
+    // is actually showing (issue #97).
+    REMEMBERED_KEY.with(|cell| cell.borrow().clone())
+}
+
+/// Remember the key the daemon reported for the document on screen.
+///
+/// Called when the document envelope carries one. A later envelope without a
+/// key does not clear it: a daemon holding a document of its own never had
+/// one, and forgetting on every push would make each request guess again.
+pub fn remember_document_key(key: &str) {
+    let key = key.trim();
+    if key.is_empty() {
+        return;
+    }
+    REMEMBERED_KEY.with(|cell| *cell.borrow_mut() = Some(key.to_string()));
+}
+
+thread_local! {
+    /// The key the daemon reported for the document this tab is showing.
+    static REMEMBERED_KEY: std::cell::RefCell<Option<String>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Add the document parameter, when `file` names one.
+pub fn append_document_param(url: &str, file: Option<&str>) -> String {
+    let Some(file) = file.filter(|value| !value.is_empty()) else {
+        return url.to_string();
+    };
+    let parameter = op_editor_core::share_routes::FILE_QUERY;
+    if url_carries_parameter(url, parameter) {
+        return url.to_string();
+    }
+    let separator = if url.contains('?') { '&' } else { '?' };
+    format!("{url}{separator}{parameter}={file}")
+}
+
+/// Browser wrapper over [`append_tenant_param`] and [`append_document_param`].
 ///
 /// Applied inside the HTTP helpers rather than at each call site, so a route
 /// added later cannot forget it and silently address the wrong document.
+///
+/// The document parameter rides on every request that can name one. A local or
+/// managed daemon has one document and no access lists, and ignores it; an
+/// online deployment needs it to decide who may see which document, and a
+/// share that named only an owner opened everything the account owned
+/// (issues #127, #128). One rule for both, because a rule that depends on the
+/// deployment is a rule somebody will forget at a new call site.
 pub fn with_tenant_param(url: &str) -> String {
-    append_tenant_param(url, tenant_param().as_deref())
+    let tenant = tenant_param();
+    let url = append_tenant_param(url, tenant.as_deref());
+    append_document_param(&url, document_param().as_deref())
 }
 
 #[cfg(test)]

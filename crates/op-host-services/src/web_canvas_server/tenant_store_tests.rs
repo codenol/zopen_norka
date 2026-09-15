@@ -53,6 +53,14 @@ fn named_document(name: &str) -> EditorState {
     state
 }
 
+/// One document's ACL in the map the store writes. A file holds every
+/// document's list together, keyed by the store's own name for the document.
+fn acls_with(key: &str, acl: &TenantAcl) -> std::collections::BTreeMap<String, TenantAcl> {
+    let mut acls = std::collections::BTreeMap::new();
+    acls.insert(key.to_string(), acl.clone());
+    acls
+}
+
 /// The name of the document's first node, read off the serialized form so
 /// this does not depend on `PenNode`'s variant shape.
 fn node_name(state: &EditorState) -> Option<String> {
@@ -67,12 +75,19 @@ fn a_saved_document_comes_back() {
     acl.shared_with.insert("userB".to_string());
 
     temp.store
-        .save("userA", &named_document("kept.op"), &acl)
+        .save(
+            "userA",
+            &named_document("kept.op"),
+            &acls_with("docA", &acl),
+        )
         .expect("save");
 
     let restored = temp.store.load_document("userA").expect("load");
     assert_eq!(node_name(&restored).as_deref(), Some("kept.op"));
-    assert_eq!(temp.store.load_acl("userA"), acl.shared_with);
+    assert_eq!(
+        temp.store.load_acl("userA", "docA").shared_with,
+        acl.shared_with
+    );
 }
 
 #[test]
@@ -82,7 +97,7 @@ fn an_account_with_nothing_stored_reports_so() {
         temp.store.load_document("userA").unwrap_err(),
         TenantStoreError::NotStored
     );
-    assert!(temp.store.load_acl("userA").is_empty());
+    assert!(temp.store.load_acl("userA", "docA").shared_with.is_empty());
     assert!(!temp.store.has_document("userA"));
 }
 
@@ -96,7 +111,11 @@ fn a_disabled_store_reads_and_writes_nothing() {
     );
     assert_eq!(
         store
-            .save("userA", &EditorState::starter(), &TenantAcl::default())
+            .save(
+                "userA",
+                &EditorState::starter(),
+                &acls_with("docA", &TenantAcl::default())
+            )
             .unwrap_err(),
         TenantStoreError::Disabled
     );
@@ -110,7 +129,7 @@ fn a_corrupt_document_is_kept_aside_and_the_account_starts_fresh() {
         .save(
             "userA",
             &named_document("original.op"),
-            &TenantAcl::default(),
+            &acls_with("docA", &TenantAcl::default()),
         )
         .expect("save");
     let dir = temp.store.tenant_dir("userA").expect("dir");
@@ -168,7 +187,7 @@ fn a_corrupt_access_list_reads_as_empty_rather_than_granting_anyone() {
     std::fs::create_dir_all(&dir).expect("dir");
     std::fs::write(dir.join("acl.json"), b"{not json").expect("write");
     assert!(
-        temp.store.load_acl("userA").is_empty(),
+        temp.store.load_acl("userA", "docA").shared_with.is_empty(),
         "an unreadable access list must grant nobody"
     );
 }
@@ -218,7 +237,7 @@ fn a_hostile_account_id_still_round_trips_its_own_document() {
         .save(
             hostile,
             &named_document("hostile.op"),
-            &TenantAcl::default(),
+            &acls_with("docA", &TenantAcl::default()),
         )
         .expect("save");
     let restored = temp.store.load_document(hostile).expect("load");
@@ -241,7 +260,11 @@ fn directory_names_are_stable_and_distinct() {
 fn a_write_leaves_no_temp_file_behind() {
     let temp = TempStore::new("atomic");
     temp.store
-        .save("userA", &EditorState::starter(), &TenantAcl::default())
+        .save(
+            "userA",
+            &EditorState::starter(),
+            &acls_with("docA", &TenantAcl::default()),
+        )
         .expect("save");
     let dir = temp.store.tenant_dir("userA").expect("dir");
     let strays: Vec<_> = std::fs::read_dir(&dir)
@@ -260,8 +283,13 @@ fn saving_the_access_list_alone_does_not_require_a_document() {
     let temp = TempStore::new("acl-only");
     let mut acl = TenantAcl::default();
     acl.shared_with.insert("userB".to_string());
-    temp.store.save_acl_for("userA", &acl).expect("save acl");
-    assert_eq!(temp.store.load_acl("userA"), acl.shared_with);
+    temp.store
+        .save_acls_for("userA", &acls_with("docA", &acl))
+        .expect("save acl");
+    assert_eq!(
+        temp.store.load_acl("userA", "docA").shared_with,
+        acl.shared_with
+    );
     assert!(!temp.store.has_document("userA"));
 }
 
@@ -309,7 +337,11 @@ fn a_persisted_tenant_carries_no_thumbnail_data() {
     jian_ops_schema::image_thumbs::store_thumb(ISOLATION_THUMB_ID + 1, vec![1, 2, 3]);
 
     temp.store
-        .save("userA", &named_document("plain.op"), &TenantAcl::default())
+        .save(
+            "userA",
+            &named_document("plain.op"),
+            &acls_with("docA", &TenantAcl::default()),
+        )
         .expect("save");
 
     let written = std::fs::read_to_string(

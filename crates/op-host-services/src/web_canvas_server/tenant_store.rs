@@ -90,21 +90,28 @@ impl std::fmt::Display for TenantStoreError {
 
 impl std::error::Error for TenantStoreError {}
 
-/// The access list, the metadata beside it, and link access — one value.
+/// Every access list one account's documents have, keyed by document key.
 ///
-/// One struct rather than three parameters threaded through every writer: the
-/// three are written together and read together, and a save that carried two
-/// of them would publish an access list whose levels belong to a different
-/// membership set.
+/// The file is one per ACCOUNT rather than one per document: a deployment's
+/// account directory already exists, the lists are small and read together on
+/// restore, and a directory of lists would mean walking it on every grant.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct TenantAcl {
-    pub shared_with: BTreeSet<String>,
-    /// Level and grantor per account. Absent for a grant written before this
-    /// existed, which reads as [`super::tenant::TenantGrant::default`].
-    pub grants: std::collections::BTreeMap<String, super::tenant::TenantGrant>,
-    /// `Some(level)` when anybody signed in may open the document.
-    pub link_access: Option<op_editor_core::ShareLevel>,
+pub struct StoredAcls {
+    /// Document key → its access list. A document with no entry has no list,
+    /// which is not the same as a list with nobody on it: the first is a
+    /// document nobody has shared, the second one shared and then revoked.
+    pub documents: std::collections::BTreeMap<String, TenantAcl>,
 }
+
+/// The format version written today.
+const ACL_FORMAT_VERSION: u64 = 2;
+
+/// One document's access list, exactly as the tenant holds it.
+///
+/// A re-export rather than a second struct: the in-memory ACL and the stored
+/// one are the same three fields, and two definitions is how they drift — a
+/// field added to one would be silently dropped by every save.
+pub use super::tenant::DocumentAcl as TenantAcl;
 
 /// The on-disk tenant store.
 #[derive(Debug, Clone)]
@@ -179,7 +186,7 @@ impl TenantStore {
         &self,
         user_id: &str,
         state: &EditorState,
-        acl: &TenantAcl,
+        acls: &std::collections::BTreeMap<String, TenantAcl>,
     ) -> Result<(), TenantStoreError> {
         let Some(dir) = self.tenant_dir(user_id) else {
             return Err(TenantStoreError::Disabled);
@@ -191,38 +198,37 @@ impl TenantStore {
         // last into this account's file.
         crate::doc_io::save_to_path_without_thumbnails(state, &dir.join(DOCUMENT_FILE))
             .map_err(|error| TenantStoreError::Io(error.to_string()))?;
-        self.save_acl(&dir, acl)
+        self.save_acls(&dir, acls)
     }
 
     /// Write just the access list. Used when a grant or revoke should survive
     /// a restart even though the document has not changed.
-    pub fn save_acl_for(&self, user_id: &str, acl: &TenantAcl) -> Result<(), TenantStoreError> {
+    pub fn save_acls_for(
+        &self,
+        user_id: &str,
+        acls: &std::collections::BTreeMap<String, TenantAcl>,
+    ) -> Result<(), TenantStoreError> {
         let Some(dir) = self.tenant_dir(user_id) else {
             return Err(TenantStoreError::Disabled);
         };
         std::fs::create_dir_all(&dir).map_err(|error| TenantStoreError::Io(error.to_string()))?;
-        self.save_acl(&dir, acl)
+        self.save_acls(&dir, acls)
     }
 
-    fn save_acl(&self, dir: &Path, acl: &TenantAcl) -> Result<(), TenantStoreError> {
-        let bounded: Vec<&String> = acl.shared_with.iter().take(MAX_SHARED_ACCOUNTS).collect();
-        // The metadata is written only for accounts that are ON the bounded
-        // list: a level for somebody the list had to drop would be metadata
-        // about a share that does not exist, and it would outlive the revoke
-        // that removed them.
-        let grants: std::collections::BTreeMap<&String, serde_json::Value> = acl
-            .grants
+    fn save_acls(
+        &self,
+        dir: &Path,
+        acls: &std::collections::BTreeMap<String, TenantAcl>,
+    ) -> Result<(), TenantStoreError> {
+        let documents: serde_json::Map<String, serde_json::Value> = acls
             .iter()
-            .filter(|(account, _)| acl.shared_with.contains(*account))
-            .map(|(account, grant)| (account, grant.to_json()))
+            .filter(|(key, _)| !key.trim().is_empty())
+            .map(|(key, acl)| (key.clone(), acl_json(acl)))
             .collect();
-        let mut body = serde_json::json!({
-            "sharedWith": bounded,
-            "grants": grants,
+        let body = serde_json::json!({
+            "version": ACL_FORMAT_VERSION,
+            "documents": documents,
         });
-        if let Some(level) = acl.link_access {
-            body["linkAccess"] = serde_json::json!({ "level": level.wire() });
-        }
         atomic_write(&dir.join(ACL_FILE), body.to_string().as_bytes())
     }
 
@@ -255,10 +261,13 @@ impl TenantStore {
         }
     }
 
-    /// Restore a tenant's access list. A missing or unreadable list is an
-    /// empty one — failing closed, since the list only ever grants access.
-    pub fn load_acl(&self, user_id: &str) -> BTreeSet<String> {
-        self.load_acl_file(user_id).shared_with
+    /// Restore one document's access list. A missing or unreadable list is an
+    /// empty one — failing closed, since a list only ever grants access.
+    pub fn load_acl(&self, user_id: &str, key: &str) -> TenantAcl {
+        self.load_acl_file(user_id)
+            .documents
+            .remove(key)
+            .unwrap_or_default()
     }
 
     /// Restore the whole ACL: membership, the metadata beside it, and whether
@@ -269,57 +278,41 @@ impl TenantStore {
     /// corrupt access list is an empty one. The metadata is filtered against
     /// the membership for the same reason: a level for an account the list no
     /// longer names is a share that does not exist.
-    pub fn load_acl_file(&self, user_id: &str) -> TenantAcl {
+    pub fn load_acl_file(&self, user_id: &str) -> StoredAcls {
         let Some(dir) = self.tenant_dir(user_id) else {
-            return TenantAcl::default();
+            return StoredAcls::default();
         };
         let path = dir.join(ACL_FILE);
         let Ok(body) = std::fs::read_to_string(&path) else {
-            return TenantAcl::default();
+            return StoredAcls::default();
         };
         let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) else {
             quarantine(&path);
-            return TenantAcl::default();
+            return StoredAcls::default();
         };
-        let shared_with: BTreeSet<String> = parsed
-            .get("sharedWith")
-            .and_then(|value| value.as_array())
-            .map(|entries| {
-                entries
-                    .iter()
-                    .filter_map(|entry| entry.as_str())
-                    .filter(|entry| !entry.trim().is_empty())
-                    .take(MAX_SHARED_ACCOUNTS)
-                    .map(str::to_string)
-                    .collect()
-            })
-            .unwrap_or_default();
-        let grants = parsed
-            .get("grants")
-            .and_then(|value| value.as_object())
-            .map(|entries| {
-                entries
-                    .iter()
-                    .filter(|(account, _)| shared_with.contains(account.as_str()))
-                    .map(|(account, value)| {
-                        (
-                            account.clone(),
-                            super::tenant::TenantGrant::from_json(value),
-                        )
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        let link_access = parsed
-            .get("linkAccess")
-            .and_then(|value| value.get("level"))
-            .and_then(|level| level.as_str())
-            .and_then(|level| op_editor_core::ShareLevel::from_wire(level).ok());
-        TenantAcl {
-            shared_with,
-            grants,
-            link_access,
-        }
+        // The v1 file held ONE list for the whole account. It cannot be
+        // migrated: it never recorded which document it was about, and
+        // guessing — applying it to whichever document the account opens next
+        // — would hand out access the operator never granted for that
+        // document. So it is read as empty and reported, and every share has
+        // to be issued again. Fail closed, loudly.
+        let Some(documents) = parsed.get("documents").and_then(|value| value.as_object()) else {
+            if parsed.get("sharedWith").is_some() {
+                eprintln!(
+                    "openpencil: {ACL_FORMAT_VERSION}-format access list expected, found the \
+                     single-list format for one account; its shares are NOT applied, because \
+                     the file does not say which document they were for. Re-issue them."
+                );
+                let _ = std::fs::rename(&path, path.with_extension("v1"));
+            }
+            return StoredAcls::default();
+        };
+        let documents = documents
+            .iter()
+            .filter(|(key, _)| !key.trim().is_empty())
+            .map(|(key, value)| (key.clone(), parse_one_acl(value)))
+            .collect();
+        StoredAcls { documents }
     }
 
     /// Whether anything is stored for `user_id`.
@@ -327,6 +320,76 @@ impl TenantStore {
         self.tenant_dir(user_id)
             .is_some_and(|dir| dir.join(DOCUMENT_FILE).is_file())
     }
+}
+
+/// Read one document's ACL out of its stored JSON.
+///
+/// Every field only ever GRANTS access, so the fail-closed reading of anything
+/// unreadable is empty — and the metadata is filtered against the membership,
+/// because a level for an account the list no longer names is a share that does
+/// not exist.
+fn parse_one_acl(parsed: &serde_json::Value) -> TenantAcl {
+    let shared_with: BTreeSet<String> = parsed
+        .get("sharedWith")
+        .and_then(|value| value.as_array())
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|entry| entry.as_str())
+                .filter(|entry| !entry.trim().is_empty())
+                .take(MAX_SHARED_ACCOUNTS)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    let grants = parsed
+        .get("grants")
+        .and_then(|value| value.as_object())
+        .map(|entries| {
+            entries
+                .iter()
+                .filter(|(account, _)| shared_with.contains(account.as_str()))
+                .map(|(account, value)| {
+                    (
+                        account.clone(),
+                        super::tenant::TenantGrant::from_json(value),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let link_access = parsed
+        .get("linkAccess")
+        .and_then(|value| value.get("level"))
+        .and_then(|level| level.as_str())
+        .and_then(|level| op_editor_core::ShareLevel::from_wire(level).ok());
+    TenantAcl {
+        shared_with,
+        grants,
+        link_access,
+    }
+}
+
+/// One document's ACL as it goes on disk.
+fn acl_json(acl: &TenantAcl) -> serde_json::Value {
+    let bounded: Vec<&String> = acl.shared_with.iter().take(MAX_SHARED_ACCOUNTS).collect();
+    // The metadata is written only for accounts that are ON the bounded list: a
+    // level for somebody the list had to drop would be metadata about a share
+    // that does not exist, and it would outlive the revoke that removed them.
+    let grants: std::collections::BTreeMap<&String, serde_json::Value> = acl
+        .grants
+        .iter()
+        .filter(|(account, _)| acl.shared_with.contains(*account))
+        .map(|(account, grant)| (account, grant.to_json()))
+        .collect();
+    let mut body = serde_json::json!({
+        "sharedWith": bounded,
+        "grants": grants,
+    });
+    if let Some(level) = acl.link_access {
+        body["linkAccess"] = serde_json::json!({ "level": level.wire() });
+    }
+    body
 }
 
 /// The directory name for `user_id`: the first 16 hex characters of its

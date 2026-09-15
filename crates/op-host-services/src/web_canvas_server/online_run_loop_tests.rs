@@ -33,6 +33,11 @@ impl Write for MockStream {
 /// The public origin this test deployment answers for.
 const PUBLIC_ORIGIN: &str = "https://canvas.example";
 
+/// The document these tests share. A share is about ONE document now
+/// (issue #127), so a request addressed at another account's tenant must say
+/// which one — exactly as a browser does with `?file=<key>`.
+pub(super) const SHARED_DOC: &str = "shared-doc";
+
 struct Request {
     method: &'static str,
     path: &'static str,
@@ -45,6 +50,9 @@ struct Request {
     /// Addresses the request at another account's tenant, as the browser does
     /// with `?tenant=` on the page URL.
     tenant: Option<&'static str>,
+    /// Names the DOCUMENT the request is about, as the browser does with
+    /// `?file=<key>`.
+    file: Option<&'static str>,
 }
 
 impl Request {
@@ -58,6 +66,7 @@ impl Request {
             cookie: None,
             origin: None,
             tenant: None,
+            file: None,
         }
     }
 
@@ -86,6 +95,12 @@ impl Request {
         self
     }
 
+    /// Name the document the request is about, beside the tenant it addresses.
+    fn with_file(mut self, file: &'static str) -> Self {
+        self.file = Some(file);
+        self
+    }
+
     fn wire(&self) -> String {
         let auth = self
             .token
@@ -109,9 +124,12 @@ impl Request {
             .origin
             .map(|o| format!("Origin: {o}\r\n"))
             .unwrap_or_default();
-        let target = match self.tenant {
-            Some(tenant) => format!("{}?tenant={tenant}", self.path),
-            None => self.path.to_string(),
+        let target = match (self.tenant, self.file) {
+            (Some(tenant), Some(file)) => format!("{}?tenant={tenant}&file={file}", self.path),
+            (Some(tenant), None) => format!("{}?tenant={tenant}", self.path),
+            // A document without a tenant: the caller's own, named explicitly.
+            (None, Some(file)) => format!("{}?file={file}", self.path),
+            (None, None) => self.path.to_string(),
         };
         format!(
             "{} {target} HTTP/1.1\r\nHost: canvas.example\r\n{auth}{cookie}{origin}{content_type}\

@@ -552,9 +552,29 @@ pub(super) fn serve_one_online<S: Read + Write>(
         .as_deref()
         .and_then(op_editor_core::share_routes::tenant_from_query)
         .map(str::to_string);
-    let lease = match requested_owner.as_deref() {
-        Some(owner) => registry.lease_for_shared(owner, &identity),
-        None => registry.lease_for(&identity),
+    // WHICH document, when the request says. A share is about a document, and
+    // admission is a property of that document's access list — a request that
+    // names an owner and no document cannot be admitted, because there is
+    // nothing to be admitted TO (issue #127).
+    let document_key = op_editor_core::share_routes::document_from_request(
+        &req.path,
+        req.query.as_deref(),
+        &req.body,
+    );
+    // A request that names an owner and no document falls back to the document
+    // that owner is holding — the owner opened it, so "the owner's document"
+    // has an answer. A tenant holding nothing of the store's has none, and a
+    // request that cannot say which document it is about cannot be admitted.
+    let document_key = match (requested_owner.as_deref(), document_key) {
+        (Some(_), None) => requested_owner
+            .as_deref()
+            .and_then(|owner| registry.current_document_key(owner)),
+        (_, key) => key,
+    };
+    let lease = match (requested_owner.as_deref(), document_key.as_deref()) {
+        (Some(owner), Some(key)) => registry.lease_for_shared(owner, &identity, key),
+        (Some(_), None) => Err(super::tenant::TenantError::NotShared),
+        _ => registry.lease_for(&identity),
     };
     let lease = match lease {
         Ok(lease) => lease,
@@ -652,6 +672,7 @@ pub(super) fn serve_one_online<S: Read + Write>(
             &own,
             registry,
             accounts,
+            document_key.as_deref(),
         );
         crate::mcp_serve::write_mcp_http_response_with_origin(
             stream,
@@ -675,7 +696,12 @@ pub(super) fn serve_one_online<S: Read + Write>(
     // and the membership that let the request in cannot disagree. `None` for
     // the owner's own tenant, where membership is not what admits them.
     let granted = (lease.owner_id() != identity.user_id)
-        .then(|| lease.tenant().level_for(&identity.user_id))
+        .then(|| {
+            lease.tenant().level_for(
+                &identity.user_id,
+                document_key.as_deref().unwrap_or_default(),
+            )
+        })
         .flatten();
     let access = RequestAccess::online(lease.owner_id(), &identity, granted);
     dispatch(

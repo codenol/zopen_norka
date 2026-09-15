@@ -7,6 +7,11 @@
 use super::*;
 use crate::web_canvas_server::tenant_store::TenantStore;
 
+/// The document every share in this file is about. One constant because the
+/// key is now part of what a share means: a grant without one used to open
+/// every document the account owned (issue #127).
+const DOCUMENT: &str = "docA";
+
 /// A registry with a real on-disk store rooted in a temp directory.
 struct PersistentRegistry {
     root: std::path::PathBuf,
@@ -46,6 +51,10 @@ impl Drop for PersistentRegistry {
 /// Address a request at another account's tenant.
 fn as_tenant(mut request: Request, owner: &'static str) -> Request {
     request.tenant = Some(owner);
+    // A request addressed at another account's tenant must also say WHICH
+    // document: admission is a property of that document's access list
+    // (issue #127).
+    request.file = Some(DOCUMENT);
     request
 }
 
@@ -61,7 +70,7 @@ fn share(
         Request::json(
             "POST",
             route,
-            &serde_json::json!({ "userId": target }).to_string(),
+            &serde_json::json!({ "userId": target, "file": DOCUMENT }).to_string(),
         )
         .with_bearer(token),
     )
@@ -89,7 +98,9 @@ fn a_visitor_cannot_change_who_else_may_open_the_document() {
     let before = serve(
         &registry,
         &verifier,
-        Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokA"),
+        Request::new("GET", op_editor_core::share_routes::LIST)
+            .with_bearer("tokA")
+            .with_file(DOCUMENT),
     );
 
     for route in [
@@ -121,7 +132,9 @@ fn a_visitor_cannot_change_who_else_may_open_the_document() {
     let after = serve(
         &registry,
         &verifier,
-        Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokA"),
+        Request::new("GET", op_editor_core::share_routes::LIST)
+            .with_bearer("tokA")
+            .with_file(DOCUMENT),
     );
     assert_eq!(body(&before), body(&after));
 }
@@ -267,7 +280,9 @@ fn the_share_list_reports_both_directions_over_the_wire() {
     let owner = serve(
         &registry,
         &verifier(),
-        Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokA"),
+        Request::new("GET", op_editor_core::share_routes::LIST)
+            .with_bearer("tokA")
+            .with_file(DOCUMENT),
     );
     // One entry per account, with the level it was given: the list answers
     // "what may they do", not merely "are they on it" (#56).
@@ -277,7 +292,9 @@ fn the_share_list_reports_both_directions_over_the_wire() {
     let visitor = serve(
         &registry,
         &verifier(),
-        Request::new("GET", op_editor_core::share_routes::LIST).with_bearer("tokB"),
+        Request::new("GET", op_editor_core::share_routes::LIST)
+            .with_bearer("tokB")
+            .with_file(DOCUMENT),
     );
     assert_eq!(
         body(&visitor)["sharedWithMe"][0]["owner"],
@@ -393,7 +410,11 @@ fn a_grant_is_persisted_immediately_rather_than_at_eviction() {
         "userB",
     );
     assert!(
-        temp.registry.store().load_acl("userA").contains("userB"),
+        temp.registry
+            .store()
+            .load_acl("userA", DOCUMENT)
+            .shared_with
+            .contains("userB"),
         "the grant must be on disk before any eviction"
     );
 }
@@ -701,16 +722,22 @@ fn concurrent_grants_all_survive() {
                     invited_by: Some("userA".to_string()),
                 };
                 temp.registry
-                    .update_acl(lease.owner_id(), lease.tenant(), change)
+                    .update_acl(lease.owner_id(), lease.tenant(), DOCUMENT, change)
                     .expect("persisted");
             });
         }
     });
 
-    let shared = lease.tenant().shared_with();
+    let shared = lease.tenant().shared_with(DOCUMENT);
     assert_eq!(shared.len(), 16, "every grant must survive: {shared:?}");
     // …and the persisted list agrees with memory.
-    assert_eq!(temp.registry.store().load_acl("userA"), shared);
+    assert_eq!(
+        temp.registry
+            .store()
+            .load_acl("userA", DOCUMENT)
+            .shared_with,
+        shared
+    );
 }
 
 #[test]

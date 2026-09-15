@@ -88,3 +88,66 @@ mod tests {
         }
     }
 }
+
+/// Query parameter naming the DOCUMENT a request is about.
+///
+/// The sibling of [`TENANT_QUERY`], and the answer to a measured defect: a
+/// share used to name only an owner, so a grant made in one document's dialog
+/// opened every document that account owned (issue #127), and a
+/// tenant-addressed read answered whichever document that tenant had opened
+/// last (issue #128). A document has exactly one name in this system — the
+/// store key that `/api/files/<key>` already uses — so that is what travels.
+pub const FILE_QUERY: &str = "file";
+
+/// Read the document parameter out of a raw query string (no leading `?`).
+pub fn file_from_query(query: &str) -> Option<&str> {
+    query
+        .split('&')
+        .filter_map(|pair| pair.split_once('='))
+        .find(|(name, _)| *name == FILE_QUERY)
+        .map(|(_, value)| value)
+        .filter(|value| !value.is_empty())
+}
+
+/// The document a request is about, from wherever the request says it.
+///
+/// Three places, in order of authority:
+///
+/// 1. the path, for the file routes (`/api/files/<key>/open` and friends) —
+///    the key is part of the address;
+/// 2. `?file=<key>`, for the routes that address a document without being one
+///    of the file routes (`GET /api/mcp/document`, the share routes);
+/// 3. the JSON body's `file` field, for the share routes' POSTs, which are
+///    already carrying a body.
+///
+/// `None` means the request did NOT name a document, and every caller decides
+/// what that means for it: the share routes refuse it (a share is about a
+/// document), while a read falls back to the tenant's own open document for as
+/// long as a client older than the field exists.
+pub fn document_from_request(path: &str, query: Option<&str>, body: &str) -> Option<String> {
+    if let Some(key) = document_key_from_path(path) {
+        return Some(key);
+    }
+    if let Some(key) = query.and_then(file_from_query) {
+        return Some(key.to_string());
+    }
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| {
+            value
+                .get(FILE_QUERY)
+                .and_then(|key| key.as_str())
+                .map(str::to_string)
+        })
+        .filter(|key| !key.trim().is_empty())
+}
+
+/// The document key inside a file-route path, if the path is one.
+///
+/// `/api/files/<key>/open` → `<key>`; `/api/files/<key>` → `<key>`; anything
+/// else → `None`. Empty segments are not keys.
+fn document_key_from_path(path: &str) -> Option<String> {
+    let rest = path.strip_prefix("/api/files/")?;
+    let key = rest.split('/').next()?;
+    (!key.is_empty()).then(|| key.to_string())
+}

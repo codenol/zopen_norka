@@ -435,6 +435,12 @@ fn apply_document_response<C: RepaintContext + 'static>(
                         // (issue #97). Adopting the key also settles that this
                         // is the daemon's document and not a local file.
                         if let Some(key) = file_key {
+                            // Every later request from this tab names the
+                            // document it is showing: in an online deployment
+                            // that is what decides who may see it, and a share
+                            // that named only an owner opened everything the
+                            // account owned (issues #97, #127).
+                            crate::daemon_base::remember_document_key(&key);
                             let state = host.editor_state_mut();
                             if state.editor_ui.file_key.as_deref() != Some(key.as_str()) {
                                 state.editor_ui.set_document_key(Some(key));

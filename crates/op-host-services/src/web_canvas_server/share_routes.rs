@@ -76,6 +76,13 @@ pub enum ShareError {
     /// The account list could not be read, so whether the account exists is
     /// unknown. Fail closed.
     LookupUnavailable,
+    /// The request did not name a document.
+    ///
+    /// A share is about ONE document: the account-wide list this replaced let a
+    /// grant made in one document's dialog open every document the account
+    /// owned (issue #127), so a request that names no document is refused
+    /// rather than guessed at.
+    MissingDocument,
 }
 
 impl ShareError {
@@ -87,6 +94,7 @@ impl ShareError {
             Self::Access(refusal) => refusal.code(),
             Self::LevelAboveOwn { .. } => "level-above-your-own",
             Self::UnknownAccount => "unknown-account",
+            Self::MissingDocument => "missing-document",
             Self::LookupUnavailable => "account-lookup-unavailable",
         }
     }
@@ -100,7 +108,7 @@ impl ShareError {
             // Not 404: the ROUTE is here, the account is not. A client that
             // parsed a name out of its invite field needs to be told which of
             // the two it got wrong.
-            Self::UnknownAccount => "400 Bad Request",
+            Self::UnknownAccount | Self::MissingDocument => "400 Bad Request",
             Self::LookupUnavailable => "500 Internal Server Error",
         }
     }
@@ -123,6 +131,9 @@ impl std::fmt::Display for ShareError {
             Self::LookupUnavailable => {
                 f.write_str("the account list could not be read, so the account was not checked")
             }
+            Self::MissingDocument => f.write_str(
+                "a share is about one document; name it with ?file=<key> or in the body",
+            ),
         }
     }
 }
@@ -152,16 +163,36 @@ pub(super) fn handle(
     // The deployment's account list, when it has one. The grant route asks it
     // whether the account in the body exists — see `ShareError::UnknownAccount`.
     accounts: Option<&super::account_routes::AccountAuth>,
+    // The document this call is about, read from the path, the query or the
+    // body by `share_routes::document_from_request`. `None` is refused: a share
+    // that does not name a document is a share of everything the account owns
+    // (issue #127).
+    document: Option<&str>,
 ) -> WebReply {
+    let Some(key) = document else {
+        return error_reply(ShareError::MissingDocument);
+    };
     match (method, path) {
-        ("POST", share_routes::GRANT) => {
-            mutate(body, identity, lease, registry, accounts, Mutation::Grant)
-        }
-        ("POST", share_routes::REVOKE) => {
-            mutate(body, identity, lease, registry, accounts, Mutation::Revoke)
-        }
-        ("GET", share_routes::LIST) => list(identity, lease, registry),
-        ("POST", LINK_ACCESS) => link_access(body, identity, lease, registry),
+        ("POST", share_routes::GRANT) => mutate(
+            body,
+            identity,
+            lease,
+            registry,
+            accounts,
+            key,
+            Mutation::Grant,
+        ),
+        ("POST", share_routes::REVOKE) => mutate(
+            body,
+            identity,
+            lease,
+            registry,
+            accounts,
+            key,
+            Mutation::Revoke,
+        ),
+        ("GET", share_routes::LIST) => list(identity, lease, registry, key),
+        ("POST", LINK_ACCESS) => link_access(body, identity, lease, registry, key),
         _ => WebReply {
             status: "405 Method Not Allowed",
             body: crate::mcp_serve::rest_error_body("method not allowed for this share route"),
@@ -188,6 +219,7 @@ fn mutate(
     lease: &TenantLease,
     registry: &TenantRegistry,
     accounts: Option<&super::account_routes::AccountAuth>,
+    key: &str,
     mutation: Mutation,
 ) -> WebReply {
     let parsed = match parse_account(body, &identity.user_id) {
@@ -252,7 +284,7 @@ fn mutate(
     // immediately rather than at eviction: a share the user was told had
     // succeeded must survive a restart, and the document it applies to may not
     // be written for another half hour.
-    match registry.update_acl(lease.owner_id(), lease.tenant(), change) {
+    match registry.update_acl(lease.owner_id(), lease.tenant(), key, change) {
         Ok(update) => WebReply {
             status: "200 OK",
             body: serde_json::json!({
@@ -306,6 +338,7 @@ fn link_access(
     identity: &ResolvedIdentity,
     lease: &TenantLease,
     registry: &TenantRegistry,
+    key: &str,
 ) -> WebReply {
     let parsed = match parse_link_access(body) {
         Ok(parsed) => parsed,
@@ -330,7 +363,7 @@ fn link_access(
             });
         }
     }
-    match registry.update_link_access(lease.owner_id(), lease.tenant(), parsed) {
+    match registry.update_link_access(lease.owner_id(), lease.tenant(), key, parsed) {
         Ok(level) => WebReply {
             status: "200 OK",
             body: serde_json::json!({
@@ -351,7 +384,12 @@ fn link_access(
     }
 }
 
-fn list(identity: &ResolvedIdentity, lease: &TenantLease, registry: &TenantRegistry) -> WebReply {
+fn list(
+    identity: &ResolvedIdentity,
+    lease: &TenantLease,
+    registry: &TenantRegistry,
+    key: &str,
+) -> WebReply {
     WebReply {
         status: "200 OK",
         body: serde_json::json!({
@@ -360,13 +398,13 @@ fn list(identity: &ResolvedIdentity, lease: &TenantLease, registry: &TenantRegis
             // added them…
             "sharedWith": lease
                 .tenant()
-                .share_grants()
+                .share_grants(key)
                 .iter()
                 .map(ShareGrant::to_json)
                 .collect::<Vec<_>>(),
             "linkAccess": lease
                 .tenant()
-                .link_access()
+                .link_access(key)
                 .map(|level| level.wire()),
             // …and whose documents this account may open, with the level each
             // one gives them — a guest who is not told what they hold cannot
@@ -377,6 +415,7 @@ fn list(identity: &ResolvedIdentity, lease: &TenantLease, registry: &TenantRegis
                 .iter()
                 .map(|shared| serde_json::json!({
                     "owner": shared.owner,
+                    "file": shared.key,
                     "level": shared.level.wire(),
                 }))
                 .collect::<Vec<_>>(),

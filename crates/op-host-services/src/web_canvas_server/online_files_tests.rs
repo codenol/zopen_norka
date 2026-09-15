@@ -249,7 +249,7 @@ fn a_granted_visitor_reads_the_shared_document_by_key_and_cannot_write_it() {
         Request::json(
             "POST",
             op_editor_core::share_routes::GRANT,
-            &serde_json::json!({ "userId": "userB" }).to_string(),
+            &serde_json::json!({ "userId": "userB", "file": key }).to_string(),
         )
         .with_bearer("tokA"),
     );
@@ -412,13 +412,17 @@ fn the_draft_a_visitor_writes_lands_in_the_workspace_they_were_granted() {
     let verifier = verifier();
     let dir = TempDir::new("online-files-draft-guest");
     install_shared_store(&registry, &verifier, &dir, &["tokA", "tokB"]);
+    // A share is about a document now, so the owner has one and grants that
+    // one: "the workspace a visitor was given" is a document of it, not the
+    // account in the abstract (issue #127).
+    let key = create_as_owner(&registry, &verifier, "Guest workspace");
     let granted = serve(
         &registry,
         &verifier,
         Request::json(
             "POST",
             op_editor_core::share_routes::GRANT,
-            &serde_json::json!({ "userId": "userB" }).to_string(),
+            &serde_json::json!({ "userId": "userB", "file": key }).to_string(),
         )
         .with_bearer("tokA"),
     );
@@ -430,6 +434,7 @@ fn the_draft_a_visitor_writes_lands_in_the_workspace_they_were_granted() {
         let mut request = Request::json("POST", "/api/recovery", SYNC_BODY);
         request.token = Some("tokB");
         request.tenant = Some("userA");
+        request.file = Some(key_path(&key, "").trim_start_matches("/api/files/"));
         request
     });
     assert_eq!(status_line(&refused), "HTTP/1.1 403 Forbidden", "{refused}");
