@@ -274,6 +274,18 @@ mod tests_pages;
 #[cfg(test)]
 mod translate_equivalence_tests;
 
+/// User-visible product name — window titles, the accessibility root label, the
+/// desktop file-dialog filter, and the banner the code generator stamps into
+/// what it writes.
+///
+/// It lives here, in the leaf crate every other one already depends on, so the
+/// generator can read the same constant the chrome does. The generator used to
+/// spell the name out by hand, which is how ten banners kept saying
+/// "OpenPencil" after the product was renamed (issue #143) — and why two of its
+/// tests, which arrived expecting the new name, had been failing invisibly while
+/// its test target did not compile at all.
+pub const PRODUCT_NAME: &str = "Norka";
+
 pub use access::{
     rights_for, rights_for_roles, ProductRole, Right, Rights, RoleSet, RoleWireError,
 };

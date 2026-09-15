@@ -28,9 +28,9 @@
 // paths inside the widgets keep resolving.
 pub use op_i18n as i18n;
 
-/// User-visible product name — window titles, the accessibility root
-/// label, and the desktop file-dialog filter all read this one const.
-pub const PRODUCT_NAME: &str = "Norka";
+/// User-visible product name — re-exported from `op-editor-core`, where the
+/// code generator reads it too, so one rename reaches every banner.
+pub use op_editor_core::PRODUCT_NAME;
 
 // The wasm-clean RenderBackend trait + facade types live in
 // op-editor-core; re-exported as `render_backend` and at the crate root.
