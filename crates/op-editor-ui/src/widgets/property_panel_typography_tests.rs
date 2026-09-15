@@ -56,6 +56,7 @@ fn bundled() -> Vec<String> {
 
 fn visible_text() -> VisibleSections {
     VisibleSections {
+        section_block_height: 0.0,
         text: true,
         create_component: false,
         flex_layout: false,
@@ -67,6 +68,7 @@ fn visible_text() -> VisibleSections {
 
 fn visible_touch_text() -> VisibleSections {
     VisibleSections {
+        section_block_height: 0.0,
         touch_controls: true,
         ..visible_text()
     }

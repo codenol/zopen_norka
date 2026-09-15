@@ -153,6 +153,7 @@ pub mod scene_template_palette;
 pub mod scene_template_prompt;
 pub mod scene_vars;
 pub mod section;
+pub mod section_routes;
 pub mod selection;
 pub mod selection_resolve;
 pub mod share_access;

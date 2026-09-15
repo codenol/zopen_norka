@@ -216,6 +216,11 @@ pub enum ComponentButtonState {
 /// Whether each section currently paints.
 #[derive(Debug, Clone, Copy)]
 pub struct VisibleSections {
+    /// Height of the Section block (#59) at the top of the content, or 0 when
+    /// the selection is not a section. A height rather than a flag because the
+    /// block's own layout decides how tall it is, and the walkers below it have
+    /// to be shifted by exactly that.
+    pub section_block_height: f32,
     pub create_component: bool,
     /// Which Create-component variant paints (see
     /// [`ComponentButtonState`]). Only read when `create_component`.
@@ -282,6 +287,7 @@ pub struct VisibleSections {
 
 impl VisibleSections {
     pub const ALL: Self = Self {
+        section_block_height: 0.0,
         create_component: true,
         component_button: ComponentButtonState::Create,
         flex_layout: true,

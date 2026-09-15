@@ -278,6 +278,9 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
     // it reads and writes `editor_ui.share` only, so it needs no document and
     // can start as soon as the daemon can answer `/api/share/*`.
     crate::share_sync::start(&inner);
+    // The Section block's reader (#59). Its own tick for the same reason: it
+    // watches the selection and reads a store, and touches nothing else.
+    crate::section_sync::start(&inner);
     // 4. Reset the daemon's transient sync document, THEN emit the managed
     //    `ready` reply and start the live-sync ticks. The reset must complete
     //    FIRST for two reasons:

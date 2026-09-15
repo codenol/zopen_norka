@@ -33,6 +33,37 @@ here at a glance.
   the clipboard, the collaboration panel — and says plainly that the rest needs
   an online deployment.
 
+- **A section says what it was built from.** The toolbar has a **Section** tool:
+  draw one and it is a frame, marked, that groups the screens of one feature or
+  scenario. Select it and the property panel opens with the section's own block
+  above everything else — because what a section came from is the first question
+  a reader of somebody else's design asks, and the one thing the rest of the
+  inspector cannot answer:
+
+  - **Built from** names the analytics document the section was written against
+    and says whether it still matches: in sync, the analytics has changed since,
+    the screens have changed since, both did, or the document is gone. A link
+    that no longer holds is painted in the warning tone, because it is the one
+    claim in the block that quietly becomes false.
+  - **The summary** — what this is, where to look, use cases, what to check —
+    with the unanswered questions left out rather than padded with dashes.
+  - **Flows**, with a step count each, because a list of names alone cannot say
+    whether a flow was ever finished.
+
+  Three empty states are kept apart rather than collapsed into one: "nobody has
+  written anything about this section", "we have not read it yet" and "the read
+  failed" are different facts, and a block that painted the same nothing for all
+  three would tell a designer their summary had been erased. A section nobody
+  has read says so and stops, rather than showing four empty fields that look
+  like answers.
+
+- **Analytics is an asset with an address.** `POST /api/analytics` loads a
+  markdown document, `GET /api/analytics/<key>` returns it with the digest of
+  what it says now, and a rename keeps the address a section's link points at.
+  The markdown lives as a real file beside the `.op` files, so a person who is
+  not in the app can read the reasoning — which is the point of it being
+  markdown at all.
+
 - **The release binary is built in CI, not on the production server.** A new
   `Web deploy build` workflow (on demand, on a `v*` tag, and on pull requests
   without publishing) builds `op-host-web-server` for

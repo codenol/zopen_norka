@@ -16,6 +16,7 @@ fn state_from(src: &str) -> EditorState {
 fn visible_for(panel: &PropertyPanel) -> sections::VisibleSections {
     let caps = SectionCapabilities::for_kind(&panel.snapshot.kind_variant);
     sections::VisibleSections {
+        section_block_height: 0.0,
         create_component: caps.create_component && panel.snapshot.can_create_component,
         component_button: crate::widgets::property_panel_visibility::ComponentButtonState::Create,
         flex_layout: caps.flex_layout,

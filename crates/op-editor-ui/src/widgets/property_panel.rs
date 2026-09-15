@@ -95,6 +95,15 @@ pub struct PropertyPanel {
     /// once at construction time so every section paint hands
     /// straight to the renderer without re-walking the i18n table.
     pub labels: sections::PropertyLabels,
+    /// What the panel says about the selected section (#59): the analytics it
+    /// was built from, its summary, its flows. Cloned from the editor state at
+    /// construction — the panel is rebuilt each frame and paints from its own
+    /// copy, like every other value it shows.
+    pub section_panel: op_editor_core::editor_ui_state::section_panel::SectionPanelState,
+    /// Height of the Section block, computed once at construction so paint and
+    /// the layout walkers below it agree about where the ordinary sections
+    /// start.
+    pub section_block_height: f32,
     /// Which input row the user is editing. `None` when no input
     /// is focused (panel paints all values from the snapshot).
     pub focus: Option<PropertyFocus>,
@@ -323,6 +332,7 @@ impl PropertyPanel {
     /// into every layout walker so paint + hit-test stay aligned.
     pub(crate) fn visible_sections(&self) -> sections::VisibleSections {
         let caps = self.capabilities();
+        let section_block_height = self.section_block_height;
         let component_button = if self.snapshot.is_instance {
             crate::widgets::property_panel_visibility::ComponentButtonState::Instance {
                 component_count: self.instance_component_options.len(),
@@ -334,6 +344,7 @@ impl PropertyPanel {
             crate::widgets::property_panel_visibility::ComponentButtonState::Create
         };
         sections::VisibleSections {
+            section_block_height,
             create_component: self.snapshot.is_instance
                 || (caps.create_component && self.snapshot.can_create_component),
             component_button,

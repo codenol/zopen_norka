@@ -122,6 +122,22 @@ impl Widget for PropertyPanel {
         // matching the layout walker's `+= TAB_HEIGHT` step.
         let mut y = tab_bottom - scroll;
         y = sections::paint_node_header(cx, &self.theme, &self.snapshot, x, y, w);
+        // The Section block (#59) sits directly under the node's name, above
+        // every ordinary section: what a section was built from is the first
+        // question a reader of somebody else's design asks. It paints nothing
+        // when the selection is not a section, and the layout walkers shift by
+        // exactly the height it reports.
+        if self.section_block_height > 0.0 {
+            y = crate::widgets::property_panel_section_block::paint_section_block(
+                cx,
+                &self.theme,
+                self.locale,
+                &self.section_panel,
+                x,
+                y,
+                w,
+            );
+        }
         if self.visible_sections().create_component {
             y = crate::widgets::property_panel_instance::paint_component_block(
                 cx,
