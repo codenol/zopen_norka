@@ -761,6 +761,12 @@ pub fn handle_web_canvas_request(
         _ if path.starts_with("/api/files") => {
             files_routes::handle(method, path, body, state, access)
         }
+        // Analytics assets: the markdown a section is built from. Their own
+        // family because an asset is reached by its own key rather than through
+        // a document's — see `web_canvas_server/analytics_routes.rs`.
+        _ if path.starts_with("/api/analytics") => {
+            analytics_routes::handle(method, path, body, state, access)
+        }
         // The unsaved-work draft: one slot, no key, dropped once restored.
         _ if path.starts_with("/api/recovery") => {
             recovery_routes::handle(method, path, body, state, access)
@@ -799,6 +805,7 @@ use document_push::collab_aware_error_reply;
 mod sse_hub;
 pub use sse_hub::SseHub;
 pub(crate) use sse_hub::SseSlot;
+mod analytics_routes;
 mod collab_routes;
 pub(crate) mod collab_state;
 mod comment_routes;
@@ -817,6 +824,7 @@ mod recovery_routes;
 mod request_access;
 mod run_loop;
 mod section_rights;
+mod section_routes;
 mod serve_options;
 mod share_routes;
 pub mod tenant;

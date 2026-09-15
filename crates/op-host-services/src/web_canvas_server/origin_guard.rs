@@ -9,6 +9,10 @@ pub(super) fn is_sensitive_browser_post(request: &crate::mcp_serve::HttpRequest)
     request.method == "POST"
         && (request.path == "/api/settings/credentials"
             || request.path.starts_with("/api/ai/")
+            // Analytics assets are authored work belonging to an account: a
+            // cross-site page must not be able to write or delete one, which is
+            // the same reason the credential and account routes are here.
+            || request.path.starts_with("/api/analytics")
             || request
                 .path
                 .starts_with(op_editor_core::auth_routes::API_PREFIX)
