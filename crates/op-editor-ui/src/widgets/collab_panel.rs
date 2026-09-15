@@ -184,6 +184,12 @@ impl Widget for CollabPanel<'_> {
             CollabPanelScreen::Unavailable => {
                 self.paint_message(cx, rect, body_top, "collab.topbar.unavailable");
             }
+            // No button: this chrome has no sign-in to open, so the honest
+            // screen is the sentence that says so. See
+            // `collab_ui::sign_in_surface_available`.
+            CollabPanelScreen::SignInUnavailable => {
+                self.paint_explanation(cx, rect, body_top, "collab.join.signInUnavailable");
+            }
             CollabPanelScreen::SignInRequired => {
                 self.paint_message(cx, rect, body_top, "collab.join.signInRequired");
                 paint_button(
@@ -650,6 +656,10 @@ impl Widget for CollabPanel<'_> {
 #[cfg(test)]
 #[path = "collab_panel_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "collab_panel_sign_in_tests.rs"]
+mod sign_in_tests;
 
 #[cfg(test)]
 #[path = "collab_panel_region_tests.rs"]

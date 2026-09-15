@@ -103,6 +103,9 @@ fn active_ui(role: CollabUiRole, share_endpoint: Option<CollabShareEndpoint>) ->
 #[test]
 fn sign_in_and_close_targets_expose_hover_feedback() {
     let mut ui = EditorUiState::default();
+    // A sign-in surface is what makes the row exist at all — see
+    // `sign_in_row_exists_only_where_a_press_on_it_can_be_answered`.
+    ui.account_ui_available = true;
     ui.collab.availability = CollabAvailability::SignInRequired;
     ui.collab.panel.open = true;
     let panel = CollabPanel::for_editor_ui(&ui).unwrap();

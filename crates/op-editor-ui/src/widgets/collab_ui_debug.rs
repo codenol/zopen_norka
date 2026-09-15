@@ -7,6 +7,7 @@ impl std::fmt::Debug for CollabPanelScreen {
         match self {
             Self::Unavailable => formatter.write_str("Unavailable"),
             Self::SignInRequired => formatter.write_str("SignInRequired"),
+            Self::SignInUnavailable => formatter.write_str("SignInUnavailable"),
             Self::Home => formatter.write_str("Home"),
             Self::Create => formatter.write_str("Create"),
             Self::Join { discovered, .. } => formatter

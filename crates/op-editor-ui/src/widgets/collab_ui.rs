@@ -7,10 +7,10 @@
 //! boundary in one reusable flow.
 
 use op_editor_core::{
-    CollabAdmissionRequestKey, CollabAvailability, CollabConnectionPathUi, CollabConnectionPhase,
-    CollabGateReason, CollabInviteCode, CollabParticipantUi, CollabPendingEditUi,
-    CollabShareEndpoint, CollabUiAction, CollabUiRole, DiscoveredCollabEndpoint, EditorUiState,
-    MAX_COLLAB_INVITE_CODE_CHARS,
+    AccountEntryMode, CollabAdmissionRequestKey, CollabAvailability, CollabConnectionPathUi,
+    CollabConnectionPhase, CollabGateReason, CollabInviteCode, CollabParticipantUi,
+    CollabPendingEditUi, CollabShareEndpoint, CollabUiAction, CollabUiRole,
+    DiscoveredCollabEndpoint, EditorUiState, MAX_COLLAB_INVITE_CODE_CHARS,
 };
 
 const TOP_BAR_AVATAR_LIMIT: usize = 3;
@@ -175,6 +175,14 @@ fn top_bar_label(ui: &EditorUiState, label_key: &'static str) -> String {
 pub enum CollabPanelScreen {
     Unavailable,
     SignInRequired,
+    /// The runtime wants an authenticated account and this chrome has no
+    /// sign-in surface to send the person to.
+    ///
+    /// Kept apart from [`Self::Unavailable`] because the reason is not the
+    /// build: the collaboration runtime is there and is asking for a session.
+    /// What is missing is the account door — so the screen explains, and
+    /// paints no button it could not answer.
+    SignInUnavailable,
     Home,
     Create,
     Join {
@@ -225,6 +233,32 @@ pub struct CollabPanelModel {
     pub actions: Vec<CollabPanelActionModel>,
 }
 
+/// Whether this chrome can put a sign-in surface in front of the person who
+/// asks for one — the single question the row's paint and its press both have
+/// to answer.
+///
+/// The panel's sign-in row and the press it resolves are ONE control, so two
+/// things have to hold before it is worth painting, and neither is a guess:
+///
+/// 1. **A press on it must be answered.** `apply_panel_hit` refuses
+///    `CollabPanelHit::OpenSignIn` without `account_ui_available`, which is
+///    exactly "somebody here can sign in": the browser chrome learns it from
+///    `/api/auth/status` (`available`, so this deployment has accounts) and the
+///    desktop host from whether an auth backend is linked. A row painted
+///    without it is a button that does nothing — it promises a door and then
+///    stays silent, which reads as a broken panel rather than as a deployment
+///    that cannot sign anybody in (issue #83).
+/// 2. **The person must be able to reach it.** While the account entry form is
+///    up it paints a full-viewport scrim and takes every press before the
+///    panel, so a row behind it is painted and unhittable. `account_entry_mode`
+///    is the shared answer to "is that form on screen" — the same predicate the
+///    web host paints and hit-tests it from — and a mode other than `Hidden`
+///    only ever arises there, which is why asking it here is not a platform
+///    question but a reachability one.
+fn sign_in_surface_available(ui: &EditorUiState) -> bool {
+    ui.account_ui_available && ui.account_entry_mode() == AccountEntryMode::Hidden
+}
+
 impl CollabPanelModel {
     pub fn for_editor_ui(ui: &EditorUiState) -> Self {
         let collab = &ui.collab;
@@ -236,7 +270,13 @@ impl CollabPanelModel {
                 (CollabPanelScreen::Unavailable, Vec::new())
             }
             CollabAvailability::SignInRequired if collab.phase == CollabConnectionPhase::Idle => {
-                (CollabPanelScreen::SignInRequired, Vec::new())
+                // The row exists only where pressing it can be answered — see
+                // `sign_in_surface_available`.
+                if sign_in_surface_available(ui) {
+                    (CollabPanelScreen::SignInRequired, Vec::new())
+                } else {
+                    (CollabPanelScreen::SignInUnavailable, Vec::new())
+                }
             }
             _ => panel_session_or_pre_auth(ui),
         };
@@ -525,7 +565,9 @@ pub fn apply_panel_hit(
             true
         }
         CollabPanelHit::OpenSignIn => {
-            if !ui.account_ui_available {
+            // The same question the model asked before it painted the row —
+            // see `sign_in_surface_available`.
+            if !sign_in_surface_available(ui) {
                 return false;
             }
             ui.login_modal_open = true;

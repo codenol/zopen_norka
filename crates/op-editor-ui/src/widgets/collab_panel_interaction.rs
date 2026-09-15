@@ -101,8 +101,10 @@ impl CollabPanel<'_> {
                 }
             }
             // The confirmation screen's two decisions live in the fixed action
-            // row, which is hit-tested before this match runs.
+            // row, which is hit-tested before this match runs. The sign-in
+            // screens that carry no row have nothing of their own to resolve.
             CollabPanelScreen::Unavailable
+            | CollabPanelScreen::SignInUnavailable
             | CollabPanelScreen::Home
             | CollabPanelScreen::ConfirmOwner(_)
             | CollabPanelScreen::Progress { .. } => {}
@@ -188,8 +190,10 @@ impl CollabPanel<'_> {
                 }
             }
             // The confirmation screen's two decisions live in the fixed action
-            // row, which is hit-tested before this match runs.
+            // row, which is hit-tested before this match runs. The sign-in
+            // screens that carry no row have nothing of their own to resolve.
             CollabPanelScreen::Unavailable
+            | CollabPanelScreen::SignInUnavailable
             | CollabPanelScreen::Home
             | CollabPanelScreen::ConfirmOwner(_)
             | CollabPanelScreen::Progress { .. } => {}
