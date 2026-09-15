@@ -663,7 +663,12 @@ fn a_cookie_authenticated_write_from_another_origin_is_refused() {
     // The browser attaches the session cookie to a cross-site POST all by
     // itself, so without this check any page on the internet could drive a
     // signed-in user's canvas.
-    for hostile in ["https://evil.example", "http://canvas.example", "null"] {
+    //
+    // `http://canvas.example` is NOT in this list: the request's own host is
+    // `canvas.example`, so that origin IS this deployment's page — the scheme
+    // differs because a browser reaches a TLS-terminating proxy over `https`
+    // while the daemon sees the forwarded host. It is asserted allowed below.
+    for hostile in ["https://evil.example", "null"] {
         let response = serve(
             &registry(),
             &cookie_verifier(),
@@ -682,6 +687,24 @@ fn a_cookie_authenticated_write_from_another_origin_is_refused() {
             "{hostile}"
         );
     }
+}
+
+#[test]
+fn a_cookie_authenticated_write_from_this_deployments_own_host_is_allowed() {
+    // No allowlist entry, no environment variable: the Origin names the host
+    // this request arrived at, and a page cannot forge that header. Requiring
+    // an operator to name their own origin instead made a fresh online
+    // deployment refuse every cookie write from its own editor — found by
+    // running the share scenario against a real deployment.
+    let registry = TenantRegistry::new(3102, TenantLimits::default(), Vec::new());
+    let response = serve(
+        &registry,
+        &cookie_verifier(),
+        Request::json("POST", "/api/mcp/document", SYNC_BODY)
+            .with_session("sessA")
+            .with_origin("http://canvas.example"),
+    );
+    assert_eq!(status_line(&response), "HTTP/1.1 200 OK", "{response}");
 }
 
 #[test]
@@ -728,20 +751,23 @@ fn a_bearer_authenticated_write_is_exempt_from_the_origin_gate() {
 }
 
 #[test]
-fn a_deployment_with_no_configured_origin_refuses_every_cookie_write() {
+fn a_deployment_with_no_configured_origin_still_refuses_a_stranger() {
+    // No allowlist: this deployment's own page is admitted (its Origin names
+    // the host the request arrived at), and a page somewhere else is not.
     let registry = TenantRegistry::new(3102, TenantLimits::default(), Vec::new());
-    let response = serve(
+    let stranger = serve(
         &registry,
         &cookie_verifier(),
         Request::json("POST", "/api/mcp/document", SYNC_BODY)
             .with_session("sessA")
-            .with_origin(PUBLIC_ORIGIN),
+            .with_origin("https://evil.example"),
     );
     assert_eq!(
-        status_line(&response),
+        status_line(&stranger),
         "HTTP/1.1 403 Forbidden",
-        "{response}"
+        "{stranger}"
     );
+    assert_eq!(body(&stranger)["error"], "cross-origin-write-forbidden");
 }
 
 #[test]

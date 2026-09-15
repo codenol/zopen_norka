@@ -81,15 +81,28 @@ fn refresh_context<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let own_document = crate::daemon_base::tenant_param().is_none();
     let changed = {
         let state = context.host_mut().editor_state_mut();
-        let self_account = match &state.editor_ui.account {
-            AccountState::SignedIn { username, .. } => Some(username.clone()),
-            AccountState::Anonymous => None,
-        };
-        let link = state
-            .editor_ui
-            .file_key
-            .as_deref()
-            .map(|key| format!("{base}{}{key}", route::DOCUMENT_PREFIX));
+        // The deployment's own account key, never the username: an access list
+        // is keyed by the id, so a list that showed handles beside ids would be
+        // two vocabularies in one column — and a grant made from a handle
+        // grants nothing at all.
+        let account_id = state.editor_ui.account.account_id().map(str::to_string);
+        let self_account = account_id.clone();
+        // The link a colleague can actually open. A document is reached through
+        // its OWNER: without the tenant parameter the daemon answers
+        // `tenant-not-shared` to anybody but the owner, which is exactly what a
+        // copied link used to do.
+        let link = state.editor_ui.file_key.as_deref().map(|key| {
+            let path = format!("{base}{}{key}", route::DOCUMENT_PREFIX);
+            match account_id.as_deref() {
+                Some(owner) => format!(
+                    "{path}?{}={owner}",
+                    op_editor_core::share_routes::TENANT_QUERY
+                ),
+                // No account key: a local deployment, where there is nobody to
+                // name and the plain path is the whole link.
+                None => path,
+            }
+        });
         let own_rights = if own_document {
             Rights::EDITOR
         } else {

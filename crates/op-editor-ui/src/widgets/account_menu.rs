@@ -45,6 +45,7 @@ impl<'a> AccountMenu<'a> {
             op_editor_core::AccountState::SignedIn {
                 display_name,
                 username,
+                ..
             } => (display_name.clone(), username.clone()),
             op_editor_core::AccountState::Anonymous => return None,
         };

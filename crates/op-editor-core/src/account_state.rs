@@ -1,9 +1,10 @@
-//! Account / sign-in state for the platform + zseven-sso user system.
-//! The real device-login client lives behind `op-auth-bridge` (proprietary
-//! prebuilt library); this module carries only the display-state model
-//! plus a dev-only fake-login seam so the topbar avatar button, its
-//! dropdown, the sign-in modal, and the settings modal's Account tab can
-//! be exercised without the backend.
+//! Account / sign-in state for a deployment's own accounts.
+//!
+//! The session itself lives on the daemon (`/api/auth/*`, one `accounts.db`
+//! per deployment); this module carries only the display-state model plus a
+//! dev-only fake-login seam, so the topbar avatar button, its dropdown, the
+//! sign-in modal and the settings modal's Account tab can be exercised
+//! without a daemon behind them.
 //!
 //! Same wasm32-clean discipline as the other `*_state` mirrors — plain
 //! data only, no session/token material.
@@ -18,6 +19,17 @@ pub enum AccountState {
     SignedIn {
         display_name: String,
         username: String,
+        /// The STABLE account key the deployment issued (`subject` in
+        /// `/api/auth/status`) — the same value every access list, comment and
+        /// grant records.
+        ///
+        /// Carried beside the username because they are different things and
+        /// only one of them is an identity: a username is a handle an operator
+        /// may change, and an access list that keyed on it would lose every
+        /// grant on the day somebody was renamed. `None` for a session that
+        /// predates the field, which is why callers that need an identity
+        /// treat a missing one as "cannot say" rather than as a name.
+        account_id: Option<String>,
     },
 }
 
@@ -33,6 +45,15 @@ impl AccountState {
     /// so a missing or blank username falls back to the display name. Email is
     /// deliberately not accepted here: an address is not an account handle.
     pub fn signed_in_profile(display_name: String, username: Option<String>) -> Self {
+        Self::signed_in_account(display_name, username, None)
+    }
+
+    /// The same, with the deployment's own account key.
+    pub fn signed_in_account(
+        display_name: String,
+        username: Option<String>,
+        account_id: Option<String>,
+    ) -> Self {
         let username = username
             .and_then(|username| {
                 let username = username.trim();
@@ -42,6 +63,20 @@ impl AccountState {
         Self::SignedIn {
             display_name,
             username,
+            account_id: account_id
+                .map(|id| id.trim().to_string())
+                .filter(|id| !id.is_empty()),
+        }
+    }
+
+    /// The deployment's account key, when the session carried one.
+    ///
+    /// This — never the username — is what an access list, a grant or a section
+    /// link is keyed by.
+    pub fn account_id(&self) -> Option<&str> {
+        match self {
+            Self::SignedIn { account_id, .. } => account_id.as_deref(),
+            Self::Anonymous => None,
         }
     }
 

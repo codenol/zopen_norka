@@ -120,6 +120,7 @@ pub(super) fn paint_account_tab(
         AccountState::SignedIn {
             display_name,
             username,
+            ..
         } => paint_signed_in(cx, theme, ui, card, display_name, username),
     }
 }

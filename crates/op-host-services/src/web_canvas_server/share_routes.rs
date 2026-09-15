@@ -66,6 +66,16 @@ pub enum ShareError {
         level: ShareLevel,
         own: ShareLevel,
     },
+    /// The body named an account this deployment does not have.
+    ///
+    /// A refusal rather than a recorded grant: an access list is keyed by
+    /// account id, so an id nobody holds is a row that grants nothing — and a
+    /// `200` for it tells the person who typed a NAME that they shared
+    /// something.
+    UnknownAccount,
+    /// The account list could not be read, so whether the account exists is
+    /// unknown. Fail closed.
+    LookupUnavailable,
 }
 
 impl ShareError {
@@ -76,6 +86,8 @@ impl ShareError {
             Self::SelfShare => "cannot-share-with-self",
             Self::Access(refusal) => refusal.code(),
             Self::LevelAboveOwn { .. } => "level-above-your-own",
+            Self::UnknownAccount => "unknown-account",
+            Self::LookupUnavailable => "account-lookup-unavailable",
         }
     }
 
@@ -85,6 +97,11 @@ impl ShareError {
             Self::MalformedRequest | Self::SelfShare => "400 Bad Request",
             Self::Access(refusal) => refusal.http_status(),
             Self::LevelAboveOwn { .. } => "403 Forbidden",
+            // Not 404: the ROUTE is here, the account is not. A client that
+            // parsed a name out of its invite field needs to be told which of
+            // the two it got wrong.
+            Self::UnknownAccount => "400 Bad Request",
+            Self::LookupUnavailable => "500 Internal Server Error",
         }
     }
 }
@@ -102,6 +119,10 @@ impl std::fmt::Display for ShareError {
                 level.wire(),
                 own.wire()
             ),
+            Self::UnknownAccount => f.write_str("this deployment has no account with that id"),
+            Self::LookupUnavailable => {
+                f.write_str("the account list could not be read, so the account was not checked")
+            }
         }
     }
 }
@@ -128,10 +149,17 @@ pub(super) fn handle(
     identity: &ResolvedIdentity,
     lease: &TenantLease,
     registry: &TenantRegistry,
+    // The deployment's account list, when it has one. The grant route asks it
+    // whether the account in the body exists — see `ShareError::UnknownAccount`.
+    accounts: Option<&super::account_routes::AccountAuth>,
 ) -> WebReply {
     match (method, path) {
-        ("POST", share_routes::GRANT) => mutate(body, identity, lease, registry, Mutation::Grant),
-        ("POST", share_routes::REVOKE) => mutate(body, identity, lease, registry, Mutation::Revoke),
+        ("POST", share_routes::GRANT) => {
+            mutate(body, identity, lease, registry, accounts, Mutation::Grant)
+        }
+        ("POST", share_routes::REVOKE) => {
+            mutate(body, identity, lease, registry, accounts, Mutation::Revoke)
+        }
         ("GET", share_routes::LIST) => list(identity, lease, registry),
         ("POST", LINK_ACCESS) => link_access(body, identity, lease, registry),
         _ => WebReply {
@@ -159,12 +187,30 @@ fn mutate(
     identity: &ResolvedIdentity,
     lease: &TenantLease,
     registry: &TenantRegistry,
+    accounts: Option<&super::account_routes::AccountAuth>,
     mutation: Mutation,
 ) -> WebReply {
     let parsed = match parse_account(body, &identity.user_id) {
         Ok(parsed) => parsed,
         Err(error) => return error_reply(error),
     };
+    // Does that account exist? A deployment that has an account list can answer,
+    // and it must: without this the route accepts a NAME, records it as a grant,
+    // answers `200 changed:true` and grants nothing — the person it names is
+    // refused with `tenant-not-shared` and the list shows a row that looks like
+    // somebody. Found by running the share scenario against a real deployment.
+    if mutation == Mutation::Grant {
+        if let Some(accounts) = accounts {
+            match accounts.db().find_user_by_id(&parsed.account) {
+                Ok(Some(_)) => {}
+                Ok(None) => return error_reply(ShareError::UnknownAccount),
+                // A store that cannot answer must not turn into a grant: the
+                // caller is told the deployment could not check, not that the
+                // account is fine.
+                Err(_) => return error_reply(ShareError::LookupUnavailable),
+            }
+        }
+    }
     // May this caller add anybody at all? The same decision the document
     // routes make, from the same place, so "may invite" cannot mean two
     // things. The owner passes by identity; a visitor holding the access list
