@@ -32,18 +32,51 @@ fn catalog_values(state: &EditorState) -> Vec<&str> {
         .collect()
 }
 
-/// Block until the spawned worker's result has landed. The worker is a
-/// detached one-shot; allow enough wall time for process-heavy full-suite
-/// contention while keeping a hard deadline for a genuinely stuck worker.
+/// Liveness bound for "the detached worker's result must eventually land".
+///
+/// This bounds the *wait*, never the property under test: every assertion
+/// below still demands the real catalog, so a broken refresh path still
+/// fails here (it never lands) or in the result asserts (it lands wrong).
+/// It has to be generous because the worker's work is a real subprocess in
+/// the last test — `spawn → exec → reap` — and the whole suite is heavily
+/// parallel. Measured here on an 8-core machine running the full crate
+/// (`--lib`, 1600+ tests): that chain took 3.8 s, 6.4 s, 6.4 s, 7.4 s and
+/// 7.5 s across runs, and under 16 test threads it was still running when a
+/// 10 s bound expired (`pending=true`) — which surfaced as
+/// `assertion failed: drain(...)` on a test whose subject had not failed at
+/// all (issue #133). 60 s is ~8x the worst latency observed; only a worker
+/// that is genuinely stuck can reach it, and that is a real failure.
+const DRAIN_BUDGET: Duration = Duration::from_secs(60);
+
+/// Block until the spawned worker's result has landed, or until the worker
+/// is known to be gone.
 fn drain(refresh: &mut ModelCatalogRefresh, state: &mut EditorState) -> bool {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while Instant::now() < deadline {
+    let deadline = Instant::now() + DRAIN_BUDGET;
+    let mut backoff = Duration::from_millis(1);
+    loop {
+        // Poll *before* consulting the budget. A result that landed while this
+        // thread was off-CPU is already in the channel; a deadline-first loop
+        // (the shape this helper used to have) discards it and reports a
+        // failure that never happened.
         if refresh.poll_into(state) {
             return true;
         }
-        std::thread::sleep(Duration::from_millis(1));
+        // `poll_into` drops the job only when the worker's sender went away
+        // without sending, i.e. the worker panicked — in these tests that means
+        // its subprocess could not be spawned. No amount of waiting can change
+        // that, and the worker's own panic message is the real diagnostic, so
+        // fail now instead of burning the rest of the budget in silence.
+        if !refresh.is_pending() {
+            return false;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        // Back off rather than spin at a flat 1 ms: this helper waits on a real
+        // process, and while the machine is loaded it must not be load itself.
+        std::thread::sleep(backoff);
+        backoff = (backoff * 2).min(Duration::from_millis(20));
     }
-    false
 }
 
 #[test]
