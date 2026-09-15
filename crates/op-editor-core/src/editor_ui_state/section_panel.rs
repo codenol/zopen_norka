@@ -93,6 +93,56 @@ pub struct SectionLink {
     pub state: LinkState,
 }
 
+/// Which sections, anywhere in the document, no longer match what they were
+/// built from.
+///
+/// The panel answers that question for the section somebody selected. This
+/// answers it for the canvas, which paints a mark on every section that has
+/// drifted — the thing the operator asked for: a screen should be able to say
+/// which analytics it came from, and a reader should be able to SEE that it no
+/// longer matches without opening anything.
+///
+/// A list rather than a map: documents hold a handful of sections, and a walk of
+/// a few entries per frame costs less than the hashing would.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SectionMarks {
+    marks: Vec<(NodeId, LinkState)>,
+}
+
+impl SectionMarks {
+    /// Replace the whole set. Called when the reader has re-answered.
+    pub fn replace(&mut self, marks: Vec<(NodeId, LinkState)>) {
+        self.marks = marks;
+    }
+
+    /// Forget everything — a different document is open.
+    pub fn clear(&mut self) {
+        self.marks.clear();
+    }
+
+    /// The state of one section, when the canvas is about to paint it.
+    ///
+    /// `None` means "nothing known", which is not the same as "in sync": a
+    /// section nobody has read yet must not be painted as if it were fine, and
+    /// it must not be painted as broken either.
+    pub fn of(&self, node: &NodeId) -> Option<LinkState> {
+        self.marks
+            .iter()
+            .find(|(marked, _)| marked == node)
+            .map(|(_, state)| *state)
+    }
+
+    /// Whether anything is marked at all, so a paint pass can skip the walk.
+    pub fn is_empty(&self) -> bool {
+        self.marks.is_empty()
+    }
+
+    /// How many sections are marked, for tests and for a summary later.
+    pub fn len(&self) -> usize {
+        self.marks.len()
+    }
+}
+
 /// What the panel knows about the selected section.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SectionPanelState {

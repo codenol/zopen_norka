@@ -64,6 +64,14 @@ here at a glance.
   keyboard back without saving, and a write that fails keeps the sentence, so the
   retry is a keystroke rather than retyping it.
 
+- **The canvas marks a section that no longer matches what it was built
+  from.** A section whose analytics has changed since — or whose screens have —
+  wears a warning glyph in its top-right corner, visible without selecting
+  anything. An octagon rather than a triangle when the document it was built
+  from is gone, because "the reasoning moved" and "the reasoning is missing" are
+  different repairs. Nothing is marked before the store has been asked, so a
+  document that has never been opened does not accuse its own sections.
+
 - **A section can be attached to the analytics it came from.** "Attach
   analytics…" opens a file dialog; pick a markdown document and it is loaded into
   the store as an asset and linked to the section in one step, with both

@@ -194,6 +194,7 @@ mod canvas_generation_scan_tests;
 pub mod canvas_layout_transition;
 pub mod canvas_overlay_transform;
 mod canvas_path_overlay;
+pub mod canvas_section_marks;
 mod canvas_selection_overlay;
 pub mod canvas_text_edit;
 pub mod canvas_viewport;
