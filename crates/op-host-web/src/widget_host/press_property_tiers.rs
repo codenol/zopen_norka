@@ -276,6 +276,37 @@ impl WidgetHost {
                 return Some(true);
             }
             let point = Point2D::new(x, y);
+            // The Section block (#59) sits above every ordinary section, so it
+            // is asked first: a click on a summary question focuses it, and a
+            // click anywhere else in the block blurs rather than falling
+            // through to the fields the block has pushed down.
+            if let Some(block) = panel.section_block_rect(property_rect) {
+                if block.contains(point) {
+                    let fields =
+                        op_editor_ui::widgets::property_panel_section_block::section_field_rects(
+                            &self.editor_state.editor_ui.section_panel,
+                            block.origin.x,
+                            block.origin.y,
+                            block.size.x,
+                        );
+                    let hit = fields
+                        .into_iter()
+                        .find(|(_, rect)| rect.contains(point))
+                        .map(|(field, _)| field);
+                    match hit {
+                        Some(field) => {
+                            self.editor_state
+                                .editor_ui
+                                .section_panel
+                                .focus_field(field, self.now_ms);
+                        }
+                        None => self.editor_state.editor_ui.section_panel.blur(),
+                    }
+                    self.commit_property_focus_if_any();
+                    self.mark_dirty();
+                    return Some(true);
+                }
+            }
             if let Some(action) = panel.hit_test_action(property_rect, point) {
                 self.editor_state.editor_ui.pressed_button =
                     if let op_editor_ui::widgets::PropertyPanelAction::Codegen(codegen_action) =

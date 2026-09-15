@@ -30,7 +30,7 @@
 //! looking at, not a dashboard, and a burst of requests is a burst nobody asked
 //! for.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use op_editor_core::editor_ui_state::section_panel::SectionLink;
@@ -67,6 +67,9 @@ thread_local! {
     static PENDING: RefCell<Option<Pending>> = const { RefCell::new(None) };
     /// The section a properties request is in flight for.
     static IN_FLIGHT: RefCell<Option<NodeId>> = const { RefCell::new(None) };
+    /// A write is in flight. One at a time: two saves racing would land in
+    /// whichever order the network chose.
+    static SAVE_IN_FLIGHT: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Wire the section reader onto the mounted shell. Called from mount.
@@ -75,6 +78,7 @@ pub(crate) fn start<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let inner = inner.clone();
     let tick: Rc<dyn Fn()> = Rc::new(move || {
         watch_selection(&inner);
+        save_pending(&inner, &base);
         resolve_next(&inner, &base);
     });
     let _ = live_sync::start_interval(TICK_MS, tick);
@@ -205,6 +209,88 @@ fn apply_properties<C: RepaintContext + 'static>(
             resolved,
         })
     });
+}
+
+/// Send the section the panel has been edited into, when it asked to be saved.
+///
+/// The widget layer has no HTTP, so the commit queues the properties and this
+/// is what carries them: `POST /api/files/<key>/sections/<node>`. The route
+/// compares what it is handed with what it holds, so the whole properties
+/// object goes — a body carrying only the summary would read as "clear
+/// everything else".
+fn save_pending<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str) {
+    if SAVE_IN_FLIGHT.with(|slot| slot.get()) {
+        return;
+    }
+    let Some(properties) = ({
+        let Ok(mut context) = inner.try_borrow_mut() else {
+            return;
+        };
+        let state = context.host_mut().editor_state_mut();
+        state.editor_ui.section_panel.take_pending_save()
+    }) else {
+        return;
+    };
+    let (node, key) = {
+        let Ok(context) = inner.try_borrow() else {
+            return;
+        };
+        let state = context.host().editor_state();
+        (
+            state.editor_ui.section_panel.node.clone(),
+            state.editor_ui.file_key.clone(),
+        )
+    };
+    let (Some(node), Some(key)) = (node, key) else {
+        return;
+    };
+    let Ok(body) = serde_json::to_string(&properties) else {
+        fail_save(inner);
+        return;
+    };
+    let url = crate::daemon_base::with_tenant_param(&format!(
+        "{base}{}",
+        section_routes::section(&key, node.as_str())
+    ));
+    SAVE_IN_FLIGHT.with(|slot| slot.set(true));
+    let reply_inner = inner.clone();
+    let started = live_sync::post_json_with_status(
+        &url,
+        &body,
+        Rc::new(move |status, _body| {
+            SAVE_IN_FLIGHT.with(|slot| slot.set(false));
+            if status >= 400 {
+                fail_save(&reply_inner);
+                return;
+            }
+            let Ok(mut context) = reply_inner.try_borrow_mut() else {
+                return;
+            };
+            let state = context.host_mut().editor_state_mut();
+            state.editor_ui.section_panel.saved(properties.clone());
+            context.host_mut().mark_editor_state_dirty();
+            let _ = context.repaint();
+        }),
+    );
+    if !started {
+        SAVE_IN_FLIGHT.with(|slot| slot.set(false));
+        fail_save(inner);
+    }
+}
+
+/// The write did not land. The draft stays, so the retry is a keystroke.
+fn fail_save<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
+    let Ok(mut context) = inner.try_borrow_mut() else {
+        return;
+    };
+    context
+        .host_mut()
+        .editor_state_mut()
+        .editor_ui
+        .section_panel
+        .save_refused();
+    context.host_mut().mark_editor_state_dirty();
+    let _ = context.repaint();
 }
 
 /// Resolve one outstanding link, or hand the finished answer to the panel.

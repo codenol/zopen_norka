@@ -36,6 +36,20 @@ impl WidgetHost {
             }
             return true;
         }
+        // A summary question in the Section block (#59) owns the keystroke
+        // while it has focus. Not modal — the rest of the editor stays usable —
+        // so this falls through when nothing is focused.
+        if let Some(changed) = self
+            .editor_state
+            .editor_ui
+            .section_panel
+            .edit_text(c, self.now_ms)
+        {
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
         // The comment field owns the keystroke while it has focus — checked
         // before every other arm, because a bare letter would otherwise switch
         // the tool behind a comment somebody is typing.
@@ -188,6 +202,17 @@ impl WidgetHost {
                 self.now_ms,
             )
             .unwrap_or(false);
+            if changed {
+                self.mark_dirty();
+            }
+            return true;
+        }
+        if let Some(changed) = self
+            .editor_state
+            .editor_ui
+            .section_panel
+            .edit_backspace(self.now_ms)
+        {
             if changed {
                 self.mark_dirty();
             }
@@ -346,6 +371,15 @@ impl WidgetHost {
             )
             .unwrap_or(false);
             if submitted {
+                self.mark_dirty();
+            }
+            return true;
+        }
+        // Enter in a summary question saves it: the panel queues the write and
+        // `section_sync` sends it on its next tick, so the editor stays
+        // responsive while the daemon answers.
+        if self.editor_state.editor_ui.section_panel.focus.is_some() {
+            if self.editor_state.editor_ui.section_panel.request_save() {
                 self.mark_dirty();
             }
             return true;

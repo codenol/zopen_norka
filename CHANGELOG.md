@@ -57,6 +57,13 @@ here at a glance.
   has read says so and stops, rather than showing four empty fields that look
   like answers.
 
+- **The summary is written where it is read.** Click a question in the section's
+  block, type, and Enter saves it — the answer goes to the daemon with the whole
+  properties object, so the route can see that only the summary moved and ask
+  for the summary right rather than for an edit of the document. Escape gives the
+  keyboard back without saving, and a write that fails keeps the sentence, so the
+  retry is a keystroke rather than retyping it.
+
 - **Analytics is an asset with an address.** `POST /api/analytics` loads a
   markdown document, `GET /api/analytics/<key>` returns it with the digest of
   what it says now, and a rename keeps the address a section's link points at.

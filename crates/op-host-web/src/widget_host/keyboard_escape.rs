@@ -83,6 +83,15 @@ impl WidgetHost {
         if self.escape_variables_preset_name() {
             return true;
         }
+        // A summary question in the Section block (#59) is an ordinary focused
+        // input, so it releases the keyboard before the modal rungs below: what
+        // was typed stays in the field, and a second Escape reaches the
+        // overlay.
+        if self.editor_state.editor_ui.section_panel.focus.is_some() {
+            self.editor_state.editor_ui.section_panel.blur();
+            self.mark_dirty();
+            return true;
+        }
         // Modal overlays close one per press (mirrors native order:
         // export dialog → figma import → file menu).
         if self.editor_state.editor_ui.escape_export_dialog() {

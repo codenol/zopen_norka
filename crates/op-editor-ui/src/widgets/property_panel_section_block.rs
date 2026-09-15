@@ -29,15 +29,16 @@
 //! rows with their heights ([`rows`]), so the height IS the sum of a list the
 //! paint pass then walks — the two cannot drift.
 
-use op_editor_core::editor_ui_state::section_panel::SectionPanelState;
+use op_editor_core::editor_ui_state::section_panel::{SectionPanelState, SummaryField};
 use op_editor_core::section::{LinkState, MovedSide};
 use op_i18n::Locale;
 
 use crate::theme::Theme;
 use crate::widgets::property_panel_inputs::{
-    paint_section_label, PAD_X, SECTION_GAP, SECTION_HEADER_HEIGHT,
+    paint_section_label, INPUT_HEIGHT, INPUT_RADIUS, PAD_X, SECTION_GAP, SECTION_HEADER_HEIGHT,
 };
 use crate::widgets::{text_metrics, PaintCx};
+use crate::Rect;
 use crate::{Color, Point2D, TextLayout};
 
 /// Section-header size, matching the panel's own headers.
@@ -68,8 +69,12 @@ enum Row {
         name: String,
         state_key: Option<&'static str>,
     },
-    /// One answered question.
-    Field { key: &'static str, value: String },
+    /// One answered question, and which one it is.
+    Field {
+        field: SummaryField,
+        key: &'static str,
+        value: String,
+    },
     /// One flow, with how many steps it has.
     Flow { name: String, steps: usize },
     /// "+N" for the flows the list did not show.
@@ -121,10 +126,11 @@ fn rows(state: &SectionPanelState) -> Vec<(Row, f32)> {
     if fields.is_empty() {
         rows.push((Row::Note("section.summary.empty"), CAPTION_ROW));
     } else {
-        for (key, value) in fields {
+        for (field, value) in fields {
             rows.push((
                 Row::Field {
-                    key,
+                    field,
+                    key: field.i18n_key(),
                     value: value.to_string(),
                 },
                 FIELD_ROW,
@@ -152,6 +158,34 @@ fn rows(state: &SectionPanelState) -> Vec<(Row, f32)> {
     }
 
     rows
+}
+
+/// The questions, with the rect each one is painted in.
+///
+/// Hit-test and paint walk the same `rows`, so a question that is painted is a
+/// question that can be clicked — the rule the rest of this panel follows.
+/// Rectangles are panel-absolute, ready to compare with a pointer.
+pub fn section_field_rects(
+    state: &SectionPanelState,
+    x0: f32,
+    y: f32,
+    w: f32,
+) -> Vec<(SummaryField, Rect)> {
+    if !state.is_visible() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut top = y;
+    for (row, height) in rows(state) {
+        if let Row::Field { field, .. } = row {
+            out.push((
+                field,
+                Rect::xywh(x0 + PAD_X, top + 2.0, w - PAD_X * 2.0, FIELD_ROW - 4.0),
+            ));
+        }
+        top += height;
+    }
+    out
 }
 
 /// How tall the block is, for the panel's content-height walker.
@@ -231,7 +265,7 @@ pub fn paint_section_block(
                     }
                 }
             }
-            Row::Field { key, value } => {
+            Row::Field { field, key, value } => {
                 line(
                     cx,
                     t(locale, key),
@@ -242,7 +276,34 @@ pub fn paint_section_block(
                     w,
                     10.0,
                 );
-                line(cx, &value, LABEL_SIZE, theme.foreground, x0, top, w, 24.0);
+                // The focused question paints what is being typed rather than
+                // what is stored: the two are the same until somebody edits,
+                // and after that the draft is the truth the person can see.
+                let focused = state.focus == Some(field);
+                let shown = if focused {
+                    state.draft.text()
+                } else {
+                    value.as_str()
+                };
+                if focused {
+                    let rect = Rect::xywh(x0 + PAD_X, top + 2.0, w - PAD_X * 2.0, FIELD_ROW - 4.0);
+                    cx.backend
+                        .fill_round_rect(rect, INPUT_RADIUS, theme.background);
+                    cx.backend
+                        .stroke_round_rect(rect, INPUT_RADIUS, theme.primary, 1.0);
+                    line_in(
+                        cx,
+                        shown,
+                        LABEL_SIZE,
+                        theme.foreground,
+                        rect.origin.x + 8.0,
+                        rect.origin.y,
+                        rect.size.x - 16.0,
+                        (INPUT_HEIGHT - 8.0) / 2.0,
+                    );
+                } else {
+                    line(cx, shown, LABEL_SIZE, theme.foreground, x0, top, w, 24.0);
+                }
             }
             Row::Flow { name, steps } => {
                 // A flow row is its name and how many steps it has: a list of
@@ -310,23 +371,13 @@ fn analytics_line(state: &SectionPanelState) -> Option<(String, Option<&'static 
 /// Unanswered ones are left out rather than painted with a dash: the four
 /// questions are answered in whatever order somebody had answers, and a column
 /// of dashes would bury the two lines that were written.
-fn summary_lines(state: &SectionPanelState) -> Vec<(&'static str, &str)> {
+fn summary_lines(state: &SectionPanelState) -> Vec<(SummaryField, &str)> {
     let summary = &state.properties.summary;
-    [
-        ("section.summary.whatItIs", summary.what_it_is.as_str()),
-        (
-            "section.summary.whereToLook",
-            summary.where_to_look.as_str(),
-        ),
-        ("section.summary.useCases", summary.use_cases.as_str()),
-        (
-            "section.summary.whatToCheck",
-            summary.what_to_check.as_str(),
-        ),
-    ]
-    .into_iter()
-    .filter(|(_, value)| !value.trim().is_empty())
-    .collect()
+    SummaryField::ALL
+        .into_iter()
+        .map(|field| (field, field.read(summary)))
+        .filter(|(_, value)| !value.trim().is_empty())
+        .collect()
 }
 
 fn t(locale: Locale, key: &'static str) -> &'static str {
@@ -357,6 +408,29 @@ fn line(
     );
     cx.backend
         .draw_text(&layout, Point2D::new(x0 + PAD_X, top + offset));
+}
+
+/// A line drawn inside a rect the caller has already measured — what the
+/// focused question shows instead of the stored answer.
+fn line_in(
+    cx: &mut PaintCx<'_>,
+    label: &str,
+    size: f32,
+    color: Color,
+    x: f32,
+    top: f32,
+    width: f32,
+    offset: f32,
+) {
+    let fitted = text_metrics::fit_chrome(cx.backend, label, width, size);
+    let layout = TextLayout::single_run(
+        &fitted,
+        "system-ui",
+        size,
+        color.to_jian(),
+        Point2D::new(0.0, 0.0),
+    );
+    cx.backend.draw_text(&layout, Point2D::new(x, top + offset));
 }
 
 #[cfg(test)]
@@ -516,6 +590,95 @@ mod tests {
 
         let lines = summary_lines(&state);
         assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0].0, "section.summary.whereToLook");
+        assert_eq!(lines[0].0, SummaryField::WhereToLook);
+    }
+}
+
+#[cfg(test)]
+mod hit_tests {
+    use super::*;
+    use crate::widgets::property_panel::PropertyPanel;
+    use crate::widgets::property_panel_inputs::{HEADER_HEIGHT, TAB_HEIGHT};
+    use crate::Rect;
+    use op_editor_core::editor_ui_state::section_panel::SummaryField;
+    use op_editor_core::section::{SectionProperties, SectionSummary};
+    use op_editor_core::{EditorState, NodeId};
+
+    const VIEWPORT: (f32, f32) = (1440.0, 900.0);
+    const PANEL_WIDTH: f32 = 280.0;
+
+    /// A panel whose selection is a section carrying one answered question.
+    fn panel_with_a_section() -> (PropertyPanel, Rect) {
+        let mut state = EditorState::sample();
+        let node = state.selection.anchor.clone();
+        state.editor_ui.section_panel.select(Some(node.clone()));
+        state.editor_ui.section_panel.apply(
+            &node,
+            SectionProperties {
+                summary: SectionSummary {
+                    what_it_is: "Checkout".to_string(),
+                    ..SectionSummary::default()
+                },
+                ..SectionProperties::empty()
+            },
+            Vec::new(),
+        );
+        let panel_rect = Rect::xywh(
+            VIEWPORT.0 - PANEL_WIDTH,
+            crate::widgets::TOP_BAR_HEIGHT,
+            PANEL_WIDTH,
+            VIEWPORT.1 - crate::widgets::TOP_BAR_HEIGHT,
+        );
+        let panel = PropertyPanel::for_selection_at(&state, 0).expect("a selected section");
+        (panel, panel_rect)
+    }
+
+    #[test]
+    fn the_block_sits_directly_under_the_node_header() {
+        let (panel, panel_rect) = panel_with_a_section();
+
+        let block = panel.section_block_rect(panel_rect).expect("a block");
+
+        assert_eq!(
+            block.origin.y,
+            panel_rect.origin.y + TAB_HEIGHT + HEADER_HEIGHT,
+            "the same place paint puts it, with nothing scrolled"
+        );
+        assert_eq!(block.size.y, panel.section_block_height);
+        assert!(block.size.y > 0.0);
+    }
+
+    #[test]
+    fn a_question_is_clickable_where_it_is_painted() {
+        let (panel, panel_rect) = panel_with_a_section();
+        let block = panel.section_block_rect(panel_rect).expect("a block");
+
+        let fields = section_field_rects(
+            &panel.section_panel,
+            block.origin.x,
+            block.origin.y,
+            block.size.x,
+        );
+
+        assert_eq!(fields.len(), 1, "one answered question, one rect");
+        assert_eq!(fields[0].0, SummaryField::WhatItIs);
+        let inside = Point2D::new(fields[0].1.origin.x + 4.0, fields[0].1.origin.y + 4.0);
+        assert!(block.contains(inside), "the field is inside the block");
+        assert!(fields[0].1.contains(inside));
+    }
+
+    #[test]
+    fn a_selection_that_is_not_a_section_has_no_block() {
+        let state = EditorState::sample();
+        let panel_rect = Rect::xywh(
+            VIEWPORT.0 - PANEL_WIDTH,
+            crate::widgets::TOP_BAR_HEIGHT,
+            PANEL_WIDTH,
+            VIEWPORT.1 - crate::widgets::TOP_BAR_HEIGHT,
+        );
+        let panel = PropertyPanel::for_selection_at(&state, 0).expect("a selection");
+
+        assert!(panel.section_block_rect(panel_rect).is_none());
+        let _ = NodeId::new("unused");
     }
 }
