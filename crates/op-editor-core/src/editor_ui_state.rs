@@ -238,6 +238,19 @@ pub struct EditorUiState {
     /// path — a different document (issue #98). This is the fact the daemon
     /// cannot see and the client can.
     pub local_document: bool,
+    /// Whether this tab may WRITE the document it is showing.
+    ///
+    /// The daemon decides that from the caller's roles and the document's
+    /// access list, and answers it when the document is opened; a tab that may
+    /// only read must not push. It used to push anyway on every edit and every
+    /// click — a request per keystroke that could never succeed, refused
+    /// silently (issue #43).
+    ///
+    /// `false` is the safe default: a deployment with no accounts (the local
+    /// and desktop daemons) never says otherwise, and they admit everything.
+    /// The flag is only ever set to `true` by an answer that says so, or left
+    /// alone.
+    pub document_read_only: bool,
     /// Derived from `EditorState::revision != saved_revision`; painted
     /// by the TopBar only, never serialized.
     pub document_dirty: bool,

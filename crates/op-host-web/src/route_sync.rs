@@ -262,11 +262,15 @@ fn open_named_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, host
             .get("name")
             .and_then(|name| name.as_str())
             .map(str::to_string);
+        let can_write = can_write_from_open(&value);
         if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
             let state = borrowed.host_mut().editor_state_mut();
             state
                 .editor_ui
                 .set_document_key(Some(key_for_response.clone()));
+            if let Some(can_write) = can_write {
+                state.editor_ui.document_read_only = !can_write;
+            }
             if name.is_some() {
                 state.editor_ui.file_name_display = name;
             }
@@ -790,5 +794,51 @@ mod tests {
     #[test]
     fn slugs_come_from_the_shared_rule() {
         assert_eq!(slug_for("Список токенов"), "spisok-tokenov");
+    }
+}
+
+/// Whether an open answer says this caller may write the document.
+///
+/// `None` when the answer does not say — an older daemon, or a deployment with
+/// no accounts. Silence is "no opinion", not "no": the caller keeps whatever it
+/// knew rather than a working editor turning read-only because a field is
+/// missing (issue #43).
+fn can_write_from_open(value: &serde_json::Value) -> Option<bool> {
+    value.get("canWrite").and_then(|can| can.as_bool())
+}
+
+#[cfg(test)]
+mod document_rights_tests {
+    use super::can_write_from_open;
+
+    #[test]
+    fn the_open_answer_decides_who_may_write() {
+        assert_eq!(
+            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": true })),
+            Some(true)
+        );
+        assert_eq!(
+            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": false })),
+            Some(false),
+            "a reader is told so with the open, not by a refused push"
+        );
+    }
+
+    #[test]
+    fn an_answer_that_does_not_say_leaves_the_question_open() {
+        // An older daemon, or a local one with no accounts to decide about.
+        assert_eq!(
+            can_write_from_open(&serde_json::json!({ "ok": true, "version": 3 })),
+            None
+        );
+        assert_eq!(
+            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": null })),
+            None
+        );
+        assert_eq!(
+            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": "yes" })),
+            None,
+            "a string is not a boolean"
+        );
     }
 }
