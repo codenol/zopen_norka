@@ -265,6 +265,30 @@ fn version_failure_message_falls_back_when_the_cli_said_nothing() {
     );
 }
 
+/// The timeout this file hands to a real CLI spawn → exec → read.
+///
+/// These probes used a fixed `Duration::from_secs(10)`, and under a full
+/// parallel run that expired before the freshly spawned shell reached its
+/// first line: the assertion that followed then read the timeout text as "the
+/// CLI lost its root cause" (issue #156). The class is fixed once, in
+/// [`crate::test_wait`] — one budget measured against real `spawn → exec →
+/// reap` cycles (3812–7514 ms under load, so 60 s is ~8x the worst observed) —
+/// and it is the budget every other wait on a real worker in this crate takes.
+///
+/// The polling helpers in that module (which poll first and give up when the
+/// worker is gone) do not apply here: `cli_version` blocks and owns its own
+/// deadline, so there is no event for a test to poll. The budget is the part
+/// that carries over, and with it a timeout can only mean a genuinely stuck
+/// CLI — which the assertion below still reports as the timeout it is, because
+/// a timeout and a lost diagnostic are different bugs.
+///
+/// `cli_version_accepts_a_healthy_cli_and_bounds_a_hung_one` deliberately does
+/// NOT use it: that test has to observe a probe reaching its deadline, so it
+/// escalates a short budget and says why, exactly as [`crate::test_wait`] asks
+/// of any test that needs a different number.
+#[cfg(unix)]
+const CLI_PROBE_BUDGET: std::time::Duration = crate::test_wait::WORKER_WAIT_BUDGET;
+
 /// Write an executable `/bin/sh` stand-in for a CLI, so the version gate
 /// can be driven through a real subprocess without depending on which
 /// coding CLIs happen to be installed on the machine running the tests.
@@ -313,8 +337,8 @@ fn cli_version_reports_stderr_from_a_nonzero_exit() {
         "printf 'env: node: No such file or directory\\n' >&2\nexit 127\n",
     );
 
-    let failure = cli_version_retry(&exe, std::time::Duration::from_secs(10))
-        .expect_err("a 127 exit is not a usable version");
+    let failure =
+        cli_version_retry(&exe, CLI_PROBE_BUDGET).expect_err("a 127 exit is not a usable version");
     let CliVersionFailure::Exited { status, tail } = &failure else {
         panic!("expected a non-zero exit, got {failure:?}");
     };
@@ -350,8 +374,17 @@ fn cli_version_surfaces_node_optional_dependency_root_cause() {
     );
     let (dir, exe) = fake_cli("broken-codex", &body);
 
-    let failure = cli_version_retry(&exe, std::time::Duration::from_secs(10))
+    let failure = cli_version_retry(&exe, CLI_PROBE_BUDGET)
         .expect_err("a missing platform package must fail the version gate");
+    // A probe that never answered and a probe that answered badly are
+    // different failures, and this test is about the second one. Saying which
+    // happened is the whole difference between a red run that points at the
+    // budget and one that reads as a lost diagnostic (issue #156).
+    assert!(
+        !matches!(&failure, CliVersionFailure::TimedOut { .. }),
+        "the stand-in CLI printed nothing for {CLI_PROBE_BUDGET:?}; the assertions below are about \
+         what it printed, not about the probe's budget: {failure:?}"
+    );
     let message = cli_version_failure_message("Codex", &failure);
 
     assert!(
@@ -387,7 +420,7 @@ fn cli_version_does_not_wait_for_a_descendant_holding_its_pipes() {
         "printf 'codex-cli 1.2.3\\n'\nsleep 30 &\nexit 0\n",
     );
     let started = std::time::Instant::now();
-    let version = cli_version_retry(&exe, std::time::Duration::from_secs(10));
+    let version = cli_version_retry(&exe, CLI_PROBE_BUDGET);
     let elapsed = started.elapsed();
 
     assert_eq!(version, Ok("codex-cli 1.2.3".to_string()));

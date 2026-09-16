@@ -20,6 +20,14 @@
 //! accepts the same `OPENPENCIL_ONLINE_DATA_DIR` the daemon reads (or
 //! `--data-dir`, for an operator who would rather be explicit).
 //!
+//! ## Why the password is read through the same handle as the name
+//!
+//! The dialogue owns one reader and everything reads from it, including the
+//! password (which differs only in that the terminal's echo is off for it).
+//! Two readers over one stream is two owners of it — and when the stream is
+//! the process-global `Stdin`, whose lock is not reentrant, the second owner
+//! is a deadlock rather than a race (issue #155).
+//!
 //! ## What it prints
 //!
 //! The name, the status, and which database was written. Never the password —
@@ -77,6 +85,14 @@ pub(crate) fn map_admin(positionals: &[String], flags: &Flags) -> Result<Command
 }
 
 /// Run the interactive flow against the real terminal.
+///
+/// There is exactly ONE owner of stdin for the whole conversation: the handle
+/// locked here, which is both the handle the questions read from and the
+/// handle the password reader is given. The password reader used to lock
+/// `std::io::stdin()` itself instead, and `Stdin`'s lock is not reentrant, so
+/// the second lock from the same thread waited forever on the lock the
+/// dialogue already held — issue #155, which hung `op admin create` before a
+/// single password byte was read, on a terminal and on a pipe alike.
 pub(crate) fn run_create(data_dir: Option<&str>) -> Result<String, CliError> {
     let store = open_store(data_dir)?;
     let mut stdin = std::io::stdin().lock();
@@ -192,13 +208,19 @@ pub(crate) fn open_store(data_dir: Option<&str>) -> Result<AccountsDb, CliError>
 /// The readable and writable halves are arguments so the flow can be driven by
 /// a test: what is being checked is which questions are asked, in what order,
 /// and what a refusal does to the session — none of which needs a terminal.
+///
 /// `read_secret` is separate because a password is read without echo, which is
-/// a property of the terminal rather than of the input stream.
+/// a property of the terminal rather than of the input stream. It is handed the
+/// SAME reader the questions are read from (`input`) rather than reaching for
+/// stdin itself: a second path to the same stream is a second owner of it, and
+/// with a process-global lock behind it that is a deadlock rather than a bug
+/// report (issue #155). Using the handle also keeps the two reads in one
+/// buffer, so an answer typed ahead of its question stays in order.
 pub(crate) fn create_admin(
     store: &AccountsDb,
     input: &mut impl BufRead,
     output: &mut impl Write,
-    read_secret: &mut impl FnMut() -> Result<String, CliError>,
+    read_secret: &mut impl FnMut(&mut dyn BufRead) -> Result<String, CliError>,
 ) -> Result<String, CliError> {
     // Refused before a single question: an operator who runs this on a live
     // deployment should not type a password in order to be told no, and the
@@ -221,7 +243,7 @@ pub(crate) fn create_admin(
     let username = username.trim().to_string();
 
     let password = loop {
-        let password = read_secret()?;
+        let password = read_secret(input)?;
         // The same policy the store applies, asked here so a weak password is
         // answered with a reason and another question rather than with a
         // failure after the confirmation.
@@ -229,7 +251,7 @@ pub(crate) fn create_admin(
             writeln!(output, "  {weak}").map_err(io_error)?;
             continue;
         }
-        let repeated = read_secret()?;
+        let repeated = read_secret(input)?;
         if repeated != password {
             writeln!(output, "  the two passwords do not match").map_err(io_error)?;
             continue;
@@ -280,14 +302,18 @@ fn ask(
 
 /// Read a password from the terminal without echoing it.
 ///
+/// The line is read from the handle the dialogue owns (`input`) and never from
+/// a freshly locked `stdin` — see [`run_create`] for the deadlock that second
+/// path caused.
+///
 /// Two attempts, honestly labelled: the first and its confirmation are the two
 /// reads a caller makes, and a mismatch re-asks both. A read that hits end of
 /// input is the non-interactive case, and it stops the loop rather than
 /// spinning.
-fn read_secret_from_terminal() -> Result<String, CliError> {
+fn read_secret_from_terminal(input: &mut dyn BufRead) -> Result<String, CliError> {
     let _echo = EchoOff::engage();
     ask_prompt("Password (not echoed): ")?;
-    let first = read_line_raw()?;
+    let first = read_line_raw(input)?;
     println!();
     Ok(first)
 }
@@ -299,14 +325,14 @@ fn ask_prompt(prompt: &str) -> Result<(), CliError> {
     stdout.flush().map_err(io_error)
 }
 
-fn read_line_raw() -> Result<String, CliError> {
+/// One password line, taken from the dialogue's own reader.
+///
+/// End of input is an error and not an empty password: a script that ran out
+/// of answers must be told so, not handed a blank secret that the strength
+/// check would then explain as "too short".
+fn read_line_raw(input: &mut dyn BufRead) -> Result<String, CliError> {
     let mut line = String::new();
-    if std::io::stdin()
-        .lock()
-        .read_line(&mut line)
-        .map_err(io_error)?
-        == 0
-    {
+    if input.read_line(&mut line).map_err(io_error)? == 0 {
         return Err(CliError::usage(
             "no input on stdin: `op admin create` is interactive",
         ));
