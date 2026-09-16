@@ -7,6 +7,8 @@
 //!
 //! ## Usage
 //!
+//! Generation (needs a model credential):
+//!
 //! ```sh
 //! export OPENPENCIL_ANTHROPIC_API_KEY=sk-ant-...   # or ANTHROPIC_API_KEY
 //! cargo run -p op-smoke -- "design a login screen"
@@ -20,6 +22,26 @@
 //! - `OPENPENCIL_SMOKE_VALIDATION=1` — opt into the production lint
 //!   pre-validator and post-generation validation stage. The default remains
 //!   skipped so existing smoke traces are unchanged.
+//!
+//! ## Audit mode — no model, no provider, no credential
+//!
+//! ```sh
+//! OPENPENCIL_SMOKE_AUDIT=path/to/design.op cargo run -p op-smoke -- audit
+//! ```
+//!
+//! Scores an EXISTING `.op` with the real-layout geometry diagnostics plus the
+//! `audit_rubric` metrics, prints one JSON report on stdout and exits:
+//! `0` = structurally clean, `1` = geometry issues found, `3` = the named file
+//! could not be read or parsed. Zero LLM calls, so it needs no
+//! `OPENPENCIL_LLM_PROVIDER`, no API key and no `agy` binary — this is the
+//! quality gate a CI job or a credential-less machine runs.
+//!
+//! The mode is dispatched before the provider is parsed and before any LLM
+//! client is built (see [`audit_mode`]); the positional argument is not a
+//! prompt there and is ignored — pass `audit` by convention, as the harness
+//! scripts do. Any failure it prints names the audited file, never a
+//! credential. Every other mode in this file does call a model and still
+//! validates its credential first.
 //!
 //! ## What this verifies vs the desktop GUI smoke
 //!
@@ -44,6 +66,7 @@
 
 use std::sync::Arc;
 
+mod audit_mode;
 mod audit_rubric;
 mod best_of;
 mod image_fill;
@@ -216,6 +239,8 @@ async fn main() -> std::process::ExitCode {
         _ => {
             eprintln!(
                 "usage: op-smoke <prompt>\n\n\
+                 audit (no model, no credential; <prompt> is ignored):\n\
+                   OPENPENCIL_SMOKE_AUDIT=<file.op> op-smoke audit\n\n\
                  providers:\n\
                    anthropic (default): OPENPENCIL_ANTHROPIC_API_KEY=...\n\
                    openai-compat: OPENPENCIL_LLM_BASE_URL=... OPENPENCIL_LLM_API_KEY=...\n\
@@ -228,6 +253,22 @@ async fn main() -> std::process::ExitCode {
             return std::process::ExitCode::from(2);
         }
     };
+
+    // `OPENPENCIL_SMOKE_AUDIT=<path.op>` — self-loop quality gate: load the
+    // doc, run the REAL-layout geometry diagnostics (the same detector family
+    // the per-batch feedback uses), print a JSON report, exit. Zero LLM calls.
+    // Exit code 0 = structurally clean, 1 = issues found.
+    //
+    // Dispatched HERE, above `OPENPENCIL_SMOKE_MODIFY_INPUT` / `_LOOP` and
+    // above the provider + credential validation below, because a mode that
+    // makes no model call must not be gated behind one: the audit has to run
+    // on a CI runner with no `OPENPENCIL_LLM_*` in the environment (issue
+    // #188). Nothing model-shaped is parsed or constructed on this path, and
+    // the knobs below (`_STARTER`, `_LIBRARY`, provider, model) are inert for
+    // an audit — the file it was given is the only input it reads.
+    if let Some(code) = audit_mode::run_if_requested() {
+        return code;
+    }
 
     if let Some(code) = modify_mode::run_if_requested(prompt.clone()).await {
         return code;
@@ -345,68 +386,8 @@ async fn main() -> std::process::ExitCode {
         return code;
     }
 
-    // `OPENPENCIL_SMOKE_AUDIT=<path.op>` — self-loop quality gate: load the
-    // doc, run the REAL-layout geometry diagnostics (the same detector family
-    // the per-batch feedback uses), print a JSON report, exit. Zero LLM calls.
-    // Exit code 0 = structurally clean, 1 = issues found. This is the
-    // machine-checkable leg of the develop→generate→render→audit loop.
-    if let Ok(audit_path) = std::env::var("OPENPENCIL_SMOKE_AUDIT") {
-        let text = match std::fs::read_to_string(&audit_path) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("[AUDIT] read {audit_path}: {e}");
-                return std::process::ExitCode::from(3);
-            }
-        };
-        // Load through the compat loader (not raw serde) so a `.op`
-        // saved with the deduplicated `images` table audits with its
-        // refs resolved instead of dangling `op-image:` strings.
-        let doc: jian_ops_schema::PenDocument = match jian_ops_schema::load_str(&text) {
-            Ok(loaded) => loaded.value,
-            Err(e) => {
-                eprintln!("[AUDIT] parse {audit_path}: {e}");
-                return std::process::ExitCode::from(3);
-            }
-        };
-        let state = op_editor_core::EditorState::from_document(doc);
-        let issues = op_orchestrator::geometry_validation::geometry_diagnostics(&state);
-        let roots: Vec<String> = state
-            .active_children()
-            .iter()
-            .map(|n| {
-                use op_editor_core::PenNodeExt;
-                format!(
-                    "{} ({})",
-                    n.base().name.as_deref().unwrap_or("?"),
-                    n.id_str()
-                )
-            })
-            .collect();
-        let report = serde_json::json!({
-            "file": audit_path,
-            "roots": roots,
-            "issueCount": issues.len(),
-            "issues": issues,
-            // Chrome completeness / node-vocabulary / density metrics — the
-            // dimensions raw geometry issues miss (see ab-g3 07-04 lesson).
-            // Informational: exit code stays keyed on geometry issues alone.
-            // `None`: this standalone-audit branch loads an existing `.op`
-            // straight off disk and never drives the orchestrator, so there
-            // is no `RunSummary` to report subtask-completeness against —
-            // the rubric's `completeness` section is omitted here (never a
-            // fabricated 0/0), same as `rubric_report`'s own doc contract.
-            "rubric": audit_rubric::rubric_report(&state, None),
-        });
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&report).unwrap_or_default()
-        );
-        return if issues.is_empty() {
-            std::process::ExitCode::SUCCESS
-        } else {
-            std::process::ExitCode::from(1)
-        };
-    }
+    // `OPENPENCIL_SMOKE_AUDIT` was handled at the top of `main` — see
+    // `audit_mode`, which owns the report contract and the exit codes.
 
     // `OPENPENCIL_SMOKE_PROGRAM=<path>` runs a Pencil-style batch_design DSL
     // PROGRAM (a `binding=I(parent,{...})` tree-builder) against the doc and
