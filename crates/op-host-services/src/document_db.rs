@@ -549,6 +549,68 @@ pub(crate) fn touch_entry(
     Ok(entry)
 }
 
+/// Attribute a stored document to `owner` — the one write that makes a document
+/// which arrived outside the store belong to an account (#46).
+///
+/// Two shapes of "outside the store" come through here: a ROW nobody is
+/// attributed by (every row the legacy `index.json` import brought over, and
+/// every row a daemon that ran without accounts created), and a FILE placed in
+/// the directory by hand, which has no row at all. The store's rule that a row
+/// follows its file holds for both: the caller checks the file is there, and
+/// this never invents a document.
+///
+/// Returns the row as it stands afterwards and whether THIS call is what
+/// attributed it. `false` with an owner that is not `owner` means the document
+/// belongs to somebody else: the statement refuses to take it from them, which
+/// is why the only UPDATE here carries `owner_id IS NULL` in its WHERE clause
+/// rather than reading the row first and deciding in Rust.
+///
+/// Neither timestamp is touched. A claim changes who a document belongs to, not
+/// when it was last written — and `updated_at` is what the file list sorts and
+/// prints, so moving a recovered file to the top of the list would make the list
+/// lie about work nobody did.
+pub(crate) fn claim_entry(
+    db: &DocumentDb,
+    key: &str,
+    owner: &str,
+    now: u64,
+    size: u64,
+    fallback_name: &str,
+) -> Result<(DocumentEntry, bool), DocumentStoreError> {
+    let conn = db.conn();
+    let tx = conn.unchecked_transaction().map_err(db_error)?;
+    let adopted = tx
+        .execute(
+            "UPDATE documents SET owner_id = ?2 WHERE key = ?1 AND owner_id IS NULL",
+            params![key, owner],
+        )
+        .map_err(db_error)?;
+    let mut claimed = adopted > 0;
+    if adopted == 0 && find_by_conn(&tx, key)?.is_none() {
+        // No row at all: the file arrived without one. `created_at` is the
+        // moment the store learned about the document, which is the honest
+        // answer — the file's own mtime says when it was written on a machine
+        // whose clock and timezone nobody recorded.
+        tx.execute(
+            "INSERT INTO documents
+                 (key, name, owner_id, created_at, updated_at, size, has_thumbnail)
+             VALUES (?1, ?2, ?3, ?4, ?4, ?5, 0)",
+            params![key, fallback_name, owner, now, size],
+        )
+        .map_err(db_error)?;
+        claimed = true;
+    }
+    let entry = tx
+        .query_row(
+            &format!("SELECT {ENTRY_COLUMNS} FROM documents WHERE key = ?1"),
+            params![key],
+            entry_from_row,
+        )
+        .map_err(db_error)?;
+    tx.commit().map_err(db_error)?;
+    Ok((entry, claimed))
+}
+
 /// Set a document's name. `None` when no such document is stored.
 pub(crate) fn rename_entry(
     db: &DocumentDb,
@@ -677,3 +739,11 @@ pub(crate) fn db_error(error: rusqlite::Error) -> DocumentStoreError {
 #[cfg(test)]
 #[path = "document_db_tests.rs"]
 mod tests;
+
+/// What the schema IS once every step has run — the table list, and the one
+/// table the migrations declare twice (#57). Beside the tests above rather than
+/// inside them because that file is at the 800-line cap, and because these ask
+/// about the migration LIST rather than about the store that runs it.
+#[cfg(test)]
+#[path = "document_db_schema_tests.rs"]
+mod schema_tests;

@@ -826,12 +826,18 @@ mod doc_routes;
 mod document_writes;
 mod export_routes;
 mod files_routes;
+// Beside the spine for the 800-line cap: the claim route (its own authority,
+// #46) and the preview routes (a raster export rather than a rule about files).
+mod files_routes_claim;
+mod files_routes_thumb;
 pub mod online_identity_tier;
 mod online_policy;
 mod online_run_loop;
 mod origin_guard;
 mod recovery_routes;
 mod request_access;
+// The action list the decision above answers in — beside it for the 800-line cap.
+mod request_access_actions;
 mod run_loop;
 mod section_rights;
 mod section_routes;

@@ -99,75 +99,11 @@ use op_editor_core::ShareLevel;
 use super::online_policy::ServeMode;
 use super::tenant_auth::ResolvedIdentity;
 
-/// One thing a route asks to do with a document.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum DocumentAction {
-    /// Look at it: list the store, open a document, read its preview, ask
-    /// about the recovery draft, read its comments.
-    View,
-    /// Take part in the conversation about it: open a thread on an element,
-    /// reply, close or reopen one.
-    ///
-    /// Its own action rather than a spelling of [`DocumentAction::Edit`],
-    /// because the operator's matrix has a level that the two split: the five
-    /// contributor roles (ПО, Аналитик, Фронт, Бэк, QA) may comment and may not
-    /// edit. Asking for `Edit` here would refuse the very people comments exist
-    /// for, and asking for `View` would hand them to a guest who was given only
-    /// a link to read. The right itself already exists in the model
-    /// (`op_editor_core::access::Rights::can_comment`, which is what
-    /// [`Rights::CONTRIBUTOR`] carries); this is the action that reaches it.
-    Comment,
-    /// Change it: create, save, autosave, rename, or write a draft.
-    Edit,
-    /// Add somebody else to it: write an entry on this document's access list.
-    ///
-    /// Its own action rather than a spelling of [`DocumentAction::Edit`],
-    /// because the operator's matrix gives the invite right to a level that
-    /// does not edit: the five contributor roles may add people and may not
-    /// change the document. It is the right the Share dialog's Invite button
-    /// asks about, and the same question the `/api/share/*` routes decide —
-    /// asked here so there is one answer rather than two.
-    Invite,
-    /// Remove it from the store.
-    Delete,
-    /// Adopt the recovery draft as the open document.
-    Restore,
-}
-
-impl DocumentAction {
-    /// Every action, in ascending authority.
-    pub const ALL: [Self; 6] = [
-        Self::View,
-        Self::Comment,
-        Self::Invite,
-        Self::Edit,
-        Self::Delete,
-        Self::Restore,
-    ];
-
-    /// Stable name, for logs and for a refusal that has to say what was asked.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::View => "view",
-            Self::Comment => "comment",
-            Self::Invite => "invite",
-            Self::Edit => "edit",
-            Self::Delete => "delete",
-            Self::Restore => "restore",
-        }
-    }
-
-    /// Whether this action changes stored state.
-    ///
-    /// A comment does, and it is worth being exact about which state: it writes
-    /// a row, and it writes it to the conversation rather than to the document
-    /// (see `super::comment_routes` — no comment route touches the editor, the
-    /// document's version or its file). Reading is still the only action that
-    /// changes nothing, which is what this predicate is for.
-    pub const fn is_write(self) -> bool {
-        !matches!(self, Self::View)
-    }
-}
+/// The actions, and the names a refusal prints for them.
+///
+/// Re-exported from the sibling so every existing path keeps working; see that
+/// module for why the list is where it is.
+pub use super::request_access_actions::DocumentAction;
 
 /// Why a caller may not do what it asked.
 ///
@@ -387,6 +323,17 @@ impl<'a> RequestAccess<'a> {
         if action == DocumentAction::View {
             return Ok(());
         }
+        // A claim is answered by the DEPLOYMENT question, and it is asked before
+        // the ownership shortcut below rather than after it. That shortcut says
+        // "the owner of a document may do anything to it", and every signed-in
+        // account owns its own workspace — so applied to a claim it would say
+        // "any account may bind any unattributed file to itself", which is the
+        // leak `reaches_stored_document` exists to close. Nothing is weakened by
+        // the order: question one has already established that the caller may
+        // address this workspace at all.
+        if action == DocumentAction::Claim {
+            return self.decide_account_administration();
+        }
         // The owner of a document may change it. Their own file is theirs to
         // work on, and a deployment whose hub sends no roles would otherwise
         // be read-only for the very people the documents belong to.
@@ -424,6 +371,10 @@ impl<'a> RequestAccess<'a> {
             DocumentAction::Edit | DocumentAction::Delete | DocumentAction::Restore => {
                 rights.can_edit()
             }
+            // Unreachable — answered by the deployment question above. Kept
+            // explicit because the match is what makes the next action a
+            // decision, exactly as the `View` arm is.
+            DocumentAction::Claim => true,
         };
         if allowed {
             Ok(())

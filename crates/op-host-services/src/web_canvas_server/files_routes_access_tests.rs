@@ -79,6 +79,10 @@ fn every_route_the_parser_produces_names_the_right_it_asks_for() {
         ("POST", "/api/files/abcd1234/save", DocumentAction::Edit),
         ("POST", "/api/files/abcd1234/autosave", DocumentAction::Edit),
         ("POST", "/api/files/abcd1234/rename", DocumentAction::Edit),
+        // The one route in this family whose question is the DEPLOYMENT's rather
+        // than a document's (#46): the row it names belongs to nobody, so there
+        // is no owner to compare and no access list to consult.
+        ("POST", "/api/files/abcd1234/claim", DocumentAction::Claim),
         ("DELETE", "/api/files/abcd1234", DocumentAction::Delete),
         // The conversation about a document. Reading it is reading the
         // document; everything that writes asks for the right the five

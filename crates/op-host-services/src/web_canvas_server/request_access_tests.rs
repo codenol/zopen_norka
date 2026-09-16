@@ -28,8 +28,24 @@ fn owner(roles: &[&str]) -> ResolvedIdentity {
     identity("userA", roles)
 }
 
+/// The actions a DOCUMENT's authority answers, in list order.
+///
+/// Claim is deliberately outside it, and the reason is not an omission: what a
+/// claim asks is a question about the DEPLOYMENT ([`DocumentAction::Claim`]),
+/// since the row it names belongs to nobody to hold authority over. Asserting it
+/// inside these loops would answer "a UX/UI owner may bind an unattributed file
+/// to himself", which is the opposite of the rule. Its own answers are asserted
+/// in `an_admin_may_claim_and_nobody_else_may`; a stranger's and a caller-less
+/// carrier's are NotShared like every other action, and
+/// [`assert_refused_whole`] still covers those.
+fn document_actions() -> impl Iterator<Item = DocumentAction> {
+    DocumentAction::ALL
+        .into_iter()
+        .filter(|action| *action != DocumentAction::Claim)
+}
+
 fn assert_all_allowed(access: &RequestAccess<'_>) {
-    for action in DocumentAction::ALL {
+    for action in document_actions() {
         assert_eq!(access.decide(action), Ok(()), "{action:?}");
     }
 }
@@ -43,7 +59,7 @@ fn assert_all_allowed(access: &RequestAccess<'_>) {
 /// thing structurally — they edit the CALLER's list and never the one a
 /// `?tenant=` parameter pointed at — and this is the reader-facing half of it.
 fn assert_all_allowed_except_invite(access: &RequestAccess<'_>) {
-    for action in DocumentAction::ALL {
+    for action in document_actions() {
         if action == DocumentAction::Invite {
             assert_eq!(
                 access.decide(action),
@@ -66,9 +82,8 @@ fn assert_all_allowed_except_invite(access: &RequestAccess<'_>) {
 /// with no role at all.
 fn assert_read_only(access: &RequestAccess<'_>) {
     assert_eq!(access.decide(DocumentAction::View), Ok(()));
-    for action in DocumentAction::ALL
-        .into_iter()
-        .filter(|action| action.is_write() && *action != DocumentAction::Comment)
+    for action in
+        document_actions().filter(|action| action.is_write() && *action != DocumentAction::Comment)
     {
         assert_eq!(
             access.decide(action),
@@ -320,7 +335,7 @@ fn the_actions_name_themselves_and_split_into_reads_and_writes() {
     let names: Vec<&str> = DocumentAction::ALL.iter().map(|a| a.as_str()).collect();
     assert_eq!(
         names,
-        ["view", "comment", "invite", "edit", "delete", "restore"]
+        ["view", "comment", "invite", "edit", "delete", "restore", "claim"]
     );
     assert!(!DocumentAction::View.is_write());
     for action in [
@@ -332,8 +347,65 @@ fn the_actions_name_themselves_and_split_into_reads_and_writes() {
         DocumentAction::Edit,
         DocumentAction::Delete,
         DocumentAction::Restore,
+        // A claim writes the owner column of a row. It changes nothing about the
+        // document's content and everything about who it belongs to.
+        DocumentAction::Claim,
     ] {
         assert!(action.is_write(), "{action:?}");
+    }
+}
+
+#[test]
+fn an_admin_may_claim_and_nobody_else_may() {
+    // The claim's authority is the DEPLOYMENT's (#46): it decides who an
+    // unattributed document belongs to, and that is the right the account list
+    // is kept for. Every answer below is the one `decide_account_administration`
+    // gives, asked from a workspace the caller may address — so this is also the
+    // proof that the ownership shortcut above it does NOT admit a claim.
+    let admin = owner(&["admin"]);
+    assert_eq!(
+        RequestAccess::online("userA", &admin, None).decide(DocumentAction::Claim),
+        Ok(()),
+        "an administrator recovers a deployment's unattributed documents"
+    );
+
+    // An owner of the workspace, with every role short of the account list: the
+    // shortcut that lets an owner edit their own document must not reach a row
+    // that has no owner at all.
+    for role in ["ux_ui", "software", "analyst", "qa"] {
+        let caller = owner(&[role]);
+        assert_eq!(
+            RequestAccess::online("userA", &caller, None).decide(DocumentAction::Claim),
+            Err(AccessRefusal::NotAnAdministrator),
+            "{role}"
+        );
+    }
+    // Not even an owner with NO roles, who may otherwise do everything to their
+    // own document.
+    let nobody = owner(&[]);
+    assert_eq!(
+        RequestAccess::online("userA", &nobody, None).decide(DocumentAction::Claim),
+        Err(AccessRefusal::NotAnAdministrator)
+    );
+
+    // A caller who cannot address the workspace at all is refused the document
+    // before the deployment question is reached — the order every other action
+    // is asked in, so a stranger cannot learn which of the two refused them.
+    let stranger = identity("userC", &["admin"]);
+    assert_eq!(
+        RequestAccess::online("userA", &stranger, None).decide(DocumentAction::Claim),
+        Err(AccessRefusal::NotShared)
+    );
+
+    // A deployment with no accounts has nothing to attribute to and nothing to
+    // hide either; the ROUTE answers not-found there, and the decision itself
+    // refuses nothing (the branch that keeps local work working).
+    for mode in [ServeMode::Local, ServeMode::Managed] {
+        assert_eq!(
+            RequestAccess::local_operator(mode).decide(DocumentAction::Claim),
+            Ok(()),
+            "{mode:?}"
+        );
     }
 }
 
