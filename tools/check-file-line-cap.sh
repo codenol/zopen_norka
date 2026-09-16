@@ -39,6 +39,7 @@ cd "$root"
 ceiling_table() {
   cat <<'TABLE'
 crates/op-editor-core/src/editor_ui_state.rs|960|158
+crates/op-host-web/src/live_sync_glue.rs|920|228
 TABLE
 }
 
