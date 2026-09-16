@@ -121,8 +121,8 @@ fn repair_vertical_container(
         if dx.abs() > 0.5 || dy.abs() > 0.5 {
             shift_subtree(child, rects, dx, dy);
         }
-        bottom = target_y + child_rect.h;
-        cursor = bottom + effective_gap;
+        bottom = target_y + height_contribution(child, child_rect.h);
+        cursor = target_y + child_rect.h + effective_gap;
     }
 
     let desired_h = bottom - parent.y + padding.bottom;
@@ -145,7 +145,7 @@ fn repair_horizontal_container(
     let gap = gap_value(props);
     let mut cursor = parent.x + padding.left;
     let mut right = cursor;
-    let mut bottom = parent.y + padding.top;
+    let mut tallest = 0.0_f32;
 
     for child in kids.iter().filter(|child| layout_child(child)) {
         let Some(child_rect) = rect(child, rects) else {
@@ -157,7 +157,7 @@ fn repair_horizontal_container(
         }
         if let Some(updated) = rect(child, rects) {
             right = updated.x + updated.w;
-            bottom = bottom.max(updated.y + updated.h);
+            tallest = tallest.max(height_contribution(child, updated.h));
             cursor = right + gap;
         }
     }
@@ -166,11 +166,39 @@ fn repair_horizontal_container(
     if width_can_expand_to_content(props) && desired_w > parent.w + 0.5 {
         set_width(node, rects, desired_w);
     }
-    let desired_h = bottom - parent.y + padding.bottom;
+    let desired_h = padding.top + tallest + padding.bottom;
     if height_can_expand_to_content(props) && desired_h > parent.h + 0.5 {
         set_height(node, rects, desired_h);
     }
     repair_container_to_child_bounds(node, props, kids, rects);
+}
+
+/// The height a child contributes to its CONTAINER's own height.
+///
+/// Two cases contribute nothing, and both are circular evidence — the quantity
+/// already contains the container's own height, so "grow until it fits" is a
+/// function of that height alone and re-inflates by the same amount every pass:
+///
+/// - A child whose height FOLLOWS the container (`height: fill_container`).
+/// - Inside a ROW, a child's resolved BOTTOM: on the cross axis that folds in
+///   where the row placed it, and a `center` / `end` row derives that placement
+///   FROM its own height.
+///
+/// Issue #186 measured both; `layout_repair_tests.rs` carries the fixtures.
+fn height_contribution(child: &PenNode, resolved_h: f32) -> f32 {
+    if height_follows_parent(child) {
+        0.0
+    } else {
+        resolved_h
+    }
+}
+
+/// Does this child's own HEIGHT follow its container's height?
+fn height_follows_parent(node: &PenNode) -> bool {
+    matches!(
+        node_sizing(node).1,
+        Some(SizingBehavior::Keyword(SizingKeyword::FillContainer))
+    )
 }
 
 fn repair_inferred_horizontal_container(
@@ -270,13 +298,24 @@ fn repair_container_to_child_bounds(
     let Some(parent) = rect(node, rects) else {
         return;
     };
+    // A ROW's extent on the cross axis is its tallest child, not the bottom of
+    // whatever the row placed where — see [`height_contribution`].
+    let row = matches!(props.layout.as_ref(), Some(LayoutMode::Horizontal));
     let padding = padding_sides(props.padding.as_ref());
     let mut max_right = parent.x + padding.left;
     let mut max_bottom = parent.y + padding.top;
     for child in kids.iter().filter(|child| layout_child(child)) {
+        if height_follows_parent(child) {
+            continue;
+        }
         if let Some(child_rect) = rect(child, rects) {
             max_right = max_right.max(child_rect.x + child_rect.w);
-            max_bottom = max_bottom.max(child_rect.y + child_rect.h);
+            let bottom = if row {
+                parent.y + padding.top + child_rect.h
+            } else {
+                child_rect.y + child_rect.h
+            };
+            max_bottom = max_bottom.max(bottom);
         }
     }
     if width_can_expand_to_content(props) {
