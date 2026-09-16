@@ -261,8 +261,8 @@ fn run_subtask_retry_worker<L: LlmClient + Send>(
     if !request.reference_attachments.is_empty() {
         match vision_provider.clone() {
             Some(provider) => {
-                let brief_vision = ChatVisionLlmClient::new(provider)
-                    .with_model(request.model.clone());
+                let brief_vision =
+                    ChatVisionLlmClient::new(provider).with_model(request.model.clone());
                 op_orchestrator::reference_brief::enrich_request_with_reference_brief(
                     &mut request,
                     &brief_vision,

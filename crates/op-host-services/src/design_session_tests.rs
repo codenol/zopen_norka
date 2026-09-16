@@ -360,8 +360,7 @@ mod subtask_retry_tests {
             data: vec![0x89, b'P', b'N', b'G'],
         }];
 
-        let mut session =
-            start_subtask_retry(llm, request, failed_subtask(), state.clone(), None);
+        let mut session = start_subtask_retry(llm, request, failed_subtask(), state.clone(), None);
         drain_until_finished(&mut session, &mut state);
 
         let prompts = seen.lock().expect("seen lock");

@@ -135,7 +135,10 @@ fn a_retry_with_its_own_reference_is_left_alone() {
     restore_turn_reference_attachments(&host, 1, &mut request);
 
     assert_eq!(request.reference_attachments.len(), 1);
-    assert_eq!(request.reference_attachments[0].name, "from-the-request.png");
+    assert_eq!(
+        request.reference_attachments[0].name,
+        "from-the-request.png"
+    );
 }
 
 /// The chat layer's own answer to "which pictures does the turn `msg_idx`
