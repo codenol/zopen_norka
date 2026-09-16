@@ -643,6 +643,23 @@ pub(crate) const CONTENT_COLUMN_NAME: &str = "Main Content";
 /// least two other sections — the shape worth pre-building as a two-column
 /// app-shell. Narrow on purpose (mobile / non-sidebar / single-section plans
 /// stay on the single-root path, so parity is unaffected).
+///
+/// **Which routes into this predicate are live** (re-verified for
+/// `codenol/zopen_norka#30`, which read the whole thing as dead code):
+///
+/// - A STRONG first signal (`sidebar` / `side bar` / `side nav` / `left rail`
+///   / `nav rail`) never survives the pipeline on a desktop-screen plan:
+///   `plan_repair::finalize_plan` → `strip_kit_owned_chrome_subtasks` drops it
+///   via `is_kit_owned_chrome` before the scaffold ever runs. Dead route.
+/// - A WEAK nav first signal (`nav` / `navigation` / `menu`) does survive, and
+///   the data-section gate below then accepts it — this is the live route, and
+///   `run_tests_dashboard::pipeline_builds_the_two_column_scaffold_for_a_weak_nav_dashboard_plan`
+///   drives the real pipeline end to end to keep it that way.
+///
+/// The pre-built columns are additionally skipped whenever the session kit's
+/// sentinel is on the document (`scaffold_kit::kit_chassis_commands` wins and
+/// the kit owns the chrome) — the two-column shell is the no-kit fallback, not
+/// a second chrome authority.
 pub(crate) fn plan_is_sidebar_dashboard(plan: &OrchestratorPlan, is_mobile: bool) -> bool {
     use crate::dashboard_columns::{
         is_dashboard_content_subtask, is_sidebar_subtask, is_strong_sidebar_subtask,

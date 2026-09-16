@@ -425,23 +425,24 @@ fn non_append_mode_resolves_scaffold_root_when_empty_frame_is_replaced() {
 
 // ── Dashboard / append mutex (spec §2) ────────────────────────────────────────
 
-/// Append + dashboard request → append fast-path wins; no scaffold root is
-/// inserted on top of the pre-existing target frame.
+/// Append + a dashboard-shaped request → the append fast-path wins and the run
+/// inserts **no scaffold root of any shape**.
 ///
-/// The request carries `Some(append_context)` AND everything that used to
-/// select the bespoke dashboard scaffold: a dashboard keyword in the prompt,
-/// a 1440-wide root, and sidebar + metrics subtasks. That scaffold is gone
-/// (`c179fd28` deleted `scaffold_dashboard`), and `plan_repair::finalize_plan`
+/// The request carries `Some(append_context)` AND everything that once selected
+/// a bespoke dashboard scaffold: a dashboard keyword in the prompt, a 1440-wide
+/// root, and sidebar + metrics subtasks. That scaffold strategy is gone
+/// (`c179fd28` deleted `scaffold_dashboard.rs`), and `plan_repair::finalize_plan`
 /// now strips both the kit-owned sidebar and the non-kit metrics module from
 /// any desktop-screen plan, so this plan reaches phase 2 as a single content
-/// section. The guard that survives — and the reason to keep the fixture — is
-/// that append mode adds **no** scaffold root of any shape: exactly one
-/// `InsertSubtree` per subtask the run actually executed, on top of the one
-/// from the pre-setup, with every sub-agent body landing in
-/// `ctx.target_parent_id`. The count is derived from `summary.subtasks` rather
-/// than pinned to a plan shape the normaliser no longer produces.
+/// section. What the test actually asserts is therefore the append-mode mutex
+/// itself, not any "dashboard branch": append mode adds no scaffold root, so
+/// there is exactly one `InsertSubtree` per subtask the run executed on top of
+/// the one from the pre-setup, and every sub-agent body lands in
+/// `ctx.target_parent_id`. The expected insert count is derived from
+/// `summary.subtasks` rather than pinned to a plan shape the normaliser no
+/// longer produces, so it stays honest if the plan shape moves again.
 #[test]
-fn append_mode_wins_over_dashboard_branch() {
+fn append_mode_on_a_dashboard_plan_inserts_no_scaffold_root() {
     // Dashboard-like plan: 1440 wide, sidebar + metrics subtasks, dashboard
     // keyword in subtask labels.
     const DASHBOARD_PLAN_JSON: &str = r##"{
@@ -479,8 +480,8 @@ fn append_mode_wins_over_dashboard_branch() {
     };
     let before_count = descendant_count(sink.state(), &live_id);
 
-    // Prompt carries the dashboard keyword so without the mutex guard
-    // `should_use_dashboard_columns` would return true.
+    // Prompt carries the dashboard keyword, so without the append-mode mutex
+    // this request would be free to take a dashboard-shaped scaffold path.
     let req = DesignRequest {
         prompt: "an analytics admin dashboard".into(),
         concurrency: 1,

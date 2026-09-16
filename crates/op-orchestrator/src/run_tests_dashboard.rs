@@ -123,9 +123,12 @@ fn descendant_names(node: &serde_json::Value, out: &mut Vec<String>) {
 /// guards is that a whole run leaves the cloned chassis' chrome exactly as the
 /// kit authored it (`height: fill_container` + `space_between`, footer still
 /// inside) while the sub-agent body lands in the content slot rather than in
-/// the sidebar.
+/// the sidebar. The sidebar it inspects is the KIT's, not the orchestrator's —
+/// the orchestrator's own two-column scaffold is covered by
+/// [`pipeline_builds_the_two_column_scaffold_for_a_weak_nav_dashboard_plan`],
+/// which runs without a kit sentinel.
 #[test]
-fn run_dashboard_shell_keeps_sidebar_fill_height_end_to_end() {
+fn run_leaves_the_kit_chassis_sidebar_intact_and_fills_its_content_slot() {
     // Script-gen, not raw JSON: the sub-agent protocol is `I(parent, obj)`.
     let body_script = r#"I(null, {"type":"frame","name":"Body","width":1100,"height":480,"children":[{"type":"text","content":"Clients","fontSize":18}]});"#;
     let llm = ScriptedLlm::new(vec![
@@ -257,4 +260,122 @@ fn planning_retries_once_before_the_fallback_plan() {
 
     // The REAL plan (2 subtasks) landed — not the single-subtask fallback.
     assert_eq!(summary.subtasks.len(), 2, "retried plan used, not fallback");
+}
+
+/// A named body frame — one per subtask, so an assertion can say WHICH column
+/// a section landed in.
+fn named_body_script(name: &str) -> String {
+    format!(
+        r#"I(null, {{"type":"frame","name":"{name}","width":1100,"height":320,"children":[{{"type":"text","content":"{name}","fontSize":18}}]}});"#
+    )
+}
+
+/// A plan with a WEAK nav first subtask: `nav` + `Navigation` reaches
+/// `dashboard_columns::is_sidebar_subtask` (the `nav` keyword) without matching
+/// `is_strong_sidebar_subtask` (no `sidebar` / `rail` / `side nav` token), so
+/// `plan_repair::finalize_plan`'s kit-chrome strip leaves it in place.
+const WEAK_NAV_DASHBOARD_PLAN_JSON: &str = r##"{
+  "rootFrame": { "id": "root", "name": "Ops Dashboard", "width": 1200, "height": 800,
+                 "layout": "vertical", "gap": 0,
+                 "fill": [{ "type": "solid", "color": "#0A0A0A" }] },
+  "subtasks": [
+    { "id": "nav", "label": "Navigation", "region": { "width": 260, "height": 900 } },
+    { "id": "table", "label": "Client Table", "region": { "width": 940, "height": 500 } },
+    { "id": "stats", "label": "Stats", "region": { "width": 940, "height": 200 } }
+  ]
+}"##;
+
+/// Reachability guard for `scaffold::plan_is_sidebar_dashboard` and the
+/// two-column root it pre-builds (`scaffold::build_two_column_root_node`).
+///
+/// `codenol/zopen_norka#30` claimed the pair is dead code: that `finalize_plan`
+/// strips every sidebar from a desktop-screen plan, so the predicate can only
+/// be satisfied by plans the pipeline never produces, and that the predicate's
+/// own unit tests hide this by building plans directly and skipping
+/// `finalize_plan`. This test drives the REAL run instead — planning JSON →
+/// `repair_plan_object` → `finalize_plan` → `normalize` → scaffold → subtasks —
+/// on a document with no kit sentinel, and asserts the shape end to end.
+///
+/// What makes the route live: `finalize_plan` only strips a STRONG sidebar
+/// signal (`is_strong_sidebar_subtask`: `sidebar` / `side bar` / `side nav` /
+/// `left rail` / `nav rail`, `plan_repair.rs::is_kit_owned_chrome`). A nav
+/// subtask the planner named "Navigation" is a WEAK signal, survives the strip,
+/// and satisfies the predicate's ambiguous-nav branch once two data sections
+/// back it. Verified: the run below emits `horizontal [Sidebar | Main Content]`
+/// and routes the nav section into the sidebar and both data sections into the
+/// content column.
+///
+/// The complement is covered too: with a STRONG `Sidebar Navigation` first
+/// subtask the strip does remove it and the run stays on the single-root path —
+/// that half of #30 is accurate, and it is why this fixture uses the weak form.
+#[test]
+fn pipeline_builds_the_two_column_scaffold_for_a_weak_nav_dashboard_plan() {
+    let llm = ScriptedLlm::new(vec![
+        ScriptResponse::Text(WEAK_NAV_DASHBOARD_PLAN_JSON.into()),
+        ScriptResponse::Text(named_body_script("Nav Body")),
+        ScriptResponse::Text(named_body_script("Table Body")),
+        ScriptResponse::Text(named_body_script("Stats Body")),
+    ]);
+    // No kit sentinel: `scaffold_kit::kit_chassis_commands` returns `None`, so
+    // the orchestrator builds its own scaffold instead of cloning the chassis.
+    let mut sink = VecDocSink::new();
+    let mut on_progress = |_| {};
+    let mut request = req();
+    request.prompt = "an analytics admin dashboard".into();
+    request.validation_enabled = false;
+
+    let summary = futures::executor::block_on(Orchestrator::new().run(
+        request,
+        &mut sink,
+        &llm,
+        &mut on_progress,
+        &AbortFlag::new(),
+        &stub_providers(),
+    ))
+    .expect("dashboard run ok");
+
+    assert_eq!(
+        summary.subtasks.len(),
+        3,
+        "the weak-nav plan survives finalize_plan whole — this is the \
+         reachability claim of #30 under test",
+    );
+
+    let root = sink.state.active_children().first().expect("scaffold root");
+    let v = serde_json::to_value(root).unwrap();
+    assert_eq!(v["layout"], "horizontal", "two-column root: {v}");
+    let kids = v["children"].as_array().expect("columns");
+    let column_names: Vec<&str> = kids.iter().filter_map(|k| k["name"].as_str()).collect();
+    assert_eq!(
+        column_names,
+        vec!["Sidebar", "Main Content"],
+        "pre-built columns: {v}",
+    );
+    assert_eq!(kids[0]["width"], serde_json::json!(260.0));
+    assert_eq!(kids[0]["height"], serde_json::json!("fill_container"));
+
+    // The run loop re-resolves the columns by name and routes each subtask into
+    // one of them (`run_orchestrator.rs`, the `two_col` branch) — so this also
+    // proves that call site is live, not just the scaffold predicate.
+    let names_in = |column: &serde_json::Value| {
+        let mut out = Vec::new();
+        descendant_names(column, &mut out);
+        out
+    };
+    let sidebar_names = names_in(&kids[0]);
+    let content_names = names_in(&kids[1]);
+    assert!(
+        sidebar_names.iter().any(|n| n == "Nav Body"),
+        "the nav section generated into the sidebar column: {sidebar_names:?}",
+    );
+    assert!(
+        content_names.iter().any(|n| n == "Table Body")
+            && content_names.iter().any(|n| n == "Stats Body"),
+        "both data sections generated into the content column: {content_names:?}",
+    );
+    assert!(
+        !content_names.iter().any(|n| n == "Nav Body")
+            && !sidebar_names.iter().any(|n| n == "Table Body"),
+        "sections must not cross columns: sidebar={sidebar_names:?} content={content_names:?}",
+    );
 }
