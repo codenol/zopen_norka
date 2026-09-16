@@ -412,6 +412,10 @@ fn ask_new_password(
 
 /// Create one account with a password. Prints the name, the roles and the
 /// store — never the password.
+// Four data args mirror `Command::AdminAddUser` one-for-one and four are the
+// dialogue's reader, writer, secret reader and its source flag; bundling
+// either group into a struct would only shadow what it wraps.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn add_user(
     store: &AccountsDb,
     username: Option<&str>,
