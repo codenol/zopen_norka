@@ -12,6 +12,15 @@ here at a glance.
 
 ### Added
 
+- **A deployment can be operated from a terminal.** `op admin create` only ever
+  makes the *first* administrator and the daemon's environment pair only seeds a
+  *fresh* store, so a self-hosted deployment with no browser in front of it could
+  never gain a second account — and a forgotten password was an outage with no
+  remedy. `op admin add-user` creates one account with a password and roles, and
+  `op admin reset-password` gives an existing one a new password. Both ask for
+  the secret twice on the terminal, apply the store's own strength policy between
+  the two, and print the account, the roles and the database — never the password.
+
 - **Generation quality is measured, not argued about.** `op-smoke quality` runs
   a fixed corpus of eight prompts against a named daemon — one fresh document
   each, the browser's own request, the document read back — and prints a
@@ -184,6 +193,35 @@ here at a glance.
   optional display name — that posts to `POST /api/auth/invite/accept` and, on
   success, leaves the visitor signed in. A spent, expired or unknown link says
   which of the three it is.
+
+- **The canvas says which copy of the document it is showing.** A reload while a
+  recoverable draft exists put the canvas and the daemon on two different copies
+  of the same document, with nothing on screen to say so: an AI turn could be
+  applied to the daemon's document — `<!-- APPLIED -->` in the transcript — while
+  the canvas kept painting the other copy and the person read it as "the AI did
+  nothing" (issue #191). The browser now keeps an identity for the copy it holds
+  — the daemon's document key, the daemon version the copy came from, a content
+  fingerprint and when it was written — and compares it with the daemon's current
+  version on every frame. When the two disagree, a strip in the recovery bar's
+  own band says so, in the same words for all fifteen locales: which versions the
+  canvas and the daemon are on, and why they differ — the daemon moved on, a sync
+  conflict latched, this tab holds edits the daemon has not confirmed, or the
+  daemon stopped answering. It paints nothing when the canvas *is* the daemon's
+  copy, and it takes no press, so a click on it reaches the canvas. It states the
+  divergence and does not resolve it: which copy wins is issue #169, and that
+  decision is the operator's.
+
+- **The browser keeps a copy of the document** (issue #171). The last document
+  this tab saw is mirrored into IndexedDB — the same bytes the sync path moves,
+  with the identity above beside them — one record per account and document, so
+  a document can be named, and its age stated, after a reload or while the daemon
+  is unreachable. A record is written when the daemon's copy changes and,
+  debounced and rate-limited like autosave, when this tab's own edits have not
+  reached the daemon; a copy the daemon never confirmed carries no version rather
+  than an invented one. Records are partitioned by account and the previous
+  account's copy is unreachable after a switch. It is a *mirror*: it does not
+  yet list, restore, delete or upload documents, and nothing reads it back into
+  the canvas yet — that is the next wave of #171, not a claim this one makes.
 
 ### Changed
 

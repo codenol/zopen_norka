@@ -94,6 +94,20 @@ fn run(args: &[String]) -> Result<String, CliError> {
         )?,
         Command::StopMcp => app_control_cli::run_stop()?,
         Command::AdminCreate { data_dir } => admin_cli::run_create(data_dir.as_deref())?,
+        Command::AdminAddUser {
+            data_dir,
+            username,
+            roles,
+            email,
+        } => admin_cli::run_add_user(
+            data_dir.as_deref(),
+            username.as_deref(),
+            roles.as_deref(),
+            email.as_deref(),
+        )?,
+        Command::AdminResetPassword { data_dir, username } => {
+            admin_cli::run_reset_password(data_dir.as_deref(), username.as_deref())?
+        }
         Command::AdminInvite {
             data_dir,
             roles,
@@ -243,6 +257,35 @@ enum Command {
         /// `--origin https://…`: printed in front of the link, because a path
         /// is not something anybody can paste into a chat.
         origin: Option<String>,
+    },
+    /// `op admin add-user` — create one account with a password, on a
+    /// deployment that already has its first administrator.
+    ///
+    /// The store has had `create_user` all along; what was missing was a front
+    /// door an operator could use on a machine with no browser. Without one,
+    /// a self-hosted deployment could only ever have the single account
+    /// `op admin create` makes, and anyone else had to be invited by somebody
+    /// who could already sign in.
+    AdminAddUser {
+        /// `--data-dir`: the same directory `op admin create` writes.
+        data_dir: Option<String>,
+        /// The sign-in name. Asked for when omitted.
+        username: Option<String>,
+        /// `--roles a,b`: roles to grant, in this build's own vocabulary.
+        roles: Option<String>,
+        /// `--email`: the address recorded on the row.
+        email: Option<String>,
+    },
+    /// `op admin reset-password` — give an existing account a new password.
+    ///
+    /// The recovery path for "nobody can sign in any more": the environment
+    /// bootstrap only ever seeds a *fresh* store's first administrator, so
+    /// without this a forgotten password is an outage with no operator remedy.
+    AdminResetPassword {
+        /// `--data-dir`: the same directory `op admin create` writes.
+        data_dir: Option<String>,
+        /// The account to change. Asked for when omitted.
+        username: Option<String>,
     },
     SkillExport {
         name: String,
