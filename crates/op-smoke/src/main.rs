@@ -74,6 +74,7 @@ mod llm_clients;
 mod loop_mode;
 mod loop_seed;
 mod modify_mode;
+mod program_mode;
 mod smoke_support;
 
 use agent::provider::anthropic::AnthropicProvider;
@@ -270,6 +271,15 @@ async fn main() -> std::process::ExitCode {
         return code;
     }
 
+    // `OPENPENCIL_SMOKE_PROGRAM=<path>` runs a batch_design DSL program against
+    // a fresh document and saves the result — the program IS the input, so this
+    // mode makes no model call either. Dispatched beside the audit and for the
+    // same reason (issue #192): it must run on a machine with no model
+    // environment at all.
+    if let Some(code) = program_mode::run_if_requested() {
+        return code;
+    }
+
     if let Some(code) = modify_mode::run_if_requested(prompt.clone()).await {
         return code;
     }
@@ -389,72 +399,8 @@ async fn main() -> std::process::ExitCode {
     // `OPENPENCIL_SMOKE_AUDIT` was handled at the top of `main` — see
     // `audit_mode`, which owns the report contract and the exit codes.
 
-    // `OPENPENCIL_SMOKE_PROGRAM=<path>` runs a Pencil-style batch_design DSL
-    // PROGRAM (a `binding=I(parent,{...})` tree-builder) against the doc and
-    // saves it, bypassing the orchestrator entirely. This is the experiment
-    // harness for "can a weak model emit a structurally-stable PROGRAM
-    // (parent-by-reference) instead of fragile flat JSONL?". postProcess stays
-    // OFF so the saved doc is the RAW structure the program builds — no cleanup
-    // post-pass — which is the whole point: the program needs no repair pass.
-    if let Ok(program_path) = std::env::var("OPENPENCIL_SMOKE_PROGRAM") {
-        let program = match std::fs::read_to_string(&program_path) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("[PROGRAM] read {program_path}: {e}");
-                return std::process::ExitCode::from(3);
-            }
-        };
-        let tool = op_mcp::batch_design_snapshot(&sink.state);
-        let mut args: std::collections::BTreeMap<String, String> =
-            std::collections::BTreeMap::new();
-        args.insert("operations".into(), program);
-        let applied = match op_mcp::McpTool::call(&tool, &args) {
-            op_mcp::ToolOutcome::OkJsonWithCommand(json, cmd) => {
-                eprintln!("[PROGRAM] result envelope: {json}");
-                let ok = sink.state.apply(cmd);
-                eprintln!("[PROGRAM] apply -> {ok}");
-                ok
-            }
-            op_mcp::ToolOutcome::OkJson(json) => {
-                eprintln!("[PROGRAM] no command produced: {json}");
-                false
-            }
-            other => {
-                eprintln!("[PROGRAM] unexpected outcome: {other:?}");
-                false
-            }
-        };
-        let code = match std::env::var("OPENPENCIL_SMOKE_OUT") {
-            Ok(out) if !out.is_empty() => match serde_json::to_string_pretty(&sink.state.doc) {
-                Ok(j) => match std::fs::write(&out, j) {
-                    Ok(()) => {
-                        eprintln!("[PROGRAM] saved doc -> {out}");
-                        if applied {
-                            std::process::ExitCode::SUCCESS
-                        } else {
-                            std::process::ExitCode::from(1)
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("[PROGRAM] save failed ({out}): {e}");
-                        std::process::ExitCode::from(4)
-                    }
-                },
-                Err(e) => {
-                    eprintln!("[PROGRAM] serialize failed: {e}");
-                    std::process::ExitCode::from(4)
-                }
-            },
-            _ => {
-                if applied {
-                    std::process::ExitCode::SUCCESS
-                } else {
-                    std::process::ExitCode::from(1)
-                }
-            }
-        };
-        return code;
-    }
+    // `OPENPENCIL_SMOKE_PROGRAM` was handled at the top of `main` — see
+    // `program_mode`, which owns the DSL contract and the exit codes.
 
     let validation_enabled =
         truthy_env_value(std::env::var("OPENPENCIL_SMOKE_VALIDATION").ok().as_deref());
