@@ -241,11 +241,7 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
         ),
     }
 
-    // The deployment's own providers are read ONCE here, from the process
-    // settings file, and handed to every tenant this registry creates. Read
-    // once because the file is the operator's, not any account's: nothing below
-    // this line writes it back, and `ServeMode::Online` refuses every route
-    // that would (`online_policy::allows_settings_persistence`).
+    // Read once, from the operator's own settings file — see `deployment_providers`.
     let registry = Arc::new(
         TenantRegistry::with_store(bound, limits, allow_origins, store).with_deployment_providers(
             super::deployment_providers::DeploymentProviders::from_process_settings(),
@@ -256,8 +252,8 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
     let shutdown = Arc::new(AtomicBool::new(false));
     // A container stop is a SIGTERM, and without a handler it kills the
     // process where it stands — losing every resident tenant that had not
-    // happened to be evicted. The handler only raises the flag the accept
-    // loop already observes, so the existing exit path (which flushes) runs.
+    // happened to be evicted. The handler only raises the flag the accept loop
+    // already observes, so the existing exit path (which flushes) runs.
     install_shutdown_signals(&shutdown, local_addr)?;
     spawn_sweeper(&registry, &shutdown)?;
 
