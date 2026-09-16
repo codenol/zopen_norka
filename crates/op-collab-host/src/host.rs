@@ -36,6 +36,23 @@ pub trait CollabHost: CollaborationEditorHost {
 
     /// Return to the standalone sequential allocation policy.
     fn disable_collaboration_ids(&mut self);
+
+    /// Whether a sign-in this runtime asks for can actually be answered here.
+    ///
+    /// [`CollabAvailability::SignInRequired`](op_editor_core::CollabAvailability::SignInRequired)
+    /// is a promise that pressing "sign in" does something. The GUI hosts can
+    /// keep it — desktop and mobile answer it with the device-login flow — so
+    /// the default is `true`.
+    ///
+    /// A `--serve-web` daemon cannot: it has no account store and serves no
+    /// login route, so there the same signal names an action nobody can take.
+    /// Such a host answers `false` and the runtime reports the deployment as
+    /// unavailable instead. The distinction is per DEPLOYMENT, not per build:
+    /// both hosts link the same collaboration-ticket ABI, which is why
+    /// `collab_ticket_available()` alone could not tell them apart (#148).
+    fn answers_collab_sign_in(&self) -> bool {
+        true
+    }
 }
 
 /// Editor host with no rendering, input, or platform surface.

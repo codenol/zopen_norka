@@ -23,6 +23,7 @@ use op_editor_core::{
 };
 use op_editor_host_core::collab::CollaborationEditorHost;
 
+use super::online_policy::ServeMode;
 use super::WebCanvasState;
 
 /// First id a standalone daemon hands out, matching the GUI host's seed.
@@ -111,6 +112,10 @@ pub(crate) struct DaemonCollabHost<'a> {
     id_allocator: &'a mut Option<DocumentIdAllocator>,
     next_node_id: &'a mut u64,
     dirty: &'a mut bool,
+    /// How this daemon is deployed, copied out of the state so the host can
+    /// answer [`CollabHost::answers_collab_sign_in`]. See that method for why a
+    /// daemon has to answer it at all.
+    mode: ServeMode,
 }
 
 impl CollaborationEditorHost for DaemonCollabHost<'_> {
@@ -149,6 +154,18 @@ impl CollabHost for DaemonCollabHost<'_> {
         if let Ok(next) = next_sequential_counter(&self.editor.doc) {
             *self.next_node_id = (*self.next_node_id).max(next);
         }
+    }
+
+    /// Only the online deployment has an account store.
+    ///
+    /// The local and managed daemons answer `/api/auth/status` with
+    /// `available: false` and 404 every login route (see the account comment in
+    /// `handle_web_canvas_request`), so a sign-in they asked for could not be
+    /// performed by anyone (#148). Online is the one mode where an account
+    /// exists to sign into — and it runs no collaboration driver, so this is a
+    /// statement about the deployment rather than a path taken at runtime.
+    fn answers_collab_sign_in(&self) -> bool {
+        self.mode.is_online()
     }
 }
 
@@ -270,6 +287,9 @@ impl WebCanvasState {
     /// One method rather than two accessors because the borrow checker has to
     /// see both borrows split out of `self` at once.
     pub(crate) fn collab_runtime_and_host(&mut self) -> (&mut CollabRuntime, DaemonCollabHost<'_>) {
+        // Read the mode before the split: it is `Copy`, and the host needs it
+        // while `self` is mutably borrowed into its fields.
+        let mode = self.mode;
         let collab = &mut self.collab;
         (
             &mut collab.runtime,
@@ -278,6 +298,7 @@ impl WebCanvasState {
                 id_allocator: &mut collab.id_allocator,
                 next_node_id: &mut collab.next_node_id,
                 dirty: &mut collab.dirty,
+                mode,
             },
         )
     }

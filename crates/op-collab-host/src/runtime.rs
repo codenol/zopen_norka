@@ -2,6 +2,7 @@
 mod actor;
 mod admission;
 mod auth;
+mod availability;
 mod discarded_edit;
 mod effects;
 mod effects_wire;
@@ -200,13 +201,9 @@ impl CollabRuntime {
 
     pub fn refresh_availability(&mut self, host: &mut impl CollabHost) -> bool {
         self.sync_relay_region(host);
-        let next = if !op_auth_bridge::collab_ticket_available() {
-            CollabAvailability::Unavailable
-        } else if host.editor_state().editor_ui.account.is_signed_in() {
-            CollabAvailability::Ready
-        } else {
-            CollabAvailability::SignInRequired
-        };
+        // The decision — and why a host has to answer for it, not the build —
+        // lives in `availability`.
+        let next = availability::next(host);
         let collab = &mut host.editor_state_mut().editor_ui.collab;
         let mut changed = false;
         if collab.transport_capabilities != self.transport_capabilities {
@@ -783,6 +780,8 @@ impl CollabRuntime {
     }
 }
 
+#[cfg(test)]
+mod availability_tests;
 #[cfg(test)]
 mod conflict_tests;
 #[cfg(test)]
