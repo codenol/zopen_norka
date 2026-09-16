@@ -558,8 +558,8 @@ fn a_closed_write_barrier_skips_the_starter_frame_clear() {
 }
 
 /// A provider that replays one fixed text response.
-struct ScriptedProvider {
-    response: String,
+pub(super) struct ScriptedProvider {
+    pub(super) response: String,
 }
 
 impl ChatProvider for ScriptedProvider {

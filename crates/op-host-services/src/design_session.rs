@@ -184,11 +184,20 @@ pub fn run_design_worker<L: LlmClient + Send>(
 /// `chat_provider_llm::ChatProviderLlmClient`, which adapts any
 /// `ChatProvider` (CLI subprocess agent or builtin API-key provider) so this
 /// works identically for either.
+///
+/// `vision_provider` is that same provider in its multimodal role, passed for
+/// the same reason [`start`] passes it to [`run_design_worker`]: a retry of a
+/// turn that was grounded on a reference screenshot has to ground itself the
+/// same way, or the section it regenerates matches nothing around it
+/// (issue #95). `None` still derives the conservative fallback brief, which is
+/// strictly better than the blind run this used to be — but a caller that has
+/// a provider must pass it.
 pub fn start_subtask_retry<L: LlmClient + Send + 'static>(
     llm: L,
     request: DesignRequest,
     subtask: op_orchestrator::plan::Subtask,
     initial_state: EditorState,
+    vision_provider: Option<Arc<dyn ChatProvider>>,
 ) -> DesignSession {
     let (delta_tx, delta_rx) = mpsc::channel::<DesignDelta>();
     let (cmd_tx, cmd_rx) = mpsc::channel::<DesignCmdReq>();
@@ -210,6 +219,7 @@ pub fn start_subtask_retry<L: LlmClient + Send + 'static>(
                 cmd_tx,
                 indicator_epoch,
                 worker_abort,
+                vision_provider,
             )
         })
     {
@@ -230,14 +240,44 @@ pub fn start_subtask_retry<L: LlmClient + Send + 'static>(
 #[allow(clippy::too_many_arguments)]
 fn run_subtask_retry_worker<L: LlmClient + Send>(
     llm: L,
-    request: DesignRequest,
+    mut request: DesignRequest,
     subtask: op_orchestrator::plan::Subtask,
     initial_state: EditorState,
     delta_tx: Sender<DesignDelta>,
     cmd_tx: Sender<DesignCmdReq>,
     indicator_epoch: u64,
     abort: AbortFlag,
+    vision_provider: Option<Arc<dyn ChatProvider>>,
 ) {
+    // Ground the retry exactly the way the original turn was grounded.
+    // `prompt_subagent` reads `reference_brief`, never `reference_attachments`,
+    // so a retry that arrives with the picture but no brief is generated as if
+    // the picture had never been attached — the section no longer matches the
+    // reference the rest of the design was built from (issue #95). The brief is
+    // derived here rather than restored from the turn's stash because the stash
+    // is written at launch, before the design worker derives it; a brief that
+    // IS already on the request wins, which is what makes a re-derived or
+    // restored request behave identically to the original run.
+    if !request.reference_attachments.is_empty() {
+        match vision_provider.clone() {
+            Some(provider) => {
+                let brief_vision = ChatVisionLlmClient::new(provider)
+                    .with_model(request.model.clone());
+                op_orchestrator::reference_brief::enrich_request_with_reference_brief(
+                    &mut request,
+                    &brief_vision,
+                );
+            }
+            // No multimodal provider on this path: the conservative fallback
+            // brief still tells the sub-agent that a picture exists and forbids
+            // inventing analytics chrome, which is the honest degraded answer —
+            // never the silent blind run.
+            None => op_orchestrator::reference_brief::enrich_request_with_reference_brief(
+                &mut request,
+                &SkippedVisionLlmClient,
+            ),
+        }
+    }
     let mut sink = RemoteDocSink::new(cmd_tx, initial_state);
     let _ = delta_tx.send(DesignDelta::Progress(Progress::SubtaskStarted {
         id: subtask.id.clone(),

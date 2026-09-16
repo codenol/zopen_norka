@@ -227,7 +227,10 @@ fn skipped_vision_llm_client_returns_skipped() {
     let req = VisionCallRequest {
         system: "sys".into(),
         message: "msg".into(),
-        image_base64: "img".into(),
+        images: vec![crate::types::VisionImage::new(
+            crate::types::VisionRole::Design,
+            "img",
+        )],
         model: None,
         provider: None,
         timeout: std::time::Duration::from_millis(5_000),

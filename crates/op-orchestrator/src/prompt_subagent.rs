@@ -108,9 +108,15 @@ pub(super) fn build_subagent_prompt_core(
     // name is historical: what the sub-agent receives is the session's
     // structured rules, never a markdown brief.
     // A reference turn keeps the recipe rules out of the sub-agent prompt too:
-    // those rules are what steer generation back to the ops screen.
+    // those rules are what steer generation back to the ops screen. The
+    // evidence is read from the request, not from the prompt's words, whenever
+    // the request carries the attachment (issue #65).
     let design_md_content = op_editor_core::build_design_rules_policy(
-        &op_editor_core::rules_without_recipes_for_reference(&req.rules, &req.prompt),
+        &op_editor_core::rules_without_recipes_for_reference(
+            &req.rules,
+            &req.prompt,
+            req.reference_evidence(),
+        ),
     );
     let has_design_md = !design_md_content.is_empty();
     // Rust `OrchestratorPlan` carries only the style-guide NAME (the TS

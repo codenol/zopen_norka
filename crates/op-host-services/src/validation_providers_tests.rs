@@ -124,11 +124,88 @@ fn vision_req(image_base64: &str) -> VisionCallRequest {
     VisionCallRequest {
         system: "You are a design validator. Return JSON.".into(),
         message: "Analyze this screenshot.".into(),
-        image_base64: image_base64.to_string(),
+        images: vec![op_orchestrator::VisionImage::new(
+            op_orchestrator::VisionRole::Design,
+            image_base64,
+        )],
         model: Some("vision-model".into()),
         provider: None,
         timeout: std::time::Duration::from_secs(30),
     }
+}
+
+/// A reference-carrying request puts BOTH pictures on the wire, in the order
+/// the prompt counts them (issue #62).
+///
+/// The prompt tells the model "image 1 is the current design, image 2 is the
+/// reference", so the transport has to deliver them in that order under names
+/// that survive a path transport's temp-file spill.
+#[test]
+fn chat_vision_client_sends_the_design_and_the_reference_in_prompt_order() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let provider = Arc::new(RecordingVisionProvider {
+        seen: seen.clone(),
+        reply: r#"{"issues":[],"fixes":[],"qualityScore":8}"#.into(),
+    });
+    let client = ChatVisionLlmClient::new(provider);
+
+    let mut request = vision_req(&b64_png());
+    request.images.push(op_orchestrator::VisionImage::new(
+        op_orchestrator::VisionRole::Reference,
+        b64_jpeg(),
+    ));
+
+    match client.validate(request) {
+        VisionResponse::Text(_) => {}
+        VisionResponse::Skipped { reason } => panic!("unexpected skip: {reason:?}"),
+    }
+
+    let reqs = seen.lock().unwrap();
+    let attachments = &reqs.first().expect("provider was called").attachments;
+    assert_eq!(attachments.len(), 2, "the comparison needs both pictures");
+    assert_eq!(attachments[0].name, "design-screenshot.png");
+    assert_eq!(attachments[0].media_type, "image/png");
+    assert_eq!(attachments[1].name, "reference-design.jpeg");
+    assert_eq!(attachments[1].media_type, "image/jpeg");
+}
+
+/// A reference the transport cannot deliver is not silently dropped: sending
+/// the design alone would ask for a comparison against a picture the model
+/// does not have — exactly the defect of issue #62, moved one layer down.
+#[test]
+fn chat_vision_client_skips_rather_than_dropping_an_undeliverable_reference() {
+    use base64::Engine as _;
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let provider = Arc::new(RecordingVisionProvider {
+        seen: seen.clone(),
+        reply: "{}".into(),
+    });
+    let client = ChatVisionLlmClient::new(provider);
+
+    let svg = base64::engine::general_purpose::STANDARD
+        .encode(br#"<svg xmlns="http://www.w3.org/2000/svg"></svg>"#);
+    let mut request = vision_req(&b64_png());
+    request.images.push(op_orchestrator::VisionImage::new(
+        op_orchestrator::VisionRole::Reference,
+        svg,
+    ));
+
+    match client.validate(request) {
+        VisionResponse::Skipped { reason } => {
+            let reason = reason.expect("a skip reason names the picture that could not be sent");
+            assert!(
+                reason.contains("Reference") || reason.contains("reference"),
+                "the reason must say WHICH picture failed: {reason}"
+            );
+        }
+        VisionResponse::Text(_) => {
+            panic!("a half-delivered comparison must not be answered as if it were complete")
+        }
+    }
+    assert!(
+        seen.lock().unwrap().is_empty(),
+        "nothing may reach the provider when the picture list is incomplete"
+    );
 }
 
 /// The real client sends the screenshot as an image attachment, inlines

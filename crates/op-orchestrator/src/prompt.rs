@@ -205,6 +205,7 @@ pub fn build_orchestrator_prompt(
                 &req.prompt,
                 &req.rules,
                 req.pinned_style_guide.as_deref(),
+                req.reference_evidence(),
             );
             PlanningPrompt {
                 call_request: CallRequest {
@@ -236,6 +237,7 @@ pub fn build_orchestrator_prompt(
                 mode,
                 &req.rules,
                 req.pinned_style_guide.as_deref(),
+                req.reference_evidence(),
             );
             let opts = op_ai_skills::ResolveOptions {
                 dynamic_content: HashMap::from([(

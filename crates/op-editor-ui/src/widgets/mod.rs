@@ -218,6 +218,7 @@ mod canvas_viewport_paint_pop_tests;
 mod canvas_viewport_text;
 mod canvas_viewport_widget;
 pub mod preview_device_switcher;
+pub mod reference_view;
 pub mod scene_paint_options;
 pub mod screen_switcher_pills;
 
@@ -467,6 +468,7 @@ pub use canvas_viewport::{
 pub use canvas_viewport_paint::paint_scene_page;
 pub use canvas_viewport_widget::widget_text_inset_left;
 pub use preview_device_switcher::PreviewDeviceSwitcher;
+pub use reference_view::{ReferenceView, ReferenceViewHit, REFERENCE_CARD_H, REFERENCE_CARD_W};
 pub use scene_paint_options::{paint_scene_page_with, paint_scene_subtree, PaintSceneOptions};
 pub use screen_switcher_pills::ScreenSwitcherPills;
 pub use slideshow_toolbar::SlideshowToolbar;

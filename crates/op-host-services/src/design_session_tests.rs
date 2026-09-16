@@ -189,6 +189,7 @@ mod subtask_retry_tests {
     use op_editor_host_core::design::{DesignCmdAck, DesignCmdOp};
     use op_orchestrator::plan::{Region, Subtask};
     use op_orchestrator::{CallRequest, LlmChunk, LlmError};
+    use std::sync::Arc;
     use std::time::{Duration, Instant};
 
     fn make_req() -> DesignRequest {
@@ -238,6 +239,21 @@ mod subtask_retry_tests {
         }
     }
 
+    /// Keeps every prompt the retry sends, so a test can assert on what the
+    /// sub-agent was actually told — the only place a reference brief is ever
+    /// visible from outside.
+    struct PromptCaptureLlm {
+        script: String,
+        seen: Arc<std::sync::Mutex<Vec<CallRequest>>>,
+    }
+    impl LlmClient for PromptCaptureLlm {
+        fn call(&self, req: CallRequest) -> BoxStream<'static, Result<LlmChunk, LlmError>> {
+            self.seen.lock().expect("seen lock").push(req);
+            let text = self.script.clone();
+            Box::pin(futures::stream::iter(vec![Ok(LlmChunk::Text(text))]))
+        }
+    }
+
     /// Drain both halves (`drain_cmd_requests` + `poll_progress`) each loop
     /// iteration — mirrors the desktop pump's per-frame `pump_commands` +
     /// `pump_progress` pair — until the session reports finished. Returns
@@ -278,7 +294,8 @@ mod subtask_retry_tests {
         let llm = OneShotLlm(node_script.into());
         let mut state = EditorState::new();
 
-        let mut session = start_subtask_retry(llm, make_req(), failed_subtask(), state.clone());
+        let mut session =
+            start_subtask_retry(llm, make_req(), failed_subtask(), state.clone(), None);
         let events = drain_until_finished(&mut session, &mut state);
 
         assert!(
@@ -307,7 +324,8 @@ mod subtask_retry_tests {
         let llm = OneShotLlm(String::new());
         let mut state = EditorState::new();
 
-        let mut session = start_subtask_retry(llm, make_req(), failed_subtask(), state.clone());
+        let mut session =
+            start_subtask_retry(llm, make_req(), failed_subtask(), state.clone(), None);
         let events = drain_until_finished(&mut session, &mut state);
 
         assert!(
@@ -318,6 +336,76 @@ mod subtask_retry_tests {
             "{events:?}"
         );
         assert_eq!(state.active_children().len(), 0);
+    }
+
+    /// Issue #95. A turn grounded on a reference screenshot stores its request
+    /// for the "Retry" button; that stash is JSON and
+    /// `DesignRequest::reference_attachments` is `serde(skip)`, so the retry
+    /// used to run blind. The brief block in the sub-agent prompt is the only
+    /// channel the model that writes nodes has for the picture, so that is what
+    /// this asserts on.
+    #[test]
+    fn a_retry_is_grounded_on_the_turns_reference_picture() {
+        let node_script = r#"I(null, {"type":"frame","name":"Sec","x":0,"y":0,"width":400,"height":120,"children":[{"type":"text","content":"Hi","fontSize":18}]});"#;
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let llm = PromptCaptureLlm {
+            script: node_script.into(),
+            seen: seen.clone(),
+        };
+        let mut state = EditorState::new();
+        let mut request = make_req();
+        request.reference_attachments = vec![op_orchestrator::ReferenceAttachment {
+            name: "reference.png".into(),
+            media_type: "image/png".into(),
+            data: vec![0x89, b'P', b'N', b'G'],
+        }];
+
+        let mut session =
+            start_subtask_retry(llm, request, failed_subtask(), state.clone(), None);
+        drain_until_finished(&mut session, &mut state);
+
+        let prompts = seen.lock().expect("seen lock");
+        assert!(
+            !prompts.is_empty(),
+            "the retry has to reach the model at all"
+        );
+        assert!(
+            prompts.iter().any(|req| {
+                req.user_prompt.contains("REFERENCE SCREEN BRIEF")
+                    && req.user_prompt.contains("authoritative layout inventory")
+            }),
+            "a retried section of a reference-grounded turn must be generated \
+             against that turn's reference; the prompts sent carried no brief: {:?}",
+            prompts
+                .iter()
+                .map(|req| req.user_prompt.len())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// The control for the test above: the block is not always there, it is
+    /// there because the turn carried a picture.
+    #[test]
+    fn a_retry_without_a_picture_carries_no_reference_brief() {
+        let node_script = r#"I(null, {"type":"frame","name":"Sec","x":0,"y":0,"width":400,"height":120,"children":[{"type":"text","content":"Hi","fontSize":18}]});"#;
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let llm = PromptCaptureLlm {
+            script: node_script.into(),
+            seen: seen.clone(),
+        };
+        let mut state = EditorState::new();
+
+        let mut session =
+            start_subtask_retry(llm, make_req(), failed_subtask(), state.clone(), None);
+        drain_until_finished(&mut session, &mut state);
+
+        let prompts = seen.lock().expect("seen lock");
+        assert!(
+            prompts
+                .iter()
+                .all(|req| !req.user_prompt.contains("REFERENCE SCREEN BRIEF")),
+            "a turn with no attached picture must not be told it has one"
+        );
     }
 }
 

@@ -270,3 +270,63 @@ impl PencilCursorStyle {
         }
     }
 }
+
+/// Reference-comparison view state (issue #63).
+///
+/// After a turn asked for "a screen like this picture", the picture and the
+/// result have to be visible together or fidelity is judged from memory. This
+/// is the state behind the reference card painted beside the canvas: which
+/// picture of the chat transcript it shows, and whether it is open.
+///
+/// `image` is a `ChatImage::id` — the process-unique handle the render
+/// backends key their decode caches on. The picture is *not* copied here: the
+/// chat transcript stays the one owner of the bytes, so a new chat (which
+/// clears the transcript) takes the card with it instead of leaving a picture
+/// nothing refers to any more.
+///
+/// The id is an `Option` rather than `0`-means-none because `0` is a real id:
+/// `ChatImage::id` comes from a counter that starts at zero, so the first
+/// attachment of a process carries it. Treating it as "nothing" made the card
+/// silently refuse to open for exactly that picture.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReferenceViewState {
+    /// Whether the card is painted.
+    pub open: bool,
+    /// `ChatImage::id` of the picture to show.
+    pub image: Option<u64>,
+}
+
+impl ReferenceViewState {
+    /// Show `image_id`, replacing whatever picture was on screen.
+    pub fn show(&mut self, image_id: u64) {
+        self.open = true;
+        self.image = Some(image_id);
+    }
+
+    /// Flip between showing `image_id` and hiding the card. A *different*
+    /// picture always opens: clicking another reference must not read as
+    /// "close", which would leave the user looking at nothing.
+    pub fn toggle(&mut self, image_id: u64) {
+        if self.open && self.image == Some(image_id) {
+            self.open = false;
+            return;
+        }
+        self.show(image_id);
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+    }
+
+    /// The picture to paint — `None` when the card is shut, points at nothing,
+    /// or the transcript it came from is gone.
+    pub fn image_to_show<'a>(
+        &self,
+        chat: &'a crate::chat::ChatState,
+    ) -> Option<&'a crate::ChatImage> {
+        if !self.open {
+            return None;
+        }
+        chat.image_by_id(self.image?)
+    }
+}

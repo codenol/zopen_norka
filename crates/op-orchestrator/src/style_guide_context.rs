@@ -483,12 +483,20 @@ fn snippet_limit(tier: ModelTier) -> usize {
 
 /// 构造规划 prompt 的 `{{availableStyleGuides}}` 上下文 —— port of
 /// `buildPlanningStyleGuideContext`。design.md 在场时走早返回分支。
+///
+/// `evidence` is the caller's knowledge of this turn's reference image. The
+/// recipe rules this context renders are the ones that steer generation back to
+/// a library recipe, so dropping them is a reference-turn decision — and it is
+/// taken on the attachment fact wherever the caller holds it, not on the
+/// prompt's words (issue #65). See
+/// [`op_editor_core::rules_without_recipes_for_reference`].
 pub(crate) fn build_planning_style_guide_context(
     prompt: &str,
     model: Option<&str>,
     mode: PlanningMode,
     rules: &[DesignRule],
     pinned: Option<&str>,
+    evidence: op_editor_core::ReferenceEvidence,
 ) -> PlanningStyleGuideContext {
     // Session kit owns style. Catalog ranking and Asset Center pins do not.
     let kit = session_kit();
@@ -514,7 +522,7 @@ pub(crate) fn build_planning_style_guide_context(
     // with a hand-written brief and forced `styleGuideName:
     // design-md-custom` — is gone with the brief.
     let policy = op_editor_core::build_design_rules_policy(
-        &op_editor_core::rules_without_recipes_for_reference(rules, prompt),
+        &op_editor_core::rules_without_recipes_for_reference(rules, prompt, evidence),
     );
     if !policy.is_empty() {
         lines.push(String::new());
@@ -527,8 +535,12 @@ pub(crate) fn build_planning_style_guide_context(
     let recipes = op_editor_core::session_kit();
     // A turn that points at a reference picture must not be nudged toward a
     // recipe: the picture decides, and offering a recipe here is what made
-    // "сделай как на картинке" come back as the ops screen.
-    if !recipes.recipes.is_empty() && !op_editor_core::refers_to_a_reference(prompt) {
+    // "сделай как на картинке" come back as the ops screen. The gate is the
+    // attachment fact when the caller holds it — a picture attached without a
+    // word about it is exactly the turn this index must stay out of
+    // (issue #65) — and only a caller with no attachment list falls back to the
+    // prompt's words.
+    if !recipes.recipes.is_empty() && !op_editor_core::is_reference_turn(prompt, evidence) {
         lines.push(String::new());
         lines.push(
             "AVAILABLE RECIPES — a composed screen already built from this kit. When one \

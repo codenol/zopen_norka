@@ -306,6 +306,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Sesión de colaboración en vivo…",
         "share.topbar.share" => "Compartir",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Referencia",
         _ => return None,
     })
 }

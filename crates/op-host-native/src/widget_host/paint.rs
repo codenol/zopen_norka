@@ -460,6 +460,27 @@ impl WidgetHostNative {
             }
         }
 
+        // 8.55. Reference card (issue #63) — the picture the turn was asked
+        //       to match, beside the generated frame. Over the canvas (so it
+        //       cannot be selected or dragged), under every panel and modal
+        //       that follows, which is also the order `apply_press` uses.
+        if !presenting {
+            if let Some(rect) = op_editor_ui::widgets::ReferenceView::card_rect(
+                &self.editor_state,
+                viewport_width,
+                viewport_height,
+            ) {
+                if let Some(view) =
+                    op_editor_ui::widgets::ReferenceView::from_state(&self.editor_state)
+                {
+                    let mut cx = PaintCx {
+                        backend: &mut *frame,
+                    };
+                    view.paint(&mut cx, rect);
+                }
+            }
+        }
+
         // 8.6. PropertyPanel overlays — painted after canvas floating
         //      controls so the image-fill popover can cover the zoom
         //      status pill when it extends into the canvas.

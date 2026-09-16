@@ -179,6 +179,7 @@ mod pen_press;
 mod pen_press_tests;
 mod press;
 mod press_canvas_tiers;
+mod press_reference_view_tier;
 mod press_chrome_tiers;
 mod press_ctx;
 mod press_helpers;

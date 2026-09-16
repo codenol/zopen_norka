@@ -5,7 +5,10 @@
 //! injected into planning + sub-agent prompts. When vision is unavailable,
 //! a conservative fallback still forbids inventing KPI/analytics chrome.
 
-use crate::types::{ReferenceAttachment, VisionCallRequest, VisionLlmClient, VisionResponse};
+use crate::types::{
+    ReferenceAttachment, VisionCallRequest, VisionImage, VisionLlmClient, VisionResponse,
+    VisionRole,
+};
 use base64::Engine as _;
 use std::time::Duration;
 
@@ -93,7 +96,10 @@ pub fn resolve_reference_brief(
     let req = VisionCallRequest {
         system: REFERENCE_BRIEF_SYSTEM.to_string(),
         message: REFERENCE_BRIEF_USER.to_string(),
-        image_base64,
+        // The brief is asked *about the reference itself* — there is no
+        // generated design in this call, so the single picture carries the
+        // reference role.
+        images: vec![VisionImage::new(VisionRole::Reference, image_base64)],
         model: model.map(|s| s.to_string()),
         provider: provider.map(|s| s.to_string()),
         timeout: BRIEF_TIMEOUT,

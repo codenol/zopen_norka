@@ -13,7 +13,8 @@ use std::time::Duration;
 
 use crate::types::{
     AbortFlag, DesignRequest, DocSink, OrchestratorError, PreValidator, Progress,
-    ScreenshotProvider, VisionCallRequest, VisionLlmClient, VisionResponse,
+    ScreenshotProvider, VisionCallRequest, VisionImage, VisionLlmClient, VisionResponse,
+    VisionRole,
 };
 use crate::validation_config::{
     MAX_VALIDATION_ROUNDS, VALIDATION_NODE_COUNT_THRESHOLD, VALIDATION_QUALITY_THRESHOLD,
@@ -257,6 +258,14 @@ fn extract_json_object(text: &str) -> Option<&str> {
 /// fenced block; reference-comparison + round-N instructions are appended
 /// conditionally (port of TS L151-158).
 ///
+/// **Picture list (issue #62).** The prompt and the payload are built in this
+/// one function, in this order, because the prompt tells the model which
+/// picture is which by position: the design screenshot is always image 1 and
+/// the reference is image 2 only when it is actually in `images`. The previous
+/// shape claimed "A REFERENCE DESIGN screenshot was also provided" while the
+/// request carried the single result screenshot, so the model was asked to
+/// compare against a picture it never received.
+///
 /// **Timeout rule (port of TS L147-149):** when a `reference_screenshot` is
 /// provided, the per-round timeout is doubled (`VALIDATION_TIMEOUT_MS * 2`).
 ///
@@ -271,17 +280,36 @@ pub(crate) fn build_vision_request(
     reference_screenshot: Option<&str>,
     round: u8,
 ) -> VisionCallRequest {
-    // Reference-comparison instruction (port of TS L151-153).
-    let reference_instruction = if reference_screenshot.is_some() {
-        "\n\nA REFERENCE DESIGN screenshot was also provided. Compare the current design \
-against the reference and fix any significant deviations in layout, spacing, proportions, \
-or missing elements. The reference shows the intended design — the current screenshot \
-should match its structure, visual balance, and element completeness. If elements visible \
-in the reference are missing in the current design, use structuralFixes with addChild to \
-add them. Ignore differences in photographic or generated image content; compare only \
-whether image slots render correctly."
-    } else {
-        ""
+    // Picture list, in the order the message below counts them.
+    let mut images = vec![VisionImage::new(VisionRole::Design, image_base64)];
+    if let Some(reference) = reference_screenshot {
+        images.push(VisionImage::new(VisionRole::Reference, reference));
+    }
+    let request_images = images.clone();
+
+    // Reference-comparison instruction, naming the pictures by the positions
+    // they actually occupy in `images` (port of TS L151-153).
+    //
+    // Emitted only when BOTH roles really sit in the list: a position the
+    // payload does not have is exactly the defect of issue #62, so the text is
+    // derived from the pictures rather than from the caller's intent.
+    let reference_instruction = match (
+        VisionRole::Design.position_in(&images),
+        VisionRole::Reference.position_in(&images),
+    ) {
+        (Some(design), Some(reference)) => format!(
+            "\n\nThis request carries two pictures: image {design} is {design_label} and \
+image {reference} is {reference_label}. Compare image {design} against image {reference} \
+and fix any significant deviations in layout, spacing, proportions, or missing elements. \
+The reference shows the intended design — the current design should match its structure, \
+visual balance, and element completeness. If elements visible in the reference are missing \
+in the current design, use structuralFixes with addChild to add them. Ignore differences in \
+photographic or generated image content; compare only whether image slots render correctly.",
+            design_label = VisionRole::Design.prompt_label(),
+            reference_label = VisionRole::Reference.prompt_label(),
+        ),
+        // No reference picture — nothing to compare against, so nothing to say.
+        _ => String::new(),
     };
 
     // Round-specific instruction (port of TS L155-158).
@@ -306,8 +334,11 @@ Return JSON fixes using real node IDs from the tree.\
 {reference_instruction}{round_instruction}"
     );
 
-    // Timeout doubled when reference screenshot is present (TS L147-149).
-    let timeout_ms = if reference_screenshot.is_some() {
+    // Timeout doubled when a second picture is in the request (TS L147-149) —
+    // two pictures cost a bigger prompt and a longer look. Read from the same
+    // list the message counts, so the budget cannot claim a picture the request
+    // does not carry either.
+    let timeout_ms = if VisionRole::Reference.position_in(&images).is_some() {
         VALIDATION_TIMEOUT_MS * 2
     } else {
         VALIDATION_TIMEOUT_MS
@@ -316,7 +347,7 @@ Return JSON fixes using real node IDs from the tree.\
     VisionCallRequest {
         system: system_prompt.to_string(),
         message,
-        image_base64: image_base64.to_string(),
+        images: request_images,
         model: model.map(|s| s.to_string()),
         provider: provider.map(|s| s.to_string()),
         timeout: Duration::from_millis(timeout_ms),

@@ -6,6 +6,7 @@ use crate::design_type::{detect_design_type, DesignType};
 use crate::request_dimensions::requested_root_dimensions;
 use jian_ops_schema::DesignRule;
 use op_editor_core::build_design_rules_policy;
+use op_editor_core::is_reference_turn;
 use op_editor_core::session_kit;
 
 /// `build_compact_planning_prompt` 的产物。
@@ -25,10 +26,17 @@ Keep form controls and their submit action in the same subtask.\n\
 Start the response with { and end with }. No prose. No markdown. No tool calls.";
 
 /// 构造 compact 规划 prompt —— port of `buildCompactPlanningPrompt`。
+///
+/// `evidence` is the caller's knowledge of this turn's reference image. Two
+/// blocks in this prompt steer the planner toward a library recipe — the
+/// recipe rules and the recipe index below — and both must stand down on a
+/// reference turn. That is decided on the attachment fact wherever the caller
+/// holds it, never on the prompt's words (issue #65).
 pub fn build_compact_planning_prompt(
     prompt: &str,
     rules: &[DesignRule],
     pinned: Option<&str>,
+    evidence: op_editor_core::ReferenceEvidence,
 ) -> CompactPlanningPrompt {
     let preset = detect_design_type(prompt);
     // Catalog pins used to pick a builtin style guide. A session kit is the
@@ -174,7 +182,7 @@ pub fn build_compact_planning_prompt(
         "Always set rootFrame layout=\"vertical\" and gap={default_gap}."
     ));
     let policy = build_design_rules_policy(&op_editor_core::rules_without_recipes_for_reference(
-        rules, prompt,
+        rules, prompt, evidence,
     ));
     if !policy.is_empty() {
         lines.push(String::new());
@@ -193,7 +201,11 @@ pub fn build_compact_planning_prompt(
     if preset.type_ == DesignType::DesktopScreen {
         lines.push(kit.content_area_brief());
     }
-    if !kit.recipes.is_empty() && !op_editor_core::refers_to_a_reference(prompt) {
+    // A reference turn gets no recipe index: the picture decides the layout,
+    // and an index of ready-made screens is an invitation to build one of
+    // those instead. The gate is the attachment fact when the caller has it —
+    // the words only speak for a caller that holds no attachment list.
+    if !kit.recipes.is_empty() && !is_reference_turn(prompt, evidence) {
         lines.push(
             "When a recipe below matches the request, start by calling `use_recipe` with its \
              id, then adapt what it placed — do not compose that screen from scratch."
@@ -226,7 +238,12 @@ mod tests {
 
     #[test]
     fn compact_mobile_prompt_shape() {
-        let cp = build_compact_planning_prompt("a mobile login screen", &[], None);
+        let cp = build_compact_planning_prompt(
+            "a mobile login screen",
+            &[],
+            None,
+            op_editor_core::ReferenceEvidence::Unknown,
+        );
         assert!(cp.system.starts_with("You are a UI planning assistant."));
         assert!(cp.system.contains("width=375 and height=812"));
         assert!(cp.system.contains("Create 2-4 cohesive subtasks"));
@@ -239,7 +256,12 @@ mod tests {
 
     #[test]
     fn a_deck_prompt_carries_the_projector_size_and_per_slide_screens() {
-        let cp = build_compact_planning_prompt("做一个季度汇报 PPT", &[], None);
+        let cp = build_compact_planning_prompt(
+            "做一个季度汇报 PPT",
+            &[],
+            None,
+            op_editor_core::ReferenceEvidence::Unknown,
+        );
         let text = format!("{}\n{}", cp.system, cp.user_prompt);
         assert!(
             text.contains("width=1920") && text.contains("height=1080"),
@@ -259,7 +281,12 @@ mod tests {
 
     #[test]
     fn compact_landing_prompt_uses_session_kit_not_catalog() {
-        let cp = build_compact_planning_prompt("a fintech marketing site", &[], None);
+        let cp = build_compact_planning_prompt(
+            "a fintech marketing site",
+            &[],
+            None,
+            op_editor_core::ReferenceEvidence::Unknown,
+        );
         assert!(cp.system.contains("width=1200 and height=0"));
         assert!(cp.selected_style_guide_name.is_empty());
         let kit = session_kit();
@@ -273,7 +300,12 @@ mod tests {
 
     #[test]
     fn compact_dashboard_prompt_uses_kit_chassis() {
-        let cp = build_compact_planning_prompt("собери дашборд", &[], None);
+        let cp = build_compact_planning_prompt(
+            "собери дашборд",
+            &[],
+            None,
+            op_editor_core::ReferenceEvidence::Unknown,
+        );
         let kit = session_kit();
         assert!(
             cp.system.contains(&kit.sentinel_master_id),
@@ -299,6 +331,7 @@ mod tests {
             "Design a 1440×900 desktop operations dashboard",
             &[],
             None,
+            op_editor_core::ReferenceEvidence::Unknown,
         );
         assert!(cp.system.contains("width=1440 and height=900"));
         assert!(!cp.system.contains("width=1200 and height=0"));
@@ -310,6 +343,7 @@ mod tests {
             "Design a desktop landing page. Make the root exactly 1440px wide.",
             &[],
             None,
+            op_editor_core::ReferenceEvidence::Unknown,
         );
         assert!(cp.system.contains("width=1440 and height=0"));
         assert!(!cp.system.contains("width=1200 and height=0"));
@@ -326,7 +360,12 @@ mod tests {
             .into_iter()
             .map(|entry| entry.rule)
             .collect();
-        let cp = build_compact_planning_prompt("a page", &rules, None);
+        let cp = build_compact_planning_prompt(
+            "a page",
+            &rules,
+            None,
+            op_editor_core::ReferenceEvidence::Unknown,
+        );
         assert!(
             cp.selected_style_guide_name.is_empty(),
             "a session kit is the design system — no catalog pin"

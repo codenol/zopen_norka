@@ -47,7 +47,9 @@ use op_ai::chat_provider::{
     ChatAttachment, ChatDelta, ChatProvider, ChatRequest, EffortLevel, ThinkingMode,
 };
 use op_editor_core::EditorState;
-use op_orchestrator::{ScreenshotProvider, VisionCallRequest, VisionLlmClient, VisionResponse};
+use op_orchestrator::{
+    ScreenshotProvider, VisionCallRequest, VisionImage, VisionLlmClient, VisionResponse, VisionRole,
+};
 
 use crate::export::screenshot::{capture_scene, CaptureSpec};
 
@@ -63,6 +65,14 @@ use crate::export::screenshot::{capture_scene, CaptureSpec};
 /// so it stays a no-op; the real loop only activates when BOTH are on. The
 /// flag default is NOT changed — see `default_validation_enabled` in
 /// `op_orchestrator::types`.
+///
+/// Read this as a COST switch, not a correctness one. It used to hide a
+/// defect as well — the loop asked the model to compare the design against a
+/// reference screenshot it never sent (issue #62) — so leaving it off kept a
+/// lie off the wire. That comparison is real now (both pictures travel, and a
+/// client that cannot deliver one returns `Skipped` instead of guessing), so
+/// what the flag buys today is "no extra paid vision call and no
+/// model-authored edit on an ordinary turn".
 const VISION_VALIDATION_ENV: &str = "OPENPENCIL_VISION_VALIDATION";
 
 /// Whether the host should inject the REAL vision providers
@@ -168,32 +178,55 @@ impl ChatVisionLlmClient {
         self
     }
 
-    /// Decode the screenshot base64 into raw PNG bytes for the
-    /// `ChatAttachment`. Providers re-encode (Anthropic image block) or
-    /// data-URL it as their wire demands.
+    /// Decode one picture's base64 into a `ChatAttachment`, labelled with the
+    /// role it plays in the prompt.
     ///
     /// `None` when the payload is not a raster image at all. The bytes decide
-    /// the media type, not the caller: `VisionCallRequest` carries no type
-    /// field, and labelling every payload `image/png` (as this used to) makes
-    /// a JPEG reference 400 the whole call on the Anthropic wire, which
-    /// validates the base64 against its declared `media_type`.
-    fn screenshot_attachment(image_base64: &str) -> Option<ChatAttachment> {
+    /// the media type, not the caller: `VisionImage` carries no type field, and
+    /// labelling every payload `image/png` (as this used to) makes a JPEG
+    /// reference 400 the whole call on the Anthropic wire, which validates the
+    /// base64 against its declared `media_type`.
+    fn image_attachment(image: &VisionImage) -> Option<ChatAttachment> {
         use base64::Engine as _;
         let data = base64::engine::general_purpose::STANDARD
-            .decode(image_base64)
+            .decode(&image.base64)
             .ok()?;
         let media_type = crate::chat_attachment::sniff_image_media_type(&data)?;
+        // The role names the file, and the prompt counts pictures by position:
+        // a path transport (Claude Code's Read flow, the Copilot SDK) spills
+        // these names to disk and the model reads them back, so "image 1 is the
+        // design, image 2 is the reference" has to survive in the name too.
+        let stem = match image.role {
+            VisionRole::Design => "design-screenshot",
+            VisionRole::Reference => "reference-design",
+        };
         Some(ChatAttachment {
             // The extension has to match the bytes: a path transport spills
             // this name to a temp file and the model's Read step (or its SDK
             // file attachment) infers the type from it.
-            name: format!(
-                "design-screenshot.{}",
-                media_type.trim_start_matches("image/")
-            ),
+            name: format!("{stem}.{}", media_type.trim_start_matches("image/")),
             media_type: media_type.to_string(),
             data,
         })
+    }
+
+    /// Every picture the prompt names, or `None` naming the role that cannot be
+    /// delivered.
+    ///
+    /// All-or-nothing on purpose: the prompt says "image 1 is the design,
+    /// image 2 is the reference", so half a picture list turns the comparison
+    /// it asks for into a question about a picture the model never got (issue
+    /// #62). A caller that cannot deliver the reference gets `Skipped`, which
+    /// is the honest answer.
+    fn attachments_for(req: &VisionCallRequest) -> Result<Vec<ChatAttachment>, VisionRole> {
+        let mut attachments = Vec::with_capacity(req.images.len());
+        for image in &req.images {
+            match Self::image_attachment(image) {
+                Some(attachment) => attachments.push(attachment),
+                None => return Err(image.role),
+            }
+        }
+        Ok(attachments)
     }
 
     /// Keep ACP catalog identities inside orchestrator capability policy.
@@ -228,14 +261,18 @@ impl VisionLlmClient for ChatVisionLlmClient {
         // hallucinate against no image. The bytes also decide the media
         // type: a payload no vision wire accepts (SVG, an unknown format)
         // is not something a model can look at.
-        let Some(attachment) = Self::screenshot_attachment(&req.image_base64) else {
-            return VisionResponse::Skipped {
-                reason: Some(
-                    "image payload is not base64 png/jpeg/gif/webp — a vision model has no way \
-                     to look at it"
-                        .to_string(),
-                ),
-            };
+        let attachments = match Self::attachments_for(&req) {
+            Ok(attachments) => attachments,
+            Err(role) => {
+                return VisionResponse::Skipped {
+                    reason: Some(format!(
+                        "the {:?} image payload is not base64 png/jpeg/gif/webp — a vision model \
+                         has no way to look at it, and the prompt names it by position, so the \
+                         call would ask about a picture the model does not have",
+                        role
+                    )),
+                };
+            }
         };
 
         // Inline the vision system prompt into the user message: the
@@ -260,7 +297,7 @@ impl VisionLlmClient for ChatVisionLlmClient {
             // not extended reasoning.
             thinking: ThinkingMode::Disabled,
             effort: EffortLevel::Low,
-            attachments: vec![attachment],
+            attachments,
             model: Self::transport_model(self.model.clone())
                 .or_else(|| Self::transport_model(req.model.clone())),
         };

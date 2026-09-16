@@ -77,6 +77,28 @@ impl ChatState {
         msg.action_step_expanded_overrides[step_idx] = Some(expanded);
     }
 
+    /// The images of the user message that owns the turn `msg_idx` belongs to.
+    ///
+    /// A manual subtask retry re-runs ONE section of that turn, so it has to be
+    /// grounded on the same picture the turn was sent with. The transcript is
+    /// where those bytes live: `begin_send` copies the staged images onto the
+    /// user bubble, and unlike `DesignRequest::reference_attachments` — which is
+    /// `serde(skip)`, so the retry stash loses it and the retried section came
+    /// out matching nothing the rest of the design was built from (issue #95) —
+    /// the bubble keeps them for the life of the session.
+    ///
+    /// The nearest user message at or before `msg_idx` is the turn's: worker
+    /// bubbles, the primary bubble and every later assistant message of the same
+    /// turn all sit after it.
+    pub fn owning_turn_images(&self, msg_idx: usize) -> &[ChatImage] {
+        self.messages[..msg_idx.min(self.messages.len())]
+            .iter()
+            .rev()
+            .find(|message| message.role == ChatRole::User)
+            .map(|message| message.images.as_slice())
+            .unwrap_or(&[])
+    }
+
     /// Begin a manual retry for the failed subtask row at
     /// `activities[source_index]` in message `msg_idx` — the click handler
     /// for the progress panel's per-row "Retry" button. Flips that
@@ -158,5 +180,21 @@ impl ChatState {
         if index < self.pending_attachments.len() {
             self.pending_attachments.remove(index);
         }
+    }
+}
+
+impl ChatState {
+    /// The picture with `image_id`, wherever it sits in the transcript.
+    ///
+    /// `ChatImage::id` is process-unique, so this is the lookup a view that
+    /// remembers *which* picture it shows performs after the transcript has
+    /// changed under it (issue #63). A picture that is gone — New Chat cleared
+    /// the messages, or the message was dropped — answers `None`, which the
+    /// caller must treat as "nothing to show" rather than paint a stale frame.
+    pub fn image_by_id(&self, image_id: u64) -> Option<&ChatImage> {
+        self.messages
+            .iter()
+            .flat_map(|message| message.images.iter())
+            .find(|image| image.id == image_id)
     }
 }

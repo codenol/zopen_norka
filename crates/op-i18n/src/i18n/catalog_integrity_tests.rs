@@ -256,7 +256,7 @@ fn every_locale_has_exactly_the_english_key_set() {
     // to these same catalogues in the same tree (the two
     // `account.entry.errorTooManyAttempts*` keys of issue #151 are this
     // change's).
-    assert_eq!(expected.len(), 1851, "update the intentional catalog size");
+    assert_eq!(expected.len(), 1852, "update the intentional catalog size");
 
     for (name, main, git, lookup) in all_tables {
         let actual = table_keys(name, main, git);

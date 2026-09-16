@@ -1,6 +1,6 @@
 //! C1 tests — `parse_validation_response` + `validate_design_screenshot`.
 
-use crate::types::{VisionCallRequest, VisionLlmClient, VisionResponse};
+use crate::types::{VisionCallRequest, VisionLlmClient, VisionResponse, VisionRole};
 use crate::validation::{
     build_vision_request, parse_validation_response, validate_design_screenshot, ValidationResult,
 };
@@ -200,7 +200,8 @@ fn parse_missing_fixes_array_returns_default() {
 
 // ── build_vision_request tests (message + timeout construction) ──────────────
 
-/// Round 1, no reference: standard timeout, no round-N or REFERENCE blurb.
+/// Round 1, no reference: standard timeout, no round-N or reference blurb, and
+/// exactly one picture (the design screenshot).
 #[test]
 fn build_vision_request_round1_no_reference() {
     let req = build_vision_request(
@@ -213,7 +214,9 @@ fn build_vision_request_round1_no_reference() {
         1,
     );
     assert_eq!(req.system, "system prompt");
-    assert_eq!(req.image_base64, "base64img==");
+    assert_eq!(req.images.len(), 1);
+    assert_eq!(req.images[0].role, VisionRole::Design);
+    assert_eq!(req.images[0].base64, "base64img==");
     assert_eq!(req.timeout, Duration::from_millis(VALIDATION_TIMEOUT_MS));
     assert!(req.message.contains("node-tree-dump"));
     assert!(req
@@ -223,15 +226,22 @@ fn build_vision_request_round1_no_reference() {
         .message
         .contains("Do not judge or replace image content"));
     assert!(!req.message.contains("validation round"));
-    assert!(!req.message.contains("REFERENCE DESIGN"));
+    assert!(!req.message.contains("REFERENCE design"));
 }
 
-/// Reference screenshot present: timeout doubles + REFERENCE blurb injected.
+/// Reference screenshot present: timeout doubles + the comparison blurb is
+/// injected **and the reference travels with the request** (issue #62).
+///
+/// The defect this guards: the prompt asked the model to compare the design
+/// against a reference screenshot while `VisionCallRequest` carried a single
+/// image field — the design screenshot. Every answer was therefore written
+/// about one picture plus one instruction to compare. A prompt may only name
+/// pictures the request actually carries.
 #[test]
-fn build_vision_request_timeout_doubled_with_reference() {
+fn build_vision_request_reference_is_carried_not_just_announced() {
     let req = build_vision_request(
         "sys",
-        "img",
+        "design-b64",
         "tree",
         None,
         None,
@@ -242,10 +252,33 @@ fn build_vision_request_timeout_doubled_with_reference() {
         req.timeout,
         Duration::from_millis(VALIDATION_TIMEOUT_MS * 2)
     );
-    assert!(req.message.contains("REFERENCE DESIGN"));
     assert!(req
         .message
         .contains("Ignore differences in photographic or generated image content"));
+
+    // Both pictures travel, design first — the order the prompt counts.
+    assert_eq!(req.images.len(), 2, "the prompt names two pictures");
+    assert_eq!(req.images[0].role, VisionRole::Design);
+    assert_eq!(req.images[0].base64, "design-b64");
+    assert_eq!(req.images[1].role, VisionRole::Reference);
+    assert_eq!(req.images[1].base64, "reference-img-b64");
+
+    // The prompt points at the pictures by the positions they really occupy,
+    // so "image 2" cannot mean an image the request does not carry.
+    assert_eq!(req.position_of(VisionRole::Design), Some(1));
+    assert_eq!(req.position_of(VisionRole::Reference), Some(2));
+    assert!(
+        req.message
+            .contains("image 1 is the CURRENT design under review"),
+        "the design picture must be named by position: {}",
+        req.message
+    );
+    assert!(
+        req.message
+            .contains("image 2 is the user's REFERENCE design"),
+        "the reference picture must be named by position: {}",
+        req.message
+    );
 }
 
 /// Round > 1: "This is validation round N" instruction injected.
@@ -291,7 +324,7 @@ fn validate_screenshot_happy_path_parses_response() {
     // The same VisionCallRequest the helper would build flows through to the client.
     let req = client.last_req().unwrap();
     assert_eq!(req.system, "system prompt");
-    assert_eq!(req.image_base64, "base64img==");
+    assert_eq!(req.images[0].base64, "base64img==");
 }
 
 /// When the client returns `Skipped`, `ValidationResult.skipped` is `true`

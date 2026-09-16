@@ -1,9 +1,9 @@
 //! Public re-exports for the `editor_ui_state` spine.
 
 pub use super::chrome::{
-    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ServerFile,
-    ServerFileMenu, ServerFileRename, ThemeMode, ThemePresetIo, UpdateStatus, WindowControlRequest,
-    RECENT_FILE_CAP, SERVER_FILE_CAP,
+    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ReferenceViewState,
+    ServerFile, ServerFileMenu, ServerFileRename, ThemeMode, ThemePresetIo, UpdateStatus,
+    WindowControlRequest, RECENT_FILE_CAP, SERVER_FILE_CAP,
 };
 pub use super::comments::{
     Comment, CommentAnchor, CommentAuthor, CommentComposer, CommentRequest, CommentThread,

@@ -370,9 +370,10 @@ pub use compositing::{fill_blend_mode_at, node_blend_mode, node_mask_type};
 pub use design_md::{extract_design_md_from_document, generate_design_md, parse_design_md};
 pub use design_md_button_state::DesignMdButton;
 pub use design_rules::{
-    delete_rule, effective_design_rules, hide_blocks_in_subtree, library_design_rules,
-    recipe_to_place, refers_to_a_reference, requested_hidden_blocks, select_recipe,
-    set_rule_enabled, upsert_document_rule, DesignRuleSource, EffectiveDesignRule,
+    delete_rule, effective_design_rules, hide_blocks_in_subtree, is_reference_turn,
+    library_design_rules, recipe_to_place, refers_to_a_reference, requested_hidden_blocks,
+    select_recipe, set_rule_enabled, upsert_document_rule, DesignRuleSource, EffectiveDesignRule,
+    ReferenceEvidence,
 };
 pub use design_rules_policy::{
     build_design_rules_policy, build_effective_rules_policy, has_design_rules,

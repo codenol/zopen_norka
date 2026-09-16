@@ -317,6 +317,45 @@ here at a glance.
 
 ### Fixed
 
+- **A design turn that only edited the template the host placed now says so.** A
+  recipe turn asks the model to rewrite the screen the kit placed as the turn's
+  base, and the wire reported both outcomes identically: `done`, no error,
+  `<!-- APPLIED -->`. The measured turn that shipped the untouched 470-node kit
+  master counted 500 nodes — the highest in the corpus — while delivering none of
+  the request, because every statement in its reply reached inside the placed
+  tree instead of composing a screen. The reply is now read against the document
+  *before* it is applied: a recipe turn whose ops never leave the placed tree
+  streams a sentence naming what happened, and keeps `<!-- APPLIED -->`, which
+  stays true — nodes really were written. A reply that does compose a screen of
+  its own is not accused of anything: its root-level `I(null, …)` carrying an id
+  the document does not hold is placed at the page root, beside the base it
+  adapted, instead of being nested inside the template (issue #182).
+
+- **A recipe is placed once per turn, not twice.** The route places the matched
+  recipe before it classifies anything — that placement is what makes the turn a
+  rewrite of an existing screen — and the new-design route then placed the same
+  recipe again, because `instantiate_component` does not dedupe by master. One
+  turn could end with two copies of the recipe root, ~20px apart, and only the
+  second one described to the model by the `doc:recipe-base` rule. The placement
+  is now carried into that route, which describes the copy already on the page
+  instead of cloning it again (issue #189).
+
+- **Placing a recipe is a document change the version pollers can see.** The
+  placement instantiates the kit master, hides the blocks the request asked to
+  drop and prunes the empty root — 470 nodes in the measured case — while
+  `GET /api/mcp/version`, the key the browser's live-sync loop polls
+  (`wants_version`), stood still. Those mutations now advance it (issue #183).
+
+- **A reply that echoes a `<step>` progress line is no longer thrown away.** The
+  chat system prompt tells the model to open with `<step>` tags, the transcript
+  reads them as activity markup, and the modify route's own transcript carries
+  `<step title="Checking guidelines">` at the head of the text its reply is read
+  from — where QuickJS stops at the `<`. A reply whose every `I(…)` statement was
+  complete was discarded as "response was not valid modification JavaScript" and
+  the document stayed as it was. The script ladder now drops a closed
+  `<step>…</step>` block before it evals, keeps the script that follows an
+  unterminated tag, and leaves bytes that merely start like the tag alone.
+
 - **A recipe is placed only when the request asks for that screen.** The kit's
   keyword matcher used to look for its needles anywhere inside the prompt and
   take the longest total match, which meant a mobile profile request scored 17

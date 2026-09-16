@@ -133,9 +133,13 @@ pub trait ScreenshotProvider: Send + Sync {
 pub trait VisionLlmClient: Send + Sync {
     /// 执行一次同步视觉校验调用并返回结果。
     ///
-    /// CONTRACT — `Text` means "the model answered about the image in `req`".
-    /// An implementation MUST return `Skipped` rather than issue a text-only
-    /// call when the image cannot reach the model: a model handed a file name
+    /// CONTRACT — `Text` means "the model answered about **every** picture in
+    /// `req.images`". An implementation MUST return `Skipped` rather than send
+    /// a call missing one of them (the prompt names each picture by its
+    /// position, so a dropped image turns the comparison the prompt asks for
+    /// into a question about nothing) and MUST return `Skipped` rather than
+    /// issue a text-only call when the image cannot reach the model: a model
+    /// handed a file name
     /// writes a confident description of a picture it never saw, and
     /// `reference_brief` feeds that text to the planner as an inventory of the
     /// user's screen (issue #61). Enforced host-side by asking
@@ -154,6 +158,58 @@ pub struct PreValidationResult {
     pub by_category: BTreeMap<String, usize>,
 }
 
+/// What a picture inside a [`VisionCallRequest`] is — the part it plays in the
+/// sentence the prompt uses to ask for a comparison.
+///
+/// The role exists because the prompt tells the model which picture is which by
+/// *position* ("image 1 is …"), so the payload and the prompt have to agree on
+/// the order. Issue #62 was exactly that disagreement: the prompt promised a
+/// reference screenshot the request never carried, and the model answered about
+/// the only picture it had.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VisionRole {
+    /// The screenshot of the design under review.
+    Design,
+    /// The user's reference design the [`Self::Design`] screenshot should match.
+    Reference,
+}
+
+impl VisionRole {
+    /// The words a prompt uses when it names this picture to the model.
+    pub fn prompt_label(self) -> &'static str {
+        match self {
+            Self::Design => "the CURRENT design under review",
+            Self::Reference => "the user's REFERENCE design",
+        }
+    }
+
+    /// 1-based position of this role in `images` — the number a prompt must
+    /// use when it names that picture. `None` when no picture carries it.
+    pub fn position_in(self, images: &[VisionImage]) -> Option<usize> {
+        images.iter().position(|i| i.role == self).map(|i| i + 1)
+    }
+}
+
+/// One picture a [`VisionCallRequest`] carries: its base64 payload plus the
+/// role that decides how the prompt must name it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisionImage {
+    /// Which picture this is — see [`VisionRole`].
+    pub role: VisionRole,
+    /// base64 payload (PNG / JPEG / GIF / WebP). The host decides the media
+    /// type from the bytes, never from this struct.
+    pub base64: String,
+}
+
+impl VisionImage {
+    pub fn new(role: VisionRole, base64: impl Into<String>) -> Self {
+        Self {
+            role,
+            base64: base64.into(),
+        }
+    }
+}
+
 /// `VisionLlmClient::validate` 的输入 —— 单轮视觉校验请求。
 ///
 /// Port of the call-site params in `validateDesignScreenshot`
@@ -164,14 +220,30 @@ pub struct VisionCallRequest {
     pub system: String,
     /// 携带节点树 dump 与修复指令的 user message。
     pub message: String,
-    /// 画布截图 base64 PNG。
-    pub image_base64: String,
+    /// The pictures this request asks the model to look at, **in the order the
+    /// transport delivers them** — which is the order the `message` counts as
+    /// "image 1", "image 2", … A transport that cannot deliver every one of
+    /// them must answer [`VisionResponse::Skipped`] rather than send a call
+    /// whose prompt names pictures the model does not have.
+    pub images: Vec<VisionImage>,
     /// 覆盖模型名称;`None` 表示由 host 决定。
     pub model: Option<String>,
     /// 覆盖 provider;`None` 表示由 host 决定。
     pub provider: Option<String>,
     /// 本轮调用的超时时间。
     pub timeout: Duration,
+}
+
+impl VisionCallRequest {
+    /// 1-based position of the first image with `role` — the number a prompt
+    /// must use when it names that picture.
+    ///
+    /// Positions are counted over [`Self::images`] and are therefore only
+    /// truthful while the client delivers every image (its contract: all or
+    /// [`VisionResponse::Skipped`]).
+    pub fn position_of(&self, role: VisionRole) -> Option<usize> {
+        role.position_in(&self.images)
+    }
 }
 
 /// `VisionLlmClient::validate` 的返回值。
@@ -511,7 +583,9 @@ pub struct DesignRequest {
     pub pinned_style_guide: Option<String>,
     /// Reference screenshots the user attached for this design turn.
     /// In-process only (`serde(skip)`); web/desktop hosts copy chat
-    /// attachments here before `Orchestrator::run`.
+    /// attachments here before `Orchestrator::run`. Because it is skipped,
+    /// a request that crossed a JSON hop carries an empty list — see
+    /// [`Self::reference_evidence`], which refuses to read that as "no picture".
     #[serde(skip)]
     pub reference_attachments: Vec<ReferenceAttachment>,
     /// Structured layout inventory from a multimodal pass over
@@ -520,6 +594,34 @@ pub struct DesignRequest {
     /// before planning; in-process only.
     #[serde(skip)]
     pub reference_brief: Option<String>,
+}
+
+impl DesignRequest {
+    /// What this request itself knows about the turn's reference image, for the
+    /// recipe decisions that used to read the prompt's words instead
+    /// (issue #65).
+    ///
+    /// Only the positive answer is knowledge. `reference_attachments` is
+    /// `serde(skip)`, so an empty list means either "this turn had no picture"
+    /// or "this request was decoded from JSON and the pictures were dropped" —
+    /// and a reader of the request cannot tell those apart. Reporting
+    /// [`ReferenceEvidence::NoImage`] for the empty case would assert something
+    /// this type does not carry, and would then *place* a recipe on a reference
+    /// turn whose attachment was lost in transit — the silent-loss family of
+    /// issue #61/#64. So the empty case stays
+    /// [`ReferenceEvidence::Unknown`]: the fact when there is one, the words
+    /// otherwise, which is exactly the pre-existing behaviour and now says why.
+    pub fn reference_evidence(&self) -> op_editor_core::ReferenceEvidence {
+        if self
+            .reference_attachments
+            .iter()
+            .any(ReferenceAttachment::is_image)
+        {
+            op_editor_core::ReferenceEvidence::Attached
+        } else {
+            op_editor_core::ReferenceEvidence::Unknown
+        }
+    }
 }
 
 /// Mirrors the serde defaults exactly, so a request built through `Default`

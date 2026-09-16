@@ -268,6 +268,15 @@ impl WidgetHost {
             return consumed;
         }
 
+        // Tier 11c — the reference card (issue #63). It paints over the
+        // canvas but under the panels resolved above, so it loses to them and
+        // wins over the canvas: a press that reached the canvas tier would
+        // start a marquee (or clear the selection) under a picture the user
+        // was only comparing against.
+        if let Some(consumed) = self.press_reference_view_tier(&ctx) {
+            return consumed;
+        }
+
         // Tier 12 — the canvas, branching on the active tool.
         if let Some(consumed) = self.press_canvas_tier(&ctx) {
             return consumed;

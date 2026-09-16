@@ -566,6 +566,14 @@ const REFERENCE_PHRASES: &[&str] = &[
 ];
 
 /// Whether a request points at a picture instead of at a recipe.
+///
+/// This is a guess, and it is only ever allowed to be one. A route that holds
+/// the request's attachment list knows the answer exactly and reports it as
+/// [`ReferenceEvidence::Attached`] / [`ReferenceEvidence::NoImage`] — this
+/// function is for the routes that hold no list at all
+/// ([`ReferenceEvidence::Unknown`]), where the words are the only evidence
+/// there is. Nothing else may call it: a phrase standing in for a knowable
+/// fact is the defect issue #65 is about.
 pub fn refers_to_a_reference(prompt: &str) -> bool {
     let haystack = prompt.to_lowercase();
     REFERENCE_PHRASES
@@ -573,18 +581,80 @@ pub fn refers_to_a_reference(prompt: &str) -> bool {
         .any(|phrase| haystack.contains(phrase))
 }
 
+/// What the calling route knows about this turn's reference image.
+///
+/// The fact of an attachment is knowable exactly, and guessing it from the
+/// prompt's words was the worse half of issue #65: a person who attached a
+/// picture and said nothing about it was read as having no reference, and one
+/// who wrote "like on the screenshot" with nothing attached as having one.
+/// A route that holds the request's attachment list reports the fact and the
+/// fact decides; the words only get to speak for a route that has no list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceEvidence {
+    /// The route holds this turn's attachment list, and an image is in it.
+    Attached,
+    /// The route holds this turn's attachment list, and no entry is an image.
+    NoImage,
+    /// The route has no attachment list to read — attachments are not plumbed
+    /// through this path — so no fact is available here and the prompt's own
+    /// words are the only evidence there is.
+    ///
+    /// This is the standing reason [`refers_to_a_reference`] still exists. A
+    /// request that crossed a JSON hop lands here: `DesignRequest`'s
+    /// `reference_attachments` is `serde(skip)`, so a deserialized request
+    /// looks exactly like one sent without a picture, and a reader of that
+    /// request cannot tell the two apart. Reporting `NoImage` for it would
+    /// assert knowledge the type does not carry.
+    Unknown,
+}
+
+impl ReferenceEvidence {
+    /// The evidence of an attachment list the caller actually holds.
+    /// `has_image` is the exact answer to "does this turn carry a picture",
+    /// so this constructor is where a fact replaces a guess.
+    pub const fn of_attachments(has_image: bool) -> Self {
+        if has_image {
+            Self::Attached
+        } else {
+            Self::NoImage
+        }
+    }
+}
+
+/// Whether this turn is grounded on a reference picture.
+///
+/// One place answers that question, so the answer cannot drift between the
+/// three decisions that depend on it: whether a recipe is placed, whether the
+/// recipe rules travel, and whether the planner is offered the recipe index.
+/// The attachment fact wins wherever a route holds the list — an attached
+/// picture is a reference even when the prompt never says so, and no phrase may
+/// claim one the list says is not there. The words decide for
+/// [`ReferenceEvidence::Unknown`] alone, and that is the documented, narrow
+/// reason [`refers_to_a_reference`] is still reachable at all.
+pub fn is_reference_turn(prompt: &str, evidence: ReferenceEvidence) -> bool {
+    match evidence {
+        ReferenceEvidence::Attached => true,
+        ReferenceEvidence::NoImage => false,
+        ReferenceEvidence::Unknown => refers_to_a_reference(prompt),
+    }
+}
+
 /// The recipe to place for this turn, or `None` when one must not be placed.
 ///
 /// Placement is skipped for a reference turn: the picture decides the layout,
-/// and the recipe would only compete with it.
+/// and the recipe would only compete with it — the `doc:recipe-base` rule that
+/// comes with a placement then tells the model to keep it, so a picture
+/// attached without a word about it used to lose to the ops screen.
 pub fn recipe_to_place<'a>(
     prompt: &str,
-    has_reference_image: bool,
+    evidence: ReferenceEvidence,
     kit: &'a crate::KitManifest,
 ) -> Option<&'a crate::kit_manifest::KitRecipe> {
-    if has_reference_image || refers_to_a_reference(prompt) {
+    if is_reference_turn(prompt, evidence) {
         return None;
     }
+    // No picture: the words still get to ask for a recipe ("список
+    // коммутаторов с таблицей").
     select_recipe(prompt, kit)
 }
 
@@ -595,15 +665,75 @@ mod reference_turn_tests {
     #[test]
     fn a_picture_request_does_not_place_a_recipe() {
         let kit = crate::session_kit();
-        assert!(recipe_to_place("Сделай экран как на картинке", false, kit).is_none());
-        assert!(recipe_to_place("сделай список серверов", true, kit).is_none());
+        assert!(recipe_to_place(
+            "Сделай экран как на картинке",
+            ReferenceEvidence::Unknown,
+            kit
+        )
+        .is_none());
+        // An attached picture needs no words at all: the fact is the whole
+        // signal, which is what a person who attaches a screenshot and writes
+        // nothing depends on.
+        assert!(
+            recipe_to_place("сделай список серверов", ReferenceEvidence::Attached, kit).is_none()
+        );
     }
 
     #[test]
     fn a_plain_admin_list_still_places_one() {
         let kit = crate::session_kit();
-        let placed =
-            recipe_to_place("список коммутаторов с таблицей", false, kit).expect("the ops recipe");
+        let placed = recipe_to_place(
+            "список коммутаторов с таблицей",
+            ReferenceEvidence::NoImage,
+            kit,
+        )
+        .expect("the ops recipe");
         assert_eq!(placed.id, "ops-servers-screen");
+    }
+
+    /// Issue #65, the guessing half. The route holds the request's attachment
+    /// list, so "this turn has no picture" is a fact — and a fact outranks the
+    /// prompt's own words. Before this, a request that merely *said* "как на
+    /// картинке" with nothing attached was handled as a reference turn.
+    #[test]
+    fn no_attached_image_leaves_the_words_without_a_vote() {
+        let kit = crate::session_kit();
+        let placed = recipe_to_place(
+            "список коммутаторов как на картинке",
+            ReferenceEvidence::NoImage,
+            kit,
+        );
+        assert!(
+            placed.is_some(),
+            "the attachment list says there is no picture — the phrase must not claim one"
+        );
+    }
+
+    /// The route's own constructor for the fact: an attachment list it holds,
+    /// asked one question — is there a picture in it.
+    #[test]
+    fn the_fact_is_read_from_the_attachment_list() {
+        assert_eq!(
+            ReferenceEvidence::of_attachments(false),
+            ReferenceEvidence::NoImage
+        );
+        assert_eq!(
+            ReferenceEvidence::of_attachments(true),
+            ReferenceEvidence::Attached
+        );
+        // Only the variant with no attachment list to read lets the words
+        // decide — everything else is the fact, in both directions.
+        assert!(is_reference_turn(
+            "сделай список серверов",
+            ReferenceEvidence::Attached
+        ));
+        assert!(!is_reference_turn(
+            "сделай как на картинке",
+            ReferenceEvidence::NoImage
+        ));
+        assert!(is_reference_turn(
+            "сделай как на картинке",
+            ReferenceEvidence::Unknown
+        ));
     }
 }

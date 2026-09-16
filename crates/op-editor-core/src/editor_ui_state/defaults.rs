@@ -5,8 +5,8 @@
 
 use super::{
     DesignMdPanelState, EditorUiState, EmbedHost, ExportFormat, FlexLayout, GitPanelState, Locale,
-    PencilCursorStyle, PreviewState, PromptCenterState, PropertyTab, SaveNameDialogState,
-    SceneTemplateCenterState, SizeToggleState, ThemeMode, UpdateStatus,
+    PencilCursorStyle, PreviewState, PromptCenterState, PropertyTab, ReferenceViewState,
+    SaveNameDialogState, SceneTemplateCenterState, SizeToggleState, ThemeMode, UpdateStatus,
 };
 use crate::tool::Tool;
 use std::collections::HashSet;
@@ -242,6 +242,7 @@ impl Default for EditorUiState {
             update_status: UpdateStatus::Idle,
             git_panel: GitPanelState::default(),
             design_md_panel: DesignMdPanelState::default(),
+            reference_view: ReferenceViewState::default(),
             prompt_center: PromptCenterState::default(),
             scene_template_center: SceneTemplateCenterState::default(),
             pinned_style_guide: None,

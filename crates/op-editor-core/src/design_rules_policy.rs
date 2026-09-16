@@ -216,8 +216,21 @@ mod tests {
 /// the ops screen even after the recipe stopped being placed. A reference turn
 /// drops those rules; everything else (working agreement, component rules)
 /// still applies.
-pub fn rules_without_recipes_for_reference(rules: &[DesignRule], prompt: &str) -> Vec<DesignRule> {
-    if !crate::design_rules::refers_to_a_reference(prompt) {
+///
+/// `evidence` is the caller's knowledge of this turn's attachment (issue #65).
+/// A caller that holds the attachment list passes the fact, and then `prompt`
+/// is not read at all; `prompt` is consulted only for
+/// [`ReferenceEvidence::Unknown`], where no attachment list exists to read and
+/// the words are the only evidence left. Every kit recipe ships its own rule
+/// (`effective_design_rules`), so `rules` is never free of recipe rules in
+/// practice — this filter is load-bearing on every design turn, not a corner.
+pub fn rules_without_recipes_for_reference(
+    rules: &[DesignRule],
+    prompt: &str,
+    evidence: crate::design_rules::ReferenceEvidence,
+) -> Vec<DesignRule> {
+    let is_reference = crate::design_rules::is_reference_turn(prompt, evidence);
+    if !is_reference {
         return rules.to_vec();
     }
     rules
@@ -259,12 +272,59 @@ mod reference_rule_tests {
                 overrides: None,
             },
         ];
-        let kept = rules_without_recipes_for_reference(&rules, "сделай как на картинке");
+        let kept = rules_without_recipes_for_reference(
+            &rules,
+            "сделай как на картинке",
+            crate::design_rules::ReferenceEvidence::Unknown,
+        );
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].id, "doc:ai-instructions");
         assert_eq!(
-            rules_without_recipes_for_reference(&rules, "список серверов").len(),
+            rules_without_recipes_for_reference(
+                &rules,
+                "список серверов",
+                crate::design_rules::ReferenceEvidence::Unknown
+            )
+            .len(),
             2
+        );
+    }
+
+    /// The fact, not the words: an attached picture drops the recipe rules
+    /// even when the prompt never mentions a picture, and a turn whose
+    /// attachment list is known to hold no picture keeps them even when the
+    /// prompt does mention one (issue #65).
+    #[test]
+    fn the_attachment_list_decides_which_rules_travel() {
+        let recipe_rule = DesignRule {
+            id: "lib:recipe:ops".into(),
+            title: "Ops".into(),
+            instruction: "take the ops screen".into(),
+            kind: DesignRuleKind::Require,
+            scope: DesignRuleScope::Recipe {
+                recipe_id: "ops-servers-screen".into(),
+            },
+            condition: None,
+            priority: 0,
+            enabled: true,
+            overrides: None,
+        };
+        let rules = vec![recipe_rule];
+
+        assert!(rules_without_recipes_for_reference(
+            &rules,
+            "сделай список серверов",
+            crate::design_rules::ReferenceEvidence::Attached
+        )
+        .is_empty());
+        assert_eq!(
+            rules_without_recipes_for_reference(
+                &rules,
+                "сделай как на картинке",
+                crate::design_rules::ReferenceEvidence::NoImage
+            )
+            .len(),
+            1
         );
     }
 }

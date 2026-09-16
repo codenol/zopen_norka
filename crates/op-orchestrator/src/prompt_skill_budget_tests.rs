@@ -86,8 +86,14 @@ fn worst_case_style_guide_context() -> (String, String) {
                     overrides: None,
                 }];
                 for rules in [&[][..], &one_rule[..]] {
-                    let ctx =
-                        build_planning_style_guide_context(prompt, Some(model), mode, rules, None);
+                    let ctx = build_planning_style_guide_context(
+                        prompt,
+                        Some(model),
+                        mode,
+                        rules,
+                        None,
+                        op_editor_core::ReferenceEvidence::Unknown,
+                    );
                     if ctx.available_style_guides.chars().count() > worst.0.chars().count() {
                         let label = format!(
                             "mode={mode:?} model={model:?} with_rules={} prompt={prompt:?}",

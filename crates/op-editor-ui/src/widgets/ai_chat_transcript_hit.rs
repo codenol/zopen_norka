@@ -17,6 +17,12 @@ pub enum TranscriptHit {
     /// row `ActionStep::retryable` marked true (a persisted
     /// `ChatMessage::failed_subtasks` entry backs it).
     RetrySubtask(usize, usize),
+    /// Click on a picture the user attached to message `msg_index` —
+    /// `(message_index, image_index)`. The chat panel treats the reference
+    /// thumbnail as the button that shows the picture beside the canvas
+    /// (issue #63), so the affordance sits on the picture itself rather than
+    /// in chrome the user would have to find.
+    ShowReference(usize, usize),
 }
 
 pub(crate) fn transcript_hit(
@@ -97,6 +103,14 @@ pub(crate) fn transcript_hit(
                     step.source_index,
                     !step.expanded,
                 ));
+            }
+        }
+        // Image thumbnails of the message — the reference the turn was asked
+        // to match. Checked before the design blocks: a thumbnail is a
+        // deliberate target and nothing else claims its rect.
+        for (image_index, image) in item.images.iter().enumerate() {
+            if (image).contains(p) {
+                return Some(TranscriptHit::ShowReference(item.msg_index, image_index));
             }
         }
         for (block_index, block) in item.design_blocks.iter().enumerate() {

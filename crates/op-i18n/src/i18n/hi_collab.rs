@@ -310,6 +310,9 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "लाइव सहयोग सत्र…",
         "share.topbar.share" => "साझा करें",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "संदर्भ",
         _ => return None,
     })
 }

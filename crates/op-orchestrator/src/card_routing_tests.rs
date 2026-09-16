@@ -37,7 +37,12 @@ fn a_card_prompt_reaches_a_card_style_guide() {
         assert!(tags.iter().any(|t| t == expected), "{expected} in {tags:?}");
     }
 
-    let built = build_compact_planning_prompt(CARD_PROMPT, &[], None);
+    let built = build_compact_planning_prompt(
+        CARD_PROMPT,
+        &[],
+        None,
+        op_editor_core::ReferenceEvidence::Unknown,
+    );
     let kit = session_kit();
     assert!(
         built.selected_style_guide_name.is_empty(),
@@ -95,7 +100,12 @@ fn a_component_request_never_lands_on_the_card_shelf() {
         "a profile card",
         "a card component for the design system",
     ] {
-        let built = build_compact_planning_prompt(prompt, &[], None);
+        let built = build_compact_planning_prompt(
+            prompt,
+            &[],
+            None,
+            op_editor_core::ReferenceEvidence::Unknown,
+        );
         assert!(
             !CARD_GUIDES.contains(&built.selected_style_guide_name.as_str()),
             "{prompt} reached the card shelf: {:?}",
@@ -119,7 +129,12 @@ fn an_ordinary_web_request_is_unaffected() {
         "an analytics dashboard",
         "a mobile login screen",
     ] {
-        let built = build_compact_planning_prompt(prompt, &[], None);
+        let built = build_compact_planning_prompt(
+            prompt,
+            &[],
+            None,
+            op_editor_core::ReferenceEvidence::Unknown,
+        );
         assert!(
             !CARD_GUIDES.contains(&built.selected_style_guide_name.as_str()),
             "{prompt} -> {:?}",

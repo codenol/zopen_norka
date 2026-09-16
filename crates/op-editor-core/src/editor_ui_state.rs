@@ -848,6 +848,12 @@ pub struct EditorUiState {
     /// expanded-section bitmask, scroll, and the queued host request.
     pub design_md_panel: DesignMdPanelState,
 
+    // --- Reference comparison view ----------------------------------
+    /// The picture the current turn was asked to match, shown beside the
+    /// canvas so fidelity can actually be checked — see
+    /// [`ReferenceViewState`].
+    pub reference_view: ReferenceViewState,
+
     // --- Prompt Center ----------------------------------------------
     /// Floating prompt catalogue, search, save form, and custom entries.
     pub prompt_center: PromptCenterState,
