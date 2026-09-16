@@ -225,6 +225,14 @@ here at a glance.
 
 ### Changed
 
+- **A released build's version stamp stopped blinking.** The top bar colours the
+  version by how old the build is — green for minutes, amber past three, red past
+  six, blinking — because "am I looking at a stale binary?" is a real question
+  while working on the kit manifest, which is compiled in. On a deployment that
+  question has an obvious answer, so the stamp was blinking red once a second in
+  front of users. A release build shows the version in the interface's ordinary
+  colour, steady; a working-tree build keeps the freshness scheme unchanged.
+
 - **The account store is a crate of its own, so `op` no longer ships Skia.**
   `op admin create` has to open the same `accounts.db` the deployment opens —
   the first administrator has to be creatable before there is a server that

@@ -80,6 +80,54 @@ pub fn next_blink_deadline_ms(now_ms: u64, period: Option<u64>) -> Option<u64> {
     )
 }
 
+/// Which colour the stamp deserves, and whether it blinks at all.
+///
+/// The freshness scheme answers one question — *is the binary I am looking at
+/// older than the work I am doing?* — and that question only exists for a build
+/// somebody just made. A released build is old by definition, so on a release
+/// the stamp is a version label: the scheme's normal text colour, steady, no
+/// blink. Without that, the top bar of every deployment blinked red once a
+/// second, which reads as "something is wrong" rather than "this is a release".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StampTone {
+    Fresh,
+    Ageing,
+    Stale,
+    /// A release build: no freshness, no blink.
+    Plain,
+}
+
+/// The tone for a build of this age, given whether it is a release build.
+pub fn stamp_tone(age_secs: u64, release: bool) -> StampTone {
+    if release {
+        return StampTone::Plain;
+    }
+    match freshness(age_secs) {
+        BuildFreshness::Fresh => StampTone::Fresh,
+        BuildFreshness::Ageing => StampTone::Ageing,
+        BuildFreshness::Stale => StampTone::Stale,
+    }
+}
+
+/// How long one on/off cycle lasts for this build, or `None` when it holds
+/// steady — which a release build always does.
+pub fn stamp_blink_period_ms(age_secs: u64, release: bool) -> Option<u64> {
+    match stamp_tone(age_secs, release) {
+        StampTone::Plain | StampTone::Fresh => None,
+        StampTone::Ageing => Some(3_000),
+        StampTone::Stale => Some(1_000),
+    }
+}
+
+/// Whether this binary was built for release rather than for a working tree.
+///
+/// `debug_assertions` is the honest discriminator available at runtime: a
+/// release profile build — what a deployment runs — has them off, and a build
+/// somebody makes while working has them on.
+pub const fn is_release_build() -> bool {
+    !cfg!(debug_assertions)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,5 +169,46 @@ mod tests {
         assert_eq!(next_blink_deadline_ms(0, Some(1_000)), Some(500));
         assert_eq!(next_blink_deadline_ms(700, Some(1_000)), Some(1_000));
         assert_eq!(next_blink_deadline_ms(0, None), None);
+    }
+}
+
+#[cfg(test)]
+mod release_tests {
+    use super::*;
+
+    /// The operator's rule: a released build is a version label, not a
+    /// staleness probe. Every age that blinks in a working tree must be plain
+    /// in a release, at both ends of the scale.
+    #[test]
+    fn a_release_build_never_blinks_and_answers_with_the_plain_tone() {
+        for age in [0, 180, 181, 360, 361, 86_400, 60 * 60 * 24 * 365] {
+            assert_eq!(stamp_tone(age, true), StampTone::Plain, "age {age}");
+            assert_eq!(stamp_blink_period_ms(age, true), None, "age {age}");
+        }
+    }
+
+    /// And the working-tree behaviour is unchanged: the scheme still exists for
+    /// the question it was written for.
+    #[test]
+    fn a_working_tree_build_still_ages_and_blinks() {
+        assert_eq!(stamp_tone(0, false), StampTone::Fresh);
+        assert_eq!(stamp_tone(200, false), StampTone::Ageing);
+        assert_eq!(stamp_tone(400, false), StampTone::Stale);
+        assert_eq!(stamp_blink_period_ms(0, false), None);
+        assert_eq!(stamp_blink_period_ms(200, false), Some(3_000));
+        assert_eq!(stamp_blink_period_ms(400, false), Some(1_000));
+    }
+
+    /// The two policies must agree with the functions they replace, so a reader
+    /// comparing them sees no third rule.
+    #[test]
+    fn the_release_policy_is_the_old_one_plus_the_plain_case() {
+        for age in [0u64, 181, 361, 10_000] {
+            assert_eq!(
+                stamp_blink_period_ms(age, false),
+                blink_period_ms(freshness(age)),
+                "age {age}"
+            );
+        }
     }
 }
