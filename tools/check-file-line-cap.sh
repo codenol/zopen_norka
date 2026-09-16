@@ -32,8 +32,6 @@ set -euo pipefail
 
 cap=800
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$root"
-
 # path|ceiling|issue. The ceiling is the file's size rounded up to the next
 # multiple of ten: ordinary editing does not trip it, growth does.
 ceiling_table() {
@@ -42,6 +40,16 @@ crates/op-editor-core/src/editor_ui_state.rs|960|158
 crates/op-host-web/src/live_sync_glue.rs|920|228
 TABLE
 }
+
+# `--ceiling-for <path>`: print the ceiling for one file, so another gate can ask
+# this script instead of carrying a copy of the policy (see
+# `check-collab-security-boundaries.sh`). Empty means "not in the table".
+if [[ "${1:-}" == "--ceiling-for" ]]; then
+  ceiling_table | awk -F'|' -v p="${2:-}" '$1 == p { print $2 }'
+  exit 0
+fi
+
+cd "$root"
 
 sizes="$(find crates -name '*.rs' -not -path '*/target/*' -exec wc -l {} + \
   | awk '$2 != "total" { print $1 " " $2 }')"
