@@ -31,6 +31,19 @@ struct Coalescer {
     /// does not take ownership). Replaced on the next schedule, by which point
     /// the previous closure has already run.
     frame: Option<Closure<dyn FnMut()>>,
+    /// Keeps the fallback tick's closure alive until it fires, with the timer
+    /// handle so a new schedule can CANCEL the old one.
+    ///
+    /// This is what the "closure invoked recursively or after being dropped"
+    /// panic in the console was (issue #21): the fallback closure used to live
+    /// in a local variable, so it was dropped the moment `schedule_frame`
+    /// returned — and the `setTimeout` that had just been handed it fired 250 ms
+    /// later into a slot that no longer existed. Every schedule produced one
+    /// such timer, which is why the console filled with them rather than
+    /// showing one.
+    fallback: Option<Closure<dyn FnMut()>>,
+    /// The pending fallback's timer handle, for cancelling the one it replaces.
+    fallback_timer: Option<i32>,
 }
 
 /// Install the paint callback for the active mount. Call once per mount, after
@@ -41,6 +54,8 @@ pub(crate) fn install(paint: Rc<dyn Fn()>) {
             paint,
             scheduled: false,
             frame: None,
+            fallback: None,
+            fallback_timer: None,
         });
     });
 }
@@ -80,25 +95,30 @@ fn schedule_frame() {
     };
 
     let cb = Closure::wrap(Box::new(move || {
-        // Clear the flag and clone out the paint fn WITHOUT holding the borrow
-        // across the paint: the paint fn borrows the shell and, on a momentary
-        // borrow conflict, calls `request()` again (which re-borrows this slot).
+        // Clear the flag, take this frame's claim, and clone out the paint fn
+        // WITHOUT holding the borrow across the paint: the paint fn borrows the
+        // shell and, on a momentary borrow conflict, calls `request()` again
+        // (which re-borrows this slot).
+        //
+        // `frame = None` belongs HERE — before the paint — and not after it.
+        // A paint that calls `request()` schedules the NEXT frame during this
+        // one, and that schedule stores its closure in `frame`; clearing
+        // `frame` on the way out would then drop a closure the browser has
+        // already been handed and will call, which is the "closure invoked
+        // recursively or after being dropped" panic in the console (issue #21).
+        // Taking this frame's claim up front says "this frame has run" to the
+        // fallback tick without touching whatever the paint left behind.
         let paint = COALESCER.with(|c| {
             let mut slot = c.borrow_mut();
             slot.as_mut().map(|co| {
                 co.scheduled = false;
+                co.frame = None;
                 co.paint.clone()
             })
         });
         if let Some(paint) = paint {
             paint();
         }
-        // Mark the frame delivered so the fallback tick knows rAF ran.
-        COALESCER.with(|c| {
-            if let Some(co) = c.borrow_mut().as_mut() {
-                co.frame = None;
-            }
-        });
     }) as Box<dyn FnMut()>);
 
     // Fallback tick. A background or occluded tab throttles — and can stop —
@@ -107,7 +127,25 @@ fn schedule_frame() {
     // reloads the page. That is exactly the "empty canvas until refresh"
     // report. `setTimeout` keeps running at ~1 Hz when throttled, so it paints
     // the frame rAF owes us.
+    // A schedule replaces the previous fallback: cancel its timer before its
+    // closure is dropped, or the browser would call a dropped closure.
+    COALESCER.with(|c| {
+        if let Some(co) = c.borrow_mut().as_mut() {
+            if let (Some(handle), Some(window)) = (co.fallback_timer.take(), web_sys::window()) {
+                window.clear_timeout_with_handle(handle);
+            }
+            co.fallback = None;
+        }
+    });
     let fallback = Closure::wrap(Box::new(move || {
+        // This tick is firing: forget the handle so nothing tries to cancel a
+        // timer that has already run, and release the closure at the end of
+        // this call by taking it out of the slot.
+        COALESCER.with(|c| {
+            if let Some(co) = c.borrow_mut().as_mut() {
+                co.fallback_timer = None;
+            }
+        });
         // `frame` is still armed exactly when rAF never fired — the throttled
         // case this tick exists for. When rAF did paint, it cleared `frame`
         // and this is a no-op instead of a second whole-chrome frame.
@@ -126,10 +164,15 @@ fn schedule_frame() {
             paint();
         }
     }) as Box<dyn FnMut()>);
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        fallback.as_ref().unchecked_ref(),
-        250,
-    );
+    let handle = window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(fallback.as_ref().unchecked_ref(), 250)
+        .unwrap_or(0);
+    COALESCER.with(|c| {
+        if let Some(co) = c.borrow_mut().as_mut() {
+            co.fallback_timer = (handle != 0).then_some(handle);
+            co.fallback = Some(fallback);
+        }
+    });
 
     match window.request_animation_frame(cb.as_ref().unchecked_ref()) {
         Ok(_) => {
