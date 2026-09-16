@@ -167,20 +167,10 @@ impl DesktopApp {
     }
 
     pub(crate) fn poll_mcp_server(&mut self) -> bool {
-        let (outcome, pending_design_md) = {
-            let Some(server) = self.mcp_server.as_mut() else {
-                return false;
-            };
-            let outcome = server.pump(self.host.editor_state_mut());
-            let pending_design_md = server.take_pending_design_md_request();
-            (outcome, pending_design_md)
+        let Some(server) = self.mcp_server.as_mut() else {
+            return false;
         };
-        // Provider execution is deliberately outside the UI/server borrow and
-        // on its own worker. This request contains bounded extension evidence,
-        // not a snapshot of (or mutation to) the live document.
-        if let Some(request) = pending_design_md {
-            self.start_mcp_design_md_request(request);
-        }
+        let outcome = server.pump(self.host.editor_state_mut());
         if outcome.layout_dirty {
             self.host.mark_editor_state_dirty();
         }

@@ -4,7 +4,7 @@ The web SDK packages that remain after the TypeScript retirement. This directory
 
 > The `pen-*` packages (pen-types, pen-core, pen-engine, pen-renderer, pen-figma, pen-mcp, pen-ai-skills, pen-sdk, pen-react, pen-acp) and pen-codegen were **retired** along with `apps/*`. Their functionality now lives in the Rust `crates/` (see `crates/CLAUDE.md`). Nothing here depends on them. The `agent-native` Zig runtime was also **removed** — the built-in agent runtime is now the Rust `agent` crate (`vendor/agent`, shared with Zode).
 
-> The **Chrome extension was removed** from the tree (`packages/op-chrome-extension/` plus the Rust `crates/op-chrome-extension-core/` it compiled to wasm): the project does not use or plan to ship it, and it carried a client for a third-party service. Nothing here or in `crates/` depends on either. The `design.md` capture logic that the product does use lives on in `crates/op-host-services` (`design_md_*`, `mcp_live/snapshot_ingest.rs`), untouched.
+> The **Chrome extension was removed** from the tree (`packages/op-chrome-extension/` plus the Rust `crates/op-chrome-extension-core/` it compiled to wasm): the project does not use or plan to ship it, and it carried a client for a third-party service. Nothing here or in `crates/` depends on either. The two daemon routes that existed only to serve it — `POST /api/import/web-snapshot` and `/api/generate/design-md` — went with it (#81), together with the `chrome-extension://` origin widening and the `OPENPENCIL_EXTENSION_ALLOWED_IDS` allowlist they needed. The capabilities stay: `import_web_snapshot` is still a registered MCP tool, and `design.md` generation runs in-app.
 
 ## Workspace tooling
 

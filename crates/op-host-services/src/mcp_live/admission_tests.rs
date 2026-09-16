@@ -238,180 +238,117 @@ fn ping_probe_stays_tokenless_for_cli_discovery() {
     assert!(!response.contains(TOKEN), "{response}");
 }
 
-// --- browser-extension snapshot ingress (`snapshot_ingest.rs`) ---
+// --- the removed extension routes (`POST /api/import/web-snapshot`,
+// --- `/api/generate/design-md`) ---
 
 /// A well-formed Chrome extension id: 32 characters from `a`–`p`.
 const EXTENSION_ORIGIN: &str = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
-const INGEST_PATH: &str = "/api/import/web-snapshot";
-const DESIGN_MD_PATH: &str = "/api/generate/design-md";
-/// The smallest payload the v1 extractor can emit that still maps to a node.
-const SNAPSHOT: &str = r#"{"version":1,"source":"https://example.com/","title":"Example","viewport":{"width":800,"height":600},"root":{"kind":"element","tag":"body","rect":{"x":0,"y":0,"w":800,"h":600},"styles":{"background-color":"rgb(255, 255, 255)"},"children":[{"kind":"element","tag":"div","rect":{"x":10,"y":10,"w":100,"h":40},"styles":{"background-color":"rgb(0, 0, 0)"},"children":[]}]}}"#;
 
-fn extension_headers() -> String {
-    format!(
-        "Host: 127.0.0.1:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\nContent-Type: application/json\r\n"
-    )
-}
-
-/// The whole point of the scoped route: an extension origin buys exactly
-/// one insert-only tool, never the general tool surface.
+/// The two routes that existed only for the OpenPencil Chrome extension are
+/// gone, and this is the test that says so (#81).
+///
+/// Why they are gone rather than guarded differently: they were the ONLY
+/// paths that widened the boundary above to `chrome-extension://<id>`
+/// callers, and their client — the extension — no longer exists in the tree
+/// and is not planned (#69). The widening is what made them attack surface:
+/// a `chrome-extension://` origin is unforgeable to a *web page*, but it is
+/// free to any non-browser client that sets the header itself, and in the
+/// default unpinned mode (`OPENPENCIL_EXTENSION_ALLOWED_IDS` unset) the
+/// snapshot route admitted EVERY installed extension — not one known
+/// extension — to POST a snapshot into the live document with no token at all
+/// (the design route was stricter: an unpinned extension could only read its
+/// own `extensionNotPaired` refusal, and model work needed a pinned id). An
+/// allowlist nobody can populate is a setting that only confuses, so it went
+/// with them: no environment variable re-opens these paths now.
+///
+/// What they fronted is not lost. `import_web_snapshot` is still a registered
+/// MCP tool, reachable over `/mcp` below and through the `op` CLI, and the
+/// `design.md` pipeline still runs in-app against the selected chat model.
 #[test]
-fn extension_origin_is_refused_outside_the_snapshot_ingress() {
-    let (req_tx, req_rx) = mpsc::channel();
-    let headers = format!(
-        "Host: 127.0.0.1:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\nX-OpenPencil-Token: {TOKEN}\r\n"
-    );
-    let response = drive(&request("/mcp", &headers, LIST_PAGES_CALL), &req_tx);
-
-    assert!(response.starts_with("HTTP/1.1 403 Forbidden"), "{response}");
-    assert!(
-        req_rx.try_recv().is_err(),
-        "an extension must not reach the general tool surface"
-    );
-}
-
-#[test]
-fn foreign_page_origin_is_refused_on_the_snapshot_ingress() {
-    let (req_tx, req_rx) = mpsc::channel();
-    for origin in [
-        "http://evil.example",
-        "https://evil.example",
-        "null",
-        // Prefix-only lookalikes: wrong length, wrong alphabet, and a
-        // path-carrying value that a strict origin never has.
-        "chrome-extension://abc",
-        "chrome-extension://ABCDEFGHIJKLMNOPABCDEFGHIJKLMNOP",
-        "chrome-extension://abcdefghijklmnopabcdefghijklmnop/x",
-        "chrome-extension://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+fn the_extension_only_routes_are_gone_for_every_caller() {
+    const JOB: &str = "/api/generate/design-md/0123456789abcdef0123456789abcdef";
+    for (method, path, body) in [
+        ("POST", "/api/import/web-snapshot", "{}"),
+        ("POST", "/api/generate/design-md", "{}"),
+        ("GET", "/api/generate/design-md", ""),
+        ("GET", JOB, ""),
+        ("DELETE", JOB, ""),
     ] {
+        // Only the header shapes the boundary still admits: a caller that
+        // presents an extension origin never gets as far as the router (that
+        // refusal is the test below), so the two must be asserted separately
+        // or "not found" would paper over "not even routed".
+        for headers in [
+            // A local non-browser caller: no `Origin` at all.
+            format!("Host: 127.0.0.1:{PORT}\r\nContent-Type: application/json\r\n"),
+            // And a caller on this instance's own loopback origin.
+            format!("Host: 127.0.0.1:{PORT}\r\nOrigin: http://127.0.0.1:{PORT}\r\n"),
+        ] {
+            let (req_tx, req_rx) = mpsc::channel();
+            let response = drive(&request_with_method(method, path, &headers, body), &req_tx);
+            assert!(
+                response.starts_with("HTTP/1.1 404 Not Found"),
+                "{method} {path} must not exist any more: {response}"
+            );
+            assert!(
+                req_rx.try_recv().is_err(),
+                "{method} {path} must never reach the UI thread"
+            );
+        }
+    }
+}
+
+/// The fact the removal is premised on, pinned directly: a caller that
+/// presents a forged extension `Origin` and no identity is REFUSED by the
+/// boundary, on every path — including the two paths that used to be the
+/// exception, where this exact request was admitted.
+#[test]
+fn a_forged_extension_origin_is_refused_without_any_identity() {
+    for path in [
+        "/api/import/web-snapshot",
+        "/api/generate/design-md",
+        "/mcp",
+        "/api/mcp/document",
+    ] {
+        let (req_tx, req_rx) = mpsc::channel();
         let headers = format!(
-            "Host: 127.0.0.1:{PORT}\r\nOrigin: {origin}\r\nContent-Type: application/json\r\n"
+            "Host: 127.0.0.1:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\n\
+             Content-Type: application/json\r\n"
         );
-        let response = drive(&request(INGEST_PATH, &headers, SNAPSHOT), &req_tx);
+        let response = drive(&request(path, &headers, LIST_PAGES_CALL), &req_tx);
+
         assert!(
             response.starts_with("HTTP/1.1 403 Forbidden"),
-            "{origin}: {response}"
+            "{path}: {response}"
+        );
+        assert!(
+            response.contains("bad Origin header"),
+            "the Origin gate must be the one that refused: {response}"
+        );
+        assert!(
+            !response.contains("Access-Control-Allow-Origin"),
+            "a refused origin must never be echoed back: {response}"
+        );
+        assert!(
+            req_rx.try_recv().is_err(),
+            "{path}: a refused caller must never reach the UI thread"
         );
     }
-    assert!(
-        req_rx.try_recv().is_err(),
-        "a refused ingest must never reach the UI thread"
-    );
 }
 
+/// `OPTIONS` is the one method that is still answered without a route match —
+/// the preflight is a browser's, not a caller's — so it is worth pinning that
+/// the answer stays scoped to this instance's own origin and never widens to
+/// an extension's.
 #[test]
-fn snapshot_ingress_requires_a_json_content_type() {
-    let (req_tx, req_rx) = mpsc::channel();
-    let headers = format!(
-        "Host: 127.0.0.1:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\nContent-Type: text/plain\r\n"
-    );
-    let response = drive(&request(INGEST_PATH, &headers, SNAPSHOT), &req_tx);
-
-    assert!(
-        response.starts_with("HTTP/1.1 415 Unsupported Media Type"),
-        "{response}"
-    );
-    assert!(req_rx.try_recv().is_err(), "refused before the UI thread");
-}
-
-#[test]
-fn snapshot_ingress_rejects_an_empty_body() {
-    let (req_tx, req_rx) = mpsc::channel();
-    let response = drive(&request(INGEST_PATH, &extension_headers(), ""), &req_tx);
-
-    assert!(
-        response.starts_with("HTTP/1.1 400 Bad Request"),
-        "{response}"
-    );
-    assert!(response.contains(r#""ok":false"#), "{response}");
-    assert!(req_rx.try_recv().is_err(), "refused before the UI thread");
-}
-
-/// The end-to-end shape the Chrome extension depends on: no token, an
-/// extension origin, and the snapshot lands as ONE apply on the UI thread.
-#[test]
-fn extension_snapshot_ingress_inserts_without_a_token() {
-    let (req_tx, req_rx) = mpsc::channel();
-    let responder = thread::spawn(move || {
-        let mut applied = 0usize;
-        while let Ok(request) = req_rx.recv_timeout(Duration::from_secs(5)) {
-            match request {
-                UiRequest::Snapshot { ack } => {
-                    let _ = ack.send(EditorState::starter());
-                }
-                UiRequest::Apply { ack, .. } => {
-                    applied += 1;
-                    let _ = ack.send(ApplyAck { applied: true });
-                    break;
-                }
-                _ => break,
-            }
-        }
-        applied
-    });
-    let response = drive(
-        &request(INGEST_PATH, &extension_headers(), SNAPSHOT),
-        &req_tx,
-    );
-
-    assert_eq!(
-        responder.join().expect("responder thread"),
-        1,
-        "the snapshot must reach the UI thread as one apply"
-    );
-    assert!(response.starts_with("HTTP/1.1 200 OK"), "{response}");
-    assert!(response.contains(r#""ok":true"#), "{response}");
-    assert!(response.contains("nodeCount"), "{response}");
-    // The reply is readable by the ONE origin that was accepted, not by
-    // every extension the browser happens to have installed.
-    assert!(
-        response.contains(&format!(
-            "Access-Control-Allow-Origin: {EXTENSION_ORIGIN}\r\n"
-        )),
-        "{response}"
-    );
-    assert!(
-        !response.contains("Access-Control-Allow-Origin: *"),
-        "{response}"
-    );
-}
-
-/// The preflight is what a browser consults before it will let the extension
-/// POST at all, so it has to be scoped exactly like the request it precedes:
-/// 204, and an `Access-Control-Allow-Origin` naming this extension only.
-#[test]
-fn extension_preflight_is_answered_scoped_to_that_origin() {
+fn the_preflight_refuses_a_forged_extension_origin_and_echoes_only_its_own() {
     let (req_tx, req_rx) = mpsc::channel();
     let headers = format!(
         "Host: 127.0.0.1:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\n\
          Access-Control-Request-Method: POST\r\n"
     );
     let response = drive(
-        &request_with_method("OPTIONS", INGEST_PATH, &headers, ""),
-        &req_tx,
-    );
-
-    assert!(
-        response.starts_with("HTTP/1.1 204 No Content"),
-        "{response}"
-    );
-    assert!(
-        response.contains(&format!(
-            "Access-Control-Allow-Origin: {EXTENSION_ORIGIN}\r\n"
-        )),
-        "{response}"
-    );
-    assert!(
-        !response.contains("Access-Control-Allow-Origin: *"),
-        "{response}"
-    );
-    assert!(req_rx.try_recv().is_err(), "a preflight touches no state");
-
-    // A preflight from an origin the boundary does not accept is refused
-    // outright, and carries no CORS header the caller could act on.
-    let headers = format!("Host: 127.0.0.1:{PORT}\r\nOrigin: http://evil.example\r\n");
-    let response = drive(
-        &request_with_method("OPTIONS", INGEST_PATH, &headers, ""),
+        &request_with_method("OPTIONS", "/api/import/web-snapshot", &headers, ""),
         &req_tx,
     );
     assert!(response.starts_with("HTTP/1.1 403 Forbidden"), "{response}");
@@ -419,17 +356,15 @@ fn extension_preflight_is_answered_scoped_to_that_origin() {
         !response.contains("Access-Control-Allow-Origin"),
         "{response}"
     );
-}
+    assert!(req_rx.try_recv().is_err(), "a preflight touches no state");
 
-#[test]
-fn design_md_preflight_echoes_any_well_formed_extension_origin_only_on_exact_path() {
-    let (req_tx, req_rx) = mpsc::channel();
+    let own = format!("http://127.0.0.1:{PORT}");
     let headers = format!(
-        "Host: 127.0.0.1:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\n\
+        "Host: 127.0.0.1:{PORT}\r\nOrigin: {own}\r\n\
          Access-Control-Request-Method: POST\r\n"
     );
     let response = drive(
-        &request_with_method("OPTIONS", DESIGN_MD_PATH, &headers, ""),
+        &request_with_method("OPTIONS", "/mcp", &headers, ""),
         &req_tx,
     );
     assert!(
@@ -437,184 +372,11 @@ fn design_md_preflight_echoes_any_well_formed_extension_origin_only_on_exact_pat
         "{response}"
     );
     assert!(
-        response.contains(&format!(
-            "Access-Control-Allow-Origin: {EXTENSION_ORIGIN}\r\n"
-        )),
+        response.contains(&format!("Access-Control-Allow-Origin: {own}\r\n")),
         "{response}"
     );
-    assert!(!response.contains("Access-Control-Allow-Origin: *"));
-    assert!(response.contains("Access-Control-Allow-Methods: POST, GET, DELETE, OPTIONS\r\n"));
-    assert!(response.contains("Access-Control-Allow-Headers: Content-Type\r\n"));
-    assert!(!response.contains("Authorization"));
-    assert!(req_rx.try_recv().is_err());
-
-    let job_path = format!("{DESIGN_MD_PATH}/0123456789abcdef0123456789abcdef");
-    let response = drive(
-        &request_with_method("OPTIONS", &job_path, &headers, ""),
-        &req_tx,
-    );
     assert!(
-        response.starts_with("HTTP/1.1 204 No Content"),
+        !response.contains("Access-Control-Allow-Origin: *"),
         "{response}"
     );
-    assert!(response.contains(&format!(
-        "Access-Control-Allow-Origin: {EXTENSION_ORIGIN}\r\n"
-    )));
-
-    let response = drive(
-        &request_with_method("OPTIONS", "/api/generate/design-md/", &headers, ""),
-        &req_tx,
-    );
-    assert!(response.starts_with("HTTP/1.1 403 Forbidden"), "{response}");
-    assert!(!response.contains("Access-Control-Allow-Origin"));
-}
-
-#[test]
-fn unpaired_design_md_request_gets_readable_origin_scoped_pairing_error() {
-    let (req_tx, req_rx) = mpsc::channel();
-    let headers = format!(
-        "Host: 127.0.0.1:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\nContent-Type: application/json\r\n"
-    );
-    let response = drive(
-        &request_with_method("GET", DESIGN_MD_PATH, &headers, ""),
-        &req_tx,
-    );
-    assert!(response.starts_with("HTTP/1.1 403 Forbidden"), "{response}");
-    assert!(response.contains(r#""code":"extensionNotPaired""#));
-    assert!(response.contains(&format!(
-        "Access-Control-Allow-Origin: {EXTENSION_ORIGIN}\r\n"
-    )));
-    assert!(!response.contains("Access-Control-Allow-Origin: *"));
-    assert!(req_rx.try_recv().is_err());
-}
-
-/// Fail closed on every method but `POST`: the ingest path is not a place to
-/// read anything back from, and the boundary widening for extension origins
-/// is method-agnostic on purpose (the preflight needs it).
-#[test]
-fn non_post_methods_on_the_ingest_path_are_not_served() {
-    let (req_tx, req_rx) = mpsc::channel();
-    for method in ["GET", "HEAD", "PUT", "DELETE"] {
-        let response = drive(
-            &request_with_method(method, INGEST_PATH, &extension_headers(), ""),
-            &req_tx,
-        );
-        assert!(
-            response.starts_with("HTTP/1.1 404 Not Found"),
-            "{method}: {response}"
-        );
-    }
-    assert!(
-        req_rx.try_recv().is_err(),
-        "no method but POST may reach the UI thread"
-    );
-}
-
-/// The untokened route's own body cap, enforced from the declared
-/// `Content-Length` BEFORE the body is read. The request below declares
-/// 33 MiB and supplies zero bytes: if the server tried to read the body it
-/// would hit EOF and `drive` would panic on the resulting transport error.
-#[test]
-fn oversized_declared_body_is_refused_without_reading_it() {
-    let (req_tx, req_rx) = mpsc::channel();
-    let oversized = snapshot_ingest::MAX_SNAPSHOT_BODY + 1;
-    let raw = format!(
-        "POST {INGEST_PATH} HTTP/1.1\r\n{}Content-Length: {oversized}\r\nConnection: close\r\n\r\n",
-        extension_headers()
-    );
-    let response = drive(&raw, &req_tx);
-
-    assert!(
-        response.starts_with("HTTP/1.1 413 Payload Too Large"),
-        "{response}"
-    );
-    assert!(response.contains(r#""ok":false"#), "{response}");
-    assert!(req_rx.try_recv().is_err(), "refused before the UI thread");
-
-    // …and a POST with no `Content-Length` at all is refused too, rather
-    // than read until the peer decides to stop.
-    let raw = format!(
-        "POST {INGEST_PATH} HTTP/1.1\r\n{}Connection: close\r\n\r\n",
-        extension_headers()
-    );
-    let response = drive(&raw, &req_tx);
-    assert!(
-        response.starts_with("HTTP/1.1 411 Length Required"),
-        "{response}"
-    );
-    assert!(req_rx.try_recv().is_err(), "refused before the UI thread");
-}
-
-/// Host screening runs FIRST, so the extension-origin widening never
-/// rescues a rebinding attempt: the browser still writes the name it dialled
-/// into `Host`.
-#[test]
-fn foreign_host_is_refused_even_with_an_accepted_extension_origin() {
-    let (req_tx, req_rx) = mpsc::channel();
-    let headers = format!(
-        "Host: evil.com:{PORT}\r\nOrigin: {EXTENSION_ORIGIN}\r\nContent-Type: application/json\r\n"
-    );
-    let response = drive(&request(INGEST_PATH, &headers, SNAPSHOT), &req_tx);
-
-    assert!(response.starts_with("HTTP/1.1 403 Forbidden"), "{response}");
-    assert!(
-        response.contains("bad Host header"),
-        "the Host gate, not the Origin gate, must be the one that refused: {response}"
-    );
-    assert!(req_rx.try_recv().is_err(), "refused before the UI thread");
-}
-
-/// Extension-id pinning (`OPENPENCIL_EXTENSION_ALLOWED_IDS`). Driven against
-/// the predicate rather than the process environment so both modes are
-/// covered without a global-state race between tests.
-#[test]
-fn extension_id_allowlist_pins_which_extensions_pass() {
-    const ID: &str = "abcdefghijklmnopabcdefghijklmnop";
-    const OTHER: &str = "ponmlkjihgfedcbaponmlkjihgfedcba";
-    let pinned = [ID.to_string()];
-
-    // Open mode (the shipped default while the extension is unpublished):
-    // any well-formed extension origin passes…
-    assert!(extension_origin_allowed(Some(EXTENSION_ORIGIN), None));
-    assert!(extension_origin_allowed(
-        Some(&format!("chrome-extension://{OTHER}")),
-        None
-    ));
-    // …but the shape is still checked, in either mode.
-    assert!(!extension_origin_allowed(
-        Some("chrome-extension://abc"),
-        None
-    ));
-    assert!(!extension_origin_allowed(Some("http://evil.example"), None));
-    assert!(!extension_origin_allowed(None, None));
-
-    // Pinned mode: only the listed ids.
-    assert!(extension_origin_allowed(
-        Some(EXTENSION_ORIGIN),
-        Some(&pinned)
-    ));
-    assert!(!extension_origin_allowed(
-        Some(&format!("chrome-extension://{OTHER}")),
-        Some(&pinned)
-    ));
-    // An explicitly empty allowlist denies everything. `extension_id_allowlist`
-    // never builds one — a blank / separator-only env var collapses to open
-    // mode — so this pins the predicate, not a reachable configuration.
-    assert!(!extension_origin_allowed(Some(EXTENSION_ORIGIN), Some(&[])));
-
-    // Intelligent generation is stricter than snapshot ingress: open mode
-    // never counts as paired, while one explicit matching id does.
-    assert!(is_unpaired_extension_origin_with_allowlist(
-        Some(EXTENSION_ORIGIN),
-        None
-    ));
-    assert!(is_unpaired_extension_origin_with_allowlist(
-        Some(EXTENSION_ORIGIN),
-        Some(&[])
-    ));
-    assert!(!is_unpaired_extension_origin_with_allowlist(
-        Some(EXTENSION_ORIGIN),
-        Some(&pinned)
-    ));
-    assert!(!is_unpaired_extension_origin_with_allowlist(None, None));
 }
