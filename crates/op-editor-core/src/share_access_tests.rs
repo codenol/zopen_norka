@@ -294,6 +294,10 @@ fn every_refusal_has_a_code_and_a_sentence_of_its_own() {
         ShareInviteRefusal::AlreadyOnList {
             account: "userB".to_string(),
         },
+        ShareInviteRefusal::UnknownAccount {
+            account: "collegue".to_string(),
+        },
+        ShareInviteRefusal::ShareLimitReached { limit: 256 },
     ];
     let mut codes: Vec<&str> = refusals.iter().map(ShareInviteRefusal::code).collect();
     codes.sort_unstable();
@@ -306,4 +310,46 @@ fn every_refusal_has_a_code_and_a_sentence_of_its_own() {
     for refusal in &refusals {
         assert!(!refusal.to_string().is_empty());
     }
+}
+
+#[test]
+fn the_two_refusals_a_person_meets_most_are_not_shown_as_a_code() {
+    // Issue #146. A typo in the invite field and the account that arrives one
+    // over the list's ceiling both fell through to the catch-all, so the person
+    // was shown `unknown-account` instead of a sentence. Both are named now,
+    // and the code they carry is the DAEMON's spelling — the same string
+    // `share_routes::ShareError::code` puts on the wire, so the two halves of
+    // one refusal are one string.
+    let typo = ShareInviteRefusal::UnknownAccount {
+        account: "collegue".to_string(),
+    };
+    assert_eq!(typo.code(), "unknown-account");
+    assert_eq!(typo.i18n_key(), "share.invite.refused.unknownAccount");
+    assert_ne!(
+        typo.i18n_key(),
+        ShareInviteRefusal::RefusedByServer {
+            code: "unknown-account".to_string()
+        }
+        .i18n_key(),
+        "a refusal this build can name must not wear the catch-all's sentence"
+    );
+    assert_eq!(
+        typo.to_string(),
+        "this deployment has no account called collegue"
+    );
+
+    let full = ShareInviteRefusal::ShareLimitReached { limit: 256 };
+    assert_eq!(full.code(), "share-limit-reached");
+    assert_eq!(full.i18n_key(), "share.invite.refused.shareLimit");
+    assert_ne!(
+        full.i18n_key(),
+        ShareInviteRefusal::RefusedByServer {
+            code: "share-limit-reached".to_string()
+        }
+        .i18n_key()
+    );
+    assert_eq!(
+        full.to_string(),
+        "this document is already shared with 256 accounts"
+    );
 }

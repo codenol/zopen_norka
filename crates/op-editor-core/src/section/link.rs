@@ -32,9 +32,11 @@
 //! and [`LinkState::AssetMissing`] is the answer. A store that HAS the asset and
 //! will not hand it to this reader leaves the caller with no digest either, and
 //! this function cannot tell the two apart — only the caller sees a status code.
-//! So a refusal is [`refused_link_state`], and the rule that a refusal must
-//! never be spelled as a deletion lives in this module rather than at each call
-//! site, because that conflation is exactly the lie issue #110 was filed for.
+//! So a refusal is [`refused_link_state`], a read that never completed is
+//! [`unchecked_link_state`], and the rule that neither may be spelled as a
+//! deletion lives in this module rather than at each call site, because that
+//! conflation is exactly the lie issue #110 was filed for and issue #145 found
+//! again one status code over. [`read_outcome`] is the translation itself.
 
 use serde::{Deserialize, Serialize};
 
@@ -150,6 +152,16 @@ pub enum LinkState {
     /// broken, and no restore would help them; they need access, or they need
     /// to be told to ask for it. Issue #110 is where this case was found.
     NotReadable,
+    /// Attached, and this reader could not find out whether the asset is there.
+    ///
+    /// Its own case rather than a spelling of [`LinkState::AssetMissing`], and
+    /// it is the same lie as [`Self::NotReadable`] one status code over: a
+    /// store that answers a server error, or a request that never arrives,
+    /// leaves the caller with no digest — and no digest was what "gone" was
+    /// spelled with. Nothing was established about this document, so the
+    /// section says that and waits for the next check, rather than reporting a
+    /// deletion nobody confirmed. Issue #145 is where this case was filed.
+    CheckFailed,
 }
 
 impl LinkState {
@@ -169,11 +181,13 @@ impl LinkState {
     /// Ordered deliberately. A document that is gone outranks a document this
     /// reader may not open, because a fault of the store is the one somebody
     /// has to repair for everybody, where a refusal is a fact about the reader
-    /// alone. Both outrank a document that merely changed: neither can be
-    /// compared against at all, and "the screens may be out of date" is the
-    /// smaller thing to say. A change on both sides outranks a change on one
-    /// (it is strictly more to say), and everything marked outranks everything
-    /// in sync.
+    /// alone. A refusal outranks a check that did not complete, because a
+    /// refusal is a fact somebody can act on (ask for access) and a failed
+    /// check says nothing yet — and all three outrank a document that merely
+    /// changed: none of them can be compared against at all, and "the screens
+    /// may be out of date" is the smaller thing to say. A change on both sides
+    /// outranks a change on one (it is strictly more to say), and everything
+    /// marked outranks everything in sync.
     const fn severity(self) -> u8 {
         match self {
             Self::InSync => 0,
@@ -187,8 +201,9 @@ impl LinkState {
             Self::Broken {
                 side: MovedSide::Both,
             } => 4,
-            Self::NotReadable => 5,
-            Self::AssetMissing => 6,
+            Self::CheckFailed => 5,
+            Self::NotReadable => 6,
+            Self::AssetMissing => 7,
         }
     }
 }
@@ -222,6 +237,69 @@ pub fn refused_link_state(link: Option<&AnalyticsLink>) -> LinkState {
         Some(_) => LinkState::NotReadable,
         // A refusal about nothing attached is still nothing attached: there is
         // no link to be unable to read.
+        None => LinkState::NoAnalytics,
+    }
+}
+
+/// What one read of an analytics asset established, from its status alone.
+///
+/// The rule issue #110 needed for a refusal is the rule issue #145 needs for a
+/// failure, and it is one sentence: **nothing but an explicit "not here"
+/// confirms that a document was deleted.** A 5xx is a store that could not
+/// answer, a transport that never reached it reports no status at all, and a
+/// request this build does not understand is not a fact about somebody's
+/// document — so none of them may be read as an absent digest, because that is
+/// what GONE is spelled with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadOutcome {
+    /// The store answered: the body carries the document's digest.
+    Answered,
+    /// The store does not have this asset — the ONLY outcome that confirms a
+    /// deletion.
+    Gone,
+    /// The store has it and will not hand it to this reader.
+    Refused,
+    /// Nothing was established: a server error, a status this build does not
+    /// know, or a request that never arrived.
+    Unconfirmed,
+}
+
+/// What one analytics read's status code establishes. See [`ReadOutcome`].
+///
+/// Here, beside [`refused_link_state`], for the reason the module docs give:
+/// the caller is the only side that sees a status code, so the translation of
+/// one into a fact lives with the state machine rather than at each call site —
+/// otherwise the canvas and the panel answer the same 5xx differently, which is
+/// how this was found (#145).
+pub const fn read_outcome(status: u16) -> ReadOutcome {
+    match status {
+        // 200-ish: the body has the answer. Written as the explicit success
+        // range, not `status < 400`, so that a code this build has never seen
+        // falls to `Unconfirmed` rather than into a claim.
+        200..=299 => ReadOutcome::Answered,
+        404 => ReadOutcome::Gone,
+        403 => ReadOutcome::Refused,
+        // 5xx, an unknown 4xx, and the 0 a failed transport reports: all
+        // "no answer", which is neither presence nor absence.
+        _ => ReadOutcome::Unconfirmed,
+    }
+}
+
+/// The state of one link whose check did not complete.
+///
+/// [`link_state`] cannot answer this, for the same reason it cannot answer a
+/// refusal: its second argument is "the digest as it is now, or `None` when the
+/// store does not have the asset", so `None` means GONE and nothing else. A
+/// caller that could not complete the read has no digest either, and passing
+/// `None` for that is the lie issue #145 names — the designer is told their
+/// analytics was deleted because the store was merely down. The caller sees the
+/// status code ([`read_outcome`]), so the caller says which of the two
+/// happened, and this is the constructor for "nothing was established".
+pub fn unchecked_link_state(link: Option<&AnalyticsLink>) -> LinkState {
+    match link {
+        Some(_) => LinkState::CheckFailed,
+        // Nothing attached is still nothing attached; there is no check to
+        // have failed.
         None => LinkState::NoAnalytics,
     }
 }

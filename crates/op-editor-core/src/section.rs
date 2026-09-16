@@ -81,7 +81,8 @@ pub use flow::{
     check_flow, FlowCheck, FlowEdge, FlowGap, FlowIssue, FlowStep, FlowStepId, FlowStepKind, UxFlow,
 };
 pub use link::{
-    link_state, louder, refused_link_state, section_link_state, AnalyticsLink, LinkState, MovedSide,
+    link_state, louder, read_outcome, refused_link_state, section_link_state, unchecked_link_state,
+    AnalyticsLink, LinkState, MovedSide, ReadOutcome,
 };
 pub use mermaid::{flow_from_mermaid, flow_to_mermaid, MermaidError, MermaidErrorKind};
 

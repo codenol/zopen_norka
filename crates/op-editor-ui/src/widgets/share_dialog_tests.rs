@@ -355,6 +355,56 @@ fn a_refusal_is_painted_as_one() {
     assert!(!model.invite_enabled);
 }
 
+#[test]
+fn the_two_refusals_a_person_meets_most_are_sentences_and_not_codes() {
+    // Issue #146. A typo in the invite field and the account that arrives one
+    // over the list's ceiling both fell through to the catch-all, so the person
+    // was shown `unknown-account`. What the band paints has to be the sentence,
+    // in the reader's own language, with the entry or the number filled in —
+    // and never the code.
+    let state = state_with(Rights::ADMIN, 0, 0);
+    for (refusal, locale, names_the_subject) in [
+        (
+            ShareInviteRefusal::UnknownAccount {
+                account: "collegue".to_string(),
+            },
+            Locale::Ru,
+            "collegue",
+        ),
+        (
+            ShareInviteRefusal::ShareLimitReached { limit: 256 },
+            Locale::ZhCn,
+            "256",
+        ),
+    ] {
+        let mut state = state.clone();
+        // The band paints in the reader's language, so the two have to be the
+        // same language for the comparison to mean anything.
+        state.editor_ui.locale = locale;
+        state.editor_ui.share.record_refusal(refusal.clone());
+        let model = ShareDialogModel::for_state(&state);
+        let notice = model.notice.clone().expect("a notice");
+        assert!(model.notice_is_refusal);
+        assert!(
+            notice.contains(names_the_subject),
+            "{notice} should name what the refusal is about"
+        );
+        assert!(
+            !notice.contains(refusal.code()),
+            "{notice} is the code, not a sentence"
+        );
+        assert!(
+            !notice.contains("{{"),
+            "{notice} still carries an unfilled placeholder"
+        );
+        assert_eq!(
+            notice,
+            crate::widgets::share_dialog_model::refusal_text(locale, &refusal),
+            "the band and the host-side wording are one sentence"
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Press flow
 // ---------------------------------------------------------------------------

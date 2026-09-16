@@ -651,6 +651,24 @@ pub enum ShareInviteRefusal {
     NotAnAdministratorForEmail,
     /// A named account already holds access at this level.
     AlreadyOnList { account: String },
+    /// The field named an account this deployment does not have.
+    ///
+    /// The likeliest mistake anybody makes in this dialog is a typo in the
+    /// invite field, and the daemon answers it with a code and a sentence of
+    /// its own. Its own variant rather than the catch-all because a person who
+    /// mistyped a name must be told that, in their own language, and because
+    /// the sentence can say the one useful thing the code cannot: the entry may
+    /// also be an email address, which takes a different route.
+    /// Issue #146 is where this was filed.
+    UnknownAccount { account: String },
+    /// This document is already shared with as many accounts as it holds.
+    ///
+    /// The `256` the daemon refuses at is its own business and the number is
+    /// carried from its answer rather than repeated here; what the person
+    /// needs is that the list is full and that removing somebody is the way
+    /// through. Not a spelling of [`Self::RefusedByServer`], which would show
+    /// a code for the second-most-likely thing to meet in this dialog (#146).
+    ShareLimitReached { limit: usize },
     /// The server refused the write, with a reason this build has no sentence
     /// of its own for.
     ///
@@ -664,6 +682,10 @@ pub enum ShareInviteRefusal {
 
 impl ShareInviteRefusal {
     /// Stable machine-readable code.
+    ///
+    /// The two the daemon also spells — `unknown-account` and
+    /// `share-limit-reached` — use the DAEMON's spelling, so the wire code and
+    /// the dialog's name for it are one string on both sides of the refusal.
     pub const fn code(&self) -> &'static str {
         match self {
             Self::EmptyField => "empty-invite-field",
@@ -672,6 +694,8 @@ impl ShareInviteRefusal {
             Self::LevelAboveOwn { .. } => "level-above-your-own",
             Self::NotAnAdministratorForEmail => "admin-role-required-for-email",
             Self::AlreadyOnList { .. } => "already-has-access",
+            Self::UnknownAccount { .. } => "unknown-account",
+            Self::ShareLimitReached { .. } => "share-limit-reached",
             Self::RefusedByServer { .. } => "server-refused",
         }
     }
@@ -685,6 +709,8 @@ impl ShareInviteRefusal {
             Self::LevelAboveOwn { .. } => "share.invite.refused.levelAboveOwn",
             Self::NotAnAdministratorForEmail => "share.invite.refused.emailNeedsAdmin",
             Self::AlreadyOnList { .. } => "share.invite.refused.alreadyHasAccess",
+            Self::UnknownAccount { .. } => "share.invite.refused.unknownAccount",
+            Self::ShareLimitReached { .. } => "share.invite.refused.shareLimit",
             Self::RefusedByServer { .. } => "share.invite.refused.server",
         }
     }
@@ -737,6 +763,12 @@ impl std::fmt::Display for ShareInviteRefusal {
             ),
             Self::AlreadyOnList { account } => {
                 write!(f, "{account} already has access to this document")
+            }
+            Self::UnknownAccount { account } => {
+                write!(f, "this deployment has no account called {account}")
+            }
+            Self::ShareLimitReached { limit } => {
+                write!(f, "this document is already shared with {limit} accounts")
             }
             Self::RefusedByServer { code } => {
                 write!(f, "the server refused the request ({code})")

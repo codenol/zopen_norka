@@ -405,6 +405,11 @@ fn analytics_line(state: &SectionPanelState) -> Option<(String, Option<&'static 
         // here would state something untrue about somebody else's file, and
         // nothing the reader could do (a restore, a re-link) would help them.
         LinkState::NotReadable => Some("section.state.notReadable"),
+        // The read did not complete, so nothing is known about the document.
+        // "Gone" would be a deletion nobody confirmed (issue #145) and
+        // "changed since" a drift nobody looked for; the sentence says which
+        // of the three this is not.
+        LinkState::CheckFailed => Some("section.state.checkFailed"),
         // A link with nothing behind it is the caption's business, not a state
         // of a document's name.
         LinkState::NoAnalytics => None,
@@ -610,6 +615,35 @@ mod tests {
             key,
             line_for(LinkState::AssetMissing).1,
             "a refusal must not be painted as a deletion"
+        );
+    }
+
+    #[test]
+    fn a_check_that_did_not_complete_is_told_apart_from_a_deletion() {
+        // Issue #145. A 5xx leaves the panel as empty-handed as a 404 does and
+        // means something else entirely: nobody confirmed that anything was
+        // deleted. The three sentences have to be three.
+        let node = NodeId::new("s1");
+        let line_for = |state| {
+            let mut panel = SectionPanelState::default();
+            panel.select(Some(node.clone()));
+            panel.apply(&node, SectionProperties::empty(), vec![attached(state)]);
+            analytics_line(&panel).expect("a link")
+        };
+
+        let (name, key) = line_for(LinkState::CheckFailed);
+        assert_eq!(name, "Checkout analytics");
+        assert_eq!(key, Some("section.state.checkFailed"));
+        assert_ne!(
+            key,
+            line_for(LinkState::AssetMissing).1,
+            "a failed read must not be painted as a deletion"
+        );
+        assert_ne!(key, line_for(LinkState::NotReadable).1, "nor as a refusal");
+        assert_ne!(
+            key,
+            line_for(LinkState::InSync).1,
+            "nor as a link that is fine"
         );
     }
 

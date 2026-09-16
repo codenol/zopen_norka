@@ -403,8 +403,21 @@ fn apply_issued_invitation<C: RepaintContext + 'static>(
 /// code when it cannot — see [`ShareInviteRefusal::RefusedByServer`].
 fn refuse<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, body: &str, action: &ShareAction) {
     let code = error_code(body);
-    let refusal = refusal_for(code.as_deref(), action);
+    let refusal = refusal_for(code.as_deref(), action, body);
     write(inner, |share| share.record_refusal(refusal));
+}
+
+/// How many accounts the daemon said this document already shares with, from a
+/// `share-limit-reached` body.
+///
+/// `None` when the body names no number: the daemon always sends one, so a
+/// refusal without it comes from a build this side does not understand, and a
+/// sentence with an invented figure in it would be worse than the code.
+fn share_limit(body: &str) -> Option<usize> {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| value.get("limit")?.as_u64())
+        .and_then(|limit| usize::try_from(limit).ok())
 }
 
 /// Which refusal this build can name, for a code the daemon answered with.
@@ -422,7 +435,7 @@ fn refuse<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, body: &str, actio
 /// person was shown the raw code instead. Renaming a code in `share_routes`
 /// means renaming a line here: `share_routes_tests` pins the daemon's spelling
 /// and `a_refusal_code_maps_onto_the_sentence_this_build_has` pins this one.
-fn refusal_for(code: Option<&str>, action: &ShareAction) -> ShareInviteRefusal {
+fn refusal_for(code: Option<&str>, action: &ShareAction, body: &str) -> ShareInviteRefusal {
     let account = match action {
         ShareAction::Grant { account, .. } | ShareAction::Revoke { account } => Some(account),
         _ => None,
@@ -458,12 +471,35 @@ fn refusal_for(code: Option<&str>, action: &ShareAction) -> ShareInviteRefusal {
                 code: "level-above-your-own".to_string(),
             },
         },
+        // A typo in the invite field — the mistake most likely to be made in
+        // this dialog, and the one that used to be answered with the code
+        // itself (issue #146). The entry that named nobody travels with the
+        // sentence, because "check the spelling" is only useful next to the
+        // spelling.
+        Some("unknown-account") => match account.filter(|entry| !entry.trim().is_empty()) {
+            Some(entry) => ShareInviteRefusal::UnknownAccount {
+                account: entry.clone(),
+            },
+            // A refusal about an entry this dialog cannot see — it arrived on a
+            // request made from somewhere else. Naming nobody in a sentence
+            // that is about a name would be worse than the code.
+            None => ShareInviteRefusal::RefusedByServer {
+                code: "unknown-account".to_string(),
+            },
+        },
+        // The 257th account on one document. The number comes from the daemon's
+        // answer rather than from a constant repeated on this side (#146).
+        Some("share-limit-reached") => match share_limit(body) {
+            Some(limit) => ShareInviteRefusal::ShareLimitReached { limit },
+            None => ShareInviteRefusal::RefusedByServer {
+                code: "share-limit-reached".to_string(),
+            },
+        },
         // A code this build has no sentence for. The daemon's codes without one
         // are `payload-too-large`, `malformed-share-request`,
-        // `tenant-not-shared`, `unknown-account`, `missing-document`,
-        // `account-lookup-unavailable`, `share-limit-reached` and
-        // `share-not-persisted` — a full access list, a write that could not be
-        // persisted, an account this deployment does not have, or something it
+        // `tenant-not-shared`, `missing-document`, `account-lookup-unavailable`
+        // and `share-not-persisted` — a request this dialog cannot build, a
+        // write that could not be persisted, or something the deployment
         // learned since. Writing sentences for them is a decision about the
         // dialog's wording (and fifteen locales), not a spelling to guess at,
         // so the code is carried for a log line instead.
@@ -593,140 +629,5 @@ fn write_locked<C: RepaintContext + 'static>(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_link_access_answer_is_read_in_both_directions() {
-        assert_eq!(
-            parse_link_access(r#"{"ok":true,"linkAccess":"editor"}"#),
-            Some((true, ShareLevel::Editor))
-        );
-        assert_eq!(
-            parse_link_access(r#"{"ok":true,"linkAccess":null}"#),
-            Some((false, ShareLevel::DEFAULT))
-        );
-        assert_eq!(parse_link_access("not json"), None);
-    }
-
-    #[test]
-    fn the_shared_with_array_survives_both_entry_shapes() {
-        let grants = parse_shared_with(
-            r#"{"ok":true,"sharedWith":["userB",{"account":"userC","level":"editor","invitedBy":"userA"}]}"#,
-        );
-        assert_eq!(grants.len(), 2);
-        assert_eq!(grants[0].account, "userB");
-        assert_eq!(grants[0].level, ShareLevel::DEFAULT);
-        assert_eq!(grants[1].account, "userC");
-        assert_eq!(grants[1].level, ShareLevel::Editor);
-        assert_eq!(grants[1].invited_by.as_deref(), Some("userA"));
-    }
-
-    /// Every code the daemon answers this dialog with, and the sentence this
-    /// build has for it.
-    ///
-    /// The string on the left of each pair is the DAEMON's spelling — the same
-    /// literal `share_routes_tests` asserts the daemon puts on the wire — so
-    /// the two halves of one refusal are pinned in two places and a rename on
-    /// one side shows up on the other (issue #142: they read `share-with-self`
-    /// against a daemon that answers `cannot-share-with-self`, which left the
-    /// "that account is you" sentence unreachable).
-    #[test]
-    fn a_refusal_code_maps_onto_the_sentence_this_build_has() {
-        // What the share routes answer a caller with no invite right
-        // (`AccessRefusal::ReadOnly`), beside the dialog's own spelling of it.
-        for code in ["read-only-role", "invite-role-required"] {
-            assert_eq!(
-                refusal_for(Some(code), &ShareAction::LoadList),
-                ShareInviteRefusal::NoInviteRight,
-                "{code}"
-            );
-        }
-        // What the invitation route answers (`AccessRefusal::NotAnAdministrator`).
-        for code in ["admin-role-required", "admin-role-required-for-email"] {
-            assert_eq!(
-                refusal_for(Some(code), &ShareAction::LoadList),
-                ShareInviteRefusal::NotAnAdministratorForEmail,
-                "{code}"
-            );
-        }
-        // `ShareError::SelfShare` in `share_routes`, which is the code this
-        // whole issue is about.
-        for code in ["cannot-share-with-self", "already-has-access"] {
-            assert_eq!(
-                refusal_for(
-                    Some(code),
-                    &ShareAction::Grant {
-                        account: "userB".to_string(),
-                        level: ShareLevel::Viewer,
-                    }
-                ),
-                ShareInviteRefusal::AlreadyOnList {
-                    account: "userB".to_string()
-                },
-                "{code}"
-            );
-        }
-        assert_eq!(
-            refusal_for(
-                Some("level-above-your-own"),
-                &ShareAction::Grant {
-                    account: "userB".to_string(),
-                    level: ShareLevel::Editor,
-                }
-            ),
-            ShareInviteRefusal::LevelAboveOwn {
-                level: ShareLevel::Editor,
-                own: ShareLevel::DEFAULT,
-            }
-        );
-        // A code with no sentence of its own is carried, not guessed at — the
-        // daemon's remaining share-route codes included.
-        for code in [
-            "share-limit-reached",
-            "share-not-persisted",
-            "unknown-account",
-            "missing-document",
-            "payload-too-large",
-            "malformed-share-request",
-            "account-lookup-unavailable",
-            "tenant-not-shared",
-        ] {
-            assert_eq!(
-                refusal_for(Some(code), &ShareAction::LoadList),
-                ShareInviteRefusal::RefusedByServer {
-                    code: code.to_string()
-                },
-                "{code}"
-            );
-        }
-        // Nothing readable at all: the same catch-all, named.
-        assert_eq!(
-            refusal_for(None, &ShareAction::LoadList),
-            ShareInviteRefusal::RefusedByServer {
-                code: "unknown".to_string()
-            }
-        );
-    }
-
-    #[test]
-    fn an_invitation_link_is_made_absolute() {
-        assert_eq!(
-            link_with_base("http://127.0.0.1:3100", "/invite/abc"),
-            "http://127.0.0.1:3100/invite/abc"
-        );
-        assert_eq!(
-            link_with_base("http://127.0.0.1:3100", "https://x/invite/abc"),
-            "https://x/invite/abc"
-        );
-    }
-
-    #[test]
-    fn an_error_body_yields_its_code() {
-        assert_eq!(
-            error_code(r#"{"ok":false,"error":"share-not-persisted"}"#).as_deref(),
-            Some("share-not-persisted")
-        );
-        assert_eq!(error_code("<html>500</html>"), None);
-    }
-}
+#[path = "share_sync_tests.rs"]
+mod tests;

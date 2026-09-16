@@ -35,10 +35,19 @@ use std::rc::Rc;
 
 use op_editor_core::editor_ui_state::section_panel::SectionLink;
 use op_editor_core::section::{
-    link_state, louder, mockup_fingerprint, refused_link_state, LinkState, SectionDigest,
-    SectionProperties,
+    link_state, louder, mockup_fingerprint, refused_link_state, unchecked_link_state, LinkState,
+    SectionDigest, SectionProperties,
 };
 use op_editor_core::{section, section_routes, NodeId};
+
+// How a status code becomes a fact about an asset, for both readers (#145).
+#[path = "section_sync_answer.rs"]
+mod answer;
+#[cfg(test)]
+#[path = "section_sync_tests.rs"]
+mod tests;
+
+use answer::{MarkAnswer, Resolution};
 
 use crate::dom_io::{open_file_picker, read_file, ReadMode};
 use crate::live_sync;
@@ -47,21 +56,6 @@ use crate::repaint_ctx::RepaintContext;
 /// Tick cadence: fast enough that selecting a section feels answered, slow
 /// enough that an idle editor costs nothing.
 const TICK_MS: i32 = 250;
-
-/// How far one attached analytics document has got.
-#[derive(Clone)]
-enum Resolution {
-    /// Not asked yet.
-    Waiting,
-    /// Asked, and this is what the store said — `None` meaning it does not have
-    /// the document at all.
-    Answered(Option<SectionDigest>),
-    /// Asked, and the store refused this reader (a 403). Its own case rather
-    /// than "no digest", because the two are different facts: the asset is
-    /// there and not this reader's to open, where a `None` answer means it is
-    /// GONE, and reporting a refusal as a deletion is the lie issue #110 names.
-    Refused,
-}
 
 /// One answer, on its way to the panel.
 struct Pending {
@@ -98,20 +92,6 @@ thread_local! {
 
 /// How many ticks between two refreshes of the canvas marks.
 const MARKS_REFRESH_TICKS: u32 = 8;
-
-/// What the store has said about one asset the canvas is waiting on.
-#[derive(Clone)]
-enum MarkAnswer {
-    /// Asked, and the answer has not arrived yet — its own case so that a mark
-    /// is never painted from a request still in flight.
-    Asked,
-    /// Asked, and the store will not hand it to THIS reader. Not "gone" — see
-    /// [`Resolution::Refused`].
-    Refused,
-    /// Asked, and this is the digest now — `None` meaning the store does not
-    /// have the asset at all.
-    Answered(Option<SectionDigest>),
-}
 
 /// One section the canvas is waiting to mark.
 #[derive(Clone)]
@@ -358,19 +338,13 @@ fn read_mark_digest<C: RepaintContext + 'static>(
     let _ = live_sync::get_with_status(
         &url,
         Rc::new(move |status, body| {
-            // A 403 is a refusal, answered as one: the asset exists and is not
-            // this reader's to open. Reading it as "no digest" would put the
-            // octagon — "what this was built from is gone" — on a section whose
-            // analytics is simply not shared with whoever is looking (#110).
-            let answer = if status == 403 {
-                MarkAnswer::Refused
-            } else {
-                let digest = (status < 400)
-                    .then(|| serde_json::from_str::<serde_json::Value>(&body).ok())
-                    .flatten()
-                    .and_then(|value| value.get("digest")?.as_str().map(SectionDigest::of_hex));
-                MarkAnswer::Answered(digest)
-            };
+            // A 403 is a refusal, a 404 is a deletion, and anything else — a
+            // 5xx, a status this build does not know, a body with no digest —
+            // is a check that did not complete. Reading the last of those as
+            // "no digest" would put the octagon — "what this was built from is
+            // gone" — on a section whose store merely failed to answer
+            // (#145, one status code over from #110).
+            let answer = answer::mark_answer(status, &body);
             MARK_DIGESTS.with(|slot| {
                 for entry in slot.borrow_mut().iter_mut() {
                     if entry.0 == asset {
@@ -487,10 +461,12 @@ fn finish_marks<C: RepaintContext + 'static>(
             // what the screens are now. The browser and the panel answer by the
             // same function rather than by two that agree today — including the
             // case where the store refused this reader, which is a fact about
-            // the reader rather than about the asset.
+            // the reader rather than about the asset, and the case where the
+            // check did not complete, which is a fact about neither.
             let state = match answer {
                 MarkAnswer::Asked => continue,
                 MarkAnswer::Refused => refused_link_state(Some(link)),
+                MarkAnswer::Failed => unchecked_link_state(Some(link)),
                 MarkAnswer::Answered(current) => op_editor_core::section::link_state(
                     Some(link),
                     current.as_ref(),
@@ -500,9 +476,10 @@ fn finish_marks<C: RepaintContext + 'static>(
             if state.is_in_sync() {
                 continue;
             }
-            // A missing asset outranks a refused one, which outranks a drifted
-            // one: the canvas has one glyph to say it with, and the ordering is
-            // the model's rather than this file's (`louder`).
+            // A missing asset outranks a refused one, which outranks one whose
+            // check did not complete, which outranks a drifted one: the canvas
+            // has one glyph to say it with, and the ordering is the model's
+            // rather than this file's (`louder`).
             worst = Some(louder(worst, state));
         }
         if let Some(state) = worst {
@@ -808,11 +785,14 @@ fn resolve_next<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
         return;
     };
     // Marked before the request leaves, so the next tick cannot ask twice.
+    // Marked as "nothing established" rather than as "no digest": a request
+    // that never leaves (no XHR, a refused URL) is reported by the same arm,
+    // and a deletion nobody confirmed must not be shown for it (#145).
     PENDING.with(|slot| {
         if let Some(pending) = slot.borrow_mut().as_mut() {
             for (entry_key, resolution) in pending.resolved.iter_mut() {
                 if entry_key == &key {
-                    *resolution = Resolution::Answered(None);
+                    *resolution = Resolution::Failed;
                 }
             }
         }
@@ -826,18 +806,10 @@ fn resolve_next<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
     let _ = live_sync::get_with_status(
         &url,
         Rc::new(move |status, body| {
-            // A refusal is answered as a refusal, never as an absent document.
-            // The same status the daemon uses for "this is not yours" — see
-            // `analytics_routes`, which says so in its own words.
-            let resolution = if status == 403 {
-                Resolution::Refused
-            } else {
-                let digest = (status < 400)
-                    .then(|| serde_json::from_str::<serde_json::Value>(&body).ok())
-                    .flatten()
-                    .and_then(|value| value.get("digest")?.as_str().map(SectionDigest::of_hex));
-                Resolution::Answered(digest)
-            };
+            // Read by the shared rule: a refusal is a refusal, a 404 is the
+            // only confirmation of a deletion, and everything else says nothing
+            // about the document (see [`Resolution::Failed`]).
+            let resolution = answer::resolution(status, &body);
             PENDING.with(|slot| {
                 if let Some(pending) = slot.borrow_mut().as_mut() {
                     for (entry_key, entry_resolution) in pending.resolved.iter_mut() {
@@ -867,15 +839,19 @@ fn deliver<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
                 .iter()
                 .find(|(key, _)| key == &link.key)
                 .map(|(_, resolution)| resolution);
-            // Called only when nothing is still waiting, so the third arm is a
-            // link nobody asked about: it claims nothing rather than accusing
-            // the asset; `None` is the digest the store answered `None` about.
+            // Called only when nothing is still waiting. `Answered(None)` is the
+            // store saying it does not have the document — the only arm that
+            // means GONE. A refusal and a check that did not complete each have
+            // their own sentence, and the fall-through — a link nobody asked
+            // about — claims nothing rather than accusing the asset, which
+            // `link_state(.., None, ..)` would have done by calling it gone.
             let state = match answer {
                 Some(Resolution::Refused) => refused_link_state(Some(link)),
+                Some(Resolution::Failed) => unchecked_link_state(Some(link)),
                 Some(Resolution::Answered(digest)) => {
                     link_state(Some(link), digest.as_ref(), &pending.mockups)
                 }
-                _ => link_state(Some(link), None, &pending.mockups),
+                _ => unchecked_link_state(Some(link)),
             };
             SectionLink {
                 link: link.clone(),

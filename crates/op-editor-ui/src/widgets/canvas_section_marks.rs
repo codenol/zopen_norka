@@ -117,6 +117,12 @@ fn paint_mark(
         // send somebody hunting for a fault in a document they are simply not
         // allowed to fetch.
         LinkState::NotReadable => Icon::Lock,
+        // A question mark, because that is the whole of what is known: the
+        // read did not complete, so nothing was established about this
+        // document either way (issue #145). It deliberately is not the
+        // octagon — "gone" is a claim nobody confirmed — and not the triangle
+        // either, which would say the link had changed when nobody has looked.
+        LinkState::CheckFailed => Icon::HelpCircle,
         _ => Icon::AlertTriangle,
     };
     draw_icon(
