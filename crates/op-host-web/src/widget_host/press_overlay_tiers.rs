@@ -329,12 +329,7 @@ impl WidgetHost {
         viewport_width: f32,
         viewport_height: f32,
     ) -> Option<bool> {
-        if self
-            .account_entry_form(viewport_width, viewport_height)
-            .is_none()
-        {
-            return None;
-        }
+        self.account_entry_form(viewport_width, viewport_height)?;
         self.close_image_popovers_for_higher_overlay();
         self.dispatch_account_entry_press(x, y, viewport_width, viewport_height);
         Some(true)

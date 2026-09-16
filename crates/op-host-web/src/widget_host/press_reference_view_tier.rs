@@ -18,11 +18,8 @@ impl WidgetHost {
         &mut self,
         ctx: &PressCtx,
     ) -> Option<bool> {
-        let Some(rect) =
-            ReferenceView::card_rect(&self.editor_state, ctx.viewport_width, ctx.viewport_height)
-        else {
-            return None;
-        };
+        let rect =
+            ReferenceView::card_rect(&self.editor_state, ctx.viewport_width, ctx.viewport_height)?;
         match ReferenceView::hit_test(rect, op_editor_ui::Point2D::new(ctx.x, ctx.y)) {
             Some(ReferenceViewHit::Close) => {
                 self.editor_state.editor_ui.reference_view.close();

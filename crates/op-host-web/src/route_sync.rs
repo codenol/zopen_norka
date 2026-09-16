@@ -322,6 +322,11 @@ pub(crate) fn install<C: RepaintContext + 'static>(
 }
 
 /// Called by the mount before it tears the shell down.
+// The mount's teardown does not exist yet (see the leaking-handle note in
+// `canvaskit/mount.rs`), so the sibling of `document_store_idb::forget_handle`
+// — which sign-out DOES call — has no caller here. Wiring one would change
+// behaviour, so the hook is kept for that teardown to pick up.
+#[allow(dead_code)]
 pub(crate) fn forget_last_written() {
     LAST_WRITTEN.with(|last| *last.borrow_mut() = None);
 }

@@ -118,8 +118,9 @@ pub(super) fn page_of(state: &op_editor_core::EditorState, node: &NodeId) -> Opt
     })
 }
 
-/// Keeps `route::slugify` reachable from the host without importing the crate
-/// path everywhere; also documents the only place the slug is produced.
+/// Keeps `route::slugify` reachable from the route tests without importing the
+/// crate path there; also documents the only place the slug is produced.
+#[cfg(test)]
 pub(crate) fn slug_for(name: &str) -> String {
     route::slugify(name)
 }

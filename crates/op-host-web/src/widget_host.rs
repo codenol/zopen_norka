@@ -537,11 +537,15 @@ impl WidgetHost {
     }
 
     /// Frame clock (performance.now).
+    // Native-parity reader: `WidgetHostNative`'s tests read each clock on its
+    // own, while the web mount only ever sets both through `set_clocks`.
+    #[allow(dead_code)]
     pub fn now_ms(&self) -> u64 {
         self.now_ms
     }
 
     /// Wall clock in Unix seconds.
+    #[allow(dead_code)] // Native-parity reader; see `now_ms` above.
     pub fn wall_now_secs(&self) -> u64 {
         self.wall_now_secs
     }

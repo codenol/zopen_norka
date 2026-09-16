@@ -313,7 +313,7 @@ fn a_thread_with_no_pin_opens_from_the_rail_without_moving_the_canvas() {
     .expect("the rail lists it");
     assert_eq!(panel.row_rects(rail).len(), 1, "the thread is listed");
 
-    let before = host.editor_state().viewport.clone();
+    let before = host.editor_state().viewport;
     let (x, y) = centre(panel.row_rects(rail)[0]);
     assert!(host.apply_press(x, y, W, H));
     assert!(host.editor_state().editor_ui.comments.is_open(5));

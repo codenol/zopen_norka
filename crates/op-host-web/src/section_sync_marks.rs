@@ -56,12 +56,9 @@ pub(super) fn refresh_marks<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>,
     // One link at a time, in the order the sections were listed.
     let next = MARKS_PENDING.with(|slot| {
         let pending = slot.borrow_mut();
-        let Some(index) = pending
+        let index = pending
             .iter()
-            .position(|section| section.links.iter().any(|link| !has_digest(&link.key)))
-        else {
-            return None;
-        };
+            .position(|section| section.links.iter().any(|link| !has_digest(&link.key)))?;
         let section = &pending[index];
         let asset = section
             .links
@@ -80,7 +77,7 @@ pub(super) fn refresh_marks<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>,
             slot.set(next);
             next
         });
-        let due = ticks % MARKS_REFRESH_TICKS == 0 || changed_document;
+        let due = ticks.is_multiple_of(MARKS_REFRESH_TICKS) || changed_document;
         if due
             && !MARKS_LIST_IN_FLIGHT.with(|slot| slot.get())
             && MARKS_PENDING.with(|slot| slot.borrow().is_empty())

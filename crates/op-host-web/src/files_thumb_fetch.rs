@@ -28,10 +28,11 @@ const MAX_IN_FLIGHT_PER_DRAIN: usize = 6;
 /// A preview is decoration, so every variant means the same thing to the user
 /// — the card keeps its placeholder — but naming them keeps a transport
 /// failure distinguishable from a document that simply has no preview.
+///
+/// Only `decode_thumb` produces these: a request that never left has no
+/// response to decode, so the caller marks it failed without one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ThumbFetchError {
-    /// The request never left (no XHR, bad URL).
-    RequestFailed,
     /// The daemon answered with a non-200 status.
     Http(u16),
     /// The body was not the JSON envelope.
@@ -49,7 +50,6 @@ pub(crate) enum ThumbFetchError {
 impl std::fmt::Display for ThumbFetchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RequestFailed => write!(f, "the preview request could not start"),
             Self::Http(status) => write!(f, "the preview request answered {status}"),
             Self::Malformed => write!(f, "the preview response was not readable"),
             Self::Refused => write!(f, "the server refused the preview"),

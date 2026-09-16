@@ -183,7 +183,7 @@ pub(crate) fn tick<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
         }
         let settled = now_ms.saturating_sub(state.changed_at_ms) >= DEBOUNCE_MS;
         let spaced = now_ms.saturating_sub(state.attempted_at_ms) >= MIN_INTERVAL_MS;
-        state.in_flight == false && settled && spaced
+        !state.in_flight && settled && spaced
     });
     if !due || !dirty || !editing {
         return;

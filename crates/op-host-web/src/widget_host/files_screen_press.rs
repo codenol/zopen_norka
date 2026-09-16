@@ -127,7 +127,7 @@ impl super::WidgetHost {
                     self.editor_state.editor_ui.server_files_menu =
                         Some(op_editor_core::ServerFileMenu {
                             key: file.key.clone(),
-                            x: x,
+                            x,
                             y: y + 6.0,
                         });
                     self.mark_editor_state_dirty();

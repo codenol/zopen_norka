@@ -376,14 +376,6 @@ fn parse_anchor(value: &serde_json::Value) -> Option<CommentAnchor> {
     anchor.is_placeable().then_some(anchor)
 }
 
-fn string_field(value: &serde_json::Value, key: &str) -> String {
-    value
-        .get(key)
-        .and_then(|field| field.as_str())
-        .unwrap_or("")
-        .to_string()
-}
-
 fn u64_field(value: &serde_json::Value, key: &str) -> u64 {
     value.get(key).and_then(|field| field.as_u64()).unwrap_or(0)
 }
@@ -565,10 +557,7 @@ pub(crate) fn tick<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
     let (key, requests) = {
         let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
         let requests = ui.comments.take_requests();
-        if requests
-            .iter()
-            .any(|request| *request == CommentRequest::Reload)
-        {
+        if requests.contains(&CommentRequest::Reload) {
             ui.comments.set_loading();
             dirty = true;
         }
