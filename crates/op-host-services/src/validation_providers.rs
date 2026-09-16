@@ -53,11 +53,13 @@ use op_orchestrator::{
 
 use crate::export::screenshot::{capture_scene, CaptureSpec};
 
-/// Opt-in env flag that selects the REAL vision-validation providers over
-/// the no-op stubs at the host run sites. Defaults OFF (unset) so the
-/// default generation path is byte-for-byte unchanged — the stubs make
-/// `run_post_generation_validation` a guaranteed short-circuit (screenshot
-/// returns `None` → zero vision rounds).
+/// Env flag that selects the REAL vision-validation providers over the no-op
+/// stubs at the host run sites. Defaults ON (issue #62): the comparison
+/// compares something now, and a reference is only worth attaching if the
+/// result is checked against it.
+///
+/// `OPENPENCIL_VISION_VALIDATION=0` turns it off, which is the switch for the
+/// cost rather than for the behaviour — see [`vision_validation_enabled`].
 ///
 /// This is a SEPARATE switch from `DesignRequest.validation_enabled`
 /// (which only gates whether the loop runs at all, with whatever providers
@@ -75,10 +77,33 @@ use crate::export::screenshot::{capture_scene, CaptureSpec};
 /// model-authored edit on an ordinary turn".
 const VISION_VALIDATION_ENV: &str = "OPENPENCIL_VISION_VALIDATION";
 
-/// Whether the host should inject the REAL vision providers
-/// (`OPENPENCIL_VISION_VALIDATION=1`). Defaults `false`.
+/// Whether the host should inject the REAL vision providers. Defaults `true`.
+///
+/// The flag used to default off because the loop asked the model to compare the
+/// design against a reference screenshot it never sent (issue #62), and leaving
+/// it off kept that lie off the wire. The comparison is real now — both pictures
+/// travel and a client that cannot deliver one returns `Skipped` rather than
+/// guessing — so the default is on: a reference is only worth attaching if the
+/// result is checked against it.
+///
+/// `OPENPENCIL_VISION_VALIDATION=0` (or `false` / `no` / `off`) turns it off.
+/// That is a COST switch: every validated turn spends an extra vision call and
+/// may take up to `MAX_VALIDATION_ROUNDS` model-authored edits to the document.
 pub fn vision_validation_enabled() -> bool {
-    std::env::var(VISION_VALIDATION_ENV).is_ok_and(|v| v == "1")
+    vision_validation_requested(std::env::var(VISION_VALIDATION_ENV).ok().as_deref())
+}
+
+/// The decision behind [`vision_validation_enabled`], with the environment
+/// passed in — so the default can be tested without a process-global variable
+/// that another test could race.
+pub fn vision_validation_requested(value: Option<&str>) -> bool {
+    match value {
+        Some(value) => !matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        ),
+        None => true,
+    }
 }
 
 /// Resolve the vision LLM's system prompt from the `validation` phase of

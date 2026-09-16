@@ -743,3 +743,26 @@ fn stub_providers_keep_loop_a_noop_even_above_threshold() {
         "no vision round should complete on the stub path"
     );
 }
+
+/// The switch defaults ON (issue #62) and only an explicit off turns it off.
+///
+/// It used to default off because the loop announced a comparison against a
+/// reference it never sent; keeping it off kept that lie off the wire. The
+/// comparison is real now, so the default is the behaviour a person expects:
+/// attach a picture and the result is checked against it.
+#[test]
+fn vision_validation_defaults_on_and_only_an_explicit_off_disables_it() {
+    assert!(vision_validation_requested(None), "unset means on");
+    for off in ["0", "false", "FALSE", " no ", "off"] {
+        assert!(
+            !vision_validation_requested(Some(off)),
+            "{off:?} must disable it"
+        );
+    }
+    for on in ["1", "true", "yes", "on", ""] {
+        assert!(
+            vision_validation_requested(Some(on)),
+            "{on:?} must leave it on"
+        );
+    }
+}

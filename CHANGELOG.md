@@ -317,6 +317,16 @@ here at a glance.
 
 ### Fixed
 
+- **The result is checked against the reference you attached, by default.**
+  Post-generation validation compares the screenshot of what was drawn against
+  the picture the turn was asked to match — a comparison that was announced but
+  never actually sent until now, which is why the check itself was off. With
+  both pictures travelling and a client refusing to send half a comparison,
+  there is nothing left to hide: every reference turn is validated unless
+  `OPENPENCIL_VISION_VALIDATION=0` says otherwise. That switch now buys cost, not
+  honesty — a validated turn spends one extra vision call and up to the round
+  limit in model-authored edits (issue #62).
+
 - **A design turn that only edited the template the host placed now says so.** A
   recipe turn asks the model to rewrite the screen the kit placed as the turn's
   base, and the wire reported both outcomes identically: `done`, no error,
