@@ -97,7 +97,7 @@ fn a_write_during_shutdown_is_refused_rather_than_acked() {
         input: std::io::Cursor::new(request.wire().into_bytes()),
         output: Vec::new(),
     };
-    serve_one_online(&mut stream, &registry, &verifier, None, &barrier).expect("serve");
+    serve_one_online(&mut stream, &registry, &verifier, None, &barrier, TEST_PEER).expect("serve");
     let response = String::from_utf8_lossy(&stream.output).into_owned();
     assert_eq!(
         status_line(&response),
@@ -124,7 +124,7 @@ fn an_mcp_write_tool_is_refused_once_the_barrier_closes() {
         input: std::io::Cursor::new(request.wire().into_bytes()),
         output: Vec::new(),
     };
-    serve_one_online(&mut stream, &registry, &verifier, None, &barrier).expect("serve");
+    serve_one_online(&mut stream, &registry, &verifier, None, &barrier, TEST_PEER).expect("serve");
     let response = String::from_utf8_lossy(&stream.output).into_owned();
     // A tools/call error envelope, not a transport failure: the client keeps
     // its session and can read why.
@@ -153,7 +153,15 @@ fn an_mcp_read_tool_still_works_while_shutting_down() {
         input: std::io::Cursor::new(request.wire().into_bytes()),
         output: Vec::new(),
     };
-    serve_one_online(&mut stream, &registry(), &verifier(), None, &barrier).expect("serve");
+    serve_one_online(
+        &mut stream,
+        &registry(),
+        &verifier(),
+        None,
+        &barrier,
+        TEST_PEER,
+    )
+    .expect("serve");
     let response = String::from_utf8_lossy(&stream.output).into_owned();
     assert_ne!(body(&response)["result"]["isError"], true, "{response}");
 }

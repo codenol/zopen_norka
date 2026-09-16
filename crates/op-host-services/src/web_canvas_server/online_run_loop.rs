@@ -203,6 +203,24 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
          {}s idle eviction",
         limits.max_conns, limits.max_conns_per_tenant, limits.max_tenants, limits.idle_evict_secs
     );
+    // Printed with the other ceilings because it is one, and because the two
+    // numbers an operator has to know are the two a wrong deployment setting
+    // would make unusable: too small a per-name budget locks people out of their
+    // own accounts, too small a per-address one locks out everybody behind a
+    // shared address.
+    if let Some(accounts) = accounts.as_ref() {
+        let sign_in = accounts.limits();
+        eprintln!(
+            "openpencil --serve-web --online: sign-in limits — {} failures per account name, {} \
+             per address, {}s window ({} / {} / {})",
+            sign_in.max_failures_per_account,
+            sign_in.max_failures_per_source,
+            sign_in.window_secs,
+            super::account_routes::account_signin_limits::SIGN_IN_MAX_FAILURES_ENV,
+            super::account_routes::account_signin_limits::SIGN_IN_MAX_FAILURES_PER_SOURCE_ENV,
+            super::account_routes::account_signin_limits::SIGN_IN_LOCKOUT_SECS_ENV,
+        );
+    }
     match crate::web_static::resolve_bundle_dir() {
         Some(dir) => eprintln!(
             "openpencil --serve-web --online: serving web bundle from {}",
@@ -251,6 +269,12 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
             continue;
         }
         conn_count.fetch_add(1, Ordering::AcqRel);
+        // Read from the SOCKET, before the stream is moved into the thread: this
+        // is the only value in the request that the caller cannot write. It
+        // spends the per-address sign-in budget — see `account_routes` — and it
+        // is nothing an attacker can choose (a spoofed source address cannot
+        // complete a TCP handshake, and no header is consulted).
+        let source = s.peer_addr().ok().map(|address| address.ip());
         let registry = Arc::clone(&registry);
         let verifier = Arc::clone(&verifier);
         let accounts = accounts.clone();
@@ -269,6 +293,7 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
                     verifier.as_ref(),
                     accounts.as_ref(),
                     write_barrier.as_ref(),
+                    source,
                 ) {
                     Ok(true) => {
                         shutdown_flag.store(true, Ordering::Release);
@@ -479,6 +504,7 @@ pub(super) fn serve_one_online<S: Read + Write>(
     verifier: &dyn IdentityVerifier,
     accounts: Option<&AccountAuth>,
     write_barrier: &super::tenant::WriteBarrier,
+    source: Option<std::net::IpAddr>,
 ) -> Result<bool> {
     let req = crate::mcp_serve::read_http_request(stream)?;
     let allow_origins = registry.allow_origins();
@@ -496,7 +522,7 @@ pub(super) fn serve_one_online<S: Read + Write>(
     // skipped whole: `resolve` below then refuses every request with 503 or
     // resolves it against the development table, exactly as before.
     if let Some(accounts) = accounts {
-        if let Some(reply) = accounts.handle(&req, allow_origins) {
+        if let Some(reply) = accounts.handle(&req, allow_origins, source) {
             write_account_reply(stream, &reply, cors_origin.as_deref())?;
             return Ok(false);
         }

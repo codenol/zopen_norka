@@ -159,6 +159,7 @@ mod tests {
             content_type: Some("application/json".into()),
             authorization: None,
             cookie: None,
+            user_agent: None,
             query: None,
         }
     }

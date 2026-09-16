@@ -584,3 +584,78 @@ fn a_link_an_administrator_issues_through_the_loop_opens_an_account() {
         "{listed}"
     );
 }
+
+/// Issue #76: a session has to remember what asked for it.
+///
+/// A list of sessions that cannot tell one row from another makes "sign out
+/// everywhere" the only control it can offer, and a session nobody recognises
+/// — the one signal a person has that a credential leaked — has nothing to
+/// stand out with. So the two facts the request knows about its client are
+/// recorded at the only moment they exist: the `User-Agent` the client sent,
+/// and the address the CONNECTION arrived from. The address comes off the
+/// socket (the accept loop's `peer_addr`, presented here as `TEST_PEER`),
+/// never out of a header: `X-Forwarded-For` and its family are written by
+/// whoever sent the request, so a row built from one would be a guess wearing
+/// an address's clothes. Behind a reverse proxy that means every row names the
+/// proxy — which is the truth this daemon can actually observe.
+///
+/// Both halves are read back through the STORE, by the token the answer handed
+/// the browser: a test that satisfied itself from the response would prove
+/// nothing about the row an operator's session list would show.
+#[test]
+fn a_sign_in_records_the_client_and_the_address_on_the_session_row() {
+    const AGENT: &str = "Norka-Test/1.0 (macOS 15; arm64)";
+    let peer = TEST_PEER.expect("the fixture address").to_string();
+    let (_dir, accounts, verifier) = deployment();
+    let user = account(&accounts, "designer", &[]);
+    let registry = registry();
+    let login = || {
+        Request::json(
+            "POST",
+            op_editor_core::auth_routes::LOGIN,
+            &login_body("designer", PASSWORD),
+        )
+        .with_origin(PUBLIC_ORIGIN)
+    };
+    let session_of = |response: &str| {
+        let token = set_cookie(response).expect("a session cookie");
+        accounts
+            .db()
+            .resolve_session(&token, crate::accounts::now_secs())
+            .expect("resolve")
+            .expect("the session the sign-in issued")
+    };
+
+    let signed_in = serve_as(
+        &registry,
+        &verifier,
+        Some(&accounts),
+        login().with_user_agent(AGENT),
+    );
+    assert_eq!(status_line(&signed_in), "HTTP/1.1 200 OK", "{signed_in}");
+    let recorded = session_of(&signed_in);
+    assert_eq!(recorded.user_id, user.id);
+    assert_eq!(
+        recorded.user_agent.as_deref(),
+        Some(AGENT),
+        "the row must carry the client's own description of itself"
+    );
+    assert_eq!(
+        recorded.ip.as_deref(),
+        Some(peer.as_str()),
+        "the row must carry the address the connection came from"
+    );
+
+    // The other half of "nothing invented": a client that sends no
+    // `User-Agent` leaves that column NULL, rather than an empty string that
+    // reads as a client which identified itself as nothing.
+    let quiet = serve_as(&registry, &verifier, Some(&accounts), login());
+    assert_eq!(status_line(&quiet), "HTTP/1.1 200 OK", "{quiet}");
+    let quiet = session_of(&quiet);
+    assert_eq!(quiet.user_agent, None);
+    assert_eq!(
+        quiet.ip.as_deref(),
+        Some(peer.as_str()),
+        "an absent header says nothing about the address, which is still known"
+    );
+}

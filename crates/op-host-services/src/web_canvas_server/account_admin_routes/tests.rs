@@ -24,12 +24,15 @@ fn allowed_origins() -> Vec<String> {
 }
 
 fn handle(auth: &AccountAuth, request: &HttpRequest) -> AccountReply {
-    auth.handle(request, &allowed_origins()).unwrap_or_else(|| {
-        panic!(
-            "{} {} is not this tier's route",
-            request.method, request.path
-        )
-    })
+    // No source address: these are the administration routes, which decide by
+    // the caller's session and record nothing about the connection.
+    auth.handle(request, &allowed_origins(), None)
+        .unwrap_or_else(|| {
+            panic!(
+                "{} {} is not this tier's route",
+                request.method, request.path
+            )
+        })
 }
 
 fn deployment() -> (TempDir, AccountAuth) {
@@ -50,6 +53,7 @@ fn request(method: &str, path: &str, body: &str) -> HttpRequest {
         content_type: Some("application/json".into()),
         authorization: None,
         cookie: None,
+        user_agent: None,
         query: None,
     }
 }

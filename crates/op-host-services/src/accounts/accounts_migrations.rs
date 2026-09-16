@@ -33,9 +33,10 @@ pub(super) struct Migration {
 /// in the field have already run it. A step that cannot be expressed as SQL (a
 /// backfill that has to read the rows, say) belongs in its own function called
 /// from `open`, guarded by its own `meta` key.
-pub(super) const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    sql: "
+pub(super) const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        sql: "
     -- ## The account itself
     --
     -- One row per person a deployment knows about. `id` is the string every
@@ -231,4 +232,71 @@ pub(super) const MIGRATIONS: &[Migration] = &[Migration {
     CREATE INDEX invites_by_email ON invites (email);
     CREATE INDEX invites_by_expiry ON invites (expires_at);
 ",
-}];
+    },
+    Migration {
+        version: 2,
+        sql: "
+    -- ## How often a credential may be guessed
+    --
+    -- One row per name or per address that has recently failed a sign-in. This
+    -- is the counter issue #77 asked for, and the shape of it is an argument
+    -- about what a login route is allowed to reveal.
+    --
+    -- `scope` and `subject` together are the key, and there are exactly two
+    -- kinds of them. 'account' is the name SOMEBODY TYPED — folded to lower
+    -- case, and NOT a `users.id` — because a counter kept per existing account
+    -- would answer differently for a name that exists and one that does not:
+    -- the fifth try at `alice` would be refused and the fifth try at `nobody`
+    -- would not, which is an account-existence oracle of the kind the 401 in
+    -- `accounts_signin` exists to refuse. Counting the attempt rather than the
+    -- account costs one row per name a stranger invents, which is why the
+    -- sweep below exists.
+    -- 'source' is the address the request arrived from, as the accept loop saw
+    -- it (an IPv6 caller is counted by its /64, since that is the block one
+    -- subscriber is given). It is spent by FAILURES only and covers every name
+    -- at once, which is what bounds the CPU a single caller can burn: Argon2id
+    -- makes each guess cost the server milliseconds, and a name-keyed counter
+    -- alone would let one caller spend that on ten thousand different names.
+    --
+    -- The two are not the same size, and deliberately: the account budget is
+    -- small (a targeted guesser gets a handful of tries), the address budget is
+    -- several times larger (an office, a school or a mobile carrier arrives as
+    -- one address, and its typos must not lock out everybody behind it).
+    --
+    -- `failures` counts only the failures SINCE the streak began: a sign-in
+    -- that verifies deletes the account row, so a person who mistyped once and
+    -- then got it right starts over. A row with no failures is not a state —
+    -- that is a DELETE — so the CHECK refuses one, and the guard never has to
+    -- ask whether zero means 'no failures' or 'nothing recorded'.
+    --
+    -- Both timestamps are unix seconds. `last_failure_at` is the one the guard
+    -- reads: the budget is spent until `last_failure_at + window`, which is a
+    -- sliding window rather than a fixed one and needs no timer to expire.
+    -- `first_failure_at` is for the operator — 'this name has been under attack
+    -- since 12:04' is a different sentence from 'something tried once a minute
+    -- ago' — and for nothing in the decision.
+    --
+    -- Durable, and in this database rather than in the daemon's memory,
+    -- because a restart is not a security event: a lockout that a `systemctl
+    -- restart` clears is a lockout an attacker who can get the daemon
+    -- restarted (a crash, a deploy) can clear, and because 'why is this account
+    -- locked' has to be answerable by the operator's own sqlite3 shell, which
+    -- cannot see another process's HashMap. The rows are removed by the sweep
+    -- in `accounts_signin_throttle`, so an attacker inventing names does not
+    -- grow this table without bound.
+    CREATE TABLE sign_in_attempts (
+        scope            TEXT NOT NULL CHECK (scope IN ('account', 'source')),
+        subject          TEXT NOT NULL,
+        failures         INTEGER NOT NULL CHECK (failures > 0),
+        first_failure_at INTEGER NOT NULL,
+        last_failure_at  INTEGER NOT NULL,
+        PRIMARY KEY (scope, subject)
+    );
+
+    -- The sweep deletes by age, on every recorded failure: without this index
+    -- it is a full scan of the table on the hot path of a sign-in that just
+    -- failed.
+    CREATE INDEX sign_in_attempts_by_age ON sign_in_attempts (last_failure_at);
+",
+    },
+];

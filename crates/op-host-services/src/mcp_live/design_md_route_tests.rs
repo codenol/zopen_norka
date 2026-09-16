@@ -53,6 +53,7 @@ fn request_for(
         content_type: content_type.map(str::to_string),
         authorization: None,
         cookie: None,
+        user_agent: None,
         query: None,
     }
 }

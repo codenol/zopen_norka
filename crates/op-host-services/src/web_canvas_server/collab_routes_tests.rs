@@ -1,10 +1,13 @@
 //! `/api/collab/*` route coverage, driven through the same
 //! `handle_local_request` entry point the connection loop uses.
 
-use op_editor_core::collab_wire::{CollabStateWire, COLLAB_WIRE_VERSION};
+use op_editor_core::collab_wire::{CollabAvailabilityWire, CollabStateWire, COLLAB_WIRE_VERSION};
 use op_editor_core::{
     AuthenticatedCollabSession, CollabConnectionPhase, CollabUiAction, CollabUiRole, EditorState,
 };
+// `answers_collab_sign_in` is a `CollabHost` method, and the trait has to be in
+// scope for the call below to resolve.
+use op_collab_host::CollabHost;
 
 use super::super::{handle_local_request, WebCanvasState, WebReply};
 
@@ -302,6 +305,7 @@ fn the_collab_routes_are_gated_as_sensitive_browser_posts() {
             token: None,
             authorization: None,
             cookie: None,
+            user_agent: None,
             query: None,
         };
         assert!(
@@ -309,6 +313,50 @@ fn the_collab_routes_are_gated_as_sensitive_browser_posts() {
             "{path} must sit behind the same-origin gate"
         );
     }
+}
+
+/// The account tier and the collaboration runtime must not contradict each
+/// other about whether signing in is a thing that exists here (#148).
+///
+/// `/api/auth/status` answered `available: false` for this deployment while
+/// `/api/collab/state` answered `signInRequired`, and `POST /api/auth/login`
+/// was a 404 — so the panel offered a sign-in the daemon could not perform.
+#[test]
+fn a_daemon_with_no_accounts_never_asks_a_caller_to_sign_in() {
+    let mut state = daemon();
+    let status = json(&call(
+        "GET",
+        op_editor_core::auth_routes::STATUS,
+        "",
+        &mut state,
+    ));
+    assert_eq!(
+        status["available"], false,
+        "a local daemon's own account tier says it has no account store"
+    );
+
+    // The two answers come from different tiers — the route table above and the
+    // runtime's availability refresh below — so this is the agreement, not a
+    // tautology: the runtime must reach its verdict through the daemon host.
+    let (runtime, mut host) = state.collab_runtime_and_host();
+    assert_eq!(
+        host.answers_collab_sign_in(),
+        status["available"],
+        "the host's answer to 'can a sign-in be answered here' must be the same \
+         fact the status route publishes"
+    );
+    runtime.refresh_availability(&mut host);
+    drop(host);
+
+    let wire: CollabStateWire = serde_json::from_str(
+        &call("GET", op_editor_core::collab_routes::STATE, "", &mut state).body,
+    )
+    .expect("decodes");
+    assert_ne!(
+        wire.availability,
+        CollabAvailabilityWire::SignInRequired,
+        "a caller who cannot sign in must not be told to"
+    );
 }
 
 #[test]

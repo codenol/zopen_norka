@@ -26,20 +26,18 @@ fn allowed_origins() -> Vec<String> {
 }
 
 /// Drive one route, with the origin list the accept loop would pass.
+///
+/// No source address: the tests that care about the per-address sign-in budget
+/// live in the sibling `throttle` module and name one there. Everything here is
+/// about what a route ANSWERS, not where the request came from.
 trait HandleAsDeployment {
     fn handle_here(&self, request: &HttpRequest) -> Option<AccountReply>;
 }
 
 impl HandleAsDeployment for AccountAuth {
     fn handle_here(&self, request: &HttpRequest) -> Option<AccountReply> {
-        self.handle(request, &allowed_origins())
+        self.handle(request, &allowed_origins(), None)
     }
-}
-
-fn deployment() -> (TempDir, AccountAuth) {
-    let dir = TempDir::new("account-routes");
-    let db = AccountsDb::open(dir.path()).expect("open the account store");
-    (dir, AccountAuth::new(Arc::new(db)))
 }
 
 /// One request, in the shape the connection thread builds.
@@ -56,6 +54,7 @@ fn request(method: &str, path: &str, body: &str) -> HttpRequest {
         content_type: Some("application/json".into()),
         authorization: None,
         cookie: None,
+        user_agent: None,
         query: None,
     }
 }
@@ -107,6 +106,16 @@ fn account(auth: &AccountAuth, username: &str, roles: &[&str]) -> crate::account
 // ---------------------------------------------------------------------------
 // Status
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Sign in, with a budget
+// ---------------------------------------------------------------------------
+
+fn deployment() -> (TempDir, AccountAuth) {
+    let dir = TempDir::new("account-routes");
+    let db = AccountsDb::open(dir.path()).expect("open the account store");
+    (dir, AccountAuth::new(Arc::new(db)))
+}
 
 #[test]
 fn status_answers_an_anonymous_caller_instead_of_refusing() {
@@ -752,3 +761,6 @@ fn the_session_rows_a_sign_in_creates_are_the_accounts_own() {
         "the session belongs to the account that signed in"
     );
 }
+
+#[path = "account_routes_throttle_tests.rs"]
+mod throttle;
