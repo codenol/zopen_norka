@@ -34,7 +34,6 @@ fn selected_ready_builtin_is_bound_without_exposing_its_key() {
     assert_eq!(provider.model, "test-code-model");
     assert_eq!(provider.label, "Mobile Test");
     assert!(provider.supports_cancellable_send());
-    assert!(provider.supports_evidence_only_send());
     let debug = format!("{provider:?}");
     assert!(debug.contains("<redacted>"));
     assert!(!debug.contains("sk-super-secret-mobile"));

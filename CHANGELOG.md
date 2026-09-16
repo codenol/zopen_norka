@@ -317,6 +317,17 @@ here at a glance.
 
 ### Fixed
 
+- **A document of ordinary size syncs again.** The periodic push was gated on a
+  2 MiB cap while the warning that reported a skipped push named the 12 MiB one —
+  so every kit-backed document (about 3.4 MiB) was skipped in silence, and the
+  message that did print blamed a limit six times higher than the one enforced.
+  There is one constant now, public, read by both halves (issue #175).
+
+- **Two things that were only reachable from their own tests are gone.** A
+  `ChatProvider` capability whose workflow was removed, and a second
+  environment-parsing path for the origin allowlist that the route tiers never
+  used — the tests exercise the production function now (issue #157).
+
 - **A deployment with no accounts no longer asks its caller to sign in.** A
   `--serve-web` daemon answered `availability: "signInRequired"` from
   `/api/collab/state` while its own account tier answered `available: false`

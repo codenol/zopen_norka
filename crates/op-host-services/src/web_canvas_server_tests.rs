@@ -397,7 +397,7 @@ fn credential_origin_check_allows_default_loopback_and_non_browser_clients() {
         let mut stream = std::io::Cursor::new(request.into_bytes());
         let request = crate::mcp_serve::read_http_request(&mut stream).unwrap();
         assert!(
-            credential_request_origin_allowed_with_config(&request, None),
+            super::origin_guard::sensitive_origin_allowed(&request, &[]),
             "headers={headers:?}"
         );
     }
@@ -409,9 +409,16 @@ fn credential_origin_check_allows_an_explicitly_configured_public_origin() {
     let mut stream = std::io::Cursor::new(request.as_bytes());
     let request = crate::mcp_serve::read_http_request(&mut stream).unwrap();
 
-    assert!(credential_request_origin_allowed_with_config(
+    // The list a deployment was started with, in the shape the accept loop
+    // passes it (already parsed and normalised) — not a second parser for the
+    // environment spelling, which is what this test used to exercise
+    // (issue #157).
+    assert!(super::origin_guard::sensitive_origin_allowed(
         &request,
-        Some("https://other.example, https://demo.example:8443"),
+        &[
+            "https://other.example".to_string(),
+            "https://demo.example:8443".to_string()
+        ],
     ));
 }
 
@@ -421,8 +428,9 @@ fn credential_origin_check_rejects_an_unconfigured_public_same_host_origin() {
     let mut stream = std::io::Cursor::new(request.as_bytes());
     let request = crate::mcp_serve::read_http_request(&mut stream).unwrap();
 
-    assert!(!credential_request_origin_allowed_with_config(
-        &request, None,
+    assert!(!super::origin_guard::sensitive_origin_allowed(
+        &request,
+        &[]
     ));
 }
 
@@ -440,7 +448,7 @@ fn credential_origin_check_rejects_null_malformed_and_cross_authority_origins() 
         let mut stream = std::io::Cursor::new(request.into_bytes());
         let request = crate::mcp_serve::read_http_request(&mut stream).unwrap();
         assert!(
-            !credential_request_origin_allowed_with_config(&request, None),
+            !super::origin_guard::sensitive_origin_allowed(&request, &[]),
             "origin={origin}"
         );
     }

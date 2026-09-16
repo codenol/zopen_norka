@@ -64,7 +64,12 @@ const PUSH_INTERVAL_MS: i32 = 2000;
 /// that old copy to disk, and the tab was told it had saved. Raised to clear
 /// the sizes the product actually produces; the honest fix is an incremental
 /// push (issue #16) rather than moving this number again.
-const SYNC_MAX_BODY_BYTES: usize = 12 * 1024 * 1024;
+/// The transport's body ceiling — the gate's own number, not a second copy.
+///
+/// It used to be a literal 12 MiB beside the gate's 2 MiB, and the warning a
+/// skipped push printed named THIS one: a document over 2 MiB was refused by the
+/// gate while the console blamed a limit six times higher (issue #175).
+const SYNC_MAX_BODY_BYTES: usize = op_editor_core::sync_gate::PERIODIC_PUSH_CAP_BYTES;
 
 enum SyncDocumentJson {
     Ready(String),
