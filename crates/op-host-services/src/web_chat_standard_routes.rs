@@ -10,6 +10,7 @@
 //! names still resolve.
 
 use super::*;
+use crate::web_chat_standard::recipe::{kit_recipe, place_recipe_base, recipe_base_to_place};
 
 pub(super) fn resolve_standard_route(
     classified: crate::chat_intent::DesignIntent,
@@ -250,16 +251,23 @@ pub(super) fn stream_new_design_route<W: Write>(
     // named in `doc:recipe-base` (issue #189).
     let recipe_base = match placed_recipe {
         Some((recipe_id, node_id)) => kit_recipe(&recipe_id).map(|recipe| (recipe, node_id)),
+        // The pre-classification placement stood down (or never ran), so this
+        // arm does the placement — through `place_recipe_base`, which is the
+        // same door every other write on this route goes through: the collab
+        // gate, its own instant of write admission, and the version bump the
+        // browser polls. This arm used to call `instantiate_component` under
+        // the state lock and nothing else, so the one placement that happens
+        // when the first one refused was also the one write on this route that
+        // bypassed all three (issue #199).
         None => recipe_base_to_place(&req.ai.user, reference, false).and_then(|recipe| {
-            // Placed through the daemon's own lock, like every other write on
-            // this path, so the browser sees the base on its next sync.
-            let node_id = {
-                let mut guard = target.state.lock().unwrap_or_else(|p| p.into_inner());
-                guard
-                    .editor
-                    .instantiate_component(&op_editor_core::NodeId::new(recipe.template.clone()))
-            }?;
-            Some((recipe, node_id))
+            place_recipe_base(
+                recipe,
+                &req.ai.user,
+                target.state,
+                target.hub,
+                target.write_barrier,
+            )
+            .map(|node_id| (recipe, node_id))
         }),
     };
     if let Some((recipe, node_id)) = recipe_base {

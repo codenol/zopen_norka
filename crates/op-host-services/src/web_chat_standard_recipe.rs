@@ -97,6 +97,27 @@ pub(super) fn place_selected_recipe(
     write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
 ) -> Option<(String, op_editor_core::NodeId)> {
     let recipe = op_editor_core::select_recipe(user_message, op_editor_core::session_kit())?;
+    place_recipe_base(recipe, user_message, state, hub, write_barrier)
+        .map(|node_id| (recipe.id.clone(), node_id))
+}
+
+/// Places `recipe` as the page's base and returns the root it created.
+///
+/// **Every** write this route makes goes through the collab gate, takes its own
+/// instant of write admission and advances the version the browser polls — and
+/// this function is the only place a recipe is cloned onto the page, so the
+/// fallback placement in `stream_new_design_route` cannot skip any of the three
+/// by re-implementing the write (issue #199). It re-implemented it: a bare
+/// `instantiate_component` under the state lock, no gate, no admission, no
+/// version bump — reachable exactly when the pre-classification placement
+/// refused, which is the case where the write is least welcome.
+pub(super) fn place_recipe_base(
+    recipe: &op_editor_core::kit_manifest::KitRecipe,
+    user_message: &str,
+    state: &Mutex<WebCanvasState>,
+    hub: &SseHub,
+    write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
+) -> Option<op_editor_core::NodeId> {
     let master = op_editor_core::NodeId::new(recipe.template.clone());
     let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
     let gated = guard
@@ -150,7 +171,7 @@ pub(super) fn place_selected_recipe(
     let tick = guard.sse_tick();
     drop(guard);
     hub.broadcast(tick);
-    Some((recipe.id.clone(), node_id))
+    Some(node_id)
 }
 
 /// Whether a MODIFY reply composed a screen of its own, or only edited the

@@ -446,3 +446,66 @@ fn placing_a_recipe_advances_the_document_version() {
     );
     assert!(!placed.1.as_str().is_empty());
 }
+
+// ── #199: the fallback placement goes through the same doors ────────────────
+
+/// The `None` arm of `stream_new_design_route`'s base match places the recipe
+/// itself, and it reached that write by calling `instantiate_component` alone:
+/// no collab gate, no write admission, no version bump. It is reachable exactly
+/// when the pre-classification placement stood down — the case where the write
+/// is least welcome — and a closed write barrier is how "no admission" shows:
+/// the document must be left as the flush found it (issue #199).
+#[test]
+fn a_fallback_placement_is_refused_by_a_closed_write_barrier() {
+    use crate::web_canvas_server::WriteBarrier;
+
+    let barrier = WriteBarrier::default();
+    barrier.close();
+    let state = Mutex::new(WebCanvasState::new(daemon_session_document(), 3100));
+    let hub = SseHub::default();
+    let master_name = recipe_master_name(&state.lock().unwrap_or_else(|p| p.into_inner()).editor);
+    let before = state
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .document_version_for_test();
+    let snapshot = state
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .editor
+        .clone();
+    let mut out = Vec::new();
+
+    stream_new_design_route(
+        &mut out,
+        design_turn(RECIPE_PROMPT, Vec::new()),
+        snapshot,
+        Box::new(ScriptedProvider {
+            response: "ok".into(),
+        }),
+        Some("vision-model".into()),
+        CanvasWriteTarget {
+            state: &state,
+            hub: &hub,
+            write_barrier: Some(&barrier),
+        },
+        op_editor_core::ReferenceEvidence::NoImage,
+        // No base placed before this route ran: this is the fallback arm.
+        None,
+    )
+    .expect("the new-design route answers");
+
+    assert_eq!(
+        recipe_roots(&state, &master_name),
+        0,
+        "a closed barrier must refuse the placement: {:?}",
+        root_names(&state)
+    );
+    assert_eq!(
+        state
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .document_version_for_test(),
+        before,
+        "a refused write advances nothing"
+    );
+}
