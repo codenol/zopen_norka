@@ -362,6 +362,22 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         // Issue #63 — the reference card beside the canvas: which of the two
         // pictures is the one the user asked the design to match.
         "ai.referenceView.title" => "Reference",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Files",
+        "files.new" => "New file",
+        "files.search" => "Search files",
+        "files.loading" => "Loading files…",
+        "files.empty" => "No files yet — create one to get started",
+        "files.noMatch" => "Nothing matches that search",
+        "files.rename" => "Rename",
+        "files.delete" => "Delete",
+        "files.editedRecently" => "Edited recently",
+        "files.editedJustNow" => "Edited just now",
+        "files.editedMinutes" => "Edited {n} min ago",
+        "files.editedHours" => "Edited {n} h ago",
+        "files.editedDays" => "Edited {n} d ago",
         _ => return None,
     })
 }

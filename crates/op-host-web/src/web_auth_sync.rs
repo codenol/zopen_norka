@@ -191,10 +191,19 @@ fn fetch_status<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, base: &str)
             let account = account_from_status(&body);
             let ui = &mut b.host_mut().editor_state_mut().editor_ui;
             if apply_status_body(ui, &body) {
+                if ui.account != account {
+                    // A different session: the file list the previous one saw (or
+                    // was refused) is not this one's answer (issue #231).
+                    crate::front_door::forget_previous_session_files(ui);
+                }
                 ui.account = account;
                 b.host_mut().mark_editor_state_dirty();
                 let _ = b.repaint();
             }
+            // A frame of its own: who the tab is decides which screen the front
+            // door shows and which document it may open, and neither happens on
+            // a repaint that nobody asked for otherwise.
+            crate::repaint_coalescer::request();
         }),
     );
 }
@@ -329,12 +338,19 @@ fn apply_credential_answer<C: RepaintContext + 'static>(
             return;
         };
         let ui = &mut b.host_mut().editor_state_mut().editor_ui;
+        // The gate is lifting: forget the list the refused session left behind,
+        // so the file screen asks again instead of reporting that refusal for
+        // the account that just signed in (issue #231).
+        crate::front_door::forget_previous_session_files(ui);
         ui.account = account;
         ui.account_entry.succeed();
         ui.account_ui_available = true;
         ui.account_entry.status_received = true;
         b.host_mut().mark_editor_state_dirty();
         let _ = b.repaint();
+        // And a frame to act on it: the front door opens the document the
+        // address names, or shows the file list, on the next one.
+        crate::repaint_coalescer::request();
         // The daemon's session is the authority on everything else the tab
         // shows (roles, the MCP-token row, the account menu gate), and reading
         // it now keeps this shell from guessing at any of it.

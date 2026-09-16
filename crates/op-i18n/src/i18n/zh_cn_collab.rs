@@ -314,6 +314,22 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         // Issue #63 — the reference card beside the canvas: which of the two
         // pictures is the one the user asked the design to match.
         "ai.referenceView.title" => "参考图",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "文件",
+        "files.new" => "新建文件",
+        "files.search" => "搜索文件",
+        "files.loading" => "正在加载文件…",
+        "files.empty" => "还没有文件 — 新建一个开始吧",
+        "files.noMatch" => "没有匹配的搜索结果",
+        "files.rename" => "重命名",
+        "files.delete" => "删除",
+        "files.editedRecently" => "最近编辑",
+        "files.editedJustNow" => "刚刚编辑",
+        "files.editedMinutes" => "{n} 分钟前编辑",
+        "files.editedHours" => "{n} 小时前编辑",
+        "files.editedDays" => "{n} 天前编辑",
         _ => return None,
     })
 }

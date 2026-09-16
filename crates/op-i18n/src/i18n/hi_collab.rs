@@ -318,6 +318,22 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         // Issue #63 — the reference card beside the canvas: which of the two
         // pictures is the one the user asked the design to match.
         "ai.referenceView.title" => "संदर्भ",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "फ़ाइलें",
+        "files.new" => "नई फ़ाइल",
+        "files.search" => "फ़ाइलें खोजें",
+        "files.loading" => "फ़ाइलें लोड हो रही हैं…",
+        "files.empty" => "अभी कोई फ़ाइल नहीं — शुरू करने के लिए एक बनाएँ",
+        "files.noMatch" => "इस खोज से कुछ मेल नहीं खाता",
+        "files.rename" => "नाम बदलें",
+        "files.delete" => "हटाएँ",
+        "files.editedRecently" => "हाल ही में संपादित",
+        "files.editedJustNow" => "अभी-अभी संपादित",
+        "files.editedMinutes" => "{n} मिनट पहले संपादित",
+        "files.editedHours" => "{n} घंटे पहले संपादित",
+        "files.editedDays" => "{n} दिन पहले संपादित",
         _ => return None,
     })
 }

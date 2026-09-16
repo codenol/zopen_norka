@@ -53,6 +53,11 @@ impl CkInner {
         // Keep the browser's copy of the chat transcript current; a no-op
         // unless the transcript changed.
         crate::web_chat_persist::persist_if_changed(self.host.editor_state());
+        // Which screen this address shows, and the document a link named while
+        // nobody was signed in (crate::front_door). Runs BEFORE the router
+        // writes the state back into the address, so the screen and the address
+        // never disagree for a frame.
+        crate::front_door::tick(&mut self.host);
         // Keep the address bar truthful: page + selection are part of the
         // address (§ crate::route_sync).
         // A link that names a node waits for the document before it applies.

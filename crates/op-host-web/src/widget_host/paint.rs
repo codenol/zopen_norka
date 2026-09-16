@@ -52,6 +52,15 @@ impl WidgetHost {
         viewport_width: f32,
         viewport_height: f32,
     ) {
+        // A signed-out visit is a gate, not a screen with a card over it. It
+        // owns the viewport — its scrim covers everything, and it already owned
+        // the keyboard — so nothing of the app paints behind it: no starter
+        // document nobody asked for, and no half-loaded file list either. The
+        // gate decides for itself when it exists (`account_entry_mode`), which
+        // is also what keeps it off a deployment that has no accounts.
+        if self.paint_account_gate(backend, viewport_width, viewport_height) {
+            return;
+        }
         // The file browser is a screen, not an overlay: when the address says
         // `/files`, nothing of the editor paints behind it.
         if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {

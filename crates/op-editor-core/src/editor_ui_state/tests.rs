@@ -9,7 +9,7 @@ fn default_editor_ui_is_quiescent() {
     let c = EditorUiState::new();
     assert!(c.sidebar_open);
     assert_eq!(c.theme_mode, ThemeMode::Dark);
-    assert_eq!(c.locale, Locale::ZhCn);
+    assert_eq!(c.locale, Locale::Ru);
     assert!(!c.file_menu_open);
     assert!(!c.export_dialog_open);
     assert!(!c.agent_settings_open);
@@ -18,6 +18,25 @@ fn default_editor_ui_is_quiescent() {
     assert_eq!(c.flex_layout, FlexLayout::Free);
     assert!(c.recent_files.is_empty());
     assert!(c.collapsed_layers.is_empty());
+}
+
+/// The product's first paint is Russian, wherever it is opened and whatever
+/// the machine's language is: a fresh browser has no settings blob at all, so
+/// the DEFAULT is exactly what a new person reads — and it has to be the
+/// language the chrome actually paints from, not just a field nobody reads.
+#[test]
+fn a_fresh_install_paints_russian() {
+    let ui = EditorUiState::new();
+    assert_eq!(ui.locale, Locale::Ru);
+    assert_eq!(ui.effective_locale(), Locale::Ru);
+    assert_ne!(
+        op_i18n::translate(ui.effective_locale(), "topbar.agentsAndMcp"),
+        op_i18n::translate(Locale::EnUs, "topbar.agentsAndMcp"),
+        "the default locale must not resolve to the English table"
+    );
+    // The shell builds its UI state from the same default, so a fresh editor
+    // state is Russian before any settings are read.
+    assert_eq!(crate::EditorState::starter().editor_ui.locale, Locale::Ru);
 }
 
 #[test]

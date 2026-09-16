@@ -114,20 +114,6 @@ impl WidgetHost {
             dialog.paint(&mut cx, dialog_rect);
         }
 
-        // Account entry — the password form, the invitation form, or the
-        // explanation a deployment with no accounts gets instead of one. The
-        // widget paints its own full-viewport scrim and decides for itself when
-        // it exists at all (see `EditorState::account_entry_mode`), so this
-        // is one call with no condition of its own to get wrong.
-        if let Some(form) = self.account_entry_form(viewport_width, viewport_height) {
-            use op_editor_ui::widgets::Widget;
-            let form_rect = form.rect();
-            let mut cx = PaintCx {
-                backend: &mut *backend,
-            };
-            form.paint(&mut cx, form_rect);
-        }
-
         // Signed-in account dropdown — anchored under the TopBar avatar
         // button, no scrim (native §10f).
         if ui.account_ui_available && ui.account_menu_open {
@@ -304,5 +290,40 @@ impl WidgetHost {
         // the native host's `paint_topmost_overlays.rs`; its internal
         // z-order is what `press_overlay_tiers.rs` mirrors in reverse.
         self.paint_topmost_overlays(&mut *backend, viewport_width, viewport_height);
+    }
+}
+
+impl WidgetHost {
+    /// Paint the account gate over a blank screen, when one is up.
+    ///
+    /// Returns whether it painted — and when it did, that is the whole frame:
+    /// the gate's scrim covers the viewport, and the screen behind it is either
+    /// a document this session cannot open or a file list it would be refused.
+    /// Painting either of those would show a person something they cannot use,
+    /// and would flash it while the refusal was still in flight.
+    ///
+    /// The form decides for itself whether it exists (`account_entry_mode`), so
+    /// a deployment with no accounts has no gate and keeps its screen.
+    pub(in crate::widget_host) fn paint_account_gate(
+        &self,
+        backend: &mut dyn RenderBackend,
+        viewport_width: f32,
+        viewport_height: f32,
+    ) -> bool {
+        use op_editor_ui::widgets::Widget;
+        let Some(form) = self.account_entry_form(viewport_width, viewport_height) else {
+            return false;
+        };
+        backend.fill_rect(
+            Rect {
+                origin: Point2D::new(0.0, 0.0),
+                size: Point2D::new(viewport_width, viewport_height),
+            },
+            self.theme.background,
+        );
+        let form_rect = form.rect();
+        let mut cx = PaintCx { backend };
+        form.paint(&mut cx, form_rect);
+        true
     }
 }

@@ -255,8 +255,9 @@ fn every_locale_has_exactly_the_english_key_set() {
     // any locale table gains a key, and more than one change may be adding keys
     // to these same catalogues in the same tree (the two
     // `account.entry.errorTooManyAttempts*` keys of issue #151 are this
-    // change's).
-    assert_eq!(expected.len(), 1857, "update the intentional catalog size");
+    // change's; the thirteen `files.*` keys the file browser screen gained when
+    // it became the app's front door are the current one's).
+    assert_eq!(expected.len(), 1870, "update the intentional catalog size");
 
     for (name, main, git, lookup) in all_tables {
         let actual = table_keys(name, main, git);

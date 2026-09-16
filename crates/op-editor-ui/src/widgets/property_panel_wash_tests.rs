@@ -18,7 +18,10 @@ use op_editor_core::EditorState;
 
 #[test]
 fn action_wash_hugs_size_checkbox_content() {
-    let ui = EditorState::new().editor_ui;
+    let mut ui = EditorState::new().editor_ui;
+    // The wash is measured in EnUs below, so the labels it hugs are too: this
+    // is a geometry test, and it states the locale rather than inheriting one.
+    ui.locale = op_editor_core::Locale::EnUs;
     let labels = sections::PropertyLabels::for_editor_ui(&ui);
     let mut backend = CountingBackend::default();
     // A half-width cell like the size-checkbox walker emits.

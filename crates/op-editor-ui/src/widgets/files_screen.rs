@@ -8,7 +8,11 @@
 //! Geometry is computed by pure functions so the hit-test and the paint can
 //! never disagree about where a card is.
 
-use op_editor_core::{ServerFile, ServerFileMenu, ServerFileRename};
+use op_editor_core::{Locale, ServerFile, ServerFileMenu, ServerFileRename};
+
+#[path = "files_screen_labels.rs"]
+mod labels;
+pub use labels::FilesLabels;
 
 use crate::files_thumb_runtime;
 use crate::widgets::canvas_viewport_image::{note_pending_decode, required_raster_edge};
@@ -50,6 +54,9 @@ pub struct FileCard {
 /// The file browser's pieces.
 pub struct FilesScreen<'a> {
     pub theme: &'a Theme,
+    /// The language the screen speaks (`FilesLabels`), taken from the editor's
+    /// effective locale so an embedded host's override is honoured too.
+    pub locale: Locale,
     /// Wall clock in Unix milliseconds, from the host.
     ///
     /// Passed in, never read here: the browser has no system clock, and
@@ -130,12 +137,13 @@ impl FilesScreen<'_> {
     /// Paint the context menu.
     pub fn paint_menu(&self, cx: &mut PaintCx<'_>, menu: Rect) {
         let theme = self.theme;
+        let labels = self.labels();
         cx.backend.fill_rect(menu, theme.popover);
         cx.backend.stroke_rect(menu, theme.border, 1.0);
         for (rect, action) in Self::menu_rows(menu) {
             let label = match action {
-                FileMenuAction::Rename => "Rename",
-                FileMenuAction::Delete => "Delete",
+                FileMenuAction::Rename => labels.rename,
+                FileMenuAction::Delete => labels.delete,
             };
             let color = match action {
                 FileMenuAction::Rename => theme.popover_foreground,
@@ -202,27 +210,35 @@ impl FilesScreen<'_> {
             .collect()
     }
 
+    /// The screen's words for the locale it was built with.
+    pub fn labels(&self) -> FilesLabels {
+        FilesLabels::for_locale(self.locale)
+    }
+
     /// Paint the screen.
     pub fn paint(&self, cx: &mut PaintCx<'_>, rect: Rect) {
         let theme = self.theme;
+        let labels = self.labels();
         cx.backend.fill_rect(rect, theme.background);
 
-        self.paint_title(cx, rect);
-        self.paint_search(cx, rect);
+        self.paint_title(cx, rect, &labels);
+        self.paint_search(cx, rect, &labels);
 
         if let Some(error) = self.error {
+            // The daemon's own refusal, or this shell's: already a sentence,
+            // and not part of the translated chrome (see `route_sync_files`).
             self.paint_note(cx, rect, error, theme.destructive);
             return;
         }
         if self.loading && self.files.is_empty() {
-            self.paint_note(cx, rect, "Loading files…", theme.muted_foreground);
+            self.paint_note(cx, rect, labels.loading, theme.muted_foreground);
             return;
         }
         if self.files.is_empty() {
             let note = if self.query.is_empty() {
-                "No files yet — create one to get started"
+                labels.empty
             } else {
-                "Nothing matches that search"
+                labels.no_match
             };
             self.paint_note(cx, rect, note, theme.muted_foreground);
             return;
@@ -279,10 +295,10 @@ impl FilesScreen<'_> {
         );
     }
 
-    fn paint_title(&self, cx: &mut PaintCx<'_>, rect: Rect) {
+    fn paint_title(&self, cx: &mut PaintCx<'_>, rect: Rect, labels: &FilesLabels) {
         let theme = self.theme;
         let title = TextLayout::single_run(
-            "Files",
+            labels.title,
             "system-ui",
             22.0,
             theme.foreground.to_jian(),
@@ -296,7 +312,7 @@ impl FilesScreen<'_> {
         // The new-file button: filled, the way a primary action reads.
         let button = Self::new_button_rect(rect);
         cx.backend.fill_rect(button, theme.primary);
-        let label = "New file";
+        let label = labels.new_file;
         let width = text_metrics::measure_chrome(cx.backend, label, 13.0);
         let text = TextLayout::single_run(
             label,
@@ -314,13 +330,13 @@ impl FilesScreen<'_> {
         );
     }
 
-    fn paint_search(&self, cx: &mut PaintCx<'_>, rect: Rect) {
+    fn paint_search(&self, cx: &mut PaintCx<'_>, rect: Rect, labels: &FilesLabels) {
         let theme = self.theme;
         let field = Self::search_rect(rect);
         cx.backend.fill_rect(field, theme.input);
         cx.backend.stroke_rect(field, theme.border, 1.0);
         let (text, color) = if self.query.is_empty() {
-            ("Search files", theme.muted_foreground)
+            (labels.search, theme.muted_foreground)
         } else {
             (self.query, theme.foreground)
         };
@@ -383,7 +399,7 @@ impl FilesScreen<'_> {
         );
         cx.backend.restore();
 
-        let meta = updated_label(file.updated_at, self.now_unix_ms);
+        let meta = updated_label(file.updated_at, self.now_unix_ms, &self.labels());
         let meta_layout = TextLayout::single_run(
             &meta,
             "system-ui",
@@ -472,21 +488,24 @@ fn paint_thumb_band(cx: &mut PaintCx<'_>, thumb: Rect, theme: &Theme) {
 ///
 /// Deliberately coarse: the file browser answers "which one was I working on",
 /// and a minute-accurate timestamp answers nothing the name does not.
-pub fn updated_label(updated_at: u64, now_unix_ms: f64) -> String {
+pub fn updated_label(updated_at: u64, now_unix_ms: f64, labels: &FilesLabels) -> String {
+    let minutes =
+        |age: u64| op_i18n::interpolate(labels.edited_minutes, &[("n", &age.to_string())]);
+    let hours = |age: u64| op_i18n::interpolate(labels.edited_hours, &[("n", &age.to_string())]);
+    let days = |age: u64| op_i18n::interpolate(labels.edited_days, &[("n", &age.to_string())]);
     if now_unix_ms <= 0.0 {
-        return "Edited recently".to_string();
+        return labels.edited_recently.to_string();
     }
     let now = (now_unix_ms / 1000.0) as u64;
     if updated_at == 0 || now == 0 || updated_at > now {
-        return "Edited recently".to_string();
+        return labels.edited_recently.to_string();
     }
     let age = now - updated_at;
     match age {
-        0..=59 => "Edited just now".to_string(),
-        60..=3_599 => format!("Edited {} min ago", age / 60),
-        3_600..=86_399 => format!("Edited {} h ago", age / 3_600),
-        86_400..=604_799 => format!("Edited {} d ago", age / 86_400),
-        _ => format!("Edited {} d ago", age / 86_400),
+        0..=59 => labels.edited_just_now.to_string(),
+        60..=3_599 => minutes(age / 60),
+        3_600..=86_399 => hours(age / 3_600),
+        _ => days(age / 86_400),
     }
 }
 
@@ -544,6 +563,7 @@ mod tests {
         let matching = FilesScreen {
             now_unix_ms: 0.0,
             theme: &Theme::default(),
+            locale: Locale::Ru,
             files: &files,
             loading: false,
             error: None,
@@ -576,6 +596,7 @@ mod tests {
         let screen = FilesScreen {
             now_unix_ms: 1_800_000_000_000.0,
             theme: &Theme::default(),
+            locale: Locale::Ru,
             files: &files,
             loading: false,
             error: None,
@@ -602,6 +623,7 @@ mod tests {
         let screen = FilesScreen {
             now_unix_ms: 1_800_000_000_000.0,
             theme: &Theme::default(),
+            locale: Locale::Ru,
             files: &files,
             loading: false,
             error: None,
@@ -632,13 +654,26 @@ mod tests {
     #[test]
     fn the_label_reads_as_a_person_would_say_it() {
         // A fixed clock: the label is a pure function of the two timestamps.
+        // The words themselves are the catalogue's, so the test states the
+        // language it reads them in.
         let now = 1_800_000_000u64;
         let now_ms = now as f64 * 1000.0;
-        assert_eq!(updated_label(now - 10, now_ms), "Edited just now");
-        assert_eq!(updated_label(now - 600, now_ms), "Edited 10 min ago");
-        assert_eq!(updated_label(now - 7_200, now_ms), "Edited 2 h ago");
-        assert_eq!(updated_label(now - 172_800, now_ms), "Edited 2 d ago");
-        assert_eq!(updated_label(0, now_ms), "Edited recently");
-        assert_eq!(updated_label(now - 10, 0.0), "Edited recently");
+        let ru = FilesLabels::for_locale(Locale::Ru);
+        assert_eq!(updated_label(now - 10, now_ms, &ru), "Изменён только что");
+        assert_eq!(
+            updated_label(now - 600, now_ms, &ru),
+            "Изменён 10 мин назад"
+        );
+        assert_eq!(updated_label(now - 7_200, now_ms, &ru), "Изменён 2 ч назад");
+        assert_eq!(
+            updated_label(now - 172_800, now_ms, &ru),
+            "Изменён 2 дн назад"
+        );
+        assert_eq!(updated_label(0, now_ms, &ru), "Изменён недавно");
+        assert_eq!(updated_label(now - 10, 0.0, &ru), "Изменён недавно");
+
+        let en = FilesLabels::for_locale(Locale::EnUs);
+        assert_eq!(updated_label(now - 600, now_ms, &en), "Edited 10 min ago");
+        assert_eq!(updated_label(now - 10, now_ms, &en), "Edited just now");
     }
 }

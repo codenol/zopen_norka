@@ -27,6 +27,7 @@ impl WidgetHostNative {
             let screen = op_editor_ui::widgets::files_screen::FilesScreen {
                 now_unix_ms: self.editor_state.editor_ui.now_unix_ms,
                 theme: &self.theme,
+                locale: self.editor_state.editor_ui.effective_locale(),
                 files: &self.editor_state.editor_ui.server_files,
                 search_focused: self.editor_state.editor_ui.server_files_search_focused,
                 loading: self.editor_state.editor_ui.server_files_loading,

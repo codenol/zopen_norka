@@ -44,7 +44,12 @@ impl Default for EditorUiState {
             mobile_sheet: None,
             theme_mode: ThemeMode::Dark,
             host_theme_override: None,
-            locale: Locale::ZhCn,
+            // The product's language, not the machine's. A browser tab that has
+            // never been told otherwise paints Russian — the first frame
+            // included — and the locale picker or a persisted setting is what
+            // changes it (see `settings_io`, which no longer seeds this from
+            // the process environment).
+            locale: Locale::Ru,
             host_locale_override: None,
             locale_picker: jian_widgets::components::select::SelectState::default(),
             preferred_agent_team_size: 1,

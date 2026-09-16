@@ -55,6 +55,10 @@ mod build_stamp_pump;
 mod files_thumb_fetch;
 #[cfg(feature = "canvaskit")]
 mod route_sync;
+// Which screen a load shows when the address names no document, and the
+// document a link named while nobody was signed in (issue #231).
+#[cfg(feature = "canvaskit")]
+mod front_door;
 #[cfg(feature = "canvaskit")]
 mod tooltip_pump;
 // Identity-epoch glue: the document/sync reset a change of account needs.

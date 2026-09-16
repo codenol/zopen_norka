@@ -106,7 +106,15 @@ pub(crate) fn tick(host: &WidgetHost) {
     // address to `/` before it has been accepted would throw the link away (and
     // a refresh would lose it entirely). Once the acceptance succeeds the token
     // is cleared, and the next tick writes the editor's own address as usual.
-    if crate::web_auth_sync::invitation_address_active(host) {
+    //
+    // A link that names a document does too, while this tab has no session to
+    // open one with (issue #231): the daemon refuses an anonymous open, and what
+    // the state is left holding is an untitled editor — so writing `/` over the
+    // link would lose the document before the visitor ever reached the sign-in
+    // form. `crate::front_door` opens it again once there is a session.
+    if crate::web_auth_sync::invitation_address_active(host)
+        || crate::front_door::address_awaits_a_document()
+    {
         return;
     }
     if PENDING.with(|pending| pending.borrow().is_some()) {

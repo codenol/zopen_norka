@@ -330,6 +330,22 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         // Issue #63 — the reference card beside the canvas: which of the two
         // pictures is the one the user asked the design to match.
         "ai.referenceView.title" => "참조 이미지",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "파일",
+        "files.new" => "새 파일",
+        "files.search" => "파일 검색",
+        "files.loading" => "파일을 불러오는 중…",
+        "files.empty" => "아직 파일이 없습니다 — 새로 만들어 시작하세요",
+        "files.noMatch" => "검색 결과가 없습니다",
+        "files.rename" => "이름 바꾸기",
+        "files.delete" => "삭제",
+        "files.editedRecently" => "최근 편집됨",
+        "files.editedJustNow" => "방금 편집됨",
+        "files.editedMinutes" => "{n}분 전 편집",
+        "files.editedHours" => "{n}시간 전 편집",
+        "files.editedDays" => "{n}일 전 편집",
         _ => return None,
     })
 }

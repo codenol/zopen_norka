@@ -94,6 +94,9 @@ pub mod figma_import_state;
 pub mod fill_order;
 pub mod fills;
 pub mod font_catalog;
+// Which screen a load shows, and what a session that arrives afterwards
+// finishes (`/` is the front door, `/f/<key>` is a document).
+pub mod front_door;
 pub mod geometry;
 pub mod git_button_state;
 pub mod grouping;
@@ -410,6 +413,9 @@ pub use fill_order::move_fill;
 pub use fills::{
     first_fill_type, first_image_fill_summary, first_solid_fill_hex, first_solid_fill_opacity,
     first_solid_stroke_hex, node_effects, ImageFillSummary,
+};
+pub use front_door::{
+    Address as DoorAddress, FrontDoor, FrontDoorStep, Landing, Session as DoorSession,
 };
 pub use geometry::{aggregate_bounds, own_bounds, union_aggregate_bounds, DocRect};
 pub use git_button_state::GitButton;

@@ -154,6 +154,13 @@ impl WidgetHost {
         self.last_viewport_h = viewport_height;
         self.last_cursor_x = x;
         self.last_cursor_y = y;
+        // The account gate is above every screen, and the file browser returns
+        // from this ladder before the overlay tiers run — so the gate is asked
+        // first, here, rather than only inside them.
+        if let Some(consumed) = self.press_account_gate_tier(x, y, viewport_width, viewport_height)
+        {
+            return consumed;
+        }
         // The file browser owns its screen: no editor chrome is hit-tested
         // while it is up, and a press either picks a document or asks for a
         // new one.

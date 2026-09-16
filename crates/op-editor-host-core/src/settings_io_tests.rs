@@ -6,7 +6,7 @@ mod checked_tests;
 mod save_tests;
 
 #[test]
-fn persisted_locale_overrides_system_locale_seed() {
+fn persisted_locale_overrides_the_product_language() {
     assert_eq!(
         resolve_persisted_locale(Locale::Ru, Some("en-US")),
         Locale::EnUs
@@ -14,7 +14,7 @@ fn persisted_locale_overrides_system_locale_seed() {
 }
 
 #[test]
-fn missing_or_invalid_persisted_locale_preserves_system_locale_seed() {
+fn missing_or_invalid_persisted_locale_preserves_the_product_language() {
     for persisted in [None, Some(""), Some("unknown")] {
         assert_eq!(
             resolve_persisted_locale(Locale::Ru, persisted),
@@ -50,62 +50,54 @@ fn settings_payload_uses_shared_stable_locale_codes() {
 }
 
 #[test]
-fn host_locale_seed_respects_process_environment_precedence() {
-    let cases = [
-        (
-            "lc-all",
-            Some("fr_FR.UTF-8"),
-            Some("de_DE"),
-            Some("ja_JP"),
-            Locale::Fr,
-        ),
-        (
-            "lc-messages",
-            None,
-            Some("zh_Hant.UTF-8"),
-            Some("ja_JP"),
-            Locale::ZhTw,
-        ),
-        (
-            "empty-lc-all",
-            Some(""),
-            Some("tr_TR"),
-            Some("ja_JP"),
-            Locale::Tr,
-        ),
-        (
-            "c-stops-fallback",
-            Some("C"),
-            Some("zh_CN"),
-            Some("ja_JP"),
-            Locale::EnUs,
-        ),
-        (
-            "posix-stops-fallback",
-            None,
-            Some("POSIX"),
-            Some("ja_JP"),
-            Locale::EnUs,
-        ),
-        (
-            "unsupported-stops-fallback",
-            Some("xx_ZZ"),
-            Some("zh_CN"),
-            Some("ja_JP"),
-            Locale::EnUs,
-        ),
-    ];
+fn a_first_run_keeps_the_product_language() {
+    // A fresh install has no settings file, so the product's own default is what
+    // the first paint uses — the machine's language does not get a vote (see
+    // `the_process_environment_does_not_choose_the_product_language`).
+    let mut state = EditorState::new();
+    let missing = std::env::temp_dir().join("openpencil-settings-that-is-not-there.json");
+    let _ = std::fs::remove_file(&missing);
 
-    for (case, lc_all, lc_messages, lang, expected) in cases {
+    load_checked_from_path(&mut state, &missing).expect("a missing file is a normal first run");
+
+    assert_eq!(state.editor_ui.locale, Locale::Ru);
+}
+
+#[test]
+fn the_process_environment_does_not_choose_the_product_language() {
+    // The operator's decision, made explicit: the interface is Russian from the
+    // very first paint — not because the machine says so. The startup load used
+    // to seed the locale from LC_ALL / LC_MESSAGES / LANG before reading the
+    // settings file, which made the first run of an English machine English, a
+    // Japanese machine Japanese, and so on.
+    //
+    // A subprocess, because the environment is process-wide and the loader reads
+    // it through `dirs::config_dir()`: HOME (and XDG_CONFIG_HOME) point at an
+    // empty directory, so the child really is a first run.
+    let home = std::env::temp_dir().join("openpencil-locale-probe-home");
+    std::fs::create_dir_all(&home).expect("probe home directory");
+
+    for (case, lc_all, lc_messages, lang) in [
+        ("lang-only", None, None, Some("ja_JP.UTF-8")),
+        (
+            "lc-all-wins",
+            Some("de_DE.UTF-8"),
+            Some("fr_FR"),
+            Some("ja_JP"),
+        ),
+        ("posix-c", Some("C"), None, None),
+        ("nothing-set", None, None, None),
+    ] {
         let mut command = std::process::Command::new(std::env::current_exe().unwrap());
         command
             .arg("--exact")
-            .arg("settings_io::settings_io_tests::system_locale_environment_probe")
+            .arg("settings_io::settings_io_tests::system_locale_probe")
             .arg("--ignored")
             .env_remove("LC_ALL")
             .env_remove("LC_MESSAGES")
             .env_remove("LANG")
-            .env("OPENPENCIL_EXPECTED_SYSTEM_LOCALE", expected.code());
+            .env("HOME", &home)
+            .env("XDG_CONFIG_HOME", home.join("config"));
         if let Some(value) = lc_all {
             command.env("LC_ALL", value);
         }
@@ -127,21 +119,20 @@ fn host_locale_seed_respects_process_environment_precedence() {
 }
 
 #[test]
-#[ignore = "executed in isolated subprocesses by host_locale_seed_respects_process_environment_precedence"]
-fn system_locale_environment_probe() {
-    let Ok(expected) = std::env::var("OPENPENCIL_EXPECTED_SYSTEM_LOCALE") else {
-        return;
-    };
+#[ignore = "executed in an isolated subprocess by the_process_environment_does_not_choose_the_product_language"]
+fn system_locale_probe() {
+    // The real startup load, on a machine with no settings file at all.
     let mut state = EditorState::new();
-    state.editor_ui.locale = Locale::Ru;
-
-    seed_system_locale(&mut state);
-
-    assert_eq!(state.editor_ui.locale, Locale::from_tag(&expected).unwrap());
+    load(&mut state);
+    assert_eq!(
+        state.editor_ui.locale,
+        Locale::Ru,
+        "the product's language is its own, whatever LANG says"
+    );
 }
 
 #[test]
-fn apply_payload_persisted_locale_overrides_system_locale_seed() {
+fn apply_payload_persisted_locale_overrides_the_product_language() {
     let payload: SettingsPayload =
         serde_json::from_str(r#"{"version":1,"locale":"en-US"}"#).unwrap();
     let mut state = EditorState::new();
@@ -153,7 +144,7 @@ fn apply_payload_persisted_locale_overrides_system_locale_seed() {
 }
 
 #[test]
-fn apply_payload_missing_or_invalid_locale_preserves_system_locale_seed() {
+fn apply_payload_missing_or_invalid_locale_preserves_the_product_language() {
     for json in [
         r#"{"version":1}"#,
         r#"{"version":1,"locale":""}"#,
@@ -168,7 +159,7 @@ fn apply_payload_missing_or_invalid_locale_preserves_system_locale_seed() {
         assert_eq!(
             state.editor_ui.locale,
             Locale::Ru,
-            "payload {json} must preserve the caller's seed"
+            "payload {json} must preserve the product language"
         );
     }
 }

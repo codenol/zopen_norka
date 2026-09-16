@@ -326,6 +326,22 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         // Issue #63 — the reference card beside the canvas: which of the two
         // pictures is the one the user asked the design to match.
         "ai.referenceView.title" => "Ảnh tham chiếu",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Tệp",
+        "files.new" => "Tệp mới",
+        "files.search" => "Tìm kiếm tệp",
+        "files.loading" => "Đang tải tệp…",
+        "files.empty" => "Chưa có tệp nào — hãy tạo một tệp để bắt đầu",
+        "files.noMatch" => "Không có kết quả nào khớp với tìm kiếm đó",
+        "files.rename" => "Đổi tên",
+        "files.delete" => "Xoá",
+        "files.editedRecently" => "Đã chỉnh sửa gần đây",
+        "files.editedJustNow" => "Vừa chỉnh sửa",
+        "files.editedMinutes" => "Đã chỉnh sửa {n} phút trước",
+        "files.editedHours" => "Đã chỉnh sửa {n} giờ trước",
+        "files.editedDays" => "Đã chỉnh sửa {n} ngày trước",
         _ => return None,
     })
 }

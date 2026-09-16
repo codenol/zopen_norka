@@ -314,6 +314,22 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         // Issue #63 — the reference card beside the canvas: which of the two
         // pictures is the one the user asked the design to match.
         "ai.referenceView.title" => "Referans",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Dosyalar",
+        "files.new" => "Yeni dosya",
+        "files.search" => "Dosyalarda ara",
+        "files.loading" => "Dosyalar yükleniyor…",
+        "files.empty" => "Henüz dosya yok — başlamak için bir tane oluşturun",
+        "files.noMatch" => "Bu aramayla eşleşen yok",
+        "files.rename" => "Yeniden adlandır",
+        "files.delete" => "Sil",
+        "files.editedRecently" => "Yakın zamanda düzenlendi",
+        "files.editedJustNow" => "Az önce düzenlendi",
+        "files.editedMinutes" => "{n} dk önce düzenlendi",
+        "files.editedHours" => "{n} sa önce düzenlendi",
+        "files.editedDays" => "{n} gün önce düzenlendi",
         _ => return None,
     })
 }
