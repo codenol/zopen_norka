@@ -9,6 +9,75 @@
 
 use super::*;
 
+/// Why the reply a route is about to read is known to be incomplete (issue
+/// #205).
+///
+/// Every document-format reply in the 8-prompt corpus was cut off at the output
+/// budget — `#2` mid-statement (`…fontFamily:"Rob`, 389 `{` against 380 `}`),
+/// `#4`/`#6`/`#8` at exactly 16 384 delta events, the request's
+/// `max_output_tokens` — and the daemon applied the parsed fragment anyway,
+/// reported `<!-- APPLIED -->` and ended `done`. A truncated reply and a whole
+/// one were indistinguishable to the reader and to the applier.
+///
+/// This is the missing distinction, and it has exactly two sources of truth:
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Truncation {
+    /// The provider's own stop reason. `StopReason::MaxTokens` is the honest
+    /// signal and beats any guess about the text: it is the provider saying it
+    /// ran out of room. Where a provider reports it, it is honoured first.
+    OutputBudget,
+    /// No stop reason worth trusting — several built-in paths hard-code
+    /// `EndTurn` whatever happened — so the reply's own shape is read instead:
+    /// a document reply is a sequence of statements, and a statement that never
+    /// closed leaves a `{` without its `}` or an `I(` without its `)`.
+    UnterminatedStatement,
+}
+
+/// Whether `reply` is incomplete, and why — see [`Truncation`].
+///
+/// Detection only. Nothing here retries the turn, raises the budget or repairs
+/// the text: the route that reads this says what happened, which is the whole
+/// of issue #205.
+pub(super) fn truncation_of(reply: &str, stop_reason: Option<StopReason>) -> Option<Truncation> {
+    if matches!(stop_reason, Some(StopReason::MaxTokens)) {
+        return Some(Truncation::OutputBudget);
+    }
+    unterminated_statement(reply).then_some(Truncation::UnterminatedStatement)
+}
+
+/// A `{` the reply never closed, or an `I(` it never closed.
+///
+/// Braces and parens inside string literals do not count — a design reply is
+/// mostly `content:"…"` text, and a `{` in a label is not a statement. An
+/// escape (`\"`) does not end the literal.
+fn unterminated_statement(reply: &str) -> bool {
+    let mut braces = 0i32;
+    let mut parens = 0i32;
+    let mut in_string = false;
+    let mut escaped = false;
+    for ch in reply.chars() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match ch {
+            '"' => in_string = true,
+            '{' => braces += 1,
+            '}' => braces -= 1,
+            '(' => parens += 1,
+            ')' => parens -= 1,
+            _ => {}
+        }
+    }
+    braces > 0 || parens > 0
+}
+
 /// The recipe this turn still has to place, or `None` when one must not be
 /// placed — or when the base is already on the page.
 ///
@@ -32,7 +101,11 @@ pub(super) fn recipe_base_to_place<'a>(
 
 /// The kit's recipe with this id — a placement returns the id, and everything
 /// that describes the placed base needs the name that goes with it.
-pub(super) fn kit_recipe(
+///
+/// `pub(crate)` because the modify plan reads it too: the rule below is built
+/// from the recipe the placement named, and that plan is where the rule has to
+/// reach the model (issue #207).
+pub(crate) fn kit_recipe(
     recipe_id: &str,
 ) -> Option<&'static op_editor_core::kit_manifest::KitRecipe> {
     op_editor_core::session_kit()
@@ -43,7 +116,25 @@ pub(super) fn kit_recipe(
 
 /// The `doc:recipe-base` rule: the recipe is on the page, it is what this turn
 /// is based on, adapt it instead of composing it again.
-pub(super) fn recipe_base_rule(
+///
+/// **Two routes can run a recipe turn, and both receive this value.** A change
+/// here reaches both or neither:
+///
+/// * `stream_new_design_route` inserts it at the head of the rule list it hands
+///   `op_orchestrator::DesignRequest`; the orchestrator renders that list
+///   through `build_design_rules_policy` into the sub-agent prompt. This is the
+///   route that resolved to `New` *despite* the placement.
+/// * The **modify route is the one a recipe turn actually takes** — the
+///   placement selects the base, and a selected Frame is what forces
+///   `DesignIntent::Modify` — so `build_modify_plan_with` inserts this same
+///   value at the head of the rule list it renders into its own system prompt.
+///
+/// The second half was missing until issue #207: the rule was built here and
+/// inserted only in the first route, so the instruction that tells the model
+/// "this screen is already on the page, adapt it" was absent from the captured
+/// prompt of every measured recipe turn — 0 occurrences in the system prompt
+/// and 0 in the user message.
+pub(crate) fn recipe_base_rule(
     recipe: &op_editor_core::kit_manifest::KitRecipe,
     node_id: &op_editor_core::NodeId,
 ) -> jian_ops_schema::DesignRule {

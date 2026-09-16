@@ -107,13 +107,13 @@ fn read_http_request(stream: &mut TcpStream) -> String {
 /// The stop flag has to be owned by the test: the thread blocks on a
 /// non-blocking `accept` loop, so nothing else — not the listener, not the
 /// channel — ever ends it, and joining it without this hangs the test binary.
-struct CaptureServer {
+pub(super) struct CaptureServer {
     stop: Arc<AtomicBool>,
     thread: std::thread::JoinHandle<()>,
 }
 
 impl CaptureServer {
-    fn stop(self) {
+    pub(super) fn stop(self) {
         self.stop.store(true, Ordering::Release);
         let _ = self.thread.join();
     }
@@ -123,7 +123,7 @@ impl CaptureServer {
 /// recording each body. A real listener is used rather than a stub
 /// `ChatProvider` because the whole route — classification, placement, planning
 /// — has to run for the assertion to mean anything.
-fn capture_endpoint() -> (String, std_mpsc::Receiver<String>, CaptureServer) {
+pub(super) fn capture_endpoint() -> (String, std_mpsc::Receiver<String>, CaptureServer) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind capture server");
     let addr = listener.local_addr().expect("capture server address");
     listener
@@ -169,7 +169,7 @@ fn capture_endpoint() -> (String, std_mpsc::Receiver<String>, CaptureServer) {
 /// A daemon-owned built-in provider. The id deliberately does NOT carry the
 /// browser-owned `builtin-` prefix, so the route dials it under the trusted
 /// policy and the loopback endpoint needs no allowlist entry.
-fn agent_config(id: &str, base_url: String) -> BuiltinAgentConfig {
+pub(super) fn agent_config(id: &str, base_url: String) -> BuiltinAgentConfig {
     BuiltinAgentConfig {
         id: id.into(),
         preset: op_editor_core::BuiltinAgentPresetKey::Custom,
@@ -305,9 +305,19 @@ fn an_attached_picture_keeps_the_recipe_off_a_matching_prompt() {
 
 /// The control: the same words with nothing attached still get their recipe, so
 /// the gate above is the attachment and not a blanket "never place a recipe".
+///
+/// And the turn that gets the recipe is *told* it has one. A recipe turn is
+/// classified as `Modify` — the placement selects the base, and a selected
+/// Frame is what forces that intent — so the request captured here is the
+/// modify route's, and the `doc:recipe-base` rule belongs in it. It was built
+/// for every recipe turn and inserted only on the new-design route, so the
+/// captured prompt carried 0 occurrences of it while the whole-screen preamble
+/// carried the job alone (issue #207). This assertion is the wire half; the
+/// unit half is `chat_intent::modify_plan_tests`, which pins the same string in
+/// the plan's own system prompt.
 #[test]
 fn the_same_prompt_without_a_picture_still_gets_the_recipe() {
-    let (_bodies, editor, before) = run_turn(RECIPE_PROMPT, Vec::new());
+    let (bodies, editor, before) = run_turn(RECIPE_PROMPT, Vec::new());
     let master_name = recipe_master_name(&before);
 
     assert!(
@@ -315,5 +325,27 @@ fn the_same_prompt_without_a_picture_still_gets_the_recipe() {
         "a turn with no picture attached asks for the ops recipe in its own \
          words — it must still get it; the canvas holds: {:?}",
         node_names(&editor)
+    );
+
+    // The modify route's own request, picked out by its preamble rather than by
+    // position: the classifier talks to the same provider on this turn.
+    let placed = bodies
+        .iter()
+        .find(|body| body.contains("THIS SCREEN WAS JUST PLACED FROM RECIPE"));
+    assert!(
+        placed.is_some(),
+        "a recipe turn must be framed as a rewrite of the base the host placed; \
+         the provider saw {} request(s)",
+        bodies.len()
+    );
+    let placed = placed.expect("checked above");
+    assert!(
+        placed.contains("Recipe already placed"),
+        "the rule this code builds for a recipe turn never reached the prompt \
+         the route sends: 0 occurrences on the wire is the defect (issue #207)"
+    );
+    assert!(
+        placed.contains("do not rebuild its structure"),
+        "the rule's own instruction, not only its title, has to reach the model"
     );
 }

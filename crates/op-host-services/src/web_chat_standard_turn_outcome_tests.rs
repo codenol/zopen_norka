@@ -325,8 +325,10 @@ fn a_new_route_turn_whose_base_is_already_placed_ends_with_one_recipe_root() {
             hub: &hub,
             write_barrier: None,
         },
-        op_editor_core::ReferenceEvidence::NoImage,
-        Some(placed),
+        PlacedBase {
+            reference: op_editor_core::ReferenceEvidence::NoImage,
+            placed_recipe: Some(placed),
+        },
     )
     .expect("the new-design route answers");
 
@@ -488,9 +490,11 @@ fn a_fallback_placement_is_refused_by_a_closed_write_barrier() {
             hub: &hub,
             write_barrier: Some(&barrier),
         },
-        op_editor_core::ReferenceEvidence::NoImage,
-        // No base placed before this route ran: this is the fallback arm.
-        None,
+        PlacedBase {
+            reference: op_editor_core::ReferenceEvidence::NoImage,
+            // No base placed before this route ran: this is the fallback arm.
+            placed_recipe: None,
+        },
     )
     .expect("the new-design route answers");
 

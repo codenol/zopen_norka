@@ -123,32 +123,42 @@ pub(super) fn inject_transient_builtin(
 ///
 /// The snapshot is refreshed only when the live clear went through, so routing
 /// and the orchestrator see the same page the browser will.
+///
+/// **This is a document mutation, so it belongs to a turn that will draw.**
+/// The caller has already chosen a route that writes; the route that answers in
+/// words must never have called it (issue #202, see `stream_standard_turn`).
 pub(super) fn clear_starter_frame_for_design(
     snapshot: &mut EditorState,
     state: &Mutex<WebCanvasState>,
     hub: &SseHub,
     write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
 ) {
-    if !op_editor_core::blank_starter::active_page_is_blank_starter(snapshot) {
-        return;
-    }
     let tick = {
         let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
+        // The question is asked of the live document, not of `snapshot`: the
+        // pre-routing probe in `stream_standard_turn` has already dropped the
+        // frame from the snapshot (issue #202), and the live editor is what
+        // this call would actually mutate.
+        let clearable = op_editor_core::blank_starter::active_page_is_blank_starter(&guard.editor);
         // Through the gateway like every other daemon write: during a live
         // session this housekeeping edit would be an unsequenced AI write.
         // Skipping it only means the starter frame stays, which is strictly
         // better than forking the shared document.
-        let gated = guard
-            .gate_daemon_mutation(
-                op_editor_core::CollabGateAction::Document(
-                    op_editor_core::CollabDocumentMutation::NodeDelete,
-                ),
-                op_editor_core::CollabEditSource::Ai,
-            )
-            .is_ok();
+        let gated = clearable
+            && guard
+                .gate_daemon_mutation(
+                    op_editor_core::CollabGateAction::Document(
+                        op_editor_core::CollabDocumentMutation::NodeDelete,
+                    ),
+                    op_editor_core::CollabEditSource::Ai,
+                )
+                .is_ok();
         // Also a document commit, so it needs the same instant of admission; a
-        // closed barrier simply skips the clear.
-        let starter_clear_pass = admit_document_write(write_barrier).ok();
+        // closed barrier simply skips the clear. The pass is held until the
+        // write is done, which is why it is a binding and not `is_some()`.
+        let starter_clear_pass = clearable
+            .then(|| admit_document_write(write_barrier).ok())
+            .flatten();
         if gated
             && starter_clear_pass.is_some()
             && clear_live_starter_frame_for_design(&mut guard).is_some()

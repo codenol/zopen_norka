@@ -10,7 +10,37 @@
 //! names still resolve.
 
 use super::*;
-use crate::web_chat_standard::recipe::{kit_recipe, place_recipe_base, recipe_base_to_place};
+use crate::web_chat_standard::recipe::{
+    kit_recipe, place_recipe_base, recipe_base_to_place, truncation_of, Truncation,
+};
+
+/// What the modify route tells the user when the reply it was about to apply
+/// ran out before it finished (issue #205).
+///
+/// Refused rather than applied-and-annotated, and the applier is why: this route
+/// replaces whole subtrees of the captured frames, so a tree parsed out of half
+/// a statement is not a smaller version of the request — it is a *wrong* screen.
+/// The measured fragment put the table's rows beside the table instead of inside
+/// it (54-node `Table/Default` whose only child is its `Header`, with the 60
+/// `Rows` nodes as its sibling). The canvas is left alone and the user is told
+/// what happened and what to do about it.
+fn cut_short_refusal(truncation: Truncation) -> String {
+    let why = match truncation {
+        Truncation::OutputBudget => {
+            "The model ran out of output budget before it finished the screen's last statement, \
+             so half a statement was all there was."
+        }
+        Truncation::UnterminatedStatement => {
+            "The model's reply stops mid-statement — its last statement never closes."
+        }
+    };
+    format!(
+        "\n\n⚠ Nothing was applied: {why} A partial tree is not a smaller version of the screen \
+         you asked for — it lands the pieces in the wrong places — so the canvas is exactly as \
+         you left it rather than holding a broken screen. Ask for the screen in smaller parts, \
+         or narrow what this turn has to rewrite."
+    )
+}
 
 pub(super) fn resolve_standard_route(
     classified: crate::chat_intent::DesignIntent,
@@ -45,14 +75,49 @@ pub(super) fn stream_chat_route<W: Write>(
         attachments: req.attachments.clone(),
         model,
     };
+    // The reply is kept as it streams so the terminal `Done` can be read against
+    // it. This route writes nothing to the document, so a cut reply costs no
+    // nodes — but it still ends a turn that says `done` with an answer that
+    // stops mid-sentence, and the three chat-route replies of the #205 corpus
+    // are exactly that: 16 384 deltas, the request's whole output budget, ending
+    // on `"width": "fill_container",` or `"fontWeight`. The user is told.
+    let mut reply = String::new();
     for delta in provider.send(chat_req) {
+        if let ChatDelta::TextDelta(text) = &delta {
+            reply.push_str(text);
+        }
+        if let ChatDelta::Done { stop_reason } = &delta {
+            let stop_reason = *stop_reason;
+            if let Some(truncation) = truncation_of(&reply, Some(stop_reason)) {
+                write_delta_event(out, &chat_cut_short_notice(truncation))?;
+            }
+            out.write_all(
+                crate::ai_proxy::delta_to_sse(&ChatDelta::Done { stop_reason }).as_bytes(),
+            )?;
+            out.flush()?;
+            break;
+        }
         out.write_all(crate::ai_proxy::delta_to_sse(&delta).as_bytes())?;
         out.flush()?;
-        if matches!(delta, ChatDelta::Done { .. } | ChatDelta::Error(_)) {
+        if matches!(delta, ChatDelta::Error(_)) {
             break;
         }
     }
     Ok(())
+}
+
+/// What the chat route appends when the answer it just streamed was cut off
+/// (issue #205). The turn is not refused — nothing was applied either way — but
+/// it may not pass a half sentence off as the whole answer.
+fn chat_cut_short_notice(truncation: Truncation) -> String {
+    let why = match truncation {
+        Truncation::OutputBudget => "at the model's output budget",
+        Truncation::UnterminatedStatement => "mid-statement",
+    };
+    format!(
+        "\n\n⚠ This reply was cut off {why}: what is above is not the whole answer. Ask again, \
+         or narrow the request so the answer fits."
+    )
 }
 
 pub(super) fn stream_modify_route<W: Write>(
@@ -98,6 +163,11 @@ pub(super) fn stream_modify_route<W: Write>(
     };
     let mut full_response = String::new();
     let mut stream_error: Option<String> = None;
+    // The provider's own verdict on why it stopped. Taken here because it is the
+    // only place the route can see it, and because the decision below — apply
+    // this tree, or refuse it — is not one a truncated reply may win (issue
+    // #205).
+    let mut stop_reason: Option<StopReason> = None;
     for delta in provider.send(request) {
         match delta {
             ChatDelta::TextDelta(s) => full_response.push_str(&s),
@@ -106,12 +176,24 @@ pub(super) fn stream_modify_route<W: Write>(
                 stream_error = Some(msg);
                 break;
             }
-            ChatDelta::Done { .. } => break,
+            ChatDelta::Done {
+                stop_reason: reason,
+            } => {
+                stop_reason = Some(reason);
+                break;
+            }
         }
     }
 
     let nodes = crate::chat_intent::parse_modify_nodes(&full_response);
     if !nodes.is_empty() {
+        // #205: a partial tree used to be applied exactly like a whole one —
+        // `<!-- APPLIED -->`, `done`, no hint that the screen was half written.
+        // The reply is read before it is applied now, and an incomplete one is
+        // refused with the reason, not applied as a screen.
+        if let Some(truncation) = truncation_of(&full_response, stop_reason) {
+            return write_error_event(out, &cut_short_refusal(truncation));
+        }
         write_delta_event(out, &format!("\n{full_response}"))?;
         let (applied, composed, tick) = {
             let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
@@ -213,9 +295,11 @@ pub(super) fn stream_new_design_route<W: Write>(
     provider: Box<dyn ChatProvider>,
     model: Option<String>,
     target: CanvasWriteTarget<'_>,
-    reference: op_editor_core::ReferenceEvidence,
-    placed_recipe: Option<(String, op_editor_core::NodeId)>,
+    base: PlacedBase,
 ) -> std::io::Result<()> {
+    // Read before the fields move into the request below.
+    let reference = base.reference;
+    let placed_recipe = base.placed_recipe;
     let append_context = crate::chat_intent::detect_append_intent(&snapshot, &req.ai.user);
     let reference_attachments = req
         .attachments
@@ -312,9 +396,12 @@ pub(super) fn stream_new_design_route<W: Write>(
     }
 
     // ── Class-C vision-validation provider selection (Track-1 Step 3) ──────────
-    // REAL providers only when `OPENPENCIL_VISION_VALIDATION=1` (defaults OFF);
-    // otherwise the no-op stubs keep `run_post_generation_validation` a
-    // guaranteed short-circuit, so the default path is byte-for-byte unchanged.
+    // REAL providers by default: `vision_validation_enabled` reads
+    // `OPENPENCIL_VISION_VALIDATION`, and an unset variable means ON
+    // (`vision_validation_requested(None) == true`). The variable is the way to
+    // turn the pipeline OFF, with `0` / `false` / `no` / `off` — so the no-op
+    // stubs below are the opt-out path, not the default one. Read this before
+    // assuming a turn ran without a vision round.
     let use_real_vision = crate::validation_providers::vision_validation_enabled();
     let stub_screenshot = SkippedScreenshotProvider;
     let stub_vision = SkippedVisionLlmClient;

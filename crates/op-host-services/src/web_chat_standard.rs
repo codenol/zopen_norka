@@ -17,10 +17,10 @@ use std::io::Write;
 use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
-#[cfg(test)]
-use op_ai::chat_provider::StopReason;
 use op_ai::chat_provider::ThinkingMode;
-use op_ai::chat_provider::{ChatAttachment, ChatDelta, ChatHistoryRole, ChatProvider, ChatRequest};
+use op_ai::chat_provider::{
+    ChatAttachment, ChatDelta, ChatHistoryRole, ChatProvider, ChatRequest, StopReason,
+};
 use op_editor_core::chat::MAX_ATTACHMENT_BYTES;
 use op_editor_core::{BuiltinAgentConfig, EditorCommand, EditorState, NodeId};
 use op_orchestrator::{
@@ -52,10 +52,16 @@ use model_selection::selected_model_id;
 #[path = "web_chat_standard_recipe.rs"]
 mod recipe;
 pub(crate) use recipe::composes_new_screen;
+// `kit_recipe` + `recipe_base_rule` are read outside this module as well: the
+// modify plan renders the rule a placement contributes into the prompt of the
+// route a recipe turn actually takes, and it builds it from this one builder
+// rather than keeping a second copy of the wording (issue #207). The rest of
+// these stay module-private — `routes` reaches them through `use super::*`.
 use recipe::{
-    insert_composed_screens, kit_recipe, place_selected_recipe, recipe_base_rule,
-    recipe_base_to_place, reference_evidence, split_composed_screens,
+    insert_composed_screens, place_selected_recipe, recipe_base_to_place, reference_evidence,
+    split_composed_screens,
 };
+pub(crate) use recipe::{kit_recipe, recipe_base_rule};
 
 #[path = "web_chat_standard_routes.rs"]
 mod routes;
@@ -205,6 +211,20 @@ fn parse_chat_attachments(value: Option<&Value>) -> Vec<ChatAttachment> {
         .collect()
 }
 
+/// What the stage *before* routing decided, carried into the route that draws.
+///
+/// Both answers come out of that earlier stage and are read together by
+/// `stream_new_design_route`: whether the request carries a reference picture
+/// (no recipe base may be laid over it, issue #65) and the recipe base the
+/// pre-classification placement already put on the page (the route must not
+/// clone a second copy of it, issue #189). Bundled rather than passed one by
+/// one because the route's parameter list had reached its arity limit, and
+/// because the two facts are the same decision's two halves.
+pub(crate) struct PlacedBase {
+    pub(crate) reference: op_editor_core::ReferenceEvidence,
+    pub(crate) placed_recipe: Option<(String, op_editor_core::NodeId)>,
+}
+
 /// Everything an AI turn needs to commit to the canvas: the document
 /// authority, the stream that announces a change, and the shutdown admission
 /// that decides whether a commit may happen at all.
@@ -257,12 +277,37 @@ pub fn stream_standard_turn<W: Write>(
     };
 
     let model = selected_model_id(&req.ai, &snapshot);
-    if matches!(
+    // ── The starter frame, and the one rule about it (issue #202) ───────────
+    //
+    // The blank `Frame` the daemon opens a document with is not part of a design
+    // request, so a turn that draws drops it (issue #184). The deletion is a
+    // document mutation like any other: it takes the collab gate, write
+    // admission and a version bump. **The clear may only happen on a turn that
+    // will draw** — a turn that answers in words must leave the page exactly as
+    // it found it.
+    //
+    // So it happens in two steps, and the order is the whole fix:
+    //
+    //   1. here, before routing, a *probe* clears the frame in this turn's own
+    //      snapshot and nothing else. Routing reads that snapshot (page empty →
+    //      a classified `Modify` becomes `New`), so the route decision is
+    //      bit-for-bit the one this endpoint made when the clear was live.
+    //   2. below, once the route is known, the live clear runs for every route
+    //      except `Chat`.
+    //
+    // Before that split, the clear ran here against the *live* document, on the
+    // keyword verdict of a different classifier than the one that routes. An
+    // English "Design a settings page…" is a `Design` keyword for
+    // `op_orchestrator::classify_intent` and a conversation for the second
+    // classifier, so the document lost its only frame and the chat route then
+    // drew nothing: `pages[0]` went from 1 node to 0, the turn reported `done`,
+    // and the single version bump of the turn *was* the deletion.
+    let design_keyword = matches!(
         op_orchestrator::classify_intent(&req.ai.user),
         op_orchestrator::Intent::Design
-    ) {
-        clear_starter_frame_for_design(&mut snapshot, state, hub, write_barrier);
-    }
+    );
+    let starter_frame_probed_away =
+        design_keyword && clear_fresh_starter_frame_for_design(&mut snapshot);
     inject_transient_builtin(&mut snapshot, req.transient_builtin.as_ref());
 
     let credential_persistence = state
@@ -348,8 +393,30 @@ pub fn stream_standard_turn<W: Write>(
         resolve_standard_route(classified, page_children_empty, modify_plan.is_some())
     };
 
+    // Step 2 of the starter-frame rule above: the route is known, so the
+    // deletion the probe only previewed can now be committed — and it is
+    // committed for the two routes that draw, never for the one that talks.
+    //
+    // The `design_keyword` half of the condition is what keeps the drawing
+    // routes exactly as they were: a turn that did not match the design
+    // keywords never had its starter frame cleared, and a modify turn against a
+    // blank starter is the turn that rewrites that frame in place.
+    if design_keyword && !matches!(intent, crate::chat_intent::DesignIntent::Chat) {
+        clear_starter_frame_for_design(&mut snapshot, state, hub, write_barrier);
+    }
+
     match intent {
         crate::chat_intent::DesignIntent::Chat => {
+            // The chat route writes nothing to the document, so the frame the
+            // probe dropped from this turn's snapshot must still be on the
+            // canvas — and the reply has to describe the canvas the user
+            // actually has (issue #202).
+            if starter_frame_probed_away {
+                snapshot = {
+                    let guard = state.lock().unwrap_or_else(|p| p.into_inner());
+                    guard.editor.clone()
+                };
+            }
             stream_chat_route(out, &req, &snapshot, chat_provider.as_ref(), model)
         }
         crate::chat_intent::DesignIntent::Modify => {
@@ -365,11 +432,12 @@ pub fn stream_standard_turn<W: Write>(
             )
         }
         crate::chat_intent::DesignIntent::New => {
-            // The route that actually draws the screens decides this, not the
-            // keyword classifier above: a Russian "сделай два экрана" is no
-            // `classify_intent` design word, and the starter frame it left
-            // behind was the third screen in the measurement (issue #184).
-            clear_starter_frame_for_design(&mut snapshot, state, hub, write_barrier);
+            // The starter frame was already cleared above, by the rule that
+            // makes the clear belong to a drawing route — the route that
+            // actually draws the screens decides it, not the keyword classifier
+            // (a Russian "сделай два экрана" is no `classify_intent` design word,
+            // and the starter frame it left behind was the third screen in the
+            // measurement, issue #184).
             stream_new_design_route(
                 out,
                 req,
@@ -381,11 +449,14 @@ pub fn stream_standard_turn<W: Write>(
                     hub,
                     write_barrier,
                 },
-                reference,
-                // The base this turn already stands on, if the pre-classification
-                // placement put one there. Carried in so the route below cannot
-                // place a second copy of it (issue #189).
-                placed_recipe,
+                // What the pre-classification stage decided: whether this is a
+                // reference turn, and the base this turn already stands on — if
+                // the placement put one there. Carried in so the route below
+                // cannot place a second copy of it (issue #189).
+                PlacedBase {
+                    reference,
+                    placed_recipe,
+                },
             )
         }
     }
@@ -480,3 +551,11 @@ mod recipe_reference_tests;
 #[cfg(test)]
 #[path = "web_chat_standard_turn_outcome_tests.rs"]
 mod turn_outcome_tests;
+
+#[cfg(test)]
+#[path = "web_chat_standard_starter_clear_tests.rs"]
+mod starter_clear_tests;
+
+#[cfg(test)]
+#[path = "web_chat_standard_truncation_tests.rs"]
+mod truncation_tests;
