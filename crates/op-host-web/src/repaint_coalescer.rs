@@ -165,7 +165,10 @@ fn schedule_frame() {
         }
     }) as Box<dyn FnMut()>);
     let handle = window
-        .set_timeout_with_callback_and_timeout_and_arguments_0(fallback.as_ref().unchecked_ref(), 250)
+        .set_timeout_with_callback_and_timeout_and_arguments_0(
+            fallback.as_ref().unchecked_ref(),
+            250,
+        )
         .unwrap_or(0);
     COALESCER.with(|c| {
         if let Some(co) = c.borrow_mut().as_mut() {
