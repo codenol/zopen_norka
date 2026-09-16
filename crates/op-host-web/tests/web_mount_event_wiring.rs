@@ -168,13 +168,25 @@ fn credential_status_requests_use_a_finite_timeout() {
         .nth(1)
         .and_then(|body| body.split("pub fn post_json").next())
         .expect("status-aware GET implementation");
+    // The XHR is built by the function the plain entry point forwards to, so
+    // the contract is checked on the function that owns the request rather than
+    // on the forwarding wrapper — which is what it silently became (issues
+    // #224, #225: a source-text contract that reads a slice stops covering
+    // anything the moment the code moves under it).
     let post_with_status = source
-        .split("pub fn post_json_with_status")
+        .split("pub fn post_json_with_status_and_retry")
         .nth(1)
         .expect("status-aware POST implementation");
 
     assert!(get_with_status.contains("xhr.set_timeout(DAEMON_FETCH_TIMEOUT_MS)"));
     assert!(post_with_status.contains("xhr.set_timeout(DAEMON_FETCH_TIMEOUT_MS)"));
+    assert!(
+        source
+            .split("pub fn post_json_with_status(")
+            .nth(1)
+            .is_some_and(|tail| tail.contains("post_json_with_status_and_retry")),
+        "and the plain entry point still forwards to it"
+    );
 }
 
 #[test]
