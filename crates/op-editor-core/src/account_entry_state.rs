@@ -114,6 +114,22 @@ pub enum AccountEntryError {
     EmptyFields,
     /// The two passwords in the invitation form differ.
     PasswordMismatch,
+    /// HTTP 429 `too-many-attempts` — the caller has spent its budget of failed
+    /// attempts, and the daemon asked it to wait.
+    ///
+    /// Its own variant, and not [`Self::Unavailable`], because both halves of
+    /// that sentence are false here: the service IS available (it just answered,
+    /// and it answered this caller specifically) and "try again" is the one
+    /// thing that cannot work. Issue #151 — a locked-out person was told the
+    /// sign-in was unavailable, which is neither true nor actionable.
+    ///
+    /// `retry_after_secs` is the daemon's own `Retry-After` header. It is
+    /// `Option` because the header can genuinely be missing at this end — an
+    /// intermediary may drop it, and a browser on another origin cannot read it
+    /// unless the deployment exposes it — and the honest answer in that case is
+    /// still "too many attempts", just without a number the shell cannot stand
+    /// behind.
+    TooManyAttempts { retry_after_secs: Option<u64> },
     /// No answer the contract describes: a network failure, a proxy, or a
     /// daemon that does not speak this route.
     Unavailable,
@@ -126,7 +142,23 @@ impl AccountEntryError {
     /// and "this invitation has been used", and those are different sentences
     /// for the person reading them. The `error` code decides; the status is
     /// the fallback for a body that does not parse.
+    ///
+    /// Used for an answer whose headers the caller did not read (or could not).
+    /// A caller holding the response's `Retry-After` uses
+    /// [`Self::from_response_and_retry`] instead, so that a throttled sign-in
+    /// can say how long the wait is.
     pub fn from_response(status: u16, body: &str) -> Self {
+        Self::from_response_and_retry(status, body, None)
+    }
+
+    /// [`Self::from_response`], plus the answer's `Retry-After` header.
+    ///
+    /// The header is a parameter rather than read here because reading it is a
+    /// transport concern (`op-host-web` reads it off the XHR) and because the
+    /// daemon deliberately keeps the wait out of the body: the body is
+    /// byte-identical whether the ceiling that fired was per-name or per-address,
+    /// so that a refusal cannot be used to learn whether an account exists.
+    pub fn from_response_and_retry(status: u16, body: &str, retry_after_secs: Option<u64>) -> Self {
         let code = error_code(body);
         match status {
             401 => Self::Rejected,
@@ -140,6 +172,10 @@ impl AccountEntryError {
             }
             400 if code.as_deref() == Some("invite-token-refused") => Self::InviteNotFound,
             400 => Self::InvalidInput,
+            // The one answer that asks the caller to wait. Answered by status,
+            // like every other arm: this route has exactly one 429 (the
+            // throttle), and the body is the same for all three ceilings.
+            429 => Self::TooManyAttempts { retry_after_secs },
             503 if code.as_deref() == Some("accounts-unprovisioned") => Self::Unprovisioned,
             _ => Self::Unavailable,
         }

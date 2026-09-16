@@ -34,6 +34,11 @@
 //! - Spawn reserves a concrete loopback port and retries a bounded
 //!   address-in-use race; current OpenCode no longer treats `--port=0`
 //!   as an ephemeral-port request.
+//! - The window a spawned server gets to announce itself is a deployment
+//!   setting (`chat_listen_window`, default 30 s) rather than the TS
+//!   5 s / 15 s constants: measured spawn cycles on this suite's own
+//!   machine reach 7.5 s, and 10 s under load, so the mirrored numbers
+//!   reported healthy children as failures (issue #152).
 
 use std::sync::{atomic::AtomicBool, Arc};
 use std::time::Duration;
@@ -61,6 +66,15 @@ use probe::probe_server;
 #[path = "chat_http_server_startup.rs"]
 mod startup;
 use startup::{resolve_opencode_server, ServerResolution};
+// The listen window is CONFIGURATION rather than part of the handshake, in its
+// own file for the reason `account_signin_limits` is: a reader looking for "how
+// do I widen this" should not have to read the protocol, and the daemon banners
+// read the same numbers through this path.
+#[path = "chat_listen_window.rs"]
+mod listen_window;
+pub use listen_window::{
+    listen_window_from_env, CHAT_LISTEN_WINDOW_ENV, DEFAULT_LISTEN_WINDOW_SECS,
+};
 
 /// TS `opencode-client.ts` reuses an existing server on the default
 /// port before spawning its own.

@@ -613,6 +613,13 @@ pub(crate) fn write_mcp_http_response_with_origin<S: std::io::Write>(
 /// two writers for one response format is how the fixed half and the variable
 /// half drift apart. So there is one formatter, and this is the parameter that
 /// keeps the cookie out of a second copy of it.
+///
+/// `Retry-After` is exposed to scripts for the same class of reason: a header a
+/// browser cannot read is a header the shell cannot act on. The throttled
+/// sign-in keeps the wait out of its body on purpose (#77), so a page on
+/// ANOTHER origin reaches "too many attempts" with no way to say how long —
+/// which is issue #151's second half. Same-origin reads need no exposure; this
+/// is what makes the cross-origin case honest too.
 pub(crate) fn write_mcp_http_response_with_headers<S: std::io::Write>(
     stream: &mut S,
     status: &str,
@@ -633,7 +640,7 @@ pub(crate) fn write_mcp_http_response_with_headers<S: std::io::Write>(
          {extra}\
          Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n\
          Access-Control-Allow-Headers: Content-Type, mcp-session-id, X-OpenPencil-Token, Authorization\r\n\
-         Access-Control-Expose-Headers: mcp-session-id\r\n\
+         Access-Control-Expose-Headers: mcp-session-id, Retry-After\r\n\
          mcp-session-id: openpencil\r\n\
          Cache-Control: no-store\r\n\
          Content-Type: application/json\r\n\

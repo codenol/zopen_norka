@@ -8,6 +8,7 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
 
+use super::listen_window::listen_window_from_env;
 use super::probe::probe_server_while_open;
 use super::{parse_server_url, OpenCodeError};
 use crate::chat_spawn::build_command;
@@ -15,16 +16,6 @@ use crate::chat_spawn::build_command;
 const MAX_DIAGNOSTIC_BYTES: usize = 16 * 1024;
 const STDERR_SETTLE: Duration = Duration::from_millis(100);
 pub(super) const SERVER_BIND_ATTEMPTS: usize = 3;
-
-/// TS `server.ts` listen timeout: 5s, 15s on Windows
-/// (`opencode-client.ts:92`).
-fn listen_timeout() -> Duration {
-    if cfg!(windows) {
-        Duration::from_secs(15)
-    } else {
-        Duration::from_secs(5)
-    }
-}
 
 /// Reserve an unused IPv4 loopback port, then release the reservation
 /// immediately before spawning OpenCode. The bind-to-zero pattern asks the
@@ -53,6 +44,12 @@ pub(super) enum ServerResolution {
 /// probes and the listen handshake observe receiver closure. Because the
 /// spawned child is written through the caller-owned slot before either await,
 /// cancellation after spawn cannot detach it.
+///
+/// The listen window is read here, once, from the deployment's setting
+/// (`chat_listen_window`) — the entry point a test reaches instead is
+/// [`resolve_opencode_server_with`], which takes the window as a parameter
+/// because issue #152 could not be reproduced by a test that had no way to
+/// widen or shorten it.
 pub(super) async fn resolve_opencode_server<T>(
     tx: &mpsc::Sender<T>,
     client: &reqwest::Client,
@@ -60,7 +57,16 @@ pub(super) async fn resolve_opencode_server<T>(
     default_url: &str,
     spawned: &mut Option<tokio::process::Child>,
 ) -> Result<ServerResolution, OpenCodeError> {
-    resolve_opencode_server_with(tx, client, binary, default_url, spawned, build_command).await
+    resolve_opencode_server_with(
+        tx,
+        client,
+        binary,
+        default_url,
+        spawned,
+        listen_window_from_env(),
+        build_command,
+    )
+    .await
 }
 
 async fn resolve_opencode_server_with<T>(
@@ -69,6 +75,7 @@ async fn resolve_opencode_server_with<T>(
     binary: &str,
     default_url: &str,
     spawned: &mut Option<tokio::process::Child>,
+    listen_window: Duration,
     command_builder: fn(&str, &[String]) -> tokio::process::Command,
 ) -> Result<ServerResolution, OpenCodeError> {
     let Some(default_healthy) = probe_server_while_open(tx, client, default_url).await else {
@@ -78,7 +85,9 @@ async fn resolve_opencode_server_with<T>(
         return Ok(ServerResolution::Ready(default_url.to_string()));
     }
 
-    let Some(url) = spawn_opencode_server(tx, binary, spawned, command_builder).await? else {
+    let Some(url) =
+        spawn_opencode_server(tx, binary, spawned, listen_window, command_builder).await?
+    else {
         return Ok(ServerResolution::Cancelled);
     };
     let Some(spawned_healthy) = probe_server_while_open(tx, client, &url).await else {
@@ -103,6 +112,7 @@ async fn spawn_opencode_server<T>(
     tx: &mpsc::Sender<T>,
     binary: &str,
     spawned: &mut Option<tokio::process::Child>,
+    listen_window: Duration,
     command_builder: fn(&str, &[String]) -> tokio::process::Command,
 ) -> Result<Option<String>, OpenCodeError> {
     for attempt in 0..SERVER_BIND_ATTEMPTS {
@@ -113,7 +123,9 @@ async fn spawn_opencode_server<T>(
             binary: binary.to_string(),
             message: format!("reserve loopback port: {error}"),
         })?;
-        match spawn_opencode_server_once(tx, binary, port, spawned, command_builder).await {
+        match spawn_opencode_server_once(tx, binary, port, spawned, listen_window, command_builder)
+            .await
+        {
             AttemptOutcome::Ready(url) => return Ok(Some(url)),
             AttemptOutcome::Cancelled => return Ok(None),
             AttemptOutcome::Failed {
@@ -148,6 +160,7 @@ async fn spawn_opencode_server_once<T>(
     binary: &str,
     port: u16,
     spawned: &mut Option<tokio::process::Child>,
+    listen_window: Duration,
     command_builder: fn(&str, &[String]) -> tokio::process::Command,
 ) -> AttemptOutcome {
     let args = opencode_server_args(port);
@@ -208,7 +221,7 @@ async fn spawn_opencode_server_once<T>(
         ListenScan::Ended
     };
 
-    let timeout = listen_timeout();
+    let timeout = listen_window;
     let scan_result = tokio::select! {
         biased;
         _ = tx.closed() => return AttemptOutcome::Cancelled,
