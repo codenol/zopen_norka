@@ -645,3 +645,51 @@ fn a_cjk_declaration_line_does_not_panic_the_duplicate_scan() {
     let program = run_script_to_program(script).expect("a clean script still runs");
     assert!(program.contains("折射规律"), "{program}");
 }
+
+/// A modify reply is read from a transcript that carries the turn's own
+/// progress line, and the model is told to write `<step>` tags of its own
+/// (`chat_system_prompt.rs`). QuickJS stops at the `<` of either, which used to
+/// discard a reply whose every statement was complete (measured: issue #182 —
+/// six `I(…)` inserts, `done`, and "response was not valid modification
+/// JavaScript" instead of an applied document).
+#[test]
+fn a_progress_step_block_is_not_part_of_the_script() {
+    let reply = r#"<step title="Checking guidelines">Analyzing modification request...</step>
+I("n267", {type:"frame", name:"Table/Cell/Status/Alternative", children:[]});
+I("n396", {type:"frame", name:"Table/Cell/Status/Default", children:[]});
+
+<!-- APPLIED -->"#;
+
+    let program = run_script_to_program(reply).expect("the reply runs without its scaffold");
+
+    assert_eq!(program.lines().count(), 2, "{program}");
+    assert!(
+        program.contains("Table/Cell/Status/Alternative"),
+        "{program}"
+    );
+    assert!(program.contains("Table/Cell/Status/Default"), "{program}");
+}
+
+/// An unterminated `<step …>` loses only its tag: what such a block introduces
+/// cannot be told apart from the script after it, so the body is left for the
+/// statement ladder instead of being dropped with the block.
+#[test]
+fn an_unterminated_progress_step_keeps_the_script_after_it() {
+    let script = r#"<step title="Composing">
+I(null, {type:"frame", name:"Root"});"#;
+
+    let program = run_script_to_program(script).expect("the statement after the tag still runs");
+
+    assert!(program.contains("Root"), "{program}");
+}
+
+/// `<stepper` is not the activity tag: bytes that only start like it — a node
+/// name inside a string literal, say — must reach the runtime untouched.
+#[test]
+fn a_name_that_only_starts_like_the_tag_is_left_alone() {
+    let script = r#"I(null, {type:"frame", name:"<stepper>", children:[]});"#;
+
+    let program = run_script_to_program(script).expect("the script runs");
+
+    assert!(program.contains("<stepper>"), "{program}");
+}
