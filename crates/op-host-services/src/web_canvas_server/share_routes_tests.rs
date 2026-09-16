@@ -779,3 +779,32 @@ fn a_repeat_grant_at_the_ceiling_still_succeeds() {
     );
     assert_eq!(repeat.status, "200 OK", "{}", repeat.body);
 }
+
+/// A wrong method on a share route answers a CODE, like every other refusal
+/// here (issue #147).
+#[test]
+fn a_wrong_method_on_a_share_route_answers_a_code_not_prose() {
+    let registry = registry();
+    let identity = identity("userA");
+    let lease = registry.lease_for(&identity).expect("lease");
+    let reply = handle(
+        "DELETE",
+        share_routes::GRANT,
+        "",
+        &identity,
+        &lease,
+        &registry,
+        None,
+        Some(DOCUMENT),
+    );
+
+    assert_eq!(reply.status, "405 Method Not Allowed", "{}", reply.body);
+    assert_eq!(
+        body_of(&reply)["error"], "method-not-allowed",
+        "a client switches on `error`; prose there is a value it cannot match"
+    );
+    assert_eq!(
+        body_of(&reply)["message"], "method not allowed for this share route",
+        "and the sentence still travels, in the field the other refusals use"
+    );
+}

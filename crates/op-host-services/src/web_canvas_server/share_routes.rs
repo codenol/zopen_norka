@@ -207,7 +207,18 @@ pub(super) fn handle(
         ("POST", LINK_ACCESS) => link_access(body, identity, lease, registry, key),
         _ => WebReply {
             status: "405 Method Not Allowed",
-            body: crate::mcp_serve::rest_error_body("method not allowed for this share route"),
+            // A CODE, like every other refusal on these routes. It used to go
+            // through `mcp_serve::rest_error_body`, which puts the sentence in
+            // `error` — fine for the older families that share it, but here a
+            // client switching on `error` would meet prose where every other
+            // answer gives `unknown-account`, `read-only-role`,
+            // `cannot-share-with-self` and so on (issue #147).
+            body: serde_json::json!({
+                "ok": false,
+                "error": "method-not-allowed",
+                "message": "method not allowed for this share route",
+            })
+            .to_string(),
         },
     }
 }
