@@ -12,30 +12,12 @@ use crate::{Point2D, Rect};
 use op_editor_core::EditorState;
 use op_editor_core::NodeId;
 
-const SECTION_HEADER_HEIGHT: f32 = 28.0;
-const PAGE_ROW_HEIGHT: f32 = 32.0;
-const LAYER_ROW_HEIGHT: f32 = 28.0;
-const SECTION_GAP: f32 = 8.0;
+// The fixtures and the recording backend live in a sibling; the test cases
+// above keep their names.
+#[path = "layer_panel_tests_support.rs"]
+mod support;
 
-/// Build an `EditorState` from a canonical `.op` JSON string.
-fn state_from(src: &str) -> EditorState {
-    let doc = jian_ops_schema::load_str(src)
-        .expect("layer-panel fixture parses")
-        .value;
-    EditorState::from_document(doc)
-}
-
-/// Four sibling rectangles `n1..n4` in a single-page document.
-fn four_rects() -> EditorState {
-    state_from(
-        r##"{ "version": "1.0.0", "children": [
-              {"type":"rectangle","id":"n1","name":"A","width":10,"height":10},
-              {"type":"rectangle","id":"n2","name":"B","width":10,"height":10},
-              {"type":"rectangle","id":"n3","name":"C","width":10,"height":10},
-              {"type":"rectangle","id":"n4","name":"D","width":10,"height":10}
-        ]}"##,
-    )
-}
+use support::*;
 
 #[test]
 fn owned_build_reuses_cache_on_unchanged_inputs() {
@@ -256,32 +238,6 @@ fn hit_test_resolves_first_layer_row() {
     }
 }
 
-fn first_layer_trailing_points(panel: &LayerPanel, rect: Rect) -> (Point2D, Point2D) {
-    let y = panel.regions(rect).layers_rows_top;
-    let row = Rect {
-        origin: Point2D::new(rect.origin.x + 6.0, y + 2.0),
-        size: Point2D::new(rect.size.x - 12.0, LAYER_ROW_HEIGHT - 4.0),
-    };
-    let trailing_right = row.origin.x + row.size.x - 8.0;
-    let lock_x = trailing_right - 14.0;
-    let eye_x = lock_x - 22.0;
-    let icon_y = row.origin.y + 6.0;
-    (
-        Point2D::new(eye_x + 6.0, icon_y + 6.0),
-        Point2D::new(lock_x + 6.0, icon_y + 6.0),
-    )
-}
-
-fn first_layer_eye_top_left(panel: &LayerPanel, rect: Rect) -> Point2D {
-    let (eye_center, _) = first_layer_trailing_points(panel, rect);
-    Point2D::new(eye_center.x - 6.0, eye_center.y - 5.0)
-}
-
-fn first_layer_lock_top_left(panel: &LayerPanel, rect: Rect) -> Point2D {
-    let (_, lock_center) = first_layer_trailing_points(panel, rect);
-    Point2D::new(lock_center.x - 6.0, lock_center.y - 5.0)
-}
-
 #[test]
 fn selected_visible_unlocked_layer_does_not_expose_trailing_actions_without_hover() {
     let mut state = EditorState::starter();
@@ -351,51 +307,6 @@ fn hidden_locked_layer_does_not_expose_trailing_actions_without_hover() {
         panel.hit_test(rect, lock),
         Some(LayerPanelHit::Layer(_))
     ));
-}
-
-#[derive(Default)]
-struct LayerPaintBackend {
-    strokes: Vec<(Point2D, f32, crate::Color)>,
-}
-
-impl crate::RenderBackend for LayerPaintBackend {
-    fn begin_frame(&mut self) {}
-    fn end_frame(&mut self) {}
-    fn fill_rect(&mut self, _: Rect, _: crate::Color) {}
-    fn stroke_rect(&mut self, _: Rect, _: crate::Color, _: f32) {}
-    fn draw_text(&mut self, _: &crate::TextLayout, _: Point2D) {}
-    fn clip_rect(&mut self, _: Rect) {}
-    fn save(&mut self) {}
-    fn restore(&mut self) {}
-    fn translate(&mut self, _: Point2D) {}
-    fn stroke_line(&mut self, _: Point2D, _: Point2D, _: crate::Color, _: f32) {}
-    fn fill_round_rect(&mut self, _: Rect, _: f32, _: crate::Color) {}
-    fn stroke_round_rect(&mut self, _: Rect, _: f32, _: crate::Color, _: f32) {}
-    fn stroke_svg_path(
-        &mut self,
-        _: &str,
-        top_left: Point2D,
-        size: f32,
-        color: crate::Color,
-        _: f32,
-    ) {
-        self.strokes.push((top_left, size, color));
-    }
-    fn resize(&mut self, _: u32, _: u32) {}
-    fn dpi_scale(&self) -> f32 {
-        1.0
-    }
-}
-
-fn approx_point(a: Point2D, b: Point2D) -> bool {
-    (a.x - b.x).abs() < 1e-4 && (a.y - b.y).abs() < 1e-4
-}
-
-fn is_yellow_400(color: crate::Color) -> bool {
-    (color.r - 250.0 / 255.0).abs() < 1e-4
-        && (color.g - 204.0 / 255.0).abs() < 1e-4
-        && (color.b - 21.0 / 255.0).abs() < 1e-4
-        && (color.a - 1.0).abs() < 1e-4
 }
 
 #[test]
@@ -587,31 +498,6 @@ fn drop_target_at_in_empty_area_below_rows_drops_at_end() {
     assert_eq!(drop.position, DropPosition::After);
     assert_eq!(drop.anchor, panel.items.last().unwrap().node_id);
     assert!((drop.indicator_y - rows_bottom).abs() < 0.5);
-}
-
-fn nested_frame_doc(depth: usize) -> String {
-    let mut src = String::from(r#"{"version":"1.0.0","children":["#);
-    for i in 0..depth {
-        src.push_str(&format!(
-            r##"{{"type":"frame","id":"nest-{i:05}","name":"Nested Layer {i:05}","x":8,"y":6,"width":400,"height":220,"fill":[{{"type":"solid","color":"#ffffff20"}}],"stroke":{{"thickness":1,"fill":[{{"type":"solid","color":"#0088ff"}}]}},"children":["##
-        ));
-    }
-    for _ in 0..depth {
-        src.push_str("]}");
-    }
-    src.push_str("]}");
-    src
-}
-
-fn run_deep_layer_fixture(test: impl FnOnce() + Send + 'static) {
-    let handle = std::thread::Builder::new()
-        .name("op-layer-panel-deep-fixture".into())
-        .stack_size(64 * 1024 * 1024)
-        .spawn(test)
-        .expect("spawn deep layer fixture test");
-    if let Err(payload) = handle.join() {
-        std::panic::resume_unwind(payload);
-    }
 }
 
 #[test]

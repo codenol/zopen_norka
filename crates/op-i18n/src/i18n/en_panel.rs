@@ -1,8 +1,9 @@
 //! Overflow-shard strings for this locale.
 //!
 //! The main table sits at the repo's 800-line file cap, so `en_git`
-//! falls through here for the `imagePanel.*` popover keys and the
-//! `providerProbe.*` keys the Antigravity / Grok Build CLI probes emit.
+//! falls through here for the `imagePanel.*` popover keys and the whole
+//! `providerProbe.*` family the provider CLI probes emit — that family is
+//! spread over two shards otherwise, and one lookup chain reaches both.
 
 pub fn lookup(key: &str) -> Option<&'static str> {
     Some(match key {
@@ -722,6 +723,32 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "ai.styleCard.builtin" => "Built-in style",
         "ai.styleCard.imported" => "Imported DESIGN.md",
         "ai.styleCard.documentDesignMd" => "Document design.md",
+        "providerProbe.cliNotFound" => "{{name}} CLI not found",
+        "providerProbe.cliNotResponding" => "{{name}} CLI not responding",
+        "providerProbe.noModelsClaude" => "No models found. Claude Code did not return a model list. Run \"claude login\" to authenticate, or set ANTHROPIC_API_KEY in ~/.claude/settings.json.",
+        "providerProbe.noModelsCodex" => "No models found. Run \"codex login\" or set OPENAI_API_KEY, then run codex once to populate the model cache.",
+        "providerProbe.noModelsOpenCode" => "No models configured in OpenCode. Run \"opencode\" to set up providers.",
+        "providerProbe.noModelsCopilot" => "No models found. Run \"copilot login\" to authenticate first.",
+        "providerProbe.noModelsAntigravity" => "No model available. Run \"agy\" once to authenticate.",
+        "providerProbe.noModelsGrok" => "No models found. Run \"grok\" once to authenticate.",
+        "providerProbe.noModelList" => "No models found. {{name}} did not return a model list.",
+        "providerProbe.noDefaultModelAntigravity" => "No model available. Antigravity did not expose its default model.",
+        "providerProbe.notAuthenticatedCodex" => "Not authenticated. Run \"codex login\" or set OPENAI_API_KEY first.",
+        "providerProbe.notAuthenticatedCopilot" => "Not authenticated. Run \"copilot login\" in your terminal first.",
+        "providerProbe.claudeExitCode1" => "Claude Code exited with code 1. Run \"claude login\" to authenticate, or set ANTHROPIC_API_KEY in ~/.claude/settings.json.",
+        "providerProbe.claudeExitedUnexpectedly" => "Unable to connect. Claude Code process exited unexpectedly.",
+        "providerProbe.claudeNotFoundInstall" => "Claude Code CLI not found. Please install it first.",
+        "providerProbe.timedOut" => "Connection timed out. Please try again.",
+        "providerProbe.copilotNotFoundInstall" => "GitHub Copilot CLI not found. Install it from https://docs.github.com/copilot/how-tos/copilot-cli",
+        "providerProbe.connectedViaPlan" => "Connected via {{plan}} ({{email}})",
+        "providerProbe.connectedViaApiKey" => "Connected via API key ({{key}})",
+        "providerProbe.connectedViaApiKeyCustomBase" => "Connected via API key (custom base URL)",
+        "providerProbe.connectedViaSubscription" => "Connected via subscription",
+        "providerProbe.connectedViaCodexCli" => "Connected via Codex CLI",
+        "providerProbe.connectedViaMode" => "Connected via {{mode}}",
+        "providerProbe.connectedProviders" => "Connected ({{providers}})",
+        "providerProbe.connectedProvidersMore" => "Connected ({{providers}} +{{count}})",
+        "providerProbe.connectedViaOpenCodeServer" => "Connected via OpenCode server",
         _ => return super::en_collab::lookup(key),
     })
 }

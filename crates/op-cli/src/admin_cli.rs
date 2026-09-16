@@ -7,7 +7,7 @@
 //! The same act from a container (where nobody is sitting at a terminal) is the
 //! `NORKA_ADMIN_USERNAME` / `NORKA_ADMIN_PASSWORD` pair the daemon reads at
 //! start-up; both paths go through
-//! [`AccountsDb::create_first_admin`](op_host_services::accounts::AccountsDb::create_first_admin),
+//! [`AccountsDb::create_first_admin`](op_accounts::accounts::AccountsDb::create_first_admin),
 //! so "who the first admin is" and "is this store fresh" are one decision with
 //! two front doors.
 //!
@@ -36,14 +36,14 @@
 //! exists. The daemon's own route
 //! (`POST /api/auth/admin/invites`) is the same act for an operator who DOES
 //! have a browser; both write through
-//! [`AccountsDb::create_invite`](op_host_services::accounts::AccountsDb::create_invite),
+//! [`AccountsDb::create_invite`](op_accounts::accounts::AccountsDb::create_invite),
 //! so the roles, the lifetime and the hashing are one decision with two front
 //! doors, exactly as `create` is.
 
 use std::io::{BufRead, Write};
 use std::path::Path;
 
-use op_host_services::accounts::{
+use op_accounts::accounts::{
     canonical_roles, check_password_strength, now_secs, split_roles, AccountsDb, FirstAdmin,
     NewInvite, INVITE_TTL_SECS,
 };
@@ -178,7 +178,7 @@ pub(crate) fn open_store(data_dir: Option<&str>) -> Result<AccountsDb, CliError>
             Ok(Some(store)) => Ok(store),
             Ok(None) => Err(CliError::usage(format!(
                 "no deployment data directory: pass --data-dir DIR, or set {}",
-                op_host_services::accounts::DATA_DIR_ENV
+                op_accounts::accounts::DATA_DIR_ENV
             ))),
             Err(error) => Err(CliError::Io(format!(
                 "cannot open the account store: {error}"
@@ -238,14 +238,14 @@ pub(crate) fn create_admin(
     };
 
     match store
-        .create_first_admin(&username, &password, op_host_services::accounts::now_secs())
+        .create_first_admin(&username, &password, op_accounts::accounts::now_secs())
         .map_err(|error| CliError::Io(format!("cannot write the account store: {error}")))?
     {
         FirstAdmin::Created(user) => Ok(format!(
             "created the administrator `{}` ({}), with the role `{}`, in {}",
             user.username,
             user.status.as_str(),
-            op_host_services::accounts::FIRST_ADMIN_ROLE,
+            op_accounts::accounts::FIRST_ADMIN_ROLE,
             store.dir().join("accounts.db").display()
         )),
         // Unreachable — the count above was zero a moment ago — but reported

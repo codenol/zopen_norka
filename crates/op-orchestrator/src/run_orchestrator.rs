@@ -3,6 +3,11 @@
 
 use super::*;
 
+// The closing stages (cleanup call, validation, summary) live in a sibling;
+// the phase order above is the behaviour and stays here.
+#[path = "run_orchestrator_close.rs"]
+mod close;
+
 impl Orchestrator {
     pub fn new() -> Self {
         Self::default()
@@ -646,122 +651,26 @@ impl Orchestrator {
         //
         // Fresh-document mode reuses the single page/target root — every node
         // under it is new — so the behaviour is unchanged there.
-        let mut quality = crate::repair_summary::RepairSummary::default();
-        if append_result.skip_root_insertion {
-            let new_roots: Vec<&str> = outcomes
-                .iter()
-                .flat_map(|o| o.inserted_root_ids.iter().map(String::as_str))
-                .collect();
-            let target_roots: Vec<&str> = root_ids.iter().map(String::as_str).collect();
-            crate::repair_scope::finalize_appended_design(
-                sink,
-                &plan,
-                &new_roots,
-                &target_roots,
-                &mut quality,
-            );
-        } else {
-            // Every screen-group root (not just the first) goes in — this is
-            // the co-op point with `wire_screen_navigation` (Track A of the
-            // interactive-preview plan): `run_cleanup_passes` runs it LAST,
-            // over `sink.state()` as a whole, so as long as every new root is
-            // actually IN the document by now (it is — they're inserted
-            // above, before any subtask runs) it links all of them into App
-            // Mode navigation regardless of which root_ids are passed here.
-            // Passing them all is still correct scoping for the OTHER
-            // whole-root cleanup passes (dedup / avatar-repair / etc.).
-            let root_id_refs: Vec<&str> = root_ids.iter().map(String::as_str).collect();
-            finalize_design_with_summary_and_policy(
-                sink,
-                &plan,
-                &root_id_refs,
-                &mut quality,
-                CleanupPolicy {
-                    preserve_requested_root_height: norm.preserve_requested_root_height,
-                    is_deck: norm.is_deck,
-                    // `root_ids` here are the screen-group roots this run just
-                    // inserted — every node under them is this run's own.
-                    roots_are_run_output: true,
-                },
-            );
-        }
-        on_progress(Progress::CleanupDone);
-        // Turn the cleanup stage's tally into a user-visible credential. Only
-        // fires when the passes actually ran (an empty summary means cleanup
-        // was skipped entirely), so nothing is ever vouched for that nobody
-        // checked.
-        if !quality.is_empty() {
-            on_progress(Progress::QualityChecked {
-                checks: quality
-                    .checked()
-                    .into_iter()
-                    .map(|c| c.key().to_string())
-                    .collect(),
-                repairs: quality
-                    .repaired()
-                    .into_iter()
-                    .map(|(check, count)| (check.key().to_string(), count))
-                    .collect(),
-                records: quality
-                    .records()
-                    .iter()
-                    .map(crate::RepairRecord::line)
-                    .collect(),
-                notes: quality.notes().to_vec(),
-            });
-        }
-        sink.end_undo_batch();
+        let quality = close::finalize_run_cleanup(
+            sink,
+            &plan,
+            &root_ids,
+            &outcomes,
+            append_result.skip_root_insertion,
+            &norm,
+            on_progress,
+        );
 
-        // -- 阶段 5:视觉校验 (S3c D1) — 在 cleanup 后、返回 RunSummary 前 --
-        // Port of `orchestrator.ts:1247-1292`.
-        // 守卫: request.validation_enabled && !abort.is_set().
-        if request.validation_enabled && !abort.is_set() {
-            let _ = run_post_generation_validation(
-                sink,
-                providers.pre_validator,
-                providers.screenshot,
-                providers.vision,
-                &providers.system_prompt,
-                &request,
-                on_progress,
-                abort,
-            );
-        }
-
-        // -- 阶段 6:承诺-交付不变量(classic 路径的诚实上报,与 loop 路径共享检测器)--
-        // Runs AFTER cleanup + validation so a screen a structural pass or
-        // the vision loop still touched is judged on its FINAL state, not
-        // a stale mid-run snapshot. `mark_unfilled_screens` labels the
-        // canvas itself (not just this summary) — a user scrolling the
-        // layer panel sees it even without reading `RunSummary`.
-        let unfilled_hits = crate::unfilled_screens::detect_unfilled_screens(sink.state());
-        let unfilled_screens: Vec<String> = unfilled_hits.iter().map(|h| h.name.clone()).collect();
-        if !unfilled_hits.is_empty() {
-            crate::unfilled_screens::mark_unfilled_screens(sink, &unfilled_hits);
-            on_progress(Progress::UnfilledScreens {
-                names: unfilled_screens.clone(),
-            });
-        }
-
-        let total_nodes = outcomes.iter().map(|o| o.node_count).sum();
-        let paintable_nodes = outcomes.iter().map(|o| o.paintable_nodes).sum();
-        Ok(RunSummary {
-            // First surviving root is the "primary" root_frame_id — mirrors
-            // the deleted concurrent path's identical convention so this
-            // field's meaning never changed shape for existing callers.
-            //
-            // "Surviving" is the word that had gone stale: the ids captured
-            // above are taken BEFORE `finalize_design`, which swaps the real
-            // root in through `ReplaceSubtree` and allocates a fresh id, so the
-            // field could name a node the document does not contain (issue
-            // #29). A field that names the root is worth only what it resolves
-            // to, so a stale id gives way to the root that is actually there.
-            root_frame_id: live_root_id(sink.state(), &root_ids),
-            subtasks: outcomes,
-            total_nodes,
-            paintable_nodes,
-            unfilled_screens,
-        })
+        Ok(close::close_run(
+            sink,
+            &quality,
+            &request,
+            providers,
+            on_progress,
+            abort,
+            outcomes,
+            &root_ids,
+        ))
     }
 }
 

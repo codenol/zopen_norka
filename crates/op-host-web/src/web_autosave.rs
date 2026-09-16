@@ -105,22 +105,42 @@ thread_local! {
     /// asks for the frame that does the save.
     static WAKE: RefCell<Option<wasm_bindgen::closure::Closure<dyn FnMut()>>> =
         const { RefCell::new(None) };
+    /// The pending wake-up's timer handle, so re-arming can CANCEL the timer it
+    /// replaces before dropping that timer's closure.
+    ///
+    /// Without this, every re-arm dropped a closure a live `setTimeout` still
+    /// held: the timer fired 250 ms later into a slot that no longer existed,
+    /// which is the "closure invoked recursively or after being dropped" panic
+    /// the console had been reporting (issue #21). Traced there by wrapping the
+    /// generated JS shim and reading the Rust frames it printed —
+    /// `arm_wake` ← `web_autosave::tick`.
+    static WAKE_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
 }
 
 /// Ask for a frame once the quiet period is over.
 fn arm_wake(delay_ms: u64) {
-    let callback = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-        WAKE.with(|wake| *wake.borrow_mut() = None);
-        crate::repaint_coalescer::request();
-    }) as Box<dyn FnMut()>);
     let Some(window) = web_sys::window() else {
         return;
     };
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        callback.as_ref().unchecked_ref(),
-        delay_ms.min(i32::MAX as u64) as i32,
-    );
+    // Cancel the timer being replaced FIRST, then let its closure drop: a live
+    // timer holding a dropped closure is exactly the panic this fixes.
+    if let Some(handle) = WAKE_TIMER.with(|timer| timer.take()) {
+        window.clear_timeout_with_handle(handle);
+    }
+    let callback = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        // This wake-up is firing: release the handle, and let the NEXT arm
+        // replace the closure rather than dropping it from inside its own call.
+        WAKE_TIMER.with(|timer| timer.set(None));
+        crate::repaint_coalescer::request();
+    }) as Box<dyn FnMut()>);
+    let handle = window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(
+            callback.as_ref().unchecked_ref(),
+            delay_ms.min(i32::MAX as u64) as i32,
+        )
+        .unwrap_or(0);
     WAKE.with(|wake| *wake.borrow_mut() = Some(callback));
+    WAKE_TIMER.with(|timer| timer.set((handle != 0).then_some(handle)));
 }
 
 /// Called once per frame with the shell in hand.

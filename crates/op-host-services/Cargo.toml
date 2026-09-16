@@ -30,6 +30,12 @@ dev-op-auth-abi-v2 = [
 #     when a moved module proves it needs them, per the plan. op-figma landed
 #     for the VS Code plugin's offline `.fig` -> `.op` convert endpoint
 #     (figma_convert.rs). ---
+# The account store (issue #55), cut out into its own crate by issue #75: it is
+# the one thing `op admin create` needs that must NOT come with this crate's
+# Skia/tokio/agent closure. The edge runs one way — this crate re-exports
+# `accounts` under its original path, and nothing here may be reached from
+# `op-accounts`.
+op-accounts = { path = "../op-accounts" }
 op-figma = { path = "../op-figma" }
 op-html = { path = "../op-html" }
 op-editor-core = { path = "../op-editor-core" }
@@ -93,21 +99,10 @@ base64 = "0.22"
 getrandom = "0.3"
 hmac = "0.12"
 sha2 = "0.10"
-# Password hashing for the account store (`accounts`, issue #55). Argon2id only,
-# with the PHC string format: the parameters and the salt travel INSIDE the
-# stored hash, so raising the cost later is a per-row upgrade rather than a
-# migration, and a hash written today stays verifiable. `rand` is deliberately
-# off — the salt comes from `getrandom`, which this crate already depends on for
-# the same reason, so there is one source of randomness in the store rather than
-# two. `password-hash` is what puts the PHC string in and out.
-argon2 = { version = "0.5", default-features = false, features = [
-  "alloc",
-  "password-hash",
-] }
-# Constant-time comparison for token hashes. Argon2's verification is already
-# constant-time internally; this is for the byte-for-byte checks the store does
-# itself, where `==` on two `[u8; 32]` would answer 'how many bytes matched'.
-subtle = "2"
+# Password hashing (argon2) and constant-time token comparison (subtle) moved
+# to `op-accounts` with the store that uses them (issue #75); they arrive here
+# through that crate, which is the only thing in the workspace that hashes a
+# password.
 
 zip = "2"
 memmap2 = "0.9"

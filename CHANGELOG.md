@@ -176,6 +176,18 @@ here at a glance.
 
 ### Changed
 
+- **The account store is a crate of its own, so `op` no longer ships Skia.**
+  `op admin create` has to open the same `accounts.db` the deployment opens —
+  the first administrator has to be creatable before there is a server that
+  could authorize one — and that made the `op` binary link the whole daemon
+  library to write a single row: `skia-safe`, `tokio`, `reqwest`, the agent
+  runtimes. The store now lives in `op-accounts` (SQLite, Argon2id, SHA-256),
+  which `op-host-services` re-exports under its original path, so the imports
+  in the daemon's own routes are unchanged. `op` is the CLI agents drive over
+  the HTTP MCP transport, so this lands on every install, not only on operators
+  provisioning a deployment: `cargo tree -p op-cli` reaches 173 packages where
+  it reached 413, and the built binary links no graphics library at all.
+
 - **A comment is placed by coordinates instead of being pinned to an element.**
   A pin hung on a node, so a comment about a small element — an icon, a label,
   the space between two frames — could only be placed by hitting that element
@@ -214,9 +226,27 @@ here at a glance.
   keep its generated wasm and its vendored extractor copy out of the linters.
 
   Nothing the product uses lived in that crate. `design.md` extraction and the
-  browser-snapshot ingress stay where they already were —
-  `crates/op-host-services` (`design_md_*`, `mcp_live/snapshot_ingest.rs`) — and
-  are unchanged.
+  browser-snapshot *capability* stayed with the product; the two daemon routes
+  that existed only to feed them from the extension went in the entry below.
+
+- **The two extension-only daemon routes, and the origin allowlist behind
+  them.** `POST /api/import/web-snapshot` and `/api/generate/design-md` were the
+  only paths on the local MCP endpoint that admitted a caller by its `Origin`
+  rather than by the endpoint's own loopback boundary: any well-formed
+  `chrome-extension://<id>` cleared the boundary without a token, and in the
+  shipped default (`OPENPENCIL_EXTENSION_ALLOWED_IDS` unset) that meant *every*
+  installed extension, not one known extension — for the snapshot route, a
+  write into the live document. With the extension gone and not planned, the
+  routes were an interface with no holder, so they are removed, and the
+  allowlist nobody could populate (`OPENPENCIL_EXTENSION_ALLOWED_IDS`) with
+  them. A request for either path is now not found, whatever its `Origin`
+  claims, and an extension-shaped `Origin` is refused by the boundary on every
+  other path too.
+
+  Nothing the product uses was lost: `import_web_snapshot` is still a registered
+  MCP tool, so `/mcp` and the `op` CLI still import a captured snapshot, and
+  `design.md` generation still runs in the app against the selected chat model.
+  Only the extension-shaped door to each is gone.
 
 - **The browser shell's device-login proxy.** The daemon stopped serving
   `/api/auth/login/begin`, `/api/auth/login/status`, `/api/auth/login/cancel`,

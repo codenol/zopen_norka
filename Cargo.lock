@@ -4140,6 +4140,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "op-accounts"
+version = "0.9.0"
+dependencies = [
+ "argon2",
+ "base64",
+ "getrandom 0.3.4",
+ "op-editor-core",
+ "rusqlite",
+ "sha2",
+ "subtle",
+]
+
+[[package]]
 name = "op-acp"
 version = "0.9.0"
 dependencies = [
@@ -4229,11 +4242,11 @@ version = "0.9.0"
 dependencies = [
  "base64",
  "jian-ops-schema",
+ "op-accounts",
  "op-ai-skills",
  "op-config-store",
  "op-editor-core",
  "op-figma",
- "op-host-services",
  "op-html",
  "op-pen-loader",
  "op-process-io",
@@ -4745,7 +4758,6 @@ version = "0.9.0"
 dependencies = [
  "agent",
  "anthropic-agent-sdk",
- "argon2",
  "async-trait",
  "base64",
  "dirs 5.0.1",
@@ -4756,6 +4768,7 @@ dependencies = [
  "jian-ops-schema",
  "libc",
  "memmap2",
+ "op-accounts",
  "op-acp",
  "op-ai",
  "op-ai-skills",
@@ -4784,7 +4797,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "skia-safe",
- "subtle",
  "tokio",
  "zip",
 ]

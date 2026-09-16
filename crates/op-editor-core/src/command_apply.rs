@@ -30,6 +30,8 @@
 //! - `helpers` — enum-string parsers, the dirty-marking classifier,
 //!   page-index resolution and the active-page insert shims
 //! - `app_state` — the `MergeAppState` merge with its ownership rules
+//! - `selection` — the selection and clipboard arms, which act on the
+//!   current selection rather than on a node addressed by id
 //!
 use crate::align::AlignAction;
 use crate::command::{EditorCommand, VariableScalarPayload};
@@ -45,6 +47,7 @@ use jian_ops_schema::variable::{VariableKind, VariableScalar};
 
 mod app_state;
 mod helpers;
+mod selection;
 
 pub(crate) use helpers::command_marks_document_dirty;
 use helpers::{
@@ -566,133 +569,32 @@ impl EditorState {
             }
 
             // --- Selection -----------------------------------------
-            EditorCommand::ClearSelection => {
-                self.clear_selection();
-                true
-            }
-            EditorCommand::SetSelection { node_id } => {
-                // Scoped to the active page — parity with shell-core,
-                // which rejected off-page ids so later reads stay
-                // consistent.
-                if !node_id.is_real() || find_node(self.active_children(), &node_id).is_none() {
-                    return Ok(false);
-                }
-                self.set_single_selection(node_id);
-                true
-            }
-            EditorCommand::SetSelectionSet { node_ids } => {
-                // Resolve every id against the active page; unknown /
-                // off-page ids are dropped silently.
-                let resolved: Vec<NodeId> = node_ids
-                    .into_iter()
-                    .filter(|id| id.is_real() && find_node(self.active_children(), id).is_some())
-                    .collect();
-                if resolved.is_empty() {
-                    self.clear_selection();
-                } else {
-                    let anchor = resolved.last().cloned().unwrap();
-                    if self.selection.anchor != anchor || self.selection.set != resolved {
-                        self.editor_ui.image_panel.close_popovers();
-                    }
-                    self.selection.anchor = anchor;
-                    self.selection.set = resolved;
-                }
-                true
-            }
+            // Everything through `PasteClipboard` reads `self.selection` (or
+            // installs it) instead of addressing a node by id, so those bodies
+            // live in the sibling `command_apply/selection`.
+            EditorCommand::ClearSelection => self.cmd_clear_selection(),
+            EditorCommand::SetSelection { node_id } => self.cmd_set_selection(node_id),
+            EditorCommand::SetSelectionSet { node_ids } => self.cmd_set_selection_set(node_ids),
             EditorCommand::ToggleNodeSelection { node_id } => {
-                if !node_id.is_real() || find_node(self.active_children(), &node_id).is_none() {
-                    return Ok(false);
-                }
-                self.toggle_selection(node_id);
-                true
+                self.cmd_toggle_node_selection(node_id)
             }
 
             // --- Selection-scoped tree ops -------------------------
-            EditorCommand::DuplicateSelected { offset_px } => self
-                .duplicate_selected_with_allocator(allocator, offset_px as f64)?
-                .is_some(),
-            EditorCommand::DeleteSelected => {
-                if self.selection.set.is_empty() {
-                    return Ok(false);
-                }
-                let snap = self.snapshot_for_history();
-                if self.delete_selected() {
-                    self.history_push_past(snap);
-                    true
-                } else {
-                    false
-                }
+            EditorCommand::DuplicateSelected { offset_px } => {
+                self.cmd_duplicate_selected(allocator, offset_px)?
             }
-            EditorCommand::NudgeSelected { dx, dy } => {
-                if self.selection.set.is_empty() || (dx == 0 && dy == 0) {
-                    return Ok(false);
-                }
-                let snap = self.snapshot_for_history();
-                if self.translate_selected(dx as f64, dy as f64) {
-                    self.history_push_past(snap);
-                    true
-                } else {
-                    false
-                }
-            }
-            EditorCommand::GroupSelected => {
-                let snap = self.snapshot_for_history();
-                if self.group_selected_with_allocator(allocator)?.is_some() {
-                    self.history_push_past(snap);
-                    true
-                } else {
-                    false
-                }
-            }
-            EditorCommand::UngroupSelected => {
-                let snap = self.snapshot_for_history();
-                if self.ungroup_selected() {
-                    self.history_push_past(snap);
-                    true
-                } else {
-                    false
-                }
-            }
-            EditorCommand::ReorderSelected { direction } => {
-                if !self.selection.anchor.is_real() {
-                    return Ok(false);
-                }
-                let snap = self.snapshot_for_history();
-                if self.reorder_selected(direction) {
-                    self.history_push_past(snap);
-                    true
-                } else {
-                    false
-                }
-            }
-            EditorCommand::AlignSelected { action } => {
-                let Some(parsed) = parse_align_action(&action) else {
-                    return Ok(false);
-                };
-                // `align_selected` pushes its own history on real
-                // motion.
-                self.align_selected(parsed)
-            }
+            EditorCommand::DeleteSelected => self.cmd_delete_selected(),
+            EditorCommand::NudgeSelected { dx, dy } => self.cmd_nudge_selected(dx, dy),
+            EditorCommand::GroupSelected => self.cmd_group_selected(allocator)?,
+            EditorCommand::UngroupSelected => self.cmd_ungroup_selected(),
+            EditorCommand::ReorderSelected { direction } => self.cmd_reorder_selected(direction),
+            EditorCommand::AlignSelected { action } => self.cmd_align_selected(&action),
 
             // --- Clipboard -----------------------------------------
             EditorCommand::CopySelected => self.copy_selected(),
-            EditorCommand::CutSelected => {
-                let snap = self.snapshot_for_history();
-                if self.cut_selected() {
-                    self.history_push_past(snap);
-                    true
-                } else {
-                    false
-                }
-            }
+            EditorCommand::CutSelected => self.cmd_cut_selected(),
             EditorCommand::PasteClipboard { offset_px } => {
-                let snap = self.snapshot_for_history();
-                let new_ids = self.paste_clipboard_with_allocator(allocator, offset_px as f64)?;
-                if new_ids.is_empty() {
-                    return Ok(false);
-                }
-                self.history_push_past(snap);
-                true
+                self.cmd_paste_clipboard(allocator, offset_px)?
             }
             EditorCommand::ImportSvg {
                 svg,

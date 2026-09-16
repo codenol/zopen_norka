@@ -9,7 +9,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use super::*;
-use op_host_services::accounts::{NewUser, UserStatus};
+use op_accounts::accounts::{NewUser, UserStatus};
 
 /// A directory that deletes itself, and the store inside it.
 struct TempDir(PathBuf);
@@ -104,7 +104,7 @@ fn a_fresh_deployment_gets_its_first_administrator() {
     let summary = outcome.expect("the admin is created");
     assert_secret_never_printed(&Ok(summary.clone()), &printed);
     assert!(summary.contains("operator"), "{summary}");
-    assert!(summary.contains(op_host_services::accounts::FIRST_ADMIN_ROLE));
+    assert!(summary.contains(op_accounts::accounts::FIRST_ADMIN_ROLE));
     // It says which database it wrote, so an operator pointing at the wrong
     // directory learns it from the answer rather than from a sign-in much
     // later.
@@ -176,7 +176,7 @@ fn a_deployment_that_already_has_accounts_is_refused_without_asking_anything() {
     let (_dir, db) = store("provisioned");
     db.create_user(
         &NewUser::active("colleague", "Colleague", "an-existing-password-1234"),
-        op_host_services::accounts::now_secs(),
+        op_accounts::accounts::now_secs(),
     )
     .expect("seed an account");
 
@@ -499,7 +499,7 @@ fn an_invitation_the_command_line_issued_can_be_withdrawn_by_the_id_the_listing_
 
     assert_eq!(
         store.revoke_invite_by_id(&listed[0].id).expect("withdraw"),
-        op_host_services::accounts::InviteWithdrawal::Revoked
+        op_accounts::accounts::InviteWithdrawal::Revoked
     );
     assert_eq!(store.find_invite(&token).expect("find"), None);
 }

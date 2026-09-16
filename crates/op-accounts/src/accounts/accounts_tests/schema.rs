@@ -263,10 +263,14 @@ fn the_data_directory_variable_is_the_one_the_deployment_already_uses() {
     // accounts store does not depend on the web layer. Named TWICE, then, and
     // this is what keeps the two names one setting: a deployment that sets the
     // variable must find both stores in the same place.
-    assert_eq!(
-        crate::accounts::DATA_DIR_ENV,
-        crate::web_canvas_server::tenant_store::DATA_DIR_ENV
-    );
+    //
+    // The other half of that promise — that the tenant store's copy really
+    // spells it the same way — can no longer be asked from here: the store
+    // lives in its own crate (issue #75) and must not depend on the daemon to
+    // answer a question about a name. It is pinned beside the tenant store
+    // instead (`op-host-services::accounts_data_dir_tests`). What is checked
+    // here is the literal itself, which is what a rename has to get past.
+    assert_eq!(crate::accounts::DATA_DIR_ENV, "OPENPENCIL_ONLINE_DATA_DIR");
 }
 
 #[test]

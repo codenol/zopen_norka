@@ -2,63 +2,15 @@ use super::*;
 use op_editor_core::{ChatActivity, ChatActivityStatus, ChatMessage, ChatRole, Locale};
 use op_editor_host_core::design::{DesignCmdReq, DesignDelta};
 use op_host_native::WidgetHostNative;
-use op_orchestrator::agent_identity::AgentIdentity;
 use op_orchestrator::{AbortFlag, Progress, RunSummary, SubtaskOutcome};
 use std::sync::mpsc;
 
-fn identity(name: &str, color: &str) -> AgentIdentity {
-    AgentIdentity {
-        name: name.into(),
-        color: color.into(),
-    }
-}
+// The fixtures live in a sibling; the test cases keep their names and the
+// `use super::*` above still reaches the module under test.
+#[path = "design_session_worker_support.rs"]
+mod support;
 
-fn persisted_subtask_json() -> String {
-    serde_json::to_string(&op_orchestrator::plan::Subtask {
-        id: "hero".into(),
-        label: "Hero".into(),
-        region: op_orchestrator::plan::Region {
-            width: 1200.0,
-            height: 400.0,
-        },
-        id_prefix: "hero".into(),
-        parent_frame_id: None,
-        elements: None,
-        screen: Some("Profile".into()),
-        generated_root_id: None,
-        existing_section_labels: None,
-        retry_feedback: None,
-    })
-    .unwrap()
-}
-
-fn persisted_request_json() -> String {
-    serde_json::to_string(&op_orchestrator::DesignRequest {
-        prompt: "design profile".into(),
-        model: None,
-        provider: None,
-        rules: Vec::new(),
-        concurrency: 2,
-        continuation_context: None,
-        append_context: None,
-        validation_enabled: false,
-        visual_ref_enabled: false,
-        pinned_style_guide: None,
-        reference_attachments: Vec::new(),
-        reference_brief: None,
-    })
-    .unwrap()
-}
-
-fn activity(id: &str, status: ChatActivityStatus) -> ChatActivity {
-    ChatActivity {
-        id: id.into(),
-        title: id.into(),
-        detail: None,
-        status,
-        content_offset: None,
-    }
-}
+use support::*;
 
 #[test]
 fn worker_scoped_progress_builds_one_stable_message_per_screen_group() {

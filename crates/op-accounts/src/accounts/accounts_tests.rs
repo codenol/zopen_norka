@@ -18,7 +18,7 @@
 use rusqlite::Connection;
 
 use super::*;
-use crate::document_test_dir::TempDir;
+use crate::test_dir::TempDir;
 
 /// A moment every test can reason about.
 ///

@@ -1,8 +1,9 @@
 //! Overflow-shard strings for this locale.
 //!
 //! The main table sits at the repo's 800-line file cap, so `zh_cn_git`
-//! falls through here for the `imagePanel.*` popover keys and the
-//! `providerProbe.*` keys the Antigravity / Grok Build CLI probes emit.
+//! falls through here for the `imagePanel.*` popover keys and the whole
+//! `providerProbe.*` family the provider CLI probes emit — that family is
+//! spread over two shards otherwise, and one lookup chain reaches both.
 
 pub fn lookup(key: &str) -> Option<&'static str> {
     Some(match key {
@@ -682,6 +683,32 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "ai.styleCard.builtin" => "内置风格",
         "ai.styleCard.imported" => "导入的 DESIGN.md",
         "ai.styleCard.documentDesignMd" => "文档 design.md",
+        "providerProbe.cliNotFound" => "未找到 {{name}} CLI",
+        "providerProbe.cliNotResponding" => "{{name}} CLI 无响应",
+        "providerProbe.noModelsClaude" => "未找到模型。Claude Code 未返回模型列表。请运行“claude login”登录，或在 ~/.claude/settings.json 中设置 ANTHROPIC_API_KEY。",
+        "providerProbe.noModelsCodex" => "未找到模型。请运行“codex login”或设置 OPENAI_API_KEY，然后运行一次 codex 以生成模型缓存。",
+        "providerProbe.noModelsOpenCode" => "OpenCode 中未配置模型。请运行“opencode”配置提供商。",
+        "providerProbe.noModelsCopilot" => "未找到模型。请先运行“copilot login”登录。",
+        "providerProbe.noModelsAntigravity" => "没有可用模型。请运行一次“agy”完成登录。",
+        "providerProbe.noModelsGrok" => "未找到模型。请运行一次“grok”完成登录。",
+        "providerProbe.noModelList" => "未找到模型。{{name}} 未返回模型列表。",
+        "providerProbe.noDefaultModelAntigravity" => "没有可用模型。Antigravity 未提供默认模型。",
+        "providerProbe.notAuthenticatedCodex" => "尚未登录。请先运行“codex login”或设置 OPENAI_API_KEY。",
+        "providerProbe.notAuthenticatedCopilot" => "尚未登录。请先在终端中运行“copilot login”。",
+        "providerProbe.claudeExitCode1" => "Claude Code 以代码 1 退出。请运行“claude login”登录，或在 ~/.claude/settings.json 中设置 ANTHROPIC_API_KEY。",
+        "providerProbe.claudeExitedUnexpectedly" => "无法连接。Claude Code 进程意外退出。",
+        "providerProbe.claudeNotFoundInstall" => "未找到 Claude Code CLI。请先安装。",
+        "providerProbe.timedOut" => "连接超时，请重试。",
+        "providerProbe.copilotNotFoundInstall" => "未找到 GitHub Copilot CLI。请从 https://docs.github.com/copilot/how-tos/copilot-cli 安装",
+        "providerProbe.connectedViaPlan" => "已通过 {{plan}} 连接（{{email}}）",
+        "providerProbe.connectedViaApiKey" => "已通过 API 密钥连接（{{key}}）",
+        "providerProbe.connectedViaApiKeyCustomBase" => "已通过 API 密钥连接（自定义 Base URL）",
+        "providerProbe.connectedViaSubscription" => "已通过订阅连接",
+        "providerProbe.connectedViaCodexCli" => "已通过 Codex CLI 连接",
+        "providerProbe.connectedViaMode" => "已通过 {{mode}} 连接",
+        "providerProbe.connectedProviders" => "已连接（{{providers}}）",
+        "providerProbe.connectedProvidersMore" => "已连接（{{providers}} +{{count}}）",
+        "providerProbe.connectedViaOpenCodeServer" => "已通过 OpenCode 服务连接",
         _ => return super::zh_cn_collab::lookup(key),
     })
 }

@@ -1,0 +1,53 @@
+# The account store, deliberately cut out of `op-host-services` (issue #75).
+# `op-host-services` is the headless daemon's whole library closure — skia-safe,
+# tokio, reqwest, the agent runtimes — and `op admin create` needs to open the
+# same `accounts.db` the daemon opens, before there is a daemon to ask. Linking
+# Skia for one subcommand is what this crate exists to avoid: SQLite, Argon2id
+# and SHA-256 are not free, but they are two orders of magnitude away from a
+# rasteriser. Nothing here may grow a dependency on the daemon; the direction of
+# this edge is `op-host-services` -> `op-accounts`, never the reverse.
+[package]
+name = "op-accounts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "OpenPencil account store — users, sessions, one-time tokens and invites in SQLite, with Argon2id password hashing; no daemon, no Skia"
+
+[lib]
+name = "op_accounts"
+path = "src/lib.rs"
+
+[dependencies]
+# The role vocabulary (ProductRole / RoleSet) the store writes into its `roles`
+# column. Already in `op-cli`'s graph, so this edge adds nothing there; it is
+# also wasm32-clean, so it would not compromise the crate if a browser build
+# ever read accounts.
+op-editor-core = { path = "../op-editor-core" }
+
+# The stored index format. `bundled` compiles SQLite from the crate's own
+# amalgamation instead of linking whatever the host happens to have: the store
+# ships inside a container AND inside a desktop binary, and a store whose
+# behaviour depends on the local libsqlite3 is one that fails only on somebody
+# else's machine.
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Password hashing. Argon2id only, with the PHC string format: the parameters
+# and the salt travel INSIDE the stored hash, so raising the cost later is a
+# per-row upgrade rather than a migration, and a hash written today stays
+# verifiable. `rand` is deliberately off — the salt comes from `getrandom`, so
+# there is one source of randomness in the store rather than two.
+# `password-hash` is what puts the PHC string in and out.
+argon2 = { version = "0.5", default-features = false, features = [
+  "alloc",
+  "password-hash",
+] }
+# Constant-time comparison for token hashes. Argon2's verification is already
+# constant-time internally; this is for the byte-for-byte checks the store does
+# itself, where `==` on two `[u8; 32]` would answer 'how many bytes matched'.
+subtle = "2"
+sha2 = "0.10"
+# The one source of randomness: salts and the tokens an invite link carries.
+getrandom = "0.3"
+# URL-safe base64 for the token that travels in a query string and a cookie.
+base64 = "0.22"
