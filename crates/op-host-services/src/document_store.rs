@@ -243,6 +243,9 @@ pub fn list(db: &DocumentDb) -> Result<Vec<DocumentEntry>, DocumentStoreError> {
 /// Rows with no owner are deliberately absent: nothing attributes them to
 /// `owner`, and an unattributed row handed to whoever asks for a list is the
 /// leak this function exists to close.
+///
+/// The two ways a row comes to be in this list — the account created it, or the
+/// account claimed it — are stated once, in [`claim`].
 pub fn list_owned_by(
     db: &DocumentDb,
     owner: &str,
@@ -302,6 +305,87 @@ pub fn touch(db: &DocumentDb, key: &str) -> Result<DocumentEntry, DocumentStoreE
     }
     let size = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
     document_db::touch_entry(db, key, now_secs(), size, DEFAULT_NAME)
+}
+
+/// What a claim did — one case per answer a route has to give.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClaimOutcome {
+    /// The row belonged to nobody, and now names the account that claimed it.
+    Claimed(DocumentEntry),
+    /// The row already belonged to the claiming account. Deliberately not an
+    /// error: a client that claims the same document twice — a retry, a
+    /// refreshed page, a script run again — must not be told the second time
+    /// that it failed.
+    AlreadyOwned(DocumentEntry),
+    /// The row belongs to another account, and was left exactly as it was.
+    Foreign(DocumentEntry),
+}
+
+/// Bind a stored document to `owner`.
+///
+/// ## The rule, which this function is the only implementation of (#46)
+///
+/// A stored document becomes an account's — and therefore appears in that
+/// account's file list ([`list_owned_by`]) — in exactly two ways:
+///
+/// 1. the account CREATED it ([`create_with`]), which records the creator;
+/// 2. the account CLAIMS it, here.
+///
+/// Nothing else attributes a document, and that is the decision rather than an
+/// accident of what the routes happen to do today:
+///
+/// * **Opening one does not.** A read must not decide who a document belongs to,
+///   and the key that opens it travels — in the address bar, in a link, in a
+///   chat message. Attributing on open would make the first person to follow a
+///   stale link the owner of whatever it pointed at.
+/// * **Saving one does not, and neither does autosave.** A save is ordinary work
+///   on a document whose owner the file list already had to know; autosave is
+///   that same work performed by a background tab, so it cannot be the act that
+///   decides ownership either — a visitor with a document open would take it by
+///   leaving the tab open.
+///
+/// So a document that arrived ANOTHER way — a file placed in the directory by
+/// hand, a row left unattributed by a deployment that ran without accounts, a
+/// row the legacy `index.json` import brought over — is recovered through this
+/// one deliberate act, and the daemon has no other path to it.
+///
+/// ## What a claim will not do
+///
+/// It will not take a document from another account: a row that names an owner
+/// is that owner's, whatever key the claimer produced, and comes back as
+/// [`ClaimOutcome::Foreign`]. It will not invent a document either — the FILE
+/// decides whether there is anything to claim, exactly as it does for a save, so
+/// a key nothing is stored under is [`DocumentStoreError::NotFound`] rather than
+/// a new row. Who may claim is the route's question
+/// (`crate::web_canvas_server::request_access::DocumentAction::Claim`).
+///
+/// The name of a row created here is `DEFAULT_NAME`: the file's name in the
+/// list is the store's own record, and a document whose `.op` file arrived
+/// without one has no name to recover.
+pub fn claim(db: &DocumentDb, key: &str, owner: &str) -> Result<ClaimOutcome, DocumentStoreError> {
+    let path = document_path(db.dir(), key)?;
+    let metadata = match std::fs::metadata(&path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Err(DocumentStoreError::NotFound)
+        }
+        Err(error) => {
+            return Err(DocumentStoreError::Io(format!(
+                "stat {}: {error}",
+                path.display()
+            )))
+        }
+    };
+    let (entry, claimed) =
+        document_db::claim_entry(db, key, owner, now_secs(), metadata.len(), DEFAULT_NAME)?;
+    // The owner as the row stands now, cloned before the entry moves into the
+    // outcome: which of the three answers this is depends on it.
+    let attributed = entry.owner_id.clone();
+    Ok(match (claimed, attributed.as_deref()) {
+        (true, _) => ClaimOutcome::Claimed(entry),
+        (false, Some(owner_id)) if owner_id == owner => ClaimOutcome::AlreadyOwned(entry),
+        (false, _) => ClaimOutcome::Foreign(entry),
+    })
 }
 
 /// Rename a document — the key, and so the address, stays put.

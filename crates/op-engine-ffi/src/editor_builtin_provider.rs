@@ -224,10 +224,6 @@ impl ChatProvider for MobileBuiltinProvider {
         true
     }
 
-    fn supports_evidence_only_send(&self) -> bool {
-        true
-    }
-
     fn send_cancellable(
         &self,
         request: ChatRequest,

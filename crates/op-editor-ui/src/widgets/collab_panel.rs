@@ -9,6 +9,7 @@
 use crate::theme::Theme;
 use crate::widgets::collab_ui::{
     CollabAdmissionRequestModel, CollabPanelActionModel, CollabPanelModel, CollabPanelScreen,
+    COLLAB_UNAVAILABLE_SENTENCE,
 };
 use crate::widgets::editor_state_ext::theme_for;
 use crate::widgets::icons::{draw_icon, Icon};
@@ -181,8 +182,10 @@ impl Widget for CollabPanel<'_> {
         }
 
         match &self.model.screen {
+            // One sentence for both causes, and it names neither: see
+            // `collab_ui::COLLAB_UNAVAILABLE_SENTENCE`.
             CollabPanelScreen::Unavailable => {
-                self.paint_message(cx, rect, body_top, "collab.topbar.unavailable");
+                self.paint_message(cx, rect, body_top, COLLAB_UNAVAILABLE_SENTENCE);
             }
             // No button: this chrome has no sign-in to open, so the honest
             // screen is the sentence that says so. See
@@ -660,6 +663,10 @@ mod tests;
 #[cfg(test)]
 #[path = "collab_panel_sign_in_tests.rs"]
 mod sign_in_tests;
+
+#[cfg(test)]
+#[path = "collab_panel_unavailable_tests.rs"]
+mod unavailable_tests;
 
 #[cfg(test)]
 #[path = "collab_panel_region_tests.rs"]

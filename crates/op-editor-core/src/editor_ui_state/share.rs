@@ -88,6 +88,35 @@ impl ShareInvitePlan {
     }
 }
 
+/// The sentence the link row's caption shows for the level it hands out.
+///
+/// ## Why the caption is a property of the LEVEL and not of the row
+///
+/// "Anyone with the link" is the flat half of the statement: it names the
+/// SUBJECT of the grant and nothing about what the subject may do. Until #131
+/// the caption under it was equally flat — one sentence about signing in, the
+/// same whether the link handed out viewing or editing — so the only thing on
+/// screen that told "anyone may look" from "anyone may rewrite" was the level
+/// chip beside the switch, and a person who moved that chip without reading it
+/// had no way to tell what they had just published to the whole deployment. The
+/// row is the only grant in this dialog with no subject to read back (a named
+/// grant has a person row), so its caption is the only place the consequence
+/// can be stated at all.
+///
+/// Four sentences rather than one, because the four levels hand out four
+/// different powers and the level that writes is the one that has to be
+/// unmistakable. Each one carries the deployment's sign-in caveat as well as
+/// the consequence: the caveat is what stops "anyone with the link" from
+/// reading as "the open internet", and it is true of every level.
+pub const fn link_level_caption_key(level: ShareLevel) -> &'static str {
+    match level {
+        ShareLevel::Admin => "share.row.anyoneWithLink.caption.admin",
+        ShareLevel::Editor => "share.row.anyoneWithLink.caption.editor",
+        ShareLevel::Commenter => "share.row.anyoneWithLink.caption.commenter",
+        ShareLevel::Viewer => "share.row.anyoneWithLink.caption.viewer",
+    }
+}
+
 /// One invitation the server issued, with the link only a human can deliver.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShareIssuedInvite {
@@ -420,6 +449,16 @@ impl ShareUiState {
         // person belongs made "Who has access" unreadable to anybody who did
         // not already know the ids (issue #119).
         granted.label().to_string()
+    }
+
+    /// What the "Anyone with the link" row hands to everyone who signs in.
+    ///
+    /// Read from [`Self::link_level`] — the level the switch carries and the
+    /// level the server last confirmed — so the row cannot describe a state the
+    /// document is not in. See [`link_level_caption_key`] for why the sentence
+    /// follows the level rather than the row.
+    pub fn link_caption(&self, locale: Locale) -> String {
+        op_i18n::translate(locale, link_level_caption_key(self.link_level)).to_string()
     }
 
     /// The sentence describing who added somebody, or the honest gap.

@@ -62,6 +62,15 @@ pub fn run_web_canvas(options: ServeWebOptions) -> Result<()> {
         .map_err(|e| WebCanvasError::Config(e.to_string()))?;
     let bound = local_addr.port();
     eprintln!("openpencil-desktop --serve-web: listening on {host}:{bound}");
+    // Printed with the daemon's other numbers rather than left discoverable only
+    // from a failed turn: the window a spawned OpenCode server gets to announce
+    // itself is a deployment setting (issue #152), and an operator on a loaded
+    // host has to be able to see the value in force before a chat is attempted.
+    eprintln!(
+        "openpencil-desktop --serve-web: chat server listen window — {}s ({})",
+        crate::chat_http_server::listen_window_from_env().as_secs(),
+        crate::chat_http_server::CHAT_LISTEN_WINDOW_ENV
+    );
     match crate::web_static::resolve_bundle_dir() {
         Some(dir) => eprintln!(
             "openpencil-desktop --serve-web: serving web bundle from {}",

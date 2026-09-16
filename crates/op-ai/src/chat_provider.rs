@@ -322,14 +322,6 @@ pub trait ChatProvider: Send + Sync {
         false
     }
 
-    /// Whether this provider guarantees a text-only turn with no local tools,
-    /// filesystem access, MCP surface, or other side effects. Untrusted
-    /// evidence workflows must require this separately from cancellation: an
-    /// abortable coding agent can still act on prompt-injected instructions.
-    fn supports_evidence_only_send(&self) -> bool {
-        false
-    }
-
     /// Start a turn that may be interrupted through `cancel`. Providers with
     /// an abortable transport must override this together with
     /// [`Self::supports_cancellable_send`]. The default preserves the original

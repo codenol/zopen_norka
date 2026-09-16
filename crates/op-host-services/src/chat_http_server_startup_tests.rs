@@ -154,6 +154,7 @@ mod unix {
     use std::path::{Path, PathBuf};
 
     use super::*;
+    use crate::chat_http_server::listen_window::listen_window_from;
 
     fn temp_path(label: &str) -> PathBuf {
         let id = TEMP_ID.fetch_add(1, Ordering::Relaxed);
@@ -182,6 +183,26 @@ mod unix {
         command.process_group(0);
         command
     }
+
+    /// The window the migrated handshake tests inject.
+    ///
+    /// Issue #152 was invisible to this suite for one reason: the window was a
+    /// constant the product applied before any test could reach it, so a stub
+    /// that had not started yet was reported as a broken server and there was
+    /// nothing a test-side budget could do about it. These tests are about
+    /// cancellation and the address-in-use retry — not about the window — so
+    /// they inject the DEPLOYMENT'S OWN default, which is what a real host runs
+    /// with and is generous enough that a slow machine is not the subject.
+    fn test_window() -> Duration {
+        listen_window_from(None)
+    }
+
+    /// Deliberately shorter than any real handshake.
+    ///
+    /// Used only by the test that asserts the injected window is the one in
+    /// force: the error's `millis` echoes it back, so 300 ms is identifiable
+    /// where the deployment default would not be.
+    const SHORT_WINDOW: Duration = Duration::from_millis(300);
 
     fn read_port(path: &Path) -> Option<u16> {
         fs::read_to_string(path).ok()?.trim().parse().ok()
@@ -262,6 +283,7 @@ mod unix {
                 &tx,
                 script.to_string_lossy().as_ref(),
                 &mut spawned,
+                test_window(),
                 direct_test_command,
             )
             .await;
@@ -316,8 +338,14 @@ mod unix {
         let binary = script.to_string_lossy().to_string();
         let (result, retained) = crate::chat_runtime::block_on_anywhere(async move {
             let mut spawned = None;
-            let result =
-                spawn_opencode_server(&tx, &binary, &mut spawned, direct_test_command).await;
+            let result = spawn_opencode_server(
+                &tx,
+                &binary,
+                &mut spawned,
+                test_window(),
+                direct_test_command,
+            )
+            .await;
             let retained = spawned.is_some();
             if let Some(mut child) = spawned {
                 let _ = child.wait().await;
@@ -326,10 +354,11 @@ mod unix {
         });
         // Named, because the interesting failures here are not "the stub said
         // something else": under a loaded machine the spawn itself can fail,
-        // and the product's own 5 s listen window (`listen_timeout`) can expire
-        // before a `/bin/sh` stub has started — observed on this checkout at
-        // ~20 loadavg as `Err(ListenTimeout { millis: 5000 })`. A bare
-        // `assertion failed` hides the one value that says which happened.
+        // and a listen window too short for `/bin/sh` to start expires before
+        // the stub can report anything. This test injects a 300 ms window on
+        // purpose, so it keeps the first cause and cannot be made to report the
+        // second — the deployment's own window is the subject of
+        // `a_child_slower_than_the_old_constant_is_still_accepted` below.
         assert!(
             matches!(result, Err(OpenCodeError::ServerExited { .. })),
             "the retry loop must end in the bind conflict the stub reports, not {result:?}"
@@ -379,6 +408,7 @@ mod unix {
                 &binary,
                 &default_url,
                 &mut spawned,
+                test_window(),
                 direct_test_command,
             )
             .await;
@@ -432,6 +462,122 @@ mod unix {
         let _ = fs::remove_file(script);
         let _ = fs::remove_file(port_file);
         let _ = fs::remove_file(gate);
+        let _ = fs::remove_file(pid_file);
+    }
+
+    /// Issue #152, half one: the window a caller injects is the window in force.
+    ///
+    /// Before this, `listen_timeout()` was a private constant: a test that
+    /// wanted a short handshake to fail on purpose, or a long one to tolerate a
+    /// slow child, had no lever at all, and the failure it produced was
+    /// indistinguishable from a loaded machine. The `millis` in the error is the
+    /// injection echoed back, which is what makes that distinguishable.
+    #[test]
+    fn the_injected_listen_window_is_the_window_in_force() {
+        // A stub that starts and then says nothing: the handshake can only end
+        // by expiring, which is the case this test is about.
+        let script = write_script("silent.sh", "sleep 30 &\nwait");
+        let (tx, _rx) = mpsc::channel::<()>(1);
+        let binary = script.to_string_lossy().to_string();
+        let (result, terminate) = crate::chat_runtime::block_on_anywhere(async move {
+            let mut spawned = None;
+            let result = spawn_opencode_server(
+                &tx,
+                &binary,
+                &mut spawned,
+                SHORT_WINDOW,
+                direct_test_command,
+            )
+            .await;
+            // The failed attempt stays caller-owned, exactly like the address-in
+            // -use retry: there is no pid file to read here (a 300 ms window can
+            // expire before `/bin/sh` has written one, which is the point), so
+            // the cleanup is asserted by the tree walk itself rather than by a
+            // stub artifact.
+            let terminate = match spawned {
+                Some(mut child) => {
+                    op_process_io::terminate_tokio_process_tree(
+                        &mut child,
+                        Duration::from_millis(100),
+                    )
+                    .await
+                }
+                None => Err(std::io::Error::other("no retained child to clean")),
+            };
+            (result, terminate)
+        });
+
+        assert_eq!(
+            result,
+            Err(OpenCodeError::ListenTimeout {
+                millis: SHORT_WINDOW.as_millis()
+            }),
+            "the caller's window must be the one that expires, and the error must name it"
+        );
+        assert!(
+            terminate.is_ok(),
+            "a timed-out attempt must still be cleanable, got {terminate:?}"
+        );
+        let _ = fs::remove_file(script);
+    }
+
+    /// Issue #152, half two: the shipped window accepts a child the old
+    /// constant refused.
+    ///
+    /// This is the regression test for the defect itself. The stub takes longer
+    /// than the retired 5 s (and Windows 15 s) window before it announces, which
+    /// is what a real `opencode serve` does on a loaded host — measured cycles
+    /// in this very suite reach 7.5 s. The window injected here is the
+    /// DEPLOYMENT'S OWN default (`listen_window_from(None)`), not a number the
+    /// test invented, so lowering that default below the stub's delay fails
+    /// here rather than in production.
+    #[test]
+    fn a_child_slower_than_the_old_constant_is_still_accepted() {
+        /// Longer than the 5 s the product used to allow, shorter than the
+        /// window it ships with — the gap #152 is about.
+        const ANNOUNCE_DELAY_SECS: u64 = 6;
+
+        let pid_file = temp_path("slow-child-pids");
+        let script = write_script(
+            "slow-announce.sh",
+            &format!(
+                "port=\nfor argument in \"$@\"; do\n  case \"$argument\" in\n    --port=*) port=${{argument#--port=}} ;;\n  esac\ndone\nsleep {ANNOUNCE_DELAY_SECS}\nsleep 30 &\nprintf '%s %s\\n' \"$$\" \"$!\" > {}\nprintf 'opencode server listening on http://127.0.0.1:%s\\n' \"$port\"\nwait",
+                shell_quote(&pid_file)
+            ),
+        );
+        let (tx, _rx) = mpsc::channel::<()>(1);
+        let binary = script.to_string_lossy().to_string();
+        let window = listen_window_from(None);
+        let (result, terminate) = crate::chat_runtime::block_on_anywhere(async move {
+            let mut spawned = None;
+            let result =
+                spawn_opencode_server(&tx, &binary, &mut spawned, window, direct_test_command)
+                    .await;
+            let terminate = match spawned {
+                Some(mut child) => {
+                    op_process_io::terminate_tokio_process_tree(
+                        &mut child,
+                        Duration::from_millis(100),
+                    )
+                    .await
+                }
+                None => Err(std::io::Error::other("no retained child to clean")),
+            };
+            (result, terminate)
+        });
+
+        let url = result.expect("a slow but healthy child must not be reported as failed");
+        let url = url.expect("the announcement is an announcement, not a cancellation");
+        assert!(
+            url.starts_with("http://127.0.0.1:"),
+            "the accepted announcement must be the stub's own listen line, got {url}"
+        );
+        assert_retained_tree_cleaned(
+            &pid_file,
+            &terminate,
+            "accepted child tree must be cleanable",
+        );
+        let _ = fs::remove_file(script);
         let _ = fs::remove_file(pid_file);
     }
 }

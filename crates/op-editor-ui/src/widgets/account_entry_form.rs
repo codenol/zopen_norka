@@ -301,6 +301,13 @@ impl<'a> AccountEntryForm<'a> {
 
 /// The i18n key for a refusal. One key per reason, and one reason for a wrong
 /// name and a wrong password — see `AccountEntryError::Rejected`.
+///
+/// A throttled sign-in has TWO keys rather than one, because the wait it must
+/// state is only quotable when the daemon's `Retry-After` reached this shell:
+/// one sentence names the number, the other says what happened and asks for a
+/// wait it does not put a figure on. Inventing a figure for the second case
+/// would be the same kind of untruth as calling a lockout "unavailable"
+/// (issue #151).
 pub fn error_key(error: op_editor_core::AccountEntryError) -> &'static str {
     use op_editor_core::AccountEntryError as E;
     match error {
@@ -315,7 +322,29 @@ pub fn error_key(error: op_editor_core::AccountEntryError) -> &'static str {
         E::InviteAlreadyAccepted => "account.entry.errorInviteAccepted",
         E::EmptyFields => "account.entry.errorEmptyFields",
         E::PasswordMismatch => "account.entry.errorPasswordMismatch",
+        E::TooManyAttempts {
+            retry_after_secs: Some(_),
+        } => "account.entry.errorTooManyAttempts",
+        E::TooManyAttempts {
+            retry_after_secs: None,
+        } => "account.entry.errorTooManyAttemptsUnstated",
         E::Unavailable => "account.entry.errorUnavailable",
+    }
+}
+
+/// The sentence a refusal paints, with the wait substituted when the daemon
+/// stated one.
+///
+/// Separate from [`error_key`] because exactly one refusal carries a number: a
+/// `&'static str` key cannot express it, and substituting at the paint site
+/// would put the placeholder's name in two places instead of one.
+pub fn error_text(locale: Locale, error: op_editor_core::AccountEntryError) -> String {
+    use op_editor_core::AccountEntryError as E;
+    match error {
+        E::TooManyAttempts {
+            retry_after_secs: Some(secs),
+        } => op_i18n::translate_with(locale, error_key(error), &[("seconds", &secs.to_string())]),
+        other => t(locale, error_key(other)).to_string(),
     }
 }
 
@@ -428,9 +457,12 @@ impl Widget for AccountEntryForm<'_> {
         }
 
         if let Some(error) = self.entry.error {
+            // Through `error_text`, not `error_key`: a throttled sign-in is the
+            // one refusal that says how long the wait is, and that sentence only
+            // exists once the number is in it.
             draw_left(
                 cx.backend,
-                t(self.locale, error_key(error)),
+                &error_text(self.locale, error),
                 layout.error.origin,
                 layout.error.size.x,
                 11.5,

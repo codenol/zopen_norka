@@ -87,10 +87,12 @@ mod tests {
     }
 
     #[test]
-    fn claude_is_abortable_but_not_safe_for_untrusted_evidence() {
+    fn claude_is_abortable() {
+        // The companion assertion — that this provider is not safe for
+        // untrusted evidence — went with the capability itself in #157; the
+        // evidence path it guarded was removed in #81.
         let provider = ClaudeCodeProvider::new();
         assert!(provider.supports_cancellable_send());
-        assert!(!provider.supports_evidence_only_send());
     }
 
     #[test]

@@ -23,13 +23,30 @@
 //! deployment (#20). Nothing here trusts the directory: the list asks for the
 //! caller's own rows, a create records the creator as the owner, and every
 //! per-key route looks the row up before it touches a file.
+//!
+//! ## The third question, asked by one route
+//!
+//! `POST /api/files/<key>/claim` is the exception, because the row it names has
+//! no owner to ask a question about — it is the deliberate act that GIVES an
+//! unattributed document an owner (#46), and it is what recovers the documents a
+//! deployment inherited (files placed in the directory by hand, rows left behind
+//! by a daemon that ran without accounts). Its authority is the deployment's
+//! rather than a document's; `DocumentAction::Claim` says why, and
+//! `document_store::claim` states the whole rule — create or claim, never open
+//! or save.
 
 use super::*;
 use crate::document_db::DocumentDb;
 use crate::document_store::{self, DocumentStoreError};
 
+// The claim route and the preview routes, beside this file for the 800-line
+// cap: the claim is the one route of this family with a question of its own, and
+// the preview is a raster export rather than a rule about files.
+use super::files_routes_claim::claim_document;
+use super::files_routes_thumb::{refresh_thumbnail, thumbnail};
+
 /// One file-list row, as the browser sees it.
-fn entry_json(entry: &document_store::DocumentEntry) -> serde_json::Value {
+pub(super) fn entry_json(entry: &document_store::DocumentEntry) -> serde_json::Value {
     serde_json::json!({
         "key": entry.key,
         "name": entry.name,
@@ -225,6 +242,15 @@ fn required_action(method: &str, route: &FilesRoute<'_>) -> Option<DocumentActio
                 ..
             },
         ) => Some(DocumentAction::Edit),
+        // A claim asks the DEPLOYMENT question rather than a document one — see
+        // `DocumentAction::Claim` — and it is the one route in this family whose
+        // per-key ownership check `handle` skips, for the reason stated there.
+        (
+            "POST",
+            FilesRoute::Document {
+                action: "claim", ..
+            },
+        ) => Some(DocumentAction::Claim),
         ("DELETE", FilesRoute::Document { action: "", .. }) => Some(DocumentAction::Delete),
         // Reading a document's conversation is reading the document, no more:
         // whoever may open it may see what is pinned to it.
@@ -298,29 +324,46 @@ pub(super) fn handle(
     // conversation routes as much as for the file's own: a thread is reached
     // through its document, and a caller who may not address the document must
     // not reach its comments either.
+    //
+    // The claim is the one exception, and it is not a hole in that rule: the row
+    // it names has no owner BY DEFINITION, which is exactly the row this check
+    // refuses — asking it here would refuse every claim there could ever be. Its
+    // handler asks the narrower question instead, against the row as it reads it:
+    // a document that belongs to an account is refused there, and only an
+    // unattributed one is adopted.
+    let claiming = matches!(
+        route,
+        FilesRoute::Document {
+            action: "claim",
+            ..
+        }
+    );
     if let Some(key) = route.key() {
-        match document_store::find(&store, key) {
-            Ok(Some(entry)) => {
-                if !access.reaches_stored_document(entry.owner_id.as_deref()) {
-                    // The same code a stranger gets from the lease, because it
-                    // is the same statement about the same document.
-                    return request_access::refusal_reply(AccessRefusal::NotShared);
+        if !claiming {
+            match document_store::find(&store, key) {
+                Ok(Some(entry)) => {
+                    if !access.reaches_stored_document(entry.owner_id.as_deref()) {
+                        // The same code a stranger gets from the lease, because
+                        // it is the same statement about the same document.
+                        return request_access::refusal_reply(AccessRefusal::NotShared);
+                    }
                 }
+                // No row carries the key. Locally that is not the end of it —
+                // the store creates the row on the next save, which is how an
+                // `.op` dropped into the operator's directory becomes a
+                // document. Online it IS the end: a caller naming a key is not a
+                // caller creating a document, nothing would attribute the row to
+                // anyone, and letting the save through would write an ownerless
+                // file that nobody — including whoever wrote it — could ever
+                // list or reach again. Creating a document online goes through
+                // `POST /api/files`, which records its owner, and recovering one
+                // that arrived another way goes through the claim route below.
+                Ok(None) if access.mode().is_online() => {
+                    return store_error_reply(DocumentStoreError::NotFound)
+                }
+                Ok(None) => {}
+                Err(error) => return store_error_reply(error),
             }
-            // No row carries the key. Locally that is not the end of it — the
-            // store creates the row on the next save, which is how an `.op`
-            // dropped into the operator's directory becomes a document. Online
-            // it IS the end: a caller naming a key is not a caller creating a
-            // document, nothing would attribute the row to anyone, and letting
-            // the save through would write an ownerless file that nobody —
-            // including whoever wrote it — could ever list or reach again.
-            // Creating a document online goes through `POST /api/files`, which
-            // records its owner.
-            Ok(None) if access.mode().is_online() => {
-                return store_error_reply(DocumentStoreError::NotFound)
-            }
-            Ok(None) => {}
-            Err(error) => return store_error_reply(error),
         }
     }
     match (method, route) {
@@ -362,6 +405,10 @@ pub(super) fn handle(
             // seconds is what would make autosave expensive enough to disable.
             "autosave" => save_document(body, state, &store, key, WriteKind::Quiet),
             "rename" => rename_document(body, &store, key),
+            // The one route here that can turn a document nobody owns into one
+            // an account owns (#46). Every other write in this family needs the
+            // row to belong to the caller already; this is how it comes to.
+            "claim" => claim_document(&store, key, access),
             _ => not_found_reply(),
         },
         ("DELETE", FilesRoute::Document { key, action: "" }) => {
@@ -405,64 +452,6 @@ pub(super) fn handle(
             super::section_routes::handle(method, key, node, body, &store, access)
         }
         _ => not_found_reply(),
-    }
-}
-
-/// Width a card's preview is rendered at.
-///
-/// A card paints roughly 250 px wide at 2× on a retina display, so 480 is the
-/// smallest size that still looks sharp — and it keeps the file small enough
-/// to send as base64 without a second route type.
-const THUMB_WIDTH: f32 = 480.0;
-
-/// Render and store a preview for a document, returning whether one exists.
-///
-/// Rendering happens through the same raster export the Export button uses, so
-/// the preview is the document as the renderer sees it — not a second, simpler
-/// painter that would drift from it.
-fn render_thumbnail(state: &WebCanvasState, dir: &std::path::Path, key: &str) -> bool {
-    let Ok(path) = document_store::thumb_path(dir, key) else {
-        return false;
-    };
-    let scene = op_pen_loader::editor_state_to_active_page_layout_scene(&state.editor);
-    // Scale to the target width rather than a fixed factor: documents are
-    // authored at whatever size the designer chose, and a 20 000 px board at
-    // scale 1 would be a several-megabyte preview.
-    let scale = scene
-        .active_page()
-        .and_then(op_render_export::page_bounds)
-        .map(|bounds| (THUMB_WIDTH / bounds.size.x.max(1.0)).min(1.0))
-        .unwrap_or(1.0);
-    match crate::export::export_raster(&scene, &path, crate::export::RasterFormat::Png, scale) {
-        Ok(()) => true,
-        Err(_) => {
-            let _ = std::fs::remove_file(&path);
-            false
-        }
-    }
-}
-
-/// Keep the stored preview in step with a document that was just written.
-pub(super) fn refresh_thumbnail(state: &WebCanvasState, store: &DocumentDb, key: &str) {
-    let has = render_thumbnail(state, store.dir(), key);
-    let _ = document_store::note_thumbnail(store, key, has);
-}
-
-/// `GET /api/files/<key>/thumb` — the stored preview, base64 like the export
-/// routes (the reply type carries text, and the export precedent is a JSON
-/// envelope rather than a raw body).
-fn thumbnail(dir: &std::path::Path, key: &str) -> WebReply {
-    let path = match document_store::thumb_path(dir, key) {
-        Ok(path) => path,
-        Err(error) => return store_error_reply(error),
-    };
-    match std::fs::read(&path) {
-        Ok(bytes) => ok_json(serde_json::json!({
-            "ok": true,
-            "mime": "image/png",
-            "dataBase64": base64::engine::general_purpose::STANDARD.encode(bytes),
-        })),
-        Err(_) => store_error_reply(DocumentStoreError::NotFound),
     }
 }
 

@@ -520,3 +520,255 @@ fn a_document_a_visitor_creates_belongs_to_the_visitor() {
     assert_eq!(refused.status, "403 Forbidden", "{}", refused.body);
     assert_eq!(error_code(&refused), "tenant-not-shared");
 }
+
+// ---------------------------------------------------------------------------
+// Documents that arrived outside the store (issue #46).
+// ---------------------------------------------------------------------------
+
+/// The deployment's administrator, asking from their own workspace.
+///
+/// The claim asks a question about the DEPLOYMENT rather than about a document,
+/// so the caller has to be the account that manages its accounts — the same
+/// right the account list is kept for.
+fn admin_access() -> RequestAccess<'static> {
+    let identity: &'static ResolvedIdentity = Box::leak(Box::new(account("userA", &["admin"])));
+    RequestAccess::online("userA", identity, None)
+}
+
+/// Put a `.op` file in the documents directory by hand, and return its key.
+///
+/// The other way a document arrives without the store having made it: no row, a
+/// real file, a key somebody chose — what an operator who copied their old files
+/// onto a new host has.
+fn place_a_file_by_hand(store: &DocumentDb) -> String {
+    let key = document_store::new_key();
+    std::fs::write(
+        document_store::path_for(store.dir(), &key).expect("path"),
+        b"{\"version\":\"1.0.0\",\"children\":[]}",
+    )
+    .expect("write the file by hand");
+    key
+}
+
+#[test]
+fn a_document_that_arrived_out_of_band_becomes_listable_when_an_admin_claims_it() {
+    // The defect (#46): the file list shows what the STORE knows, and a document
+    // that arrived another way — a row the legacy `index.json` import brought
+    // over, a row a daemon that ran without accounts made, a file placed in the
+    // directory by hand — was on disk and reachable by nobody. Online the list
+    // asks for the caller's own rows and every per-key route refuses a row with
+    // no owner, so the account that had been working on those files saw an empty
+    // screen and had no way to say otherwise.
+    let dir = TempDir::new("claim-out-of-band");
+    let store = dir.open();
+    let imported = seed(&store, "From before", None);
+    let by_hand = place_a_file_by_hand(&store);
+    let access = admin_access();
+
+    // Before: invisible AND unreachable. Every route the browser has answers the
+    // same way, which is what made the files unrecoverable rather than merely
+    // unlisted.
+    assert!(
+        keys_of(&serve_online(&store, &access, "GET", "/api/files", "")).is_empty(),
+        "an unattributed row is in nobody's list"
+    );
+    for (method, path) in [
+        // Opening a document is a POST (it installs it in the daemon); its
+        // preview is a GET. Both are reads of a document that exists.
+        ("POST", format!("/api/files/{}/open", imported.key)),
+        ("GET", format!("/api/files/{}/thumb", imported.key)),
+    ] {
+        let refused = serve_online(&store, &access, method, &path, "");
+        assert_eq!(
+            refused.status, "403 Forbidden",
+            "{method} {path}: {}",
+            refused.body
+        );
+        assert_eq!(error_code(&refused), "tenant-not-shared", "{method} {path}");
+    }
+    let refused = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{}/save", imported.key),
+        "{}",
+    );
+    assert_eq!(refused.status, "403 Forbidden", "{}", refused.body);
+    // A key with no row at all is not even found.
+    let missing = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{by_hand}/open"),
+        "",
+    );
+    assert_eq!(missing.status, "404 Not Found", "{}", missing.body);
+
+    // The claim: one explicit act per document, which is the rule this test
+    // holds — a row becomes an account's by being CREATED by it or CLAIMED by
+    // it, and by nothing else.
+    for key in [&imported.key, &by_hand] {
+        let claimed = serve_online(
+            &store,
+            &access,
+            "POST",
+            &format!("/api/files/{key}/claim"),
+            "",
+        );
+        assert_eq!(claimed.status, "200 OK", "{key}: {}", claimed.body);
+        assert_eq!(body_json(&claimed)["file"]["key"], key.as_str());
+        assert_eq!(
+            document_store::find(&store, key)
+                .expect("find")
+                .and_then(|entry| entry.owner_id),
+            Some("userA".to_string()),
+            "{key} now belongs to the caller the identity verified"
+        );
+    }
+
+    // After: both are in the caller's list, and the ordinary work on them works.
+    let mut listed = keys_of(&serve_online(&store, &access, "GET", "/api/files", ""));
+    listed.sort();
+    let mut expected = vec![imported.key.clone(), by_hand.clone()];
+    expected.sort();
+    assert_eq!(listed, expected);
+
+    let opened = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{}/open", imported.key),
+        "",
+    );
+    assert_eq!(opened.status, "200 OK", "{}", opened.body);
+    let saved = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{}/save", imported.key),
+        "{}",
+    );
+    assert_eq!(saved.status, "200 OK", "{}", saved.body);
+    // The row the claim created for the hand-placed file describes the file: its
+    // name is the store's default, because a file that arrived without a row
+    // carries no name to recover.
+    let placed = document_store::find(&store, &by_hand)
+        .expect("find")
+        .expect("the row the claim created");
+    assert_eq!(placed.name, "Untitled");
+    assert_eq!(
+        placed.size,
+        std::fs::metadata(document_store::path_for(store.dir(), &by_hand).expect("path"))
+            .expect("stat")
+            .len()
+    );
+}
+
+#[test]
+fn a_claim_takes_nothing_from_another_account_and_needs_the_administrator() {
+    let dir = TempDir::new("claim-refusals");
+    let store = dir.open();
+    let unattributed = seed(&store, "Nobody's", None);
+    let theirs = seed(&store, "Theirs", Some("userB"));
+    let by_hand = place_a_file_by_hand(&store);
+    let access = admin_access();
+
+    // Somebody else's document is refused with the answer a stranger already
+    // gets for it, and is left exactly as it was: a claim is not a takeover.
+    let refused = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{}/claim", theirs.key),
+        "",
+    );
+    assert_eq!(refused.status, "403 Forbidden", "{}", refused.body);
+    assert_eq!(error_code(&refused), "tenant-not-shared");
+    assert_eq!(
+        document_store::find(&store, &theirs.key)
+            .expect("find")
+            .and_then(|entry| entry.owner_id),
+        Some("userB".to_string()),
+        "the row kept its owner"
+    );
+
+    // An account that may edit everything in its own workspace still may not
+    // decide who an unattributed document belongs to.
+    for role in ["ux_ui", "software", "qa"] {
+        let identity: &'static ResolvedIdentity = Box::leak(Box::new(account("userA", &[role])));
+        let editor = RequestAccess::online("userA", identity, None);
+        let refused = serve_online(
+            &store,
+            &editor,
+            "POST",
+            &format!("/api/files/{}/claim", unattributed.key),
+            "",
+        );
+        assert_eq!(refused.status, "403 Forbidden", "{role}: {}", refused.body);
+        assert_eq!(error_code(&refused), "admin-role-required", "{role}");
+    }
+    assert_eq!(
+        document_store::find(&store, &unattributed.key)
+            .expect("find")
+            .and_then(|entry| entry.owner_id),
+        None,
+        "a refused claim touched nothing"
+    );
+
+    // A key with neither a row nor a file is not a document to claim, and no row
+    // is invented for it — the file decides, as it does for a save.
+    let guessed = crate::document_store::new_key();
+    let missing = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{guessed}/claim"),
+        "",
+    );
+    assert_eq!(missing.status, "404 Not Found", "{}", missing.body);
+    assert!(document_store::find(&store, &guessed)
+        .expect("find")
+        .is_none());
+
+    // A deployment with no accounts has nothing to attribute to, and needs
+    // nothing: its list already shows every row of its directory.
+    let mut state = WebCanvasState::new(EditorState::starter(), 3100);
+    state.documents = Some(store.clone());
+    let local = RequestAccess::local_operator(ServeMode::Local);
+    let not_a_route = handle(
+        "POST",
+        &format!("/api/files/{by_hand}/claim"),
+        "",
+        &mut state,
+        &local,
+    );
+    assert_eq!(not_a_route.status, "404 Not Found", "{}", not_a_route.body);
+
+    // The claim is idempotent: the same document claimed twice is not an error,
+    // and the row it made is not rewritten.
+    let first = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{by_hand}/claim"),
+        "",
+    );
+    assert_eq!(first.status, "200 OK", "{}", first.body);
+    let before = document_store::find(&store, &by_hand)
+        .expect("find")
+        .expect("claimed");
+    let second = serve_online(
+        &store,
+        &access,
+        "POST",
+        &format!("/api/files/{by_hand}/claim"),
+        "",
+    );
+    assert_eq!(second.status, "200 OK", "{}", second.body);
+    assert_eq!(body_json(&second)["file"]["key"], by_hand.as_str());
+    assert_eq!(
+        document_store::find(&store, &by_hand).expect("find"),
+        Some(before),
+        "claiming twice changed nothing the second time"
+    );
+}

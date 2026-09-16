@@ -221,6 +221,15 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
             super::account_routes::account_signin_limits::SIGN_IN_LOCKOUT_SECS_ENV,
         );
     }
+    // Printed with the other ceilings because it is one, and because it is the
+    // number that decides whether a chat turn on a loaded host starts at all:
+    // a window too short for the machine reports a healthy OpenCode server as
+    // failed (issue #152), and this line is where the value in force is read.
+    eprintln!(
+        "openpencil --serve-web --online: chat server listen window — {}s ({})",
+        crate::chat_http_server::listen_window_from_env().as_secs(),
+        crate::chat_http_server::CHAT_LISTEN_WINDOW_ENV
+    );
     match crate::web_static::resolve_bundle_dir() {
         Some(dir) => eprintln!(
             "openpencil --serve-web --online: serving web bundle from {}",

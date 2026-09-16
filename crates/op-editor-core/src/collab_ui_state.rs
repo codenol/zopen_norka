@@ -27,7 +27,10 @@ pub const MAX_COLLAB_SHARE_ENDPOINT_CHARS: usize = 255;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CollabAvailability {
-    /// This host has no collaboration runtime (for example an M1 web build).
+    /// No session can be started here, and this variant carries no cause: both
+    /// a BUILD that links no collaboration-ticket ABI and a DEPLOYMENT that
+    /// cannot sign anybody in (a `--serve-web` daemon with no accounts, #148)
+    /// reach it. The chrome names neither; see `CollabPanelScreen`'s sentence.
     #[default]
     Unavailable,
     /// The runtime exists, but an authenticated account is required.

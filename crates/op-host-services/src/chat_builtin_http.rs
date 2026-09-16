@@ -245,10 +245,6 @@ impl ChatProvider for ConfiguredBuiltinProvider {
         true
     }
 
-    fn supports_evidence_only_send(&self) -> bool {
-        self.streams_plainly()
-    }
-
     /// Attachments ride the request body as inline image blocks — but only on
     /// the plain streaming path (see [`Self::streams_plainly`]).
     ///

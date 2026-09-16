@@ -51,7 +51,7 @@
 //! A grant from before attribution existed has `None` and reads as unknown;
 //! guessing a name there would be worse than admitting the gap.
 
-use crate::access::{ProductRole, Rights};
+use crate::access::{ProductRole, Right, Rights};
 
 /// Authority one account may hold over one document.
 ///
@@ -178,6 +178,18 @@ impl ShareLevel {
             Self::Commenter => Rights::CONTRIBUTOR,
             Self::Viewer => Rights::VIEW_ONLY,
         }
+    }
+
+    /// Whether somebody holding this level can change the document itself.
+    ///
+    /// The one distinction the Share dialog has to make unmissable: viewing and
+    /// commenting leave the document alone, editing rewrites somebody else's
+    /// work. Read from [`Self::document_rights`] rather than from a fresh match
+    /// so it cannot drift from what the level actually grants — a level that
+    /// stopped carrying `Edit` would stop reading as a writing level on the
+    /// same day, without a second place to remember.
+    pub const fn changes_the_document(self) -> bool {
+        self.document_rights().has(Right::Edit)
     }
 
     /// Whether a holder may change THIS document's access list — add somebody,

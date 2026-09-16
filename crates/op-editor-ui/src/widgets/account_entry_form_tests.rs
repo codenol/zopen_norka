@@ -334,6 +334,68 @@ fn a_refusal_is_painted_under_the_form_in_the_reader_s_language() {
 }
 
 #[test]
+fn a_locked_out_sign_in_paints_the_wait_and_not_unavailable() {
+    // Issue #151: the daemon answers a spent sign-in budget with `429` plus a
+    // `Retry-After`, and the shell used to paint its generic "the account
+    // service is unavailable" line — untrue (the service answered) and useless
+    // (retrying is the one thing that cannot work). This is the screen the
+    // locked-out person reads.
+    let mut state = signed_out_state();
+    state.editor_ui.locale = op_editor_core::Locale::EnUs;
+    state.editor_ui.account_entry.error = Some(AccountEntryError::TooManyAttempts {
+        retry_after_secs: Some(900),
+    });
+    let (_, backend) = paint(&state);
+    let painted = painted_text_of(&backend);
+
+    assert!(
+        painted.contains("900"),
+        "the wait the daemon asked for has to be on screen: {painted}"
+    );
+    assert!(
+        !backend.texts.iter().any(|(text, _)| text
+            == t(
+                op_editor_core::Locale::EnUs,
+                "account.entry.errorUnavailable"
+            )),
+        "a lockout is not an unavailable service: {painted}"
+    );
+    assert!(
+        !painted.contains("{{"),
+        "an unsubstituted placeholder must never reach the screen: {painted}"
+    );
+    // And the form is still there to be used once the wait passes: nothing
+    // about this refusal says the deployment cannot sign people in.
+    let (layout, _) = paint(&state);
+    assert!(layout.submit.is_some(), "the form stays usable");
+}
+
+#[test]
+fn a_locked_out_sign_in_without_a_stated_wait_still_paints_its_own_sentence() {
+    // The header can be missing at this end (a proxy may strip it; another
+    // origin cannot read it unless the deployment exposes it). The reason is
+    // still certain, so the surface says what happened without a figure rather
+    // than borrowing the "unavailable" line or an invented number.
+    let mut state = signed_out_state();
+    state.editor_ui.locale = op_editor_core::Locale::EnUs;
+    state.editor_ui.account_entry.error = Some(AccountEntryError::TooManyAttempts {
+        retry_after_secs: None,
+    });
+    let (_, backend) = paint(&state);
+    let painted = painted_text_of(&backend);
+
+    assert!(!backend.texts.iter().any(|(text, _)| text
+        == t(
+            op_editor_core::Locale::EnUs,
+            "account.entry.errorUnavailable"
+        )));
+    assert!(
+        !painted.contains("{{") && !painted.contains("}}"),
+        "no placeholder may leak into the sentence: {painted}"
+    );
+}
+
+#[test]
 fn a_disabled_account_is_told_apart_from_a_wrong_password() {
     let mut state = signed_out_state();
     state.editor_ui.locale = op_editor_core::Locale::EnUs;
@@ -432,6 +494,15 @@ fn every_refusal_reason_has_its_own_string() {
         E::InviteAlreadyAccepted,
         E::EmptyFields,
         E::PasswordMismatch,
+        // Both halves of the throttled answer: the wait as the daemon stated it,
+        // and the same refusal when the header did not reach this shell. Two
+        // sentences, one reason — see `error_key`.
+        E::TooManyAttempts {
+            retry_after_secs: Some(900),
+        },
+        E::TooManyAttempts {
+            retry_after_secs: None,
+        },
         E::Unavailable,
     ];
     for reason in reasons {
@@ -451,5 +522,13 @@ fn every_refusal_reason_has_its_own_string() {
     assert_ne!(
         error_key(E::InviteExpired),
         error_key(E::InviteAlreadyAccepted)
+    );
+    // A spent budget is not the generic failure either: that conflation is the
+    // whole of issue #151.
+    assert_ne!(
+        error_key(E::TooManyAttempts {
+            retry_after_secs: None
+        }),
+        error_key(E::Unavailable)
     );
 }

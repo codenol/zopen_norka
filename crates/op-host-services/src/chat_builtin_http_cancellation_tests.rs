@@ -58,7 +58,6 @@ fn configured_builtin_cancellable_send_aborts_a_silent_http_turn() {
 
     let provider = test_provider(format!("http://{address}/v1"));
     assert!(provider.supports_cancellable_send());
-    assert!(provider.supports_evidence_only_send());
     let cancel = Arc::new(AtomicBool::new(false));
     let signal = Arc::clone(&cancel);
     std::thread::spawn(move || {
@@ -87,22 +86,6 @@ fn configured_builtin_cancellable_send_aborts_a_silent_http_turn() {
 
     stop.store(true, Ordering::Release);
     server.join().expect("silent provider server exits");
-}
-
-#[test]
-fn configured_builtin_evidence_capability_rejects_tool_wiring() {
-    let mut provider = test_provider("http://127.0.0.1:9/v1".into());
-    assert!(provider.supports_evidence_only_send());
-    provider.executor = Some(Arc::new(NoopExecutor));
-    assert!(!provider.supports_evidence_only_send());
-    provider.executor = None;
-    provider.tools.push(ChatToolDef {
-        name: "write_file".into(),
-        description: "must not reach evidence extraction".into(),
-        level: "modify".into(),
-        input_schema_json: "{}".into(),
-    });
-    assert!(!provider.supports_evidence_only_send());
 }
 
 /// The transport declaration a vision caller reads has to match what each

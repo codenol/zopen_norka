@@ -13,6 +13,29 @@
 //! been overtaken by later work (migration 1 says every row is ownerless
 //! "today", and migration 2 pins a thread to an element) is corrected where the
 //! behaviour lives now, not in the record of what the database was.
+//!
+//! ## A rebuilt table is declared twice, and exactly one copy is live
+//!
+//! A rebuild has to write the child's DDL a second time — migration 3's rebuild
+//! of `comment_threads` could not drop the parent without first copying
+//! `comments` out, and the copy has to be put back somewhere — so two migrations
+//! can both declare the same table. Both copies are needed and neither is
+//! removable: the earlier one is what a database stopped at that version has,
+//! and the later one is what the rebuild reads.
+//!
+//! **The declaration in the LAST migration that declares a table is the one in
+//! force**: that is the copy every database at the newest version has, whether
+//! it was created fresh or carried there by the rebuild, and it is the copy a
+//! reader of `sqlite_master` finds. Every earlier declaration is history.
+//! Migration 3 says so above the copy of `comments` it writes, and
+//! `document_db_schema_tests` holds it to that (issue #57).
+//!
+//! What follows for a CHANGE to such a table is the ordinary rule and not an
+//! exception to it: it goes in a NEW migration. Editing the live declaration is
+//! right for a fresh database and for anyone below that version, and reaches
+//! nobody who has already run it — which is every deployment once the declaring
+//! release has shipped. The live declaration is where the table's shape is READ
+//! from; it is never where it is changed.
 
 /// One step of the schema's history.
 ///
@@ -110,6 +133,11 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         CREATE INDEX comment_threads_by_document
             ON comment_threads (document_key, created_at, id);
 
+        -- A database at the newest version does NOT have this `comments`: the
+        -- rebuild in migration 3 drops it and writes its own copy back. What is
+        -- here is history — keep it exactly as it is, because it is what a
+        -- database stopped at v2 has, and because that rebuild reads it. Which
+        -- declaration is live is stated above migration 3's copy.
         CREATE TABLE comments (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             thread_id   INTEGER NOT NULL REFERENCES comment_threads (id) ON DELETE CASCADE,
@@ -263,8 +291,23 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         -- Migration 2's `comments` table again, column for column. It is
         -- created rather than left alone because the rows it held could not
         -- survive the drop above: this is the copy taken before that drop, put
-        -- back where it was. A later migration that changes `comments` changes
-        -- it from here.
+        -- back where it was.
+        --
+        -- ## This is the LIVE declaration of `comments`
+        --
+        -- Migration 2 declares the same table, and this copy is the one in
+        -- force: a database at the newest version has THIS definition, whether
+        -- it was created fresh or carried here by the rebuild above, and this
+        -- is the text a reader of `sqlite_master` finds. Migration 2's copy is
+        -- history — what a database stopped at v2 has, and what the copy three
+        -- statements up read (issue #57: two identical declarations with
+        -- nothing to tell them apart).
+        --
+        -- The shape is read from here, and a CHANGE still belongs in a new
+        -- migration: editing this text would reach nobody who has already run
+        -- it, which is the same reason no other step in this list is edited.
+        -- If a later migration has to rebuild this table, ITS copy becomes the
+        -- live one and this comment moves there with it.
         CREATE TABLE comments (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             thread_id   INTEGER NOT NULL REFERENCES comment_threads (id) ON DELETE CASCADE,

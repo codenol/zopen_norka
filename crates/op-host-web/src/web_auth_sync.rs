@@ -246,14 +246,19 @@ pub(crate) fn account_from_status(body: &str) -> AccountState {
 /// The request owns the secret for exactly as long as it takes to serialize the
 /// body — see `op_editor_core::account_entry_state` — and the form's password
 /// field is already empty by the time this is called.
+///
+/// The answer's `Retry-After` is read with the body (`live_sync`), because the
+/// one answer that carries it — a spent sign-in budget — keeps the wait out of
+/// the body on purpose, and a shell that read only the body had nothing to tell
+/// the person but "the service is unavailable" (issue #151).
 pub(crate) fn sign_in<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, request: SignInRequest) {
     let base = crate::daemon_base::daemon_base();
     let inner_for_response = inner.clone();
-    let ok = live_sync::post_json_with_status(
+    let ok = live_sync::post_json_with_status_and_retry(
         &format!("{base}{}", auth_routes::LOGIN),
         &request.body(),
-        Rc::new(move |status, body| {
-            apply_credential_answer(&inner_for_response, status, &body);
+        Rc::new(move |status, body, retry_after_secs| {
+            apply_credential_answer(&inner_for_response, status, &body, retry_after_secs);
         }),
     );
     if !ok {
@@ -262,17 +267,25 @@ pub(crate) fn sign_in<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, reque
 }
 
 /// Send an invitation acceptance to the daemon.
+///
+/// Reads the answer's `Retry-After` for the same reason [`sign_in`] does, and
+/// shares the one refusal mapping, even though this route has no throttle to
+/// fire today: `AccountAuth::accept_invite` never calls the store's
+/// `authenticate`, so the sign-in budget cannot answer it (a locked-out person
+/// can still claim an invitation). If the route ever grows a ceiling, the wait
+/// reaches the form instead of being dropped on the floor — which is exactly
+/// how #151 happened on the route that does have one.
 pub(crate) fn accept_invitation<C: RepaintContext + 'static>(
     inner: &Rc<RefCell<C>>,
     acceptance: InviteAcceptance,
 ) {
     let base = crate::daemon_base::daemon_base();
     let inner_for_response = inner.clone();
-    let ok = live_sync::post_json_with_status(
+    let ok = live_sync::post_json_with_status_and_retry(
         &format!("{base}{}", auth_routes::INVITE_ACCEPT),
         &acceptance.body(),
-        Rc::new(move |status, body| {
-            apply_credential_answer(&inner_for_response, status, &body);
+        Rc::new(move |status, body, retry_after_secs| {
+            apply_credential_answer(&inner_for_response, status, &body, retry_after_secs);
         }),
     );
     if !ok {
@@ -286,10 +299,16 @@ pub(crate) fn accept_invitation<C: RepaintContext + 'static>(
 /// the new identity — no second round trip, and no window in which the tab is
 /// signed in but paints as signed out. Everything else is a refusal with a
 /// reason, and the form says which.
+///
+/// `retry_after_secs` is the answer's `Retry-After`, when it carried a readable
+/// one. It is passed through rather than folded away because a throttled sign-in
+/// is the one refusal a person can act on, and the only thing they can act on is
+/// the wait.
 fn apply_credential_answer<C: RepaintContext + 'static>(
     inner: &Rc<RefCell<C>>,
     status: u16,
     body: &str,
+    retry_after_secs: Option<u64>,
 ) {
     if status == 200 {
         // The subject changed, so anything keyed to the previous account has to
@@ -322,7 +341,10 @@ fn apply_credential_answer<C: RepaintContext + 'static>(
         refresh_status(inner);
         return;
     }
-    fail_entry(inner, AccountEntryError::from_response(status, body));
+    fail_entry(
+        inner,
+        AccountEntryError::from_response_and_retry(status, body, retry_after_secs),
+    );
 }
 
 /// Show a refusal on the form.
@@ -409,182 +431,6 @@ pub(crate) fn clear_entry_state(entry: &mut AccountEntryState) {
     entry.submitting = false;
     entry.error = None;
 }
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use op_editor_core::EditorUiState;
-
-    #[test]
-    fn auth_status_gate_rejects_stale_success_after_a_newer_request_starts() {
-        let gate = StatusRequestGate::new();
-        let pre_token_request = gate.begin();
-        let authenticated_request = gate.begin();
-
-        assert!(authenticated_request > pre_token_request);
-        assert!(!gate.should_apply(pre_token_request, 200));
-        assert!(gate.should_apply(authenticated_request, 200));
-    }
-
-    #[test]
-    fn auth_status_gate_rejects_non_success_even_for_latest_request() {
-        let gate = StatusRequestGate::new();
-        let request = gate.begin();
-
-        assert!(!gate.should_apply(request, 0));
-        assert!(!gate.should_apply(request, 401));
-        assert!(!gate.should_apply(request, 500));
-        assert!(gate.should_apply(request, 200));
-    }
-
-    #[test]
-    fn an_anonymous_status_answer_opens_the_sign_in_form() {
-        let mut ui = EditorUiState::default();
-        let body = r#"{"available":true,"signed_in":false,"subject":null,"username":null,
-                       "display_name":null,"roles":[],"needs_first_admin":false}"#;
-
-        assert!(apply_status_body(&mut ui, body), "the answer changes state");
-        ui.account = account_from_status(body);
-
-        assert!(ui.account_ui_available);
-        assert!(!ui.account_entry.needs_first_admin);
-        assert_eq!(
-            ui.account_entry_mode(),
-            op_editor_core::AccountEntryMode::SignIn
-        );
-    }
-
-    #[test]
-    fn a_local_deployment_answer_never_opens_a_form() {
-        let mut ui = EditorUiState::default();
-        let body = r#"{"available":false,"signed_in":false,"needs_first_admin":false}"#;
-
-        assert!(apply_status_body(&mut ui, body));
-        assert_eq!(
-            ui.account_entry_mode(),
-            op_editor_core::AccountEntryMode::Hidden
-        );
-    }
-
-    #[test]
-    fn an_unprovisioned_deployment_shows_the_explanation_instead() {
-        let mut ui = EditorUiState::default();
-        let body = r#"{"available":true,"signed_in":false,"needs_first_admin":true}"#;
-
-        assert!(apply_status_body(&mut ui, body));
-        assert_eq!(
-            ui.account_entry_mode(),
-            op_editor_core::AccountEntryMode::Unprovisioned
-        );
-    }
-
-    #[test]
-    fn a_signed_in_answer_closes_the_form_and_names_the_account() {
-        let mut ui = EditorUiState::default();
-        let body = r#"{"available":true,"signed_in":true,"subject":"u1","username":"kay",
-                       "display_name":"Kay Shen","roles":["admin"],"needs_first_admin":false}"#;
-
-        assert!(apply_status_body(&mut ui, body));
-        ui.account = account_from_status(body);
-
-        assert_eq!(
-            ui.account_entry_mode(),
-            op_editor_core::AccountEntryMode::Hidden
-        );
-        assert_eq!(
-            ui.account,
-            AccountState::SignedIn {
-                // The stable key the deployment issued travels with the profile:
-                // an access list is keyed by it, and the Share dialog needs it
-                // to build a link somebody else can open.
-                display_name: "Kay Shen".to_string(),
-                username: "kay".to_string(),
-                // The stable key the deployment issued travels with the
-                // profile: an access list is keyed by it, and the Share dialog
-                // needs it to build a link somebody else can open.
-                account_id: Some("u1".to_string()),
-            }
-        );
-    }
-
-    #[test]
-    fn a_repeat_of_the_same_answer_is_not_a_change() {
-        // The status poll runs every 30 s; a repeated answer must not churn the
-        // chrome dirty flag (or, worse, reset the document through the epoch).
-        let mut ui = EditorUiState::default();
-        let body = r#"{"available":true,"signed_in":true,"subject":"u1","username":"kay",
-                       "display_name":"Kay Shen","needs_first_admin":false}"#;
-        assert!(apply_status_body(&mut ui, body));
-        ui.account = account_from_status(body);
-
-        assert!(!apply_status_body(&mut ui, body), "no change to project");
-    }
-
-    #[test]
-    fn an_unparseable_answer_leaves_the_shell_alone() {
-        let mut ui = EditorUiState::default();
-        assert!(!apply_status_body(&mut ui, "not json"));
-        assert!(!ui.account_entry.status_received);
-        assert_eq!(
-            ui.account_entry_mode(),
-            op_editor_core::AccountEntryMode::Hidden
-        );
-    }
-
-    #[test]
-    fn a_signed_in_body_without_a_display_name_still_names_the_account() {
-        let account = account_from_status(r#"{"signed_in":true,"username":"kay"}"#);
-        assert_eq!(
-            account,
-            AccountState::SignedIn {
-                display_name: String::new(),
-                username: "kay".to_string(),
-                account_id: None,
-            }
-        );
-    }
-
-    #[test]
-    fn a_signed_out_body_is_anonymous_even_when_it_carries_a_stale_handle() {
-        assert_eq!(
-            account_from_status(r#"{"signed_in":false,"username":"kay"}"#),
-            AccountState::Anonymous
-        );
-    }
-
-    #[test]
-    fn a_tab_on_an_invitation_declares_its_address_for_the_router() {
-        // The router must not write the editor's own address over
-        // `/invite/<token>` before the invitation has been accepted: the link is
-        // the credential the form is about to send, and rewriting the address
-        // would throw it away (and lose it on a refresh).
-        let mut host = crate::widget_host::WidgetHost::new();
-        assert!(!invitation_address_active(&host));
-
-        host.editor_state_mut()
-            .editor_ui
-            .set_invite_token(Some("tok-1".to_string()));
-        assert!(invitation_address_active(&host));
-
-        // Accepting it clears the token, and the address stops belonging to the
-        // invitation — which is what lets the next router tick move the tab to
-        // the editor it just signed into.
-        host.editor_state_mut().editor_ui.account_entry.succeed();
-        assert!(!invitation_address_active(&host));
-    }
-
-    #[test]
-    fn signing_out_forgets_a_half_typed_password() {
-        let mut entry = AccountEntryState {
-            status_received: true,
-            password: "karta-mosta-42".to_string(),
-            submitting: true,
-            error: Some(AccountEntryError::Rejected),
-            ..AccountEntryState::default()
-        };
-        clear_entry_state(&mut entry);
-        assert_eq!(entry.password, "");
-        assert!(!entry.submitting);
-        assert_eq!(entry.error, None);
-    }
-}
+#[path = "web_auth_sync_tests.rs"]
+mod tests;

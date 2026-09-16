@@ -251,7 +251,12 @@ fn placeholders(value: &str) -> BTreeSet<String> {
 fn every_locale_has_exactly_the_english_key_set() {
     let all_tables = tables();
     let expected = table_keys(all_tables[0].0, all_tables[0].1, all_tables[0].2);
-    assert_eq!(expected.len(), 1846, "update the intentional catalog size");
+    // Recounted against the tables, never assumed: this number moves whenever
+    // any locale table gains a key, and more than one change may be adding keys
+    // to these same catalogues in the same tree (the two
+    // `account.entry.errorTooManyAttempts*` keys of issue #151 are this
+    // change's).
+    assert_eq!(expected.len(), 1851, "update the intentional catalog size");
 
     for (name, main, git, lookup) in all_tables {
         let actual = table_keys(name, main, git);

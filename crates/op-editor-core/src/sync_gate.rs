@@ -9,7 +9,14 @@
 //! cannot reopen and remote state cannot overwrite local edits.
 
 /// Bytes cap for the periodic push channel (see [`SyncGate::periodic_push_allowed`]).
-const PERIODIC_PUSH_CAP_BYTES: usize = 2 * 1024 * 1024;
+///
+/// Twelve megabytes, and it is PUBLIC because the browser's transport reads the
+/// same number when it warns that a push was skipped: two constants for one
+/// decision is how they came to disagree by six (this one said 2 MiB while the
+/// warning named 12, so every ordinary kit-backed document — about 3.4 MiB —
+/// silently stopped syncing, and the message that did print reported a limit
+/// that was not the one enforced). See issue #175.
+pub const PERIODIC_PUSH_CAP_BYTES: usize = 12 * 1024 * 1024;
 
 #[derive(Default)]
 pub struct SyncGate {
@@ -171,7 +178,9 @@ impl SyncGate {
         self.conflict
     }
 
-    /// len <= 2 MiB cap.
+    /// `len` fits the periodic push channel's cap — see
+    /// [`PERIODIC_PUSH_CAP_BYTES`], which the browser's transport also reads
+    /// when it warns that a push was skipped.
     pub fn periodic_push_allowed(len: usize) -> bool {
         len <= PERIODIC_PUSH_CAP_BYTES
     }
@@ -333,11 +342,17 @@ mod tests {
         let mut g = SyncGate::default();
         g.note_synced(1, 0);
         // edit -> (1,1); periodic tick skipped the push (oversize) — no
-        // confirmation, baseline unchanged, gate must stay closed:
-        assert!(!SyncGate::periodic_push_allowed(3 * 1024 * 1024));
+        // confirmation, baseline unchanged, gate must stay closed.
+        //
+        // The size is "one byte over the cap", not a number of its own: this
+        // test is about the gate staying closed when a push is skipped, and it
+        // used to spell the cap out — which is how it broke the day the cap was
+        // raised (issue #175).
+        let oversize = crate::sync_gate::PERIODIC_PUSH_CAP_BYTES + 1;
+        assert!(!SyncGate::periodic_push_allowed(oversize));
         assert!(!g.pull_allowed((1, 1)));
         // snapshot channel is uncapped; its confirmation advances the baseline:
-        assert!(SyncGate::snapshot_push_allowed(3 * 1024 * 1024));
+        assert!(SyncGate::snapshot_push_allowed(oversize));
         g.note_synced(1, 1);
         assert!(g.pull_allowed((1, 1)));
     }
@@ -355,5 +370,27 @@ mod tests {
         g.resolve_accept_remote((1, 1));
         assert_eq!(g.conflict(), None);
         assert!(g.pull_allowed((1, 1))); // baseline forgotten: next pull re-baselines
+    }
+}
+
+#[cfg(test)]
+mod periodic_push_cap_tests {
+    use super::{SyncGate, PERIODIC_PUSH_CAP_BYTES};
+
+    #[test]
+    fn an_ordinary_document_fits_the_periodic_push() {
+        // The cap that bit: a kit-backed screen is about 3.4 MiB, and at the 2 MiB
+        // this constant used to hold, every real document was skipped in silence
+        // while the warning named 12 MiB (issue #175).
+        let kit_backed = 3_400_000;
+        assert!(
+            SyncGate::periodic_push_allowed(kit_backed),
+            "an ordinary document must reach the daemon"
+        );
+        assert!(SyncGate::periodic_push_allowed(PERIODIC_PUSH_CAP_BYTES));
+        assert!(
+            !SyncGate::periodic_push_allowed(PERIODIC_PUSH_CAP_BYTES + 1),
+            "and the ceiling still exists"
+        );
     }
 }

@@ -408,3 +408,56 @@ fn an_answer_outside_the_contract_reads_as_unavailable() {
         );
     }
 }
+
+#[test]
+fn a_locked_out_sign_in_is_not_read_as_an_unavailable_service() {
+    // Issue #151. The daemon's throttled answer is `429` plus a `Retry-After`
+    // header; mapping it onto the generic "unavailable" told a person who had
+    // spent their attempts something untrue (the service answered) and useless
+    // ("try again" is the one thing that cannot work).
+    let throttled = r#"{"ok":false,"error":"too-many-attempts","message":"too many failed sign-in attempts; wait before trying again"}"#;
+
+    assert_eq!(
+        AccountEntryError::from_response_and_retry(429, throttled, Some(900)),
+        AccountEntryError::TooManyAttempts {
+            retry_after_secs: Some(900)
+        }
+    );
+    assert_ne!(
+        AccountEntryError::from_response_and_retry(429, throttled, Some(900)),
+        AccountEntryError::Unavailable
+    );
+}
+
+#[test]
+fn a_throttled_answer_without_a_readable_retry_after_still_is_not_unavailable() {
+    // The header can be absent at this end (a proxy may strip it, and a browser
+    // on another origin cannot read it unless the deployment exposes it). The
+    // reason for the refusal is still certain — the status says it — so the
+    // state keeps the wait unstated rather than inventing one or falling back to
+    // "the service is unavailable".
+    let throttled = r#"{"ok":false,"error":"too-many-attempts","message":"wait"}"#;
+
+    assert_eq!(
+        AccountEntryError::from_response(429, throttled),
+        AccountEntryError::TooManyAttempts {
+            retry_after_secs: None
+        }
+    );
+}
+
+#[test]
+fn being_locked_out_is_not_a_verdict_on_the_credentials() {
+    // The daemon answers the same 429 whether or not the account exists, and
+    // whether or not the password was right. The typed answer keeps that
+    // property: it is neither the 401 verdict (the enumeration oracle the store
+    // refuses to be), nor the generic failure, nor a state that stops offering
+    // a form — a locked-out person signs in again once the window passes.
+    let locked = AccountEntryError::from_response(
+        429,
+        r#"{"ok":false,"error":"too-many-attempts","message":"wait"}"#,
+    );
+    assert_ne!(locked, AccountEntryError::Rejected);
+    assert_ne!(locked, AccountEntryError::Unavailable);
+    assert!(!locked.leaves_nothing_to_try());
+}

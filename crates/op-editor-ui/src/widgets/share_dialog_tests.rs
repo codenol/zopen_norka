@@ -2,7 +2,8 @@
 
 use op_editor_core::access::Rights;
 use op_editor_core::editor_ui_state::share::{
-    ShareAction, ShareIssuedInvite, ShareLevelTarget, ShareNotice, ShareRow, ShareUiState,
+    link_level_caption_key, ShareAction, ShareIssuedInvite, ShareLevelTarget, ShareNotice,
+    ShareRow, ShareUiState,
 };
 use op_editor_core::{EditorState, ShareGrant, ShareInviteRefusal, ShareLevel, ShareListSnapshot};
 use op_i18n::Locale;
@@ -317,11 +318,59 @@ fn the_dialog_says_there_is_no_mail_before_anything_is_pressed() {
         op_i18n::translate(Locale::EnUs, "share.invite.noMail")
     );
     // And the caption beside the link switch admits there is no anonymous
-    // access, rather than letting the label imply a public URL.
+    // access, rather than letting the label imply a public URL. It reads this
+    // way because the level it describes is the default one — the caption
+    // itself is level-driven (#131).
     assert_eq!(
         model.link_caption,
-        op_i18n::translate(Locale::EnUs, "share.row.anyoneWithLink.caption")
+        op_i18n::translate(Locale::EnUs, "share.row.anyoneWithLink.caption.viewer")
     );
+    assert!(!model.link_level_writes);
+}
+
+/// Issue #131: the link row says what the level it hands out MEANS.
+///
+/// Before this, the caption under "Anyone with the link" was one fixed
+/// sentence about signing in, so the only thing distinguishing "anyone may
+/// look" from "anyone may rewrite" was the level chip the picker had already
+/// closed over. The row is the only grant here with no subject to read back,
+/// so the caption has to carry it — and it is drawn at full contrast when the
+/// level writes.
+#[test]
+fn the_link_row_states_the_consequence_of_the_level_it_hands_out() {
+    let mut state = state_with(Rights::ADMIN, 0, 0);
+    let caption_for = |state: &EditorState| ShareDialogModel::for_state(state).link_caption;
+
+    state.editor_ui.share.link_level = ShareLevel::Viewer;
+    let viewing = caption_for(&state);
+    assert_eq!(
+        viewing,
+        op_i18n::translate(Locale::EnUs, "share.row.anyoneWithLink.caption.viewer")
+    );
+
+    state.editor_ui.share.link_level = ShareLevel::Editor;
+    let editing = caption_for(&state);
+    assert_eq!(
+        editing,
+        op_i18n::translate(Locale::EnUs, "share.row.anyoneWithLink.caption.editor")
+    );
+    assert_ne!(viewing, editing, "the two intentions must not look alike");
+    assert!(
+        ShareDialogModel::for_state(&state).link_level_writes,
+        "and the caption is emphasised when it hands out writing"
+    );
+
+    // Every level the dialog can be told to hand out has its own sentence, so
+    // the row cannot fall back to describing a level it is not set to.
+    for level in ShareLevel::ALL {
+        state.editor_ui.share.link_level = level;
+        let model = ShareDialogModel::for_state(&state);
+        assert_eq!(
+            model.link_caption,
+            op_i18n::translate(Locale::EnUs, link_level_caption_key(level))
+        );
+        assert_eq!(model.link_level_writes, level.changes_the_document());
+    }
 }
 
 #[test]

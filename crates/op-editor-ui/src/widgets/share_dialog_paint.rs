@@ -422,9 +422,13 @@ fn access_list(
         Point2D::new(layout.link_label.origin.x, layout.link_row.origin.y + 20.0),
         500,
     );
-    // The caption is the honest half of this row: there is no anonymous access
-    // on this deployment, so "anyone with the link" always means "anyone with
-    // the link who can sign in".
+    // The caption is the honest half of this row, twice over: there is no
+    // anonymous access on this deployment, so "anyone with the link" always
+    // means "anyone who can sign in"; and the level the link hands out is a
+    // power the whole deployment holds, which the flat caption this replaced
+    // never said (#131). It is drawn at full contrast when that power includes
+    // changing the document — the state a person has to be able to see without
+    // reading a sentence twice.
     let caption = text_metrics::fit_chrome(
         cx.backend,
         &model.link_caption,
@@ -435,7 +439,11 @@ fn access_list(
         cx,
         &caption,
         CAPTION_SIZE,
-        theme.muted_foreground,
+        if model.link_level_writes {
+            theme.foreground
+        } else {
+            theme.muted_foreground
+        },
         Point2D::new(layout.link_label.origin.x, layout.link_row.origin.y + 34.0),
         400,
     );

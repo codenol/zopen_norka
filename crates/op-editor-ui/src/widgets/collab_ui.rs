@@ -171,6 +171,30 @@ fn top_bar_label(ui: &EditorUiState, label_key: &'static str) -> String {
     format!("{action} · {fragment}")
 }
 
+/// The sentence the panel paints when collaboration is not available, and the
+/// sentence its test asserts on.
+///
+/// ## Why one key for two causes
+///
+/// This screen covers two different reasons and the panel knows only that
+/// neither of them is fixable from here:
+///
+/// * the BUILD links no collaboration-ticket ABI, so no session can be minted
+///   at all, and
+/// * the DEPLOYMENT has no accounts — a `--serve-web` daemon whose
+///   `/api/auth/status` answers `available: false` and whose login route is a
+///   404 (#148), so nobody can be signed in and nothing can be admitted.
+///
+/// `CollabAvailability::Unavailable` carries no cause, and the wire enum that
+/// would have to carry it is a versioned one: a new value decoded by a browser
+/// tab still holding an older bundle fails the WHOLE state payload, not one
+/// sentence. Both causes are also indistinguishable client-side — the account
+/// tier and the ticket ABI read `false` together on a stub build — so a
+/// sentence naming one of them is a coin flip printed as a fact, and it was
+/// wrong exactly half the time (#150). The wording therefore names the fact and
+/// not the cause; see `collab.topbar.unavailable` in the catalogues.
+pub const COLLAB_UNAVAILABLE_SENTENCE: &str = "collab.topbar.unavailable";
+
 #[derive(Clone, PartialEq, Eq)]
 pub enum CollabPanelScreen {
     Unavailable,

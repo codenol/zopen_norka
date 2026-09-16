@@ -209,6 +209,32 @@ pub fn post_json(url: &str, body: &str, on_response: Option<Rc<dyn Fn(String)>>)
 /// used when a caller must distinguish an acknowledged write from a completed
 /// but rejected request.
 pub fn post_json_with_status(url: &str, body: &str, on_response: Rc<dyn Fn(u16, String)>) -> bool {
+    post_json_with_status_and_retry(
+        url,
+        body,
+        Rc::new(move |status, body, _retry_after_secs| on_response(status, body)),
+    )
+}
+
+/// Issue one async JSON `POST` and report the status, the body, AND the wait the
+/// answer asks for.
+///
+/// The third value is the response's `Retry-After`, in seconds, and this variant
+/// exists because exactly one answer in this product carries one: the daemon's
+/// throttled sign-in (`429 too-many-attempts`), which deliberately keeps the
+/// wait out of its body so that the body cannot become an oracle for whether an
+/// account exists (issue #77) — and which therefore cannot be acted on by a
+/// caller that reads only the body. Issue #151: the shell read only the status
+/// and the body, so a locked-out person was told the sign-in was unavailable.
+///
+/// [`parse_retry_after_secs`] decides what counts as a usable header. `None`
+/// means the caller is told the answer asked for a wait without being told how
+/// long — never that there was no such answer.
+pub fn post_json_with_status_and_retry(
+    url: &str,
+    body: &str,
+    on_response: Rc<dyn Fn(u16, String, Option<u64>)>,
+) -> bool {
     let Ok(xhr) = web_sys::XmlHttpRequest::new() else {
         return false;
     };
@@ -229,8 +255,59 @@ pub fn post_json_with_status(url: &str, body: &str, on_response: Rc<dyn Fn(u16, 
             .ok()
             .flatten()
             .unwrap_or_default();
-        on_response(status, text);
+        // Read here rather than by the caller: after `onloadend` returns, the
+        // XHR object is the only thing that still knows the header, and a
+        // cross-origin read depends on the response exposing it
+        // (`Access-Control-Expose-Headers`, applied daemon-side).
+        let retry_after = xhr_for_load
+            .get_response_header("Retry-After")
+            .ok()
+            .flatten();
+        on_response(status, text, parse_retry_after_secs(retry_after.as_deref()));
     });
     xhr.set_onloadend(Some(onloadend.unchecked_ref()));
     xhr.send_with_opt_str(Some(body)).is_ok()
+}
+
+/// The wait a `Retry-After` header states, in seconds.
+///
+/// Only the delta-seconds form is honoured. The HTTP-date form is legal and an
+/// intermediary may send it, but turning a date into a wait needs a clock the
+/// two ends can disagree about, and a wrong number is worse than none here: the
+/// caller then says "too many attempts" with no figure instead of naming a wait
+/// that has already passed. Anything else — absent, empty, a date, a negative
+/// number — is `None` for the same reason.
+pub fn parse_retry_after_secs(raw: Option<&str>) -> Option<u64> {
+    raw?.trim().parse::<u64>().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retry_after_seconds_are_read_from_the_daemon_s_own_header() {
+        // The daemon sends `max(1)` seconds — see `AccountReply::throttled`.
+        assert_eq!(parse_retry_after_secs(Some("900")), Some(900));
+        assert_eq!(parse_retry_after_secs(Some(" 60 ")), Some(60));
+        assert_eq!(parse_retry_after_secs(Some("1")), Some(1));
+    }
+
+    #[test]
+    fn an_unreadable_retry_after_is_not_a_number_and_not_a_zero() {
+        for raw in [
+            None,
+            Some(""),
+            Some("   "),
+            Some("Wed, 21 Oct 2026 07:28:00 GMT"),
+            Some("-30"),
+            Some("soon"),
+        ] {
+            assert_eq!(
+                parse_retry_after_secs(raw),
+                None,
+                "`{raw:?}` is not a wait this shell can state"
+            );
+        }
+    }
 }

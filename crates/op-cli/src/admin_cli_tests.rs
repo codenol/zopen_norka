@@ -59,10 +59,16 @@ impl Session {
 
 /// Drive the flow with `typing` on stdin and `secrets` handed back by the
 /// password reader, and return the outcome with everything printed.
+///
+/// The reader ignores the handle it is given on purpose: what is under test
+/// here is the conversation (which questions, in what order, what a refusal
+/// does), and supplying the secrets from a list keeps each case readable. The
+/// handle itself is what
+/// [`the_password_comes_from_the_handle_the_dialogue_owns`] covers.
 fn drive(db: &AccountsDb, typing: &str, secrets: &[&str]) -> (Result<String, CliError>, String) {
     let mut session = Session::typing(typing);
     let mut secrets = secrets.iter().map(|secret| secret.to_string());
-    let mut read_secret = move || {
+    let mut read_secret = move |_input: &mut dyn BufRead| {
         secrets
             .next()
             .ok_or_else(|| CliError::usage("no input on stdin: `op admin create` is interactive"))
@@ -118,6 +124,64 @@ fn a_fresh_deployment_gets_its_first_administrator() {
         .expect("the admin exists");
     assert_eq!(user.status, UserStatus::Active);
     assert!(user.password_hash.is_some());
+}
+
+#[test]
+fn a_password_line_is_taken_from_the_reader_it_is_given() {
+    // Issue #155 in its smallest form: the password reader must read the
+    // handle it is handed. This cannot prove the command no longer deadlocks —
+    // only running it can, because the broken line was the WIRING — but it
+    // pins the reader to its argument, so a later edit cannot quietly put
+    // `std::io::stdin().lock()` back inside it.
+    let mut input = Cursor::new(b"a-good-long-password\nrest of the stream\n".to_vec());
+    assert_eq!(
+        read_line_raw(&mut input).expect("the first line"),
+        "a-good-long-password"
+    );
+    // The rest of the stream is still there, so the reader took one line and
+    // not the buffer.
+    assert_eq!(
+        read_line_raw(&mut input).expect("the second line"),
+        "rest of the stream"
+    );
+
+    let mut empty = Cursor::new(Vec::new());
+    let error = read_line_raw(&mut empty).expect_err("end of input is not an empty password");
+    assert!(error.to_string().contains("no input on stdin"), "{error}");
+}
+
+#[test]
+fn the_password_comes_from_the_handle_the_dialogue_owns() {
+    // The wiring `run_create` uses, which no unit test could reach before the
+    // fix: the reader is handed the dialogue's own reader, so a name and two
+    // passwords arriving on one stream are consumed in order and the flow
+    // completes. The command hung here because its reader reached for the
+    // process-global stdin instead of this handle.
+    let (_dir, db) = store("one-handle");
+    let mut session = Session::typing("operator\na-good-long-password\na-good-long-password\n");
+    let mut read_secret = |input: &mut dyn BufRead| -> Result<String, CliError> {
+        let mut line = String::new();
+        if input.read_line(&mut line).map_err(io_error)? == 0 {
+            return Err(CliError::usage(
+                "no input on stdin: `op admin create` is interactive",
+            ));
+        }
+        Ok(line.trim_end_matches(['\n', '\r']).to_string())
+    };
+    let summary = create_admin(
+        &db,
+        &mut session.input,
+        &mut session.output,
+        &mut read_secret,
+    )
+    .expect("one stream carries the name and both passwords");
+
+    assert!(summary.contains("operator"), "{summary}");
+    assert_secret_never_printed(
+        &Ok(summary),
+        &String::from_utf8_lossy(&session.output).into_owned(),
+    );
+    assert_eq!(db.count_users().expect("count"), 1);
 }
 
 #[test]
@@ -181,7 +245,7 @@ fn a_deployment_that_already_has_accounts_is_refused_without_asking_anything() {
     .expect("seed an account");
 
     let mut session = Session::typing("operator\n");
-    let mut read_secret = || -> Result<String, CliError> {
+    let mut read_secret = |_: &mut dyn BufRead| -> Result<String, CliError> {
         panic!("nothing may be asked of an operator who is about to be refused")
     };
     let error = create_admin(
@@ -203,8 +267,9 @@ fn a_deployment_that_already_has_accounts_is_refused_without_asking_anything() {
 fn an_empty_username_is_refused_before_a_password_is_asked_for() {
     let (_dir, db) = store("blank-name");
     let mut session = Session::typing("\n");
-    let mut read_secret =
-        || -> Result<String, CliError> { panic!("a password is not asked for without a name") };
+    let mut read_secret = |_: &mut dyn BufRead| -> Result<String, CliError> {
+        panic!("a password is not asked for without a name")
+    };
     let error = create_admin(
         &db,
         &mut session.input,
@@ -220,8 +285,9 @@ fn an_empty_username_is_refused_before_a_password_is_asked_for() {
 fn a_stdin_with_nothing_in_it_says_where_to_go_instead() {
     let (_dir, db) = store("no-stdin");
     let mut session = Session::typing("");
-    let mut read_secret =
-        || -> Result<String, CliError> { Err(CliError::usage("no input on stdin")) };
+    let mut read_secret = |_: &mut dyn BufRead| -> Result<String, CliError> {
+        Err(CliError::usage("no input on stdin"))
+    };
     let error = create_admin(
         &db,
         &mut session.input,

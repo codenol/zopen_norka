@@ -79,28 +79,6 @@ pub(super) fn content_type_is_json(value: Option<&str>) -> bool {
     })
 }
 
-/// The env spelling of an allowlist, split into entries.
-pub(super) fn allowed_origins_from_config(allowed_origins: Option<&str>) -> Vec<String> {
-    allowed_origins
-        .into_iter()
-        .flat_map(|origins| origins.split(','))
-        .map(str::trim)
-        .filter(|origin| !origin.is_empty())
-        .map(str::to_string)
-        .collect()
-}
-
-/// The same check, for a caller that holds the allowlist as the environment
-/// spelling of it. The route tiers pass the parsed list instead: it is the one
-/// the deployment was started with, so a request is admitted by the same list
-/// it is then judged against.
-pub(super) fn credential_request_origin_allowed_with_config(
-    request: &crate::mcp_serve::HttpRequest,
-    allowed_origins: Option<&str>,
-) -> bool {
-    sensitive_origin_allowed(request, &allowed_origins_from_config(allowed_origins))
-}
-
 /// Whether this request's browser `Origin` may reach a route that acts on the
 /// caller's account.
 ///
