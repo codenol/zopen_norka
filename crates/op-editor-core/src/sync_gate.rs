@@ -178,7 +178,9 @@ impl SyncGate {
         self.conflict
     }
 
-    /// len <= 2 MiB cap.
+    /// `len` fits the periodic push channel's cap — see
+    /// [`PERIODIC_PUSH_CAP_BYTES`], which the browser's transport also reads
+    /// when it warns that a push was skipped.
     pub fn periodic_push_allowed(len: usize) -> bool {
         len <= PERIODIC_PUSH_CAP_BYTES
     }
@@ -340,11 +342,17 @@ mod tests {
         let mut g = SyncGate::default();
         g.note_synced(1, 0);
         // edit -> (1,1); periodic tick skipped the push (oversize) — no
-        // confirmation, baseline unchanged, gate must stay closed:
-        assert!(!SyncGate::periodic_push_allowed(3 * 1024 * 1024));
+        // confirmation, baseline unchanged, gate must stay closed.
+        //
+        // The size is "one byte over the cap", not a number of its own: this
+        // test is about the gate staying closed when a push is skipped, and it
+        // used to spell the cap out — which is how it broke the day the cap was
+        // raised (issue #175).
+        let oversize = crate::sync_gate::PERIODIC_PUSH_CAP_BYTES + 1;
+        assert!(!SyncGate::periodic_push_allowed(oversize));
         assert!(!g.pull_allowed((1, 1)));
         // snapshot channel is uncapped; its confirmation advances the baseline:
-        assert!(SyncGate::snapshot_push_allowed(3 * 1024 * 1024));
+        assert!(SyncGate::snapshot_push_allowed(oversize));
         g.note_synced(1, 1);
         assert!(g.pull_allowed((1, 1)));
     }
