@@ -800,11 +800,13 @@ fn a_wrong_method_on_a_share_route_answers_a_code_not_prose() {
 
     assert_eq!(reply.status, "405 Method Not Allowed", "{}", reply.body);
     assert_eq!(
-        body_of(&reply)["error"], "method-not-allowed",
+        body_of(&reply)["error"],
+        "method-not-allowed",
         "a client switches on `error`; prose there is a value it cannot match"
     );
     assert_eq!(
-        body_of(&reply)["message"], "method not allowed for this share route",
+        body_of(&reply)["message"],
+        "method not allowed for this share route",
         "and the sentence still travels, in the field the other refusals use"
     );
 }
