@@ -23,9 +23,15 @@
 //! in Preview mode (device-frame presentation) receives Down/Move/Up with
 //! NO intervening `op_frame`. The host clock is read back through
 //! [`op_host_native::WidgetHostNative::next_animation_deadline_ms`] — its
-//! single public clock readout, which preview mode pins to `now_ms + 33 ms`
-//! (the fixture has no focused text input / tooltip / toast, so nothing else
-//! can supply an earlier deadline).
+//! single public clock readout, which preview mode pins to `now_ms + 33 ms`.
+//! That readout is the EARLIEST of every pending animation deadline, so the
+//! fixture has to own the other sources: it has no focused text input, tooltip
+//! or toast, and it holds `agent_indicators::test_guard()` for the whole body
+//! (see [`swipe_engine`]). The design-loop cases in this same test binary drive
+//! a REAL agent run through that process-global registry, and a run in flight
+//! contributes its own `now + REVEAL_FRAME_MS` (16 ms) wake-up, which beats the
+//! preview pin — so without the guard the value asserted here would depend on
+//! which sibling test happened to be mid-run.
 //!
 //! The swipe geometry itself (60 px in 100 ms = 600 px/s on the judged
 //! axis) is exactly the shape the host-level preview swipe suite proves
@@ -74,7 +80,23 @@ const SWIPE_DOC_JSON: &str = r##"{
 /// Editor-mode engine holding a live preview of the swipe fixture. No
 /// frame is ever pumped: the pointer tests must prove the event itself
 /// carries the clock.
-fn swipe_engine() -> OpEngine {
+///
+/// Returns the engine plus the `agent_indicators::test_guard()` the caller
+/// must keep alive for the whole test body.
+///
+/// The agent-reveal indicators behind `next_animation_deadline_ms` live in a
+/// PROCESS-GLOBAL registry (`op_editor_core::agent_indicators`), and the
+/// design-loop cases in this same test binary drive a real agent run through
+/// it. While such a run is in flight the registry contributes
+/// `now_ms + REVEAL_FRAME_MS` (16 ms), which beats the preview pin's 33 ms — so
+/// without the guard the readout asserted below depends on which sibling test
+/// happens to be mid-run. Holding the documented guard on both sides serializes
+/// them, which is what makes this suite's isolation claim true again: nothing
+/// else can supply an earlier deadline. A retired run leaves no residue in the
+/// registry, so there is nothing here for the fixture to reset — serializing
+/// the two suites is the whole fix.
+fn swipe_engine() -> (OpEngine, std::sync::MutexGuard<'static, ()>) {
+    let indicators = op_editor_core::agent_indicators::test_guard();
     let mut engine = OpEngine::new(
         Session::new(CreateOptions {
             document: SWIPE_DOC_JSON.to_owned(),
@@ -99,7 +121,7 @@ fn swipe_engine() -> OpEngine {
     // viewport (zero on a fresh host) — same as the host-level preview
     // tests, recompute against the real viewport.
     host.preview_resize(viewport.0, viewport.1);
-    engine
+    (engine, indicators)
 }
 
 /// The host's single public clock readout. In preview mode the deadline
@@ -173,7 +195,7 @@ fn app_state_string(engine: &mut OpEngine, key: &str) -> Option<String> {
 /// times (fresh host clock is 0).
 #[test]
 fn dedicated_time_stamped_pointer_entries_swipe_without_an_intervening_frame() {
-    let mut engine = swipe_engine();
+    let (mut engine, _agent_indicators) = swipe_engine();
     let pointer = &mut engine as *mut OpEngine;
     assert_eq!(
         host_deadline_ms(&mut engine),
@@ -234,7 +256,7 @@ fn dedicated_time_stamped_pointer_entries_swipe_without_an_intervening_frame() {
 /// `onSwipe` runs exactly once.
 #[test]
 fn out_of_order_dedicated_events_keep_global_clocks_and_swipe_uses_factual_delta() {
-    let mut engine = swipe_engine();
+    let (mut engine, _agent_indicators) = swipe_engine();
     let pointer = &mut engine as *mut OpEngine;
 
     // Pump the global clock to 2000 the way a frame pump / background
@@ -296,7 +318,7 @@ fn out_of_order_dedicated_events_keep_global_clocks_and_swipe_uses_factual_delta
 /// (monotonically) and never move them backward.
 #[test]
 fn cancel_and_early_returns_advance_global_clocks_monotonically() {
-    let mut engine = swipe_engine();
+    let (mut engine, _agent_indicators) = swipe_engine();
     let pointer = &mut engine as *mut OpEngine;
 
     // Cancel at 300 jumps the clocks to 300 (start 0).

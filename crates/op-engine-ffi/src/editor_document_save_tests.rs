@@ -120,6 +120,21 @@ fn first_save_prompts_for_a_name_and_writes_a_canonical_file() {
     let mut engine = phone_engine();
     let pointer = &mut engine as *mut OpEngine;
 
+    // The seeded name asserted below is localised, so this case states the
+    // locale it means rather than inheriting whichever language the product
+    // opens in. What the assertion is about is the SEED: an untitled document
+    // opens the dialog pre-filled with the localised untitled name, selected, so
+    // a bare Enter cannot produce an empty file name. The test types its own
+    // name immediately after, so the language is incidental to the save flow and
+    // English — the catalogue's fallback — is the stable thing to pin.
+    engine
+        .session_mut_for_test()
+        .editor_mut()
+        .unwrap()
+        .editor_state_mut()
+        .editor_ui
+        .locale = op_editor_core::Locale::EnUs;
+
     queue_file_action(&mut engine, op_editor_core::FileAction::Save);
     assert_eq!(drain(pointer), SHELL_ACTION_NONE);
     {
@@ -134,8 +149,9 @@ fn first_save_prompts_for_a_name_and_writes_a_canonical_file() {
             "first save must prompt for a name"
         );
         assert!(!ui.save_name_dialog.save_as);
-        // Untitled doc on the default zh-CN locale seeds 未命名, selected.
-        assert_eq!(ui.save_name_dialog.input.text(), "未命名");
+        // Untitled document, locale stated above: the dialog seeds the
+        // localised untitled name and selects it.
+        assert_eq!(ui.save_name_dialog.input.text(), "Untitled");
     }
 
     // Typing replaces the selected seed; Enter confirms.
