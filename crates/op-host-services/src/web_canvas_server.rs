@@ -490,6 +490,10 @@ mod comment_routes;
 mod connect_routes;
 mod connection;
 mod connection_ai_routes;
+// The deployment's own provider credentials: read once at start-up, offered to
+// every tenant as it is created (see the module docs for what an account may do
+// to them and what it may not).
+mod deployment_providers;
 mod doc_routes;
 mod document_writes;
 mod export_routes;

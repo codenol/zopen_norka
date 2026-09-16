@@ -241,12 +241,16 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
         ),
     }
 
-    let registry = Arc::new(TenantRegistry::with_store(
-        bound,
-        limits,
-        allow_origins,
-        store,
-    ));
+    // The deployment's own providers are read ONCE here, from the process
+    // settings file, and handed to every tenant this registry creates. Read
+    // once because the file is the operator's, not any account's: nothing below
+    // this line writes it back, and `ServeMode::Online` refuses every route
+    // that would (`online_policy::allows_settings_persistence`).
+    let registry = Arc::new(
+        TenantRegistry::with_store(bound, limits, allow_origins, store).with_deployment_providers(
+            super::deployment_providers::DeploymentProviders::from_process_settings(),
+        ),
+    );
     let conn_count = Arc::new(AtomicUsize::new(0));
     let write_barrier = Arc::new(super::tenant::WriteBarrier::default());
     let shutdown = Arc::new(AtomicBool::new(false));

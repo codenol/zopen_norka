@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 
 use op_editor_core::{EditorState, ShareLevel};
 
+use super::deployment_providers::DeploymentProviders;
 use super::tenant::{
     AclChange, AclUpdate, SharedWithVisitor, Tenant, TenantError, TenantGrant, TenantLease,
     TenantLimits,
@@ -30,6 +31,10 @@ pub struct TenantRegistry {
     allow_origins: Vec<String>,
     /// Where an evicted tenant is written and a returning one is read from.
     store: TenantStore,
+    /// The deployment's own provider credentials, installed into every tenant
+    /// as it is created. Empty unless an operator configured some — see
+    /// `deployment_providers`.
+    providers: DeploymentProviders,
 }
 
 impl TenantRegistry {
@@ -49,7 +54,19 @@ impl TenantRegistry {
             port,
             allow_origins,
             store,
+            providers: DeploymentProviders::default(),
         }
+    }
+
+    /// Offer the deployment's own provider credentials to every account this
+    /// registry creates from here on.
+    ///
+    /// Only `run_online_web_canvas` calls this, with what the deployment's
+    /// settings file held at start-up. A registry without it — every test, and
+    /// any deployment with no shared provider — behaves exactly as before.
+    pub(crate) fn with_deployment_providers(mut self, providers: DeploymentProviders) -> Self {
+        self.providers = providers;
+        self
     }
 
     pub const fn store(&self) -> &TenantStore {
@@ -244,8 +261,13 @@ impl TenantRegistry {
     /// the store, so the account gets a starter rather than a failed request —
     /// losing a document is bad, but refusing to serve the account at all
     /// because of it is worse.
+    ///
+    /// The deployment's own providers are installed last and only here, at
+    /// birth: this is the one place a tenant editor comes into existence, which
+    /// is what makes the shared entries un-editable by the account they are
+    /// shared with (`deployment_providers`).
     fn restore_editor(&self, user_id: &str) -> EditorState {
-        match self.store.load_document(user_id) {
+        let mut editor = match self.store.load_document(user_id) {
             Ok(state) => state,
             Err(super::tenant_store::TenantStoreError::Disabled)
             | Err(super::tenant_store::TenantStoreError::NotStored) => EditorState::starter(),
@@ -256,7 +278,9 @@ impl TenantRegistry {
                 );
                 EditorState::starter()
             }
-        }
+        };
+        self.providers.apply_to(&mut editor);
+        editor
     }
 
     /// Write every resident tenant to disk.
