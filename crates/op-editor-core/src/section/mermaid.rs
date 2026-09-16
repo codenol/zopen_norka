@@ -391,7 +391,7 @@ fn parse_spec(
         },
     };
     let start = *pos;
-    let first = *chars.get(*pos).ok_or_else(|| malformed())?;
+    let first = *chars.get(*pos).ok_or_else(malformed)?;
     if !(first.is_alphanumeric() || first == '_') {
         return Err(malformed());
     }
