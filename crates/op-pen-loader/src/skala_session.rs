@@ -8,11 +8,16 @@
 
 use std::path::{Path, PathBuf};
 
-use op_editor_core::{
-    apply_skala_kit_policy, document_has_skala_masters, EditorState, SKALA_KIT_ID,
-};
+use op_editor_core::{apply_skala_kit_policy, document_has_skala_masters, EditorState};
+// Only the disk path names the kit id in its "not found" message and only the
+// disk path merges, so on wasm32 these are dead imports — and a dead import is
+// a hard error under `-D warnings` (issue #193).
+#[cfg(not(target_arch = "wasm32"))]
+use op_editor_core::SKALA_KIT_ID;
 
-use super::library::{merge_library_into_state, LibraryMergeError, LibraryMergeReport};
+#[cfg(not(target_arch = "wasm32"))]
+use super::library::{merge_library_into_state, LibraryMergeError};
+use super::library::LibraryMergeReport;
 
 /// Outcome of ensuring Skala is attached to a session document.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,11 +76,11 @@ pub fn ensure_skala_session(state: &mut EditorState) -> SkalaSessionReport {
 
     #[cfg(target_arch = "wasm32")]
     {
-        return SkalaSessionReport {
+        SkalaSessionReport {
             policy_applied,
             merge: None,
             skip: Some(SkalaSkip::NoFilesystem),
-        };
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -130,6 +135,7 @@ fn merge_from_disk(state: &mut EditorState, policy_applied: bool) -> SkalaSessio
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn library_merge_error_string(err: &LibraryMergeError) -> String {
     err.to_string()
 }
