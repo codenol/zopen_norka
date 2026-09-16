@@ -47,6 +47,7 @@ mod layer_panel_metrics;
 mod layer_panel_page_comment_tests;
 mod layer_panel_page_comments;
 mod layer_panel_paint;
+mod layer_panel_paint_pass;
 #[cfg(test)]
 mod layer_panel_tests;
 #[cfg(test)]
@@ -147,6 +148,10 @@ mod property_panel_wash_tests;
 pub mod property_panel_widget;
 #[cfg(test)]
 mod property_panel_widget_tests;
+// The strip that says which copy of the document the canvas is showing
+// (issues #171 / #191). Shares the recovery bar's band, and paints only when
+// the canvas is not the daemon's current copy.
+pub mod copy_status_bar;
 pub mod recovery_banner;
 pub mod recovery_banner_flow;
 pub(crate) mod relative_age;
@@ -489,6 +494,7 @@ pub use component_browser_panel::{
     ComponentBrowserHit, ComponentBrowserPanel, COMPONENT_BROWSER_PANEL_H,
     COMPONENT_BROWSER_PANEL_W,
 };
+pub use copy_status_bar::{CopyStatusBar, COPY_STATUS_HEIGHT};
 pub use deck_boards::BoardChip;
 pub use design_md_panel::{DesignMdHit, DesignMdPanel, DESIGN_MD_PANEL_H, DESIGN_MD_PANEL_W};
 pub use design_md_rules_flow::{apply_design_rules_hit, scroll_rules};

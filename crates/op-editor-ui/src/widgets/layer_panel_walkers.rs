@@ -9,12 +9,15 @@
 //! untouched (the two id types are both string newtypes, so the
 //! conversion at the walk boundary is lossless).
 
+use super::layer_panel::LAYER_PANEL_WIDTH;
 use crate::widgets::icons::Icon;
+use crate::widgets::layer_panel_cache::CachedLayerRows;
 use crate::widgets::layer_panel_metrics::{LayerPanelMetrics, MIN_VISIBLE_LAYER_ROWS};
 use crate::widgets::layer_panel_paint::{approx_text_width, ROW_FONT};
 use crate::Rect;
 use jian_core::scroll::{self, ScrollState};
 use op_editor_core::NodeId;
+use std::rc::Rc;
 
 use jian_ops_schema::node::PenNode;
 use op_editor_core::editor_ui_state::EditorUiState;
@@ -660,4 +663,31 @@ pub(super) fn row_index_at(
     }
     let row_top = rows_top - scroll.max(0.0) + index as f32 * row_height;
     Some((index, row_top))
+}
+
+/// Walk the active page into the styling-neutral row model the cache
+/// stores: page rows + depth-flattened layer rows + both content widths.
+/// This is the expensive per-frame work (tree walk + per-node `String`
+/// allocation + label measurement) the cache exists to skip.
+pub(super) fn build_layer_rows(state: &EditorState, metrics: LayerPanelMetrics) -> CachedLayerRows {
+    let rename = RenameView::from_state(state);
+    let pages = pages_from_state(state, &rename);
+    let components = components_from_state(state);
+    let cx = WalkCx::from_state(state);
+    let mut items = Vec::new();
+    for child in state.active_children() {
+        walk(child, &cx, 0, &mut items);
+    }
+    apply_layer_rename(&mut items, &rename);
+    let pages_w = pages_content_width(&pages, LAYER_PANEL_WIDTH, metrics);
+    let components_w = pages_content_width(&components, LAYER_PANEL_WIDTH, metrics);
+    let layers_w = layers_content_width(&items, LAYER_PANEL_WIDTH, metrics);
+    CachedLayerRows {
+        pages: Rc::new(pages),
+        components: Rc::new(components),
+        items: Rc::new(items),
+        pages_content_width: pages_w,
+        components_content_width: components_w,
+        layers_content_width: layers_w,
+    }
 }

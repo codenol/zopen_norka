@@ -166,6 +166,7 @@ mod paint_chrome_menus;
 mod paint_floating_panels;
 mod paint_mobile;
 mod paint_pan_cache;
+mod paint_panel_arms;
 mod paint_rail;
 mod paint_topmost_overlays;
 #[cfg(test)]
