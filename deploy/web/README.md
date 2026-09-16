@@ -59,13 +59,22 @@ shipped default is fail-closed.
 ## Updating it
 
 ```sh
-# 1. Get the built pair onto this machine. CI produces both on a push to main:
-gh run list --workflow=web-deploy-build.yml --limit 3
+# 1. Get the built pair onto this machine. The workflow publishes the pair on a
+#    `v*` tag push and on a manual dispatch — a plain push to main publishes
+#    NOTHING (its pull_request runs deliberately upload no artifacts), so a run
+#    id from `gh run list` may have nothing to download:
+gh run list --workflow=web-deploy-build.yml --limit 5
+gh workflow run web-deploy-build.yml --ref <branch-or-tag>   # when there is no tag run
 gh run download <run-id> --dir dist/web
-#    → dist/web/op-host-web-server  dist/web/op-web-bundle/…
+#    → dist/web/op-host-web-server-x86_64-unknown-linux-gnu/op-host-web-server
+#      dist/web/op-web-bundle/…
 
-# 2. Put them where the script expects (it wants `pkg/`, the bundle's own name):
-mkdir -p dist/web/pkg && cp -a dist/web/op-web-bundle/. dist/web/pkg/
+# 2. Put them where the script expects. It wants `op-host-web-server` and `pkg/`
+#    at the top of the payload directory, and `gh` nests each artifact under a
+#    directory named after it:
+mkdir -p dist/web/pkg
+cp -a dist/web/op-web-bundle/. dist/web/pkg/
+cp -a dist/web/op-host-web-server-x86_64-unknown-linux-gnu/op-host-web-server dist/web/
 
 # 3. Deploy. It stages, backs up, swaps, restarts and health-checks, and prints
 #    a rollback command if the daemon does not come up.
