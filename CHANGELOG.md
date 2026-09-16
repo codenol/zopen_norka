@@ -317,6 +317,36 @@ here at a glance.
 
 ### Fixed
 
+- **The first administrator can be created from the CLI again.** `op admin create`
+  hung forever: the dialogue held the stdin lock and the secret reader took the
+  same non-reentrant lock a second time. The reader takes the handle the dialogue
+  owns now (issue #155).
+
+- **A document that arrived out of band can be claimed.** A hand-placed `.op` or
+  a legacy import left a row with no owner: invisible in every account's file
+  list and refused on every route. `POST /api/files/<key>/claim` adopts one,
+  needs deployment authority, and never takes another account's (issue #46).
+
+- **The comments table says which of its two declarations is live**, and the file
+  states the rule — the last declaration is the one in force, and a change goes
+  in a NEW migration (issue #57).
+
+- **A chat server that is slow to start is no longer declared broken.** The
+  listen window was five seconds — inside the noise of the machine it runs on —
+  and is now a deployment setting defaulting to thirty (issue #152).
+
+- **A locked-out sign-in says how long to wait** instead of "the service is
+  unavailable", reading `Retry-After` (exposed for cross-origin callers too) and
+  falling back to a sentence without a number rather than inventing one
+  (issue #151).
+
+- **The link row says what the level it hands out lets people do.** "Can view"
+  and "can edit" had the same caption; the caption is per level now and carries
+  full contrast when the level changes the document (issue #131).
+
+- **The collaboration panel no longer blames the build** for a deployment that
+  simply has no accounts (issue #150).
+
 - **A document of ordinary size syncs again.** The periodic push was gated on a
   2 MiB cap while the warning that reported a skipped push named the 12 MiB one —
   so every kit-backed document (about 3.4 MiB) was skipped in silence, and the
