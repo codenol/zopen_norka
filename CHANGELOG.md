@@ -12,6 +12,17 @@ here at a glance.
 
 ### Added
 
+- **Generation quality is measured, not argued about.** `op-smoke quality` runs
+  a fixed corpus of eight prompts against a named daemon — one fresh document
+  each, the browser's own request, the document read back — and prints a
+  scorecard with the headline counts, the per-prompt verdict and the audit's
+  issues, then fails when a prompt regresses against the recorded baseline.
+  Where a verdict cannot be measured it prints `n/a` with the reason instead of
+  a guess, and it says in its own output that one run is one sample: three runs
+  of the same binary and prompt returned 1, 0 and 1 regressions. This is the tool
+  that turns "the AI got better" into a number (issues #215, #216 came out of its
+  first runs).
+
 - **Share, not Collaborate — the dialog a designer actually reaches for.** The
   top bar's chip now opens a Figma-shaped access dialog instead of the
   live-session panel: copy the document link, add comma-separated emails or

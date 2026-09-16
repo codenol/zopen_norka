@@ -1,0 +1,315 @@
+{
+  "corpus": "design-quality",
+  "version": 1,
+  "description": "The 8-prompt design-generation corpus the two hand measurements of 2026-09-16 used (.openpencil-tmp/gq/RESULTS.md = the baseline, .openpencil-tmp/gq2/RESULTS.md = the pass after the five fixes). Prompts are verbatim from .openpencil-tmp/gq2/manifest.json so a number produced now is comparable with a number produced then. Read by `op-smoke quality`.",
+  "howToRead": {
+    "baseline": "the FIRST measured pass (gq/, daemon 3100, HEAD 979f28c6, before the 2026-09-16 fixes). page0Nodes = nodes under pages[0] after the turn (analyze.py); auditIssues = geometry diagnostics of that document (op-smoke audit).",
+    "last": "the SECOND measured pass (gq2/, daemon 3180, after the fixes). This is the most recent thing anyone measured, so it is what a 'known_broken' expectation compares against.",
+    "expectation.state=required": "the prompt asks for something a screen can satisfy, and the last pass delivered it. Gate: pages[0] >= screenMinNodes AND the document version moved (requireVersionMove).",
+    "expectation.state=known_broken": "the last pass already failed this prompt. Gate: pages[0] >= floorPage0Nodes (the last pass's own number) — reproducing a recorded failure is NOT a regression, or the gate would be red forever and nobody would read it. Meeting screenMinNodes reports RECOVERED instead.",
+    "verdictRule": "screen = 'a screen was asked for and drawn'. document_moved = 'the turn asked for nothing concrete, so the only measurable claim is that it changed the document at all' (prompt 6).",
+    "unmeasurable": "printed by the scorecard as `n/a` with this reason instead of a guess. Never folded into a verdict.",
+    "screenMinNodes": "what counts as 'a screen is drawn': the fresh document starts as a single 1-node starter frame, so a page-0 subtree of at least this many nodes is the weakest honest threshold for 'something was drawn'."
+  },
+  "screenMinNodes": 5,
+  "routes": {
+    "newDocument": "/api/file/new",
+    "document": "/api/mcp/document",
+    "turn": "/api/ai/standard"
+  },
+  "body": {
+    "provider": "codex-cli",
+    "builtinProviderId": "builtin-1",
+    "model": "builtin:builtin-1:deepseek-v4-flash-vision-exp",
+    "credential": null,
+    "skills": [],
+    "user": "",
+    "max_output_tokens": 16384,
+    "thinking": "adaptive",
+    "effort": "low",
+    "agent_team_size": 1,
+    "history": [],
+    "attachments": [],
+    "selectedIds": []
+  },
+  "prompts": [
+    {
+      "id": "01-login-ru",
+      "index": 1,
+      "language": "ru",
+      "intent": "A desktop sign-in screen: one centred card with an email field, a password field and a primary Sign in button.",
+      "prompt": "Нарисуй экран логина: карточка по центру, поля email и password, кнопка Sign in",
+      "screenRequested": true,
+      "verdictRule": "screen",
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 20,
+        "screen": true,
+        "auditIssues": 0,
+        "verdict": "YES"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 29,
+        "screen": true,
+        "auditIssues": 0,
+        "verdict": "YES",
+        "seconds": 17.09,
+        "thinkingChars": 2121,
+        "deltaChars": 83,
+        "terminal": "done",
+        "frames": ["Layout/Default"],
+        "truncated": "n/a"
+      },
+      "expectation": {
+        "state": "required",
+        "requireVersionMove": true,
+        "note": "gq2 drew 29 page-0 nodes; the turn must keep drawing a screen and keep writing to the document."
+      }
+    },
+    {
+      "id": "02-servers-ru",
+      "index": 2,
+      "language": "ru",
+      "intent": "A servers list screen: a sidebar with sections on the left, a server table on the right with Имя / Статус / IP columns and an Add server button.",
+      "prompt": "Сделай экран списка серверов: слева сайдбар с разделами, справа таблица серверов с колонками Имя, Статус, IP и кнопкой Add server",
+      "screenRequested": true,
+      "verdictRule": "screen",
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 500,
+        "screen": true,
+        "auditIssues": 8,
+        "verdict": "NO"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 214,
+        "screen": true,
+        "auditIssues": 8,
+        "verdict": "YES",
+        "seconds": 44.49,
+        "thinkingChars": 0,
+        "deltaChars": 48118,
+        "terminal": "done",
+        "frames": ["Recipe/Ops servers screen"],
+        "truncated": "yes"
+      },
+      "expectation": {
+        "state": "required",
+        "requireVersionMove": true,
+        "note": "gq2 answered the request but was cut mid-statement and applied anyway (issue #205). The gate only checks that a screen lands; the truncation column is where the cut shows."
+      }
+    },
+    {
+      "id": "03-mobile-ru",
+      "index": 3,
+      "language": "ru",
+      "intent": "A mobile profile screen (375 wide): avatar, name, four settings rows and a bottom navigation bar.",
+      "prompt": "Нарисуй мобильный экран профиля пользователя: аватар, имя, список из четырёх пунктов настроек и нижняя навигация",
+      "screenRequested": true,
+      "verdictRule": "screen",
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 642,
+        "screen": true,
+        "auditIssues": 8,
+        "verdict": "NO"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 75,
+        "screen": true,
+        "auditIssues": 0,
+        "verdict": "YES",
+        "seconds": 17.66,
+        "thinkingChars": 5378,
+        "deltaChars": 0,
+        "terminal": "none",
+        "frames": ["Profile"],
+        "truncated": "n/a"
+      },
+      "expectation": {
+        "state": "required",
+        "requireVersionMove": true,
+        "note": "gq2: a 375x812 Profile screen, chromeComplete true. The turn ended with no terminal SSE event (issue #203) — reported, not gated."
+      }
+    },
+    {
+      "id": "04-settings-en",
+      "index": 4,
+      "language": "en",
+      "intent": "An English settings page: a left navigation list plus Profile, Notifications, Security sections and a Save button.",
+      "prompt": "Design a settings page with sections Profile, Notifications, Security and a Save button, plus a left navigation list",
+      "screenRequested": true,
+      "verdictRule": "screen",
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 527,
+        "screen": true,
+        "auditIssues": 8,
+        "verdict": "PARTIAL"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 0,
+        "screen": false,
+        "auditIssues": 0,
+        "verdict": "NO",
+        "seconds": 81.99,
+        "thinkingChars": 27974,
+        "deltaChars": 47038,
+        "terminal": "done",
+        "frames": [],
+        "truncated": "yes"
+      },
+      "expectation": {
+        "state": "known_broken",
+        "floorPage0Nodes": 0,
+        "note": "gq2 regression (issue #202): the English design keyword routes this prompt to the chat route, which clears the starter frame and never writes a screen — pages[0] ends with 0 roots. Floor 0 = do not fail the gate for reproducing the recorded failure; >= 5 page-0 nodes reports RECOVERED."
+      }
+    },
+    {
+      "id": "05-dark-theme-ru",
+      "index": 5,
+      "language": "ru",
+      "intent": "An analytics dashboard in a dark theme with accent #4F46E5: a header, three metric cards and a chart.",
+      "prompt": "Сделай дашборд аналитики в тёмной теме, акцент #4F46E5, с заголовком, тремя карточками метрик и графиком",
+      "screenRequested": true,
+      "verdictRule": "screen",
+      "unmeasurable": [
+        "whether the screen renders DARK: /api/mcp/document stores both theme values ($layout/background/default Light #EEF1F5 / Dark #141824) and the active one is transient editor state the endpoint does not carry — the document can be read, the rendered theme cannot (gq2 RESULTS.md, 'What could not be measured'). The content half is measured; the theme half is n/a."
+      ],
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 180,
+        "screen": true,
+        "auditIssues": 1,
+        "verdict": "YES"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 82,
+        "screen": true,
+        "auditIssues": 0,
+        "verdict": "YES",
+        "seconds": 19.67,
+        "thinkingChars": 2480,
+        "deltaChars": 0,
+        "terminal": "none",
+        "frames": ["Layout/Default"],
+        "truncated": "n/a"
+      },
+      "expectation": {
+        "state": "required",
+        "requireVersionMove": true,
+        "note": "the one prompt whose verdict moved with the standard between the two passes. This corpus gates only the measurable half (a screen with the three metric cards and a chart) and prints the theme half as n/a."
+      }
+    },
+    {
+      "id": "06-vague-ru",
+      "index": 6,
+      "language": "ru",
+      "intent": "No concrete target at all ('make it pretty'): the only measurable claim is that the turn changed the document and said something about what it did.",
+      "prompt": "сделай красиво",
+      "screenRequested": false,
+      "verdictRule": "document_moved",
+      "unmeasurable": [
+        "whether the result is BEAUTIFUL: 'сделай красиво' names no target, so no document can be judged against it. The verdict below is about movement, not taste."
+      ],
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 161,
+        "screen": true,
+        "auditIssues": 8,
+        "verdict": "n/a"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 1,
+        "screen": false,
+        "auditIssues": 0,
+        "verdict": "NO",
+        "seconds": 79.29,
+        "thinkingChars": 39466,
+        "deltaChars": 24050,
+        "terminal": "done",
+        "frames": ["Frame"],
+        "truncated": "yes"
+      },
+      "expectation": {
+        "state": "known_broken",
+        "floorPage0Nodes": 1,
+        "note": "gq2: the turn reports done, the version does not move (80 -> 80) and pages[0] still holds the untouched 1-node starter frame. Floor 1 = the recorded failure; >= 5 reports RECOVERED. The version column shows the no-op."
+      }
+    },
+    {
+      "id": "07-two-screens-ru",
+      "index": 7,
+      "language": "ru",
+      "intent": "Two screens in one turn: a sign-up screen and a password-recovery screen.",
+      "prompt": "Сделай сразу два экрана: экран регистрации и экран восстановления пароля",
+      "screenRequested": true,
+      "verdictRule": "screen",
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 105,
+        "screen": true,
+        "auditIssues": 0,
+        "verdict": "YES"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 126,
+        "screen": true,
+        "auditIssues": 1,
+        "verdict": "YES",
+        "seconds": 33.19,
+        "thinkingChars": 6947,
+        "deltaChars": 0,
+        "terminal": "none",
+        "frames": ["Signup", "Password Recovery"],
+        "truncated": "n/a"
+      },
+      "expectation": {
+        "state": "required",
+        "requireVersionMove": true,
+        "note": "gq2 drew both requested screens in one turn. The gate asks for a screen, not for two: a one-screen answer is a partial result the frames column shows, not a regression."
+      }
+    },
+    {
+      "id": "08-pricing-en",
+      "index": 8,
+      "language": "en",
+      "intent": "An English pricing page: three plan cards, a monthly/yearly toggle and an FAQ section.",
+      "prompt": "Create a pricing page with three plan cards, monthly and yearly toggle, and a FAQ section",
+      "screenRequested": true,
+      "verdictRule": "screen",
+      "baseline": {
+        "pass": "gq",
+        "page0Nodes": 165,
+        "screen": true,
+        "auditIssues": 2,
+        "verdict": "YES"
+      },
+      "last": {
+        "pass": "gq2",
+        "page0Nodes": 0,
+        "screen": false,
+        "auditIssues": 0,
+        "verdict": "NO",
+        "seconds": 66.79,
+        "thinkingChars": 26106,
+        "deltaChars": 49026,
+        "terminal": "done",
+        "frames": [],
+        "truncated": "yes"
+      },
+      "expectation": {
+        "state": "known_broken",
+        "floorPage0Nodes": 0,
+        "note": "same recorded regression as prompt 4 (issue #202): pages[0] ends with 0 roots. Floor 0 = reproducing it is not a gate failure; >= 5 page-0 nodes reports RECOVERED."
+      }
+    }
+  ]
+}

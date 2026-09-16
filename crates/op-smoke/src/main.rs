@@ -69,6 +69,7 @@ use std::sync::Arc;
 mod audit_mode;
 mod audit_rubric;
 mod best_of;
+mod design_quality;
 mod image_fill;
 mod llm_clients;
 mod loop_mode;
@@ -242,6 +243,10 @@ async fn main() -> std::process::ExitCode {
                 "usage: op-smoke <prompt>\n\n\
                  audit (no model, no credential; <prompt> is ignored):\n\
                    OPENPENCIL_SMOKE_AUDIT=<file.op> op-smoke audit\n\n\
+                 design-quality corpus against a running daemon (no credential of\n\
+                 its own; the model runs inside the daemon):\n\
+                   op-smoke quality --url http://127.0.0.1:3199 [--only 04] [--dry-run]\n\
+                 see `op-smoke quality --help`\n\n\
                  providers:\n\
                    anthropic (default): OPENPENCIL_ANTHROPIC_API_KEY=...\n\
                    openai-compat: OPENPENCIL_LLM_BASE_URL=... OPENPENCIL_LLM_API_KEY=...\n\
@@ -277,6 +282,16 @@ async fn main() -> std::process::ExitCode {
     // same reason (issue #192): it must run on a machine with no model
     // environment at all.
     if let Some(code) = program_mode::run_if_requested() {
+        return code;
+    }
+
+    // `op-smoke quality --url <daemon>` measures the committed 8-prompt design
+    // corpus against a RUNNING daemon and prints a scorecard, the repeatable
+    // form of the two hand measurements in `.openpencil-tmp/gq{,2}/`. The model
+    // runs inside the daemon, so this mode needs no model environment of its
+    // own and is dispatched above the credential gate for the same reason the
+    // audit and program modes are. No port is ever guessed: `--url` is required.
+    if let Some(code) = design_quality::run_if_requested().await {
         return code;
     }
 
