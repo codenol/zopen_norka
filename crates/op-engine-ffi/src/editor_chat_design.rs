@@ -27,10 +27,12 @@ pub(crate) fn design_intent(message: &str) -> bool {
 /// output budget inside `<think>` and draws nothing, so the design turn
 /// forces it off; everything else keeps the chat default (mobile chat
 /// default is Adaptive, i.e. not disabled).
+///
+/// The lookup itself is [`op_orchestrator::design_turn_disables_thinking`] —
+/// one predicate shared by every design entry point, so a new reasoning model
+/// is registered once in the profile table.
 pub(crate) fn design_turn_disable_thinking(model: Option<&str>) -> bool {
-    model
-        .map(|m| op_orchestrator::resolve_model_profile(m).thinking_disabled)
-        .unwrap_or(false)
+    op_orchestrator::design_turn_disables_thinking(model)
 }
 
 /// Mobile-host capability note appended to the shared design-agent prompt.

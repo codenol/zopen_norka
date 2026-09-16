@@ -11,7 +11,9 @@
 
 use std::io::Write;
 
-use op_ai::chat_provider::{ChatDelta, ChatProvider, ChatRequest, EffortLevel, ThinkingMode};
+use op_ai::chat_provider::{
+    ChatDelta, ChatProvider, ChatRequest, EffortLevel, ThinkingMode, DEFAULT_TURN_MAX_OUTPUT_TOKENS,
+};
 use op_editor_core::{AgentProvider, BuiltinAgentConfig, EditorState};
 use serde_json::{json, Value};
 
@@ -40,9 +42,11 @@ pub struct AiStreamRequest {
 /// Parse a `/api/ai/stream` JSON body into an [`AiStreamRequest`].
 /// Returns `None` when the body isn't a JSON object. Missing scalar
 /// fields fall back to sensible defaults (empty model/user, no skills,
-/// 4096 output tokens); `thinking` / `effort` strings map onto their
-/// enums, defaulting to `Adaptive` / `Low` (TS parity) when missing or
-/// unknown.
+/// [`DEFAULT_TURN_MAX_OUTPUT_TOKENS`] output tokens — a reasoning model
+/// spends that same budget inside `<think>`, so a default sized for the
+/// answer alone is a turn that returns nothing); `thinking` / `effort`
+/// strings map onto their enums, defaulting to `Adaptive` / `Low` (TS
+/// parity) when missing or unknown.
 pub fn parse_ai_stream_body(body: &str) -> Option<AiStreamRequest> {
     let value: Value = serde_json::from_str(body).ok()?;
     let obj = value.as_object()?;
@@ -83,7 +87,7 @@ pub fn parse_ai_stream_body(body: &str) -> Option<AiStreamRequest> {
         .get("max_output_tokens")
         .and_then(Value::as_u64)
         .map(|n| n.min(u32::MAX as u64) as u32)
-        .unwrap_or(4096);
+        .unwrap_or(DEFAULT_TURN_MAX_OUTPUT_TOKENS);
     let thinking = obj
         .get("thinking")
         .and_then(Value::as_str)

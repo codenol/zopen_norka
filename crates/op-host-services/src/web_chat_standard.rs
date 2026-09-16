@@ -13,6 +13,7 @@ use base64::Engine as _;
 #[cfg(test)]
 use op_ai::chat_provider::StopReason;
 use op_ai::chat_provider::{ChatAttachment, ChatDelta, ChatHistoryRole, ChatProvider, ChatRequest};
+use op_ai::chat_provider::ThinkingMode;
 use op_editor_core::chat::MAX_ATTACHMENT_BYTES;
 use op_editor_core::{BuiltinAgentConfig, EditorCommand, EditorState, NodeId};
 use op_orchestrator::{
@@ -350,6 +351,7 @@ pub fn stream_standard_turn<W: Write>(
                 out,
                 plan,
                 design_provider.as_ref(),
+                model.as_deref(),
                 state,
                 hub,
                 write_barrier,
@@ -597,6 +599,7 @@ fn stream_modify_route<W: Write>(
     out: &mut W,
     plan: crate::chat_intent::ModifyPlan,
     provider: &dyn ChatProvider,
+    model: Option<&str>,
     state: &Mutex<WebCanvasState>,
     hub: &SseHub,
     write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
@@ -611,10 +614,23 @@ fn stream_modify_route<W: Write>(
     } else {
         8192
     };
+    // What the screen's JSON and the model's hidden reasoning share. This was
+    // the one design entry point that never applied the design-turn policy:
+    // desktop, mobile and the orchestrator all force thinking off for a model
+    // whose profile says it burns its budget inside `<think>` (glm-5.2
+    // measured at thinking≈30k / text=0, DeepSeek V4 at 19 s of reasoning for
+    // 0 characters of answer, #179), and this route left it on — which is what
+    // "it changed the headers but not the data" is made of.
+    let thinking = if op_orchestrator::design_turn_disables_thinking(model) {
+        ThinkingMode::Disabled
+    } else {
+        ThinkingMode::Adaptive
+    };
     let request = ChatRequest {
         system_prompt: plan.system_prompt,
         user_message: plan.user_message,
         max_output_tokens,
+        thinking,
         ..Default::default()
     };
     let mut full_response = String::new();

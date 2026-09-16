@@ -368,3 +368,34 @@ fn unknown_id_defaults_standard() {
         ModelTier::Standard
     );
 }
+
+/// The design-turn predicate is the whole policy: the models whose profile
+/// asks for thinking off get it, everything else keeps the caller's default.
+/// The configured web/desktop model is the first row because that is the one
+/// measured starving a design turn — 4000-token budget, 19 s of reasoning,
+/// zero characters of answer (issue #179).
+#[test]
+fn design_turns_disable_thinking_for_the_models_that_starve() {
+    for model in [
+        "deepseek-v4-flash-vision-exp",
+        "deepseek-v4-flash",
+        "glm-5.2",
+        // An unknown id resolves to `DEFAULT_PROFILE`, which asks for thinking
+        // off too: an unrecognised model is assumed to reason heavily rather
+        // than assumed safe.
+        "some-unknown-model",
+    ] {
+        assert!(
+            design_turn_disables_thinking(Some(model)),
+            "{model} burns its budget inside <think> and must not be left on"
+        );
+    }
+    for model in ["claude-opus-4", "claude-sonnet-4-6"] {
+        assert!(
+            !design_turn_disables_thinking(Some(model)),
+            "{model} reasons without starving content — keep the caller's choice"
+        );
+    }
+    // No model selected yet → no profile to trust, so no override.
+    assert!(!design_turn_disables_thinking(None));
+}

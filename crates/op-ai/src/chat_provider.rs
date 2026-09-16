@@ -252,6 +252,14 @@ impl ChatHistoryRole {
     }
 }
 
+/// The shared output budget for one turn, defined in
+/// [`budget`](chat_provider_budget) and re-exported here so import paths
+/// stay `op_ai::chat_provider::DEFAULT_TURN_MAX_OUTPUT_TOKENS`.
+#[path = "chat_provider_budget.rs"]
+mod budget;
+
+pub use budget::DEFAULT_TURN_MAX_OUTPUT_TOKENS;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ChatRequest {
     pub system_prompt: String,

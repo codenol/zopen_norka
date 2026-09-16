@@ -416,6 +416,28 @@ fn version_lane_matches(lower: &str, prefix: &str, min: &[u32], suffix: Option<&
     }
 }
 
+/// Whether a **design** turn on `model` must run with hidden reasoning off.
+///
+/// The design pipeline is structured generation, not free chat: a model whose
+/// profile marks `thinking_disabled` spends its whole `max_output_tokens`
+/// inside `<think>` and then emits an empty design — glm-5.2 measured at
+/// thinking≈30k / text=0 → nothing drawn, and DeepSeek V4 measured at
+/// 19 s of reasoning / **0 characters of answer** with a 4000-token budget
+/// (issue #179; the provider's own wire default is thinking ON at effort
+/// high). Every design entry point must therefore force those models to
+/// `Disabled`; models outside the list keep the caller's default, because
+/// they use reasoning productively without starving content.
+///
+/// One predicate, because this policy has already been re-expressed three
+/// times — the desktop design launch, the mobile FFI design turn and the
+/// orchestrator's LLM client — and the web daemon's modify route, which
+/// expressed it nowhere, is how the starvation got back in.
+pub fn design_turn_disables_thinking(model: Option<&str>) -> bool {
+    model
+        .map(|m| resolve_model_profile(m).thinking_disabled)
+        .unwrap_or(false)
+}
+
 /// Resolve a model id to its capability profile. ACP catalog ids use the
 /// conservative `Basic` default. Other ids strip a `provider/` prefix, then
 /// match the lower-cased model table. An empty id keeps the legacy forced

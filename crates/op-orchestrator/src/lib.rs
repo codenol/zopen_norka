@@ -151,8 +151,8 @@ pub use loop_finalize::{
 };
 pub use mobile_reflow::repair_mobile_trailing_nav_reflow;
 pub use model_profile::{
-    accepts_thinking_body_field, is_acp_capability_marker, reasoning_wire_control,
-    resolve_model_profile, ModelProfile, ModelTier, ReasoningWireControl,
+    accepts_thinking_body_field, design_turn_disables_thinking, is_acp_capability_marker,
+    reasoning_wire_control, resolve_model_profile, ModelProfile, ModelTier, ReasoningWireControl,
 };
 pub use prompt::build_orchestrator_prompt;
 pub use repair_record::RepairRecord;

@@ -317,6 +317,31 @@ here at a glance.
 
 ### Fixed
 
+- **A turn's reply budget covers the model's reasoning, not just its answer.**
+  The browser asked for 4096 output tokens; a reasoning model spends that same
+  budget inside `<think>` before it writes one visible character. Measured on
+  the configured model: 19 s, 15 582 characters of reasoning streamed, **0
+  characters of answer**, then `done` — the turn looked finished and the canvas
+  stayed empty. The browser now sends the shared default (16 384) and the
+  daemon's own fallback when the field is missing matches it (issue #179).
+
+- **A turn that returns nothing now says so.** An answer with no text was
+  reported as a finished turn: the bubble stopped, the transcript showed
+  nothing, and that is indistinguishable from "the model had nothing to say".
+  A turn that ends without an answer says the model returned no result, and one
+  that streamed reasoning first says the reasoning consumed the budget — which
+  is the actionable half (issue #179).
+
+- **A screen rewrite no longer competes with the model's own reasoning.** The
+  web daemon's modify route was the one design entry point that never applied
+  the design-turn thinking policy: a model whose profile marks it
+  `thinking_disabled` (DeepSeek V4, GLM-5.x, MiniMax) ran with reasoning left
+  on, so `<think>` and the screen's JSON shared one budget — the documented
+  cause of "it changed the headers but not the data" and of an empty design.
+  Desktop, mobile and the orchestrator all forced it off; now they and the web
+  route share one predicate, `op_orchestrator::design_turn_disables_thinking`
+  (issue #179).
+
 - **The first administrator can be created from the CLI again.** `op admin create`
   hung forever: the dialogue held the stdin lock and the secret reader took the
   same non-reentrant lock a second time. The reader takes the handle the dialogue
