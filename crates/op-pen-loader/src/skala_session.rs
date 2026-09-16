@@ -15,9 +15,9 @@ use op_editor_core::{apply_skala_kit_policy, document_has_skala_masters, EditorS
 #[cfg(not(target_arch = "wasm32"))]
 use op_editor_core::SKALA_KIT_ID;
 
+use super::library::LibraryMergeReport;
 #[cfg(not(target_arch = "wasm32"))]
 use super::library::{merge_library_into_state, LibraryMergeError};
-use super::library::LibraryMergeReport;
 
 /// Outcome of ensuring Skala is attached to a session document.
 #[derive(Debug, Clone, PartialEq, Eq)]
