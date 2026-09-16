@@ -38,7 +38,7 @@ use op_editor_core::editor_ui_state::share::{
     ShareAction, ShareIssuedInvite, ShareNotice, ShareUiState,
 };
 use op_editor_core::{
-    auth_routes, route, share_routes, AccountState, Rights, ShareGrant, ShareInviteRefusal,
+    auth_routes, route, share_routes, Rights, ShareGrant, ShareInviteRefusal,
     ShareLevel, ShareListSnapshot,
 };
 

@@ -55,7 +55,7 @@ pub(super) fn refresh_marks<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>,
     };
     // One link at a time, in the order the sections were listed.
     let next = MARKS_PENDING.with(|slot| {
-        let mut pending = slot.borrow_mut();
+        let pending = slot.borrow_mut();
         let Some(index) = pending
             .iter()
             .position(|section| section.links.iter().any(|link| !has_digest(&link.key)))
