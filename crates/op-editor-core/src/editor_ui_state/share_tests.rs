@@ -396,3 +396,64 @@ fn a_refusal_from_the_server_is_shown_the_same_way_as_a_local_one() {
     assert!(notice.is_refusal());
     assert_eq!(notice.i18n_key(), "share.invite.refused.noRight");
 }
+
+/// Issue #131: the link row's caption follows the level the link hands out.
+///
+/// The row is the only grant in this dialog with no subject to read back — a
+/// named grant gets a person row, the link gets nobody — so its caption is the
+/// only place the consequence of the widest state can be stated. A caption that
+/// read the same at "Can view" and "Can edit" is what made the two intentions
+/// indistinguishable on screen.
+#[test]
+fn the_link_row_says_what_the_level_it_hands_out_lets_people_do() {
+    let mut state = opening();
+
+    // The switch cannot land on editing by accident: the level it carries
+    // starts at the weakest one and only a picker press moves it.
+    assert_eq!(state.link_level, ShareLevel::DEFAULT);
+    assert_eq!(state.link_level, ShareLevel::Viewer);
+    assert!(!state.link_level.changes_the_document());
+
+    let viewing = state.link_caption(Locale::EnUs);
+    assert_eq!(
+        viewing,
+        op_i18n::translate(Locale::EnUs, "share.row.anyoneWithLink.caption.viewer")
+    );
+    assert!(!viewing.to_lowercase().contains("edit"), "{viewing}");
+
+    state
+        .set_link_level(ShareLevel::Editor)
+        .expect("an owner may hand out editing");
+    let editing = state.link_caption(Locale::EnUs);
+    assert_eq!(
+        editing,
+        op_i18n::translate(Locale::EnUs, "share.row.anyoneWithLink.caption.editor")
+    );
+    assert!(editing.to_lowercase().contains("edit"), "{editing}");
+    assert_ne!(
+        editing, viewing,
+        "the row must read differently when it hands out writing"
+    );
+    assert!(state.link_level.changes_the_document());
+
+    // Four levels, four sentences, and each one is distinct: a person reading
+    // the row learns the level's consequence, not the row's existence.
+    let mut captions = Vec::new();
+    for level in ShareLevel::ALL {
+        state
+            .set_link_level(level)
+            .expect("an admin may hand out all");
+        assert_eq!(
+            state.link_caption(Locale::EnUs),
+            op_i18n::translate(Locale::EnUs, link_level_caption_key(level))
+        );
+        captions.push(state.link_caption(Locale::EnUs));
+    }
+    let unique: std::collections::BTreeSet<&String> = captions.iter().collect();
+    assert_eq!(unique.len(), captions.len(), "{captions:?}");
+    // And every one of them keeps the deployment's sign-in caveat, which is
+    // what stops "anyone with the link" from reading as the open internet.
+    for caption in &captions {
+        assert!(caption.to_lowercase().contains("sign in"), "{caption}");
+    }
+}

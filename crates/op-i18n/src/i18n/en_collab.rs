@@ -11,7 +11,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "collab.topbar.readOnly" => "Read-only",
         "collab.topbar.ended" => "Session ended",
         "collab.topbar.participants" => "{{count}} participants",
-        "collab.topbar.unavailable" => "Collaboration is unavailable in this build",
+        // Cause-neutral on purpose: this screen covers BOTH a build with no
+        // collaboration runtime and a deployment that cannot answer a sign-in
+        // (#150), and the panel cannot tell them apart — see
+        // `CollabAvailability::Unavailable`. The wording names neither.
+        "collab.topbar.unavailable" => "Collaboration is not available here",
         "collab.action.start" => "Create session",
         "collab.action.join" => "Join session",
         "collab.home.hint" => "Create a new session or join with an invite.",
@@ -270,6 +274,8 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "account.entry.errorInvalid" => "That name cannot be used as written.",
         "account.entry.errorEmptyFields" => "Fill in every field.",
         "account.entry.errorPasswordMismatch" => "The two passwords do not match.",
+        "account.entry.errorTooManyAttempts" => "Too many failed attempts. Try again in {{seconds}} seconds.",
+        "account.entry.errorTooManyAttemptsUnstated" => "Too many failed attempts. Wait a while before trying again.",
         "account.entry.errorWeakPassword" => "The password is too weak: at least 12 characters, no repeats, and it must not contain the account name.",
         "account.entry.errorUsernameTaken" => "That username is already taken.",
         "account.entry.errorInviteNotFound" => "This invitation does not exist.",
@@ -286,7 +292,14 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.row.you" => "You",
         "share.row.owner" => "Owner — everything on this document",
         "share.row.anyoneWithLink" => "Anyone with the link",
-        "share.row.anyoneWithLink.caption" => "They must be able to sign in here — this deployment has no anonymous access.",
+        // One caption per level, because the row hands out four different
+        // powers and this sentence is the only place the row can say which
+        // (#131). Every one keeps the deployment's sign-in caveat: without it
+        // "anyone with the link" reads as the open internet.
+        "share.row.anyoneWithLink.caption.admin" => "Anyone who can sign in may edit this document and re-share it.",
+        "share.row.anyoneWithLink.caption.editor" => "Anyone who can sign in may edit this document.",
+        "share.row.anyoneWithLink.caption.commenter" => "Anyone who can sign in may comment and invite others.",
+        "share.row.anyoneWithLink.caption.viewer" => "Anyone who can sign in may only look at this document.",
         "share.row.invitedBy" => "Added by {{account}}",
         "share.row.invitedByYou" => "Added by you",
         "share.row.invitedUnknown" => "Added before this deployment recorded who",

@@ -70,6 +70,11 @@ pub struct ShareDialogModel {
     pub link_caption: String,
     pub link_enabled: bool,
     pub link_level_label: String,
+    /// Whether the link's level lets everybody who signs in change the
+    /// document. Paint draws the caption at full contrast when it does: a
+    /// sentence is easy to skim past, and this is the one state in the dialog
+    /// that publishes writing to the whole deployment at once.
+    pub link_level_writes: bool,
     pub people: Vec<SharePersonModel>,
     pub overflow_text: Option<String>,
     pub footer: String,
@@ -186,9 +191,16 @@ impl ShareDialogModel {
                     .i18n_key())
             },
             link_label: t("share.row.anyoneWithLink"),
-            link_caption: t("share.row.anyoneWithLink.caption"),
+            // The caption follows the level the link hands out, so the row says
+            // what "anyone with the link" MEANS here rather than only who may
+            // arrive (#131). A row that reads the same at "Can view" and "Can
+            // edit" is a row whose widest state a person cannot see.
+            link_caption: ui.link_caption(locale),
             link_enabled: ui.link_enabled,
             link_level_label: t(ui.link_level.i18n_key()),
+            // Whether the level in force lets everybody who signs in rewrite
+            // the document. Paint raises the caption's contrast on it.
+            link_level_writes: ui.link_level.changes_the_document(),
             people,
             overflow_text: (hidden > 0).then(|| {
                 op_i18n::translate(locale, "share.row.more")
