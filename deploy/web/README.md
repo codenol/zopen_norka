@@ -26,6 +26,36 @@ The origin matters: the unit sets
 `OPENPENCIL_WEB_ALLOWED_ORIGINS=https://html.norka.cc`, and without it the CSRF
 gate refuses cookie writes.
 
+## The model every account gets, and the key a person may bring
+
+A deployment has two ways to reach a model, and `--online` supports both at
+once:
+
+| | Where it lives | Who can change it |
+| --- | --- | --- |
+| **The shared model** | `~/.config/openpencil/settings.json` **of the service account** — here `/var/lib/norka/.config/openpencil/settings.json`, mode 0600, owner `norka` | The operator, by editing the file and restarting the unit. No account can: `--online` refuses every settings write (`online_policy::allows_settings_persistence`) |
+| **A person's own key** | The browser, per turn — the `credential` field of the turn's own request | Whoever holds the key. It is spent per request, is never written to the settings file, and dies with the account's in-memory tenant |
+
+The daemon reads the shared file **once, at start-up**, and installs its
+operator-owned providers into every account as that account's editor is created
+(`web_canvas_server/deployment_providers.rs`). Two consequences worth knowing:
+
+- **A model change is a restart, not a deploy.** Nothing re-reads the file while
+  the daemon runs; `systemctl restart norka-op` is the whole update.
+- **The first thing to read in the log is one line.** Every start prints either
+  `offering N shared model(s) from M provider(s) to every signed-in account` or
+  `no shared model is offered …`, which answers "why is the model list empty?"
+  without waiting for a turn to fail.
+
+`OPENPENCIL_PERSIST_WEB_CREDENTIALS_SERVER` is **not** the switch for this, and
+on an `--online` daemon it does nothing at all: a tenant's credential policy is
+browser-only by construction (`WebCanvasState::new_for_tenant`) and the route
+that would write the process settings file is gated on the serve mode
+(`persist_api_settings`), not on that variable. It matters only to the
+single-document daemon (desktop's `--serve-web`), where it lets a browser persist
+a credential into that process's own settings file — which is exactly why its
+shipped default is fail-closed.
+
 ## Updating it
 
 ```sh
@@ -55,10 +85,14 @@ records the deployed revision in `/opt/norka/src/.deployed-revision`.
    `OPENPENCIL_ONLINE_DATA_DIR` in the unit.
 3. **Create a document, reload, and find it there.** This is the documents
    directory, and it is worth checking before inviting anyone.
-4. **One design turn**, e.g. `нарисуй экран логина: карточка по центру, поля
+4. **The model list is not empty.** With a signed-in session cookie,
+   `GET /api/ai/models` lists the shared model with its `builtinProviderId` and
+   value. `[]` here is the deployment offering nobody a model — check the
+   start-up line and the settings file above before blaming the AI path.
+5. **One design turn**, e.g. `нарисуй экран логина: карточка по центру, поля
    email и пароль, кнопка войти`. A turn that ends with the canvas unchanged is a
    defect to report, not a slow start.
-5. **Invite one person and have them sign in.** The first end-to-end proof that
+6. **Invite one person and have them sign in.** The first end-to-end proof that
    accounts, sharing and the store agree.
 
 ## When something is wrong
@@ -73,6 +107,7 @@ nginx -t && tail -20 /var/log/nginx/error.log
 | --- | --- |
 | 502 from nginx | `systemctl is-active norka-op`; the daemon binds 127.0.0.1:3100 |
 | editor loads, AI turns fail | `journalctl -u norka-op` — a missing model credential says so there |
+| `GET /api/ai/models` answers `[]` | the start-up line: `offering N shared model(s)…` means the deployment has one and the account is asking with the wrong session; `no shared model is offered` means `/var/lib/norka/.config/openpencil/settings.json` (the SERVICE account's `~/.config`) holds no enabled provider with a key and a model. On a workstation that path is `~/Library/Application Support/openpencil/settings.json` on macOS — a hand-written `~/.config` copy is read by nobody there |
 | sign-in refused for the admin | the store in `OPENPENCIL_ONLINE_DATA_DIR`, and whether it was ever seeded |
 | documents gone after a deploy | they should not be: they are outside the install root. Check the volume, not the deploy |
 | stale page after an update | hard-reload: the bundle route is revalidated, but a tab can hold the old wasm in memory |
