@@ -10,6 +10,8 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-16
+
 ### Added
 
 - **A deployment can be operated from a terminal.** `op admin create` only ever
@@ -229,6 +231,29 @@ here at a glance.
 
 ### Changed
 
+- **The interface starts in Russian, and the app opens on your files.** Two
+  things a person met in their first minute. The chrome painted whatever
+  `EditorUiState::default()` happened to carry — Chinese, inherited from the
+  TypeScript era — and the desktop and daemon startup seeded the locale from the
+  process environment, so a first run landed the language of the machine rather
+  than the one the product ships; the file browser painted English literals
+  outright ("Files", "New file", "Search files", "Edited 2 h ago"). It is
+  Russian from the first frame now, on every machine: the environment is no
+  longer consulted at all, the locale picker and the saved setting still decide
+  everything after that, and the file list speaks the shared catalogue like the
+  rest of the app.
+
+  The root is the front door rather than an empty editor with a starter
+  document: `/` shows the file list, `/files` still shows it, and `/f/<key>`
+  still opens that document — including for a visitor who has to sign in first,
+  which is the case that used to lose the link. A signed-out tab cannot open a
+  document (the daemon answers `401`), and the router then wrote the editor's own
+  `/` over the address before the sign-in form was ever reached; the link is
+  remembered across the sign-in now and opens on the document it named. A
+  sign-in also forgets the file list the refused session left behind, so the
+  account that just arrived asks the daemon again instead of reading its
+  predecessor's refusal (issue #231).
+
 - **A released build's version stamp stopped blinking.** The top bar colours the
   version by how old the build is — green for minutes, amber past three, red past
   six, blinking — because "am I looking at a stale binary?" is a real question
@@ -270,6 +295,26 @@ here at a glance.
   leaves it, as with every other tool — and the list takes the rail the
   inspector uses, so the canvas keeps its width and nothing sits on the design.
   Threads are listed for the page being edited, with a count of the rest.
+
+- **Sharing is a property of a document, not of the account that owns it.**
+  A grant made in one document's Share dialog used to open EVERY document that
+  account owned, and the "anyone with the link" switch did the same for all of
+  them — measured against a real deployment, where a colleague granted access
+  while looking at document A could open and comment on document B that was
+  never shared. Access lists are keyed by document now: `/api/share/grant`,
+  `/revoke`, `/list` and `/link` take the document (`?file=<key>`, or `file` in
+  the body), and a request that names an owner without a document is refused
+  with `missing-document` rather than guessed at. The browser names the document
+  on every request — from the address for a link that has one, and from the key
+  the daemon reports for a tab on `/`.
+
+- **An access list written before this change is NOT migrated.** The old file
+  held one list for the whole account and never recorded which document it was
+  about, so applying it to whichever document the account opens next would hand
+  out access nobody granted for that document. It is moved aside as
+  `acl.v1.json` and reported at start-up; every share has to be issued again.
+  This is a breaking change for an existing deployment, and the only safe
+  reading of a file that cannot say what it was about.
 
 ### Removed
 
@@ -354,29 +399,23 @@ here at a glance.
   `OPENPENCIL_ONLINE_SIGNIN_LOCKOUT_SECS` — all printed in the daemon's startup
   banner, and none of them able to turn the limit off.
 
-### Changed
-
-- **Sharing is a property of a document, not of the account that owns it.**
-  A grant made in one document's Share dialog used to open EVERY document that
-  account owned, and the "anyone with the link" switch did the same for all of
-  them — measured against a real deployment, where a colleague granted access
-  while looking at document A could open and comment on document B that was
-  never shared. Access lists are keyed by document now: `/api/share/grant`,
-  `/revoke`, `/list` and `/link` take the document (`?file=<key>`, or `file` in
-  the body), and a request that names an owner without a document is refused
-  with `missing-document` rather than guessed at. The browser names the document
-  on every request — from the address for a link that has one, and from the key
-  the daemon reports for a tab on `/`.
-
-- **An access list written before this change is NOT migrated.** The old file
-  held one list for the whole account and never recorded which document it was
-  about, so applying it to whichever document the account opens next would hand
-  out access nobody granted for that document. It is moved aside as
-  `acl.v1.json` and reported at start-up; every share has to be issued again.
-  This is a breaking change for an existing deployment, and the only safe
-  reading of a file that cannot say what it was about.
-
 ### Fixed
+
+- **A shared deployment now serves the model its operator configured.** An
+  `--online` daemon builds every account's editor from that account's own stored
+  document or from the starter one, and neither of those reads the process
+  settings file — the start-up loader belongs to the single-document daemon. So
+  a deployment whose `settings.json` held a perfectly good provider answered
+  `GET /api/ai/models` with `[]` to every signed-in account, and every design
+  turn failed with "no model configured" until the account pasted a key of its
+  own. The file is now read once at start-up and its operator-owned providers are
+  installed into each account as it is created — one shared model for everybody,
+  and a person's own key still rides the request beside it. Accounts cannot
+  change the shared model: `--online` refuses every settings write outright, so
+  the shared entries come from the operator's file and nothing else. The daemon
+  says which it is at start-up ("offering N shared model(s)…", or that it offers
+  none), because the alternative is that question being answered by a failed turn
+  minutes later.
 
 - **The result is checked against the reference you attached, by default.**
   Post-generation validation compares the screenshot of what was drawn against
@@ -1188,5 +1227,7 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.8.6...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.0
+[0.9.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.9.0
 [0.8.6]: https://github.com/codenol/zopen_norka/releases/tag/v0.8.6
