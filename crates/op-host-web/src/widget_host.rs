@@ -40,7 +40,7 @@ use op_editor_ui::widgets::TOP_BAR_HEIGHT;
 use op_editor_ui::{Point2D, Rect, Theme};
 
 mod a11y_bridge;
-mod account_entry;
+pub(crate) mod account_entry;
 mod account_press;
 #[cfg(test)]
 mod agent_settings_acp_press_tests;
@@ -63,6 +63,8 @@ mod blur_inputs;
 mod blur_inputs_tests;
 #[cfg(test)]
 mod boolean_toolbar_tests;
+#[cfg(feature = "canvaskit")]
+pub(crate) mod build_stamp_pump;
 #[cfg(test)]
 mod canvas_hierarchy_tests;
 mod chat_design_apply;

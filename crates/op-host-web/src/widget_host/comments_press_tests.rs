@@ -131,7 +131,7 @@ fn centre(rect: Rect) -> (f32, f32) {
 }
 
 /// Paint one frame; the host caches the rects its press arms use.
-fn paint(host: &mut WidgetHost) {
+fn paint_frame(host: &mut WidgetHost) {
     let mut backend = CaptureBackend::default();
     host.paint_editor(&mut backend, W, H);
 }
@@ -164,7 +164,7 @@ fn comment_button(host: &WidgetHost) -> (f32, f32) {
 
 /// Turn the comment tool on the way a reviewer does: press the toolbar button.
 fn arm_by_press(host: &mut WidgetHost) {
-    paint(host);
+    paint_frame(host);
     let (x, y) = comment_button(host);
     assert!(host.apply_press(x, y, W, H), "the button press is consumed");
     assert!(
@@ -181,7 +181,7 @@ fn arm_by_press(host: &mut WidgetHost) {
 /// composer's own zones were never exercised through (issue #49).
 fn open_composer_by_press(host: &mut WidgetHost) -> Rect {
     arm_by_press(host);
-    paint(host);
+    paint_frame(host);
     let (ex, ey) = click_point(host);
     assert!(
         host.apply_press(ex, ey, W, H),
@@ -193,21 +193,21 @@ fn open_composer_by_press(host: &mut WidgetHost) -> Rect {
         "a click on the canvas opens the composer for that point"
     );
 
-    paint(host);
+    paint_frame(host);
     host.comments_popover_rect.expect("the composer painted")
 }
 
 #[test]
 fn the_tool_selects_the_rail_and_a_second_press_leaves_it() {
     let mut host = host_with_thread();
-    paint(&mut host);
+    paint_frame(&mut host);
     assert!(
         host.comments_panel_rect.is_none(),
         "the inspector owns the rail until the comment tool asks for it"
     );
 
     arm_by_press(&mut host);
-    paint(&mut host);
+    paint_frame(&mut host);
     let rail = host.comments_panel_rect.expect("the comment rail painted");
     // The rail's own slot: the same rect the inspector paints into, so the
     // canvas keeps the width it had and the list is not a box over the design.
@@ -224,7 +224,7 @@ fn the_tool_selects_the_rail_and_a_second_press_leaves_it() {
     let (x, y) = comment_button(&host);
     assert!(host.apply_press(x, y, W, H));
     assert!(!host.editor_state().editor_ui.comments.pin_mode);
-    paint(&mut host);
+    paint_frame(&mut host);
     assert!(host.comments_panel_rect.is_none(), "the rail went back");
 }
 
@@ -241,7 +241,7 @@ fn another_tool_leaves_the_comment_tool() {
         !host.editor_state().editor_ui.comments.pin_mode,
         "a canvas that kept dropping pins after the frame tool was picked would be a mode nobody asked for"
     );
-    paint(&mut host);
+    paint_frame(&mut host);
     assert!(host.comments_panel_rect.is_none());
 }
 
@@ -249,7 +249,7 @@ fn another_tool_leaves_the_comment_tool() {
 fn the_host_paints_the_same_rail_the_widget_places() {
     let mut host = host_with_thread();
     arm_by_press(&mut host);
-    paint(&mut host);
+    paint_frame(&mut host);
     let rail = host.comments_panel_rect.expect("the rail painted");
     let panel = op_editor_ui::widgets::comments_flow::panel_for(
         host.editor_state(),
@@ -264,7 +264,7 @@ fn a_row_press_opens_the_thread_and_frames_its_pin() {
     let mut host = host_with_thread();
     host.editor_state_mut().viewport.pan_x = -4_000.0;
     arm_by_press(&mut host);
-    paint(&mut host);
+    paint_frame(&mut host);
     let rail = host.comments_panel_rect.expect("the rail painted");
     let panel = op_editor_ui::widgets::comments_flow::panel_for(
         host.editor_state(),
@@ -304,7 +304,7 @@ fn a_thread_with_no_pin_opens_from_the_rail_without_moving_the_canvas() {
         ..CommentThread::default()
     }]);
     arm_by_press(&mut host);
-    paint(&mut host);
+    paint_frame(&mut host);
     let rail = host.comments_panel_rect.expect("the rail painted");
     let panel = op_editor_ui::widgets::comments_flow::panel_for(
         host.editor_state(),
@@ -424,7 +424,7 @@ fn a_press_on_send_posts_the_comment_at_the_point_it_was_written_at() {
     }
     assert_eq!(host.editor_state().editor_ui.comments.draft(), "looks off");
 
-    paint(&mut host);
+    paint_frame(&mut host);
     let rect = host.comments_popover_rect.expect("the composer painted");
     let (sx, sy) = centre(CommentThreadPopover::send_rect(rect));
     assert!(host.apply_press(sx, sy, W, H), "the send press is consumed");
@@ -469,7 +469,7 @@ fn a_press_on_the_field_is_what_lets_a_composed_comment_be_sent() {
     );
     assert_eq!(host.editor_state().editor_ui.comments.draft(), composed);
 
-    paint(&mut host);
+    paint_frame(&mut host);
     let rect = host.comments_popover_rect.expect("the composer painted");
     let (sx, sy) = centre(CommentThreadPopover::send_rect(rect));
     assert!(host.apply_press(sx, sy, W, H));
@@ -489,7 +489,7 @@ fn a_press_on_the_reply_field_of_an_open_thread_focuses_it() {
     let mut host = host_with_frame_and_thread();
     // Open the thread from the rail's row, the other way into a popover.
     arm_by_press(&mut host);
-    paint(&mut host);
+    paint_frame(&mut host);
     let rail = host.comments_panel_rect.expect("the rail painted");
     let panel = op_editor_ui::widgets::comments_flow::panel_for(
         host.editor_state(),
@@ -500,7 +500,7 @@ fn a_press_on_the_reply_field_of_an_open_thread_focuses_it() {
     assert!(host.apply_press(rx, ry, W, H), "the row press is consumed");
 
     host.editor_state_mut().editor_ui.comments.blur_composer();
-    paint(&mut host);
+    paint_frame(&mut host);
     let rect = host.comments_popover_rect.expect("the thread painted");
 
     let (fx, fy) = centre(CommentThreadPopover::input_rect(rect));
@@ -518,7 +518,7 @@ fn a_press_on_the_resolution_button_resolves_and_then_reopens() {
     use op_editor_ui::widgets::comment_thread_popover::CommentThreadPopover;
     let mut host = host_with_thread();
     host.editor_state_mut().editor_ui.comments.open(1);
-    paint(&mut host);
+    paint_frame(&mut host);
     let rect = host.comments_popover_rect.expect("the thread painted");
 
     let (rx, ry) = centre(CommentThreadPopover::resolution_rect(rect));
@@ -540,7 +540,7 @@ fn a_press_on_the_resolution_button_resolves_and_then_reopens() {
         .comments
         .install_threads(vec![resolved]);
     host.editor_state_mut().editor_ui.comments.open(1);
-    paint(&mut host);
+    paint_frame(&mut host);
     let rect = host.comments_popover_rect.expect("the thread still paints");
     let (rx, ry) = centre(CommentThreadPopover::resolution_rect(rect));
     assert!(
@@ -591,7 +591,7 @@ fn a_press_outside_the_composer_closes_it_and_queues_nothing() {
 #[test]
 fn a_canvas_click_with_the_tool_off_selects_instead_of_pinning() {
     let mut host = host_with_frame_and_thread();
-    paint(&mut host);
+    paint_frame(&mut host);
     let (ex, ey) = click_point(&host);
     host.apply_press(ex, ey, W, H);
     host.apply_release_with_viewport(W, H);

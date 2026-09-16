@@ -69,7 +69,10 @@ impl DaemonProbe {
                 "[QUALITY] --url {base:?} is not an http(s) URL, e.g. --url http://127.0.0.1:3199"
             ));
         }
+        // The workspace pins its HTTP clients to rustls rather than inheriting
+        // whatever TLS the platform SDK links (`tools/check-rustls-client-policy.sh`).
         let client = reqwest::Client::builder()
+            .use_rustls_tls()
             .build()
             .map_err(|e| format!("[QUALITY] http client: {e}"))?;
         Ok(Self {

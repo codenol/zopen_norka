@@ -41,10 +41,7 @@ mod live_sync;
 // Daemon → browser agent-indicator relay (poll + local mirror + rAF pump).
 #[cfg(feature = "canvaskit")]
 mod agent_indicator_sync;
-// Top-bar hover-tooltip dwell → rAF repaint (the web host has no
-// animation-deadline scheduler of its own).
-#[cfg(feature = "canvaskit")]
-mod build_stamp_pump;
+
 // File-screen preview fetch, address-bar routing, and the tooltip dwell pump.
 // All three drive the CanvasKit host — `repaint_ctx` / `widget_host` /
 // `repaint_coalescer` / `raf_pump` / `listener` are themselves `canvaskit`

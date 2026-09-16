@@ -81,9 +81,13 @@ fn shown_error(context: &Rc<RefCell<RefusalContext>>) -> Option<AccountEntryErro
 }
 
 /// What the person reads: the sentence the widget resolves for that refusal.
+///
+/// The widget facade itself is only reachable from `widget_host`
+/// (`tools/check-widget-boundary.sh`, spec §1.4), so the sentence is resolved
+/// through that module's own reader rather than pulled in here.
 fn shown_sentence(context: &Rc<RefCell<RefusalContext>>) -> String {
     let error = shown_error(context).expect("a refusal is on screen");
-    op_editor_ui::widgets::account_entry_form::error_text(op_editor_core::Locale::EnUs, error)
+    crate::widget_host::account_entry::refusal_sentence(error)
 }
 
 #[test]
