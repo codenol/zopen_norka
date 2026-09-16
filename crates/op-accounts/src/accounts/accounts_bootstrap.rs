@@ -31,9 +31,9 @@
 //! It does not sign anybody in, and it does not touch the environment: this
 //! module takes a name and a password and answers what happened. Reading
 //! `NORKA_ADMIN_*` is the deployment's business
-//! ([`crate::web_canvas_server::account_admin`]), and a store that read the
-//! environment would be a store whose contents depend on when the variable was
-//! last written.
+//! (`op_host_services::web_canvas_server::account_admin`), and a store that read
+//! the environment would be a store whose contents depend on when the variable
+//! was last written.
 
 use super::accounts_error::AccountsError;
 use super::accounts_model::{NewUser, User};
@@ -114,7 +114,7 @@ impl AccountsDb {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::document_test_dir::TempDir;
+    use crate::test_dir::TempDir;
 
     const NOW: i64 = 1_700_000_000;
     /// Long and distinctive: the strength floor is 12 characters and this test

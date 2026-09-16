@@ -41,6 +41,7 @@ crates/
 ├── op-engine-napi/       OpenHarmony (OHOS) Node-API layer → `libopenpencil.so`; reuses op-engine-jni's engine thread + registry, everything else target-gated on `target_env = "ohos"` (see its README for the ArkTS API table)
 ├── op-host-web/          Browser bundle entry: wasm32-unknown-unknown cdylib, CanvasKit renderer
 ├── op-host-desktop/      Desktop binary `openpencil-desktop` (winit + skia-safe GL); also the `--serve-web` daemon
+├── op-accounts/          Account store in SQLite (users / sessions / tokens / invites) with Argon2id hashing — no daemon, no Skia, so `op admin create` links a store and not the whole daemon; `op-host-services` re-exports it under `op_host_services::accounts`
 ├── op-cli/               `op` command-line tool
 ├── op-util/              Dependency-free leaf: shared collaboration-id grammar + hex-colour / JSON / XML helpers
 └── …                     op-mcp / op-ai / op-ai-skills / op-codegen / op-orchestrator / op-figma /

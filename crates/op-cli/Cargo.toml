@@ -22,9 +22,12 @@ jian-ops-schema = { path = "../../vendor/jian/crates/jian-ops-schema" }
 op-figma = { path = "../op-figma" }
 # The account store, for `op admin create`: the first administrator has to be
 # creatable before there is a daemon to ask, so the command opens the same
-# `accounts.db` the deployment does. (This is the daemon's whole library
-# closure — see the note in `admin_cli` about what that costs.)
-op-host-services = { path = "../op-host-services" }
+# `accounts.db` the deployment does. `op-accounts` and NOT `op-host-services`
+# (issue #75): the latter is the daemon's whole library closure, and `op` — the
+# CLI a designer runs and agents drive over HTTP MCP — must not build and link
+# Skia, tokio and the agent runtimes for one subcommand. `cargo tree -p op-cli`
+# reaching `skia-safe` means this edge was undone.
+op-accounts = { path = "../op-accounts" }
 op-html = { path = "../op-html" }
 op-pen-loader = { path = "../op-pen-loader", default-features = false }
 op-process-io = { path = "../op-process-io" }

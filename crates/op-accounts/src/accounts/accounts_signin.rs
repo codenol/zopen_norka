@@ -26,9 +26,9 @@
 //! ## What it does not decide
 //!
 //! Whether a signed-in account may do anything afterwards. That is
-//! [`super::super::web_canvas_server::request_access`]'s question, answered from
-//! the roles and the document, and keeping it there is what stops this module
-//! growing an authorization policy nobody would look for here.
+//! `op_host_services::web_canvas_server::request_access`'s question, answered
+//! from the roles and the document, and keeping it there is what stops this
+//! module growing an authorization policy nobody would look for here.
 
 use std::net::IpAddr;
 use std::sync::OnceLock;

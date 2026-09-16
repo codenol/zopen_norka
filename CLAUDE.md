@@ -39,6 +39,7 @@ crates/
 ├── op-host-desktop/      Desktop binary `openpencil-desktop`; also the `--serve-web` daemon
 ├── op-host-services/     Headless serve-web / MCP daemon lib (shared by desktop + web-server)
 ├── op-host-web-server/   Thin GL-free web-server binary
+├── op-accounts/          Account store (SQLite + Argon2id) on its own, so `op admin create` links no Skia; re-exported by op-host-services
 ├── op-cli/               `op` command-line tool
 ├── op-util/              Dependency-free leaf: hex-colour parsing + JSON / XML escaping
 └── op-mcp / op-ai / op-ai-skills / op-codegen / op-orchestrator / op-figma /

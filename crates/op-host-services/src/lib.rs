@@ -19,9 +19,17 @@
 
 // Migrated headless modules (Phases 2-5), kept alphabetical.
 /// The account store in SQLite: users, sessions, one-time tokens and invites
-/// (#55). Public because the layer that reads it is the next step and lives in
-/// this crate's web server; nothing in the daemon opens it yet.
-pub mod accounts;
+/// (#55). It lives in `op-accounts` — its own crate, so `op admin create` can
+/// open the same database without linking this crate's Skia/tokio/agent
+/// closure (issue #75) — and is re-exported here under the path its callers
+/// already import. The dependency runs one way: this crate -> `op-accounts`.
+pub use op_accounts::accounts;
+/// The half of [`accounts::DATA_DIR_ENV`]'s promise that only this crate can
+/// ask: the account store names the variable itself and must not reach into
+/// the web layer to compare it, so the comparison lives here, where both names
+/// are visible.
+#[cfg(test)]
+mod accounts_data_dir_tests;
 pub mod acp_agent_probe_host;
 pub mod ai_proxy;
 pub mod ai_proxy_error;
@@ -66,11 +74,6 @@ mod design_agent_reflow_tests;
 mod design_agent_tool_result_tests;
 pub mod design_agent_tools;
 pub mod design_context;
-pub(crate) mod design_md_evidence;
-mod design_md_evidence_appendix;
-mod design_md_evidence_error;
-mod design_md_evidence_normalize;
-mod design_md_evidence_roles;
 pub mod design_md_llm;
 pub mod design_md_llm_error;
 pub mod design_session;
