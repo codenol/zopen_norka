@@ -18,6 +18,9 @@ fn a_fresh_directory_gets_the_whole_schema_and_records_its_version() {
             "meta",
             "one_time_tokens",
             "sessions",
+            // The sign-in budget (issue #77): one row per name or address whose
+            // failures are still being counted.
+            "sign_in_attempts",
             // SQLite's own bookkeeping for `one_time_tokens.id`, which is
             // AUTOINCREMENT so that an id a log line names is never handed to a
             // different event later.
@@ -113,12 +116,11 @@ fn a_store_left_at_an_earlier_version_is_brought_to_the_latest() {
         // A database as an OLDER BUILD of this store left it: the migrations
         // below the newest applied, and the version recorded to match.
         //
-        // With one migration in the list, `earlier` is 0 and this is a database
-        // with no schema at all — the honest shape of "before #55" — so the
-        // case that matters most (a table that already holds rows, and a step
-        // that has to carry them over) is the one this test will cover the day
-        // a second migration is appended. The assertions below are written for
-        // whichever list is current.
+        // With two migrations in the list, `earlier` is 1 and this is a
+        // database with the tables of #55 and rows in them, which is the shape
+        // a deployment upgrading across the sign-in budget (issue #77) actually
+        // has: the new step must land on a database that is already in use. The
+        // assertions below are written for whichever list is current.
         let conn = Connection::open(dir.join(DB_FILE)).expect("open");
         conn.execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
             .expect("meta");

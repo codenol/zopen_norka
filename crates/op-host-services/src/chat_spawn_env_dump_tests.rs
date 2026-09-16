@@ -45,9 +45,17 @@ fn capture_times_out_instead_of_hanging_on_a_blocking_rc() {
         matches!(dump, EnvDump::TimedOut),
         "a shell still running at the deadline must be killed, not awaited"
     );
+    // 15s, not 5s: the property is "the 400ms deadline, not the 30s child,
+    // ends the probe", and any bound below the child's own lifetime holds it.
+    // It used to sit at 5s, which issue #144 showed is inside the range a
+    // loaded machine spends on a single `spawn → exec → reap` (3812 / 6385 /
+    // 6444 / 7420 / 7514 ms measured on the full crate) — so the tight bound
+    // risked failing a probe that had behaved exactly as designed. This is the
+    // same bound its sibling below uses for the same reason.
     assert!(
-        started.elapsed() < Duration::from_secs(5),
-        "the deadline, not the child, decides when the probe returns"
+        started.elapsed() < Duration::from_secs(15),
+        "the deadline, not the child, decides when the probe returns; took {:?}",
+        started.elapsed()
     );
 }
 

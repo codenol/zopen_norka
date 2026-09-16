@@ -61,6 +61,26 @@ fn invited_user(db: &AccountsDb, id: &str, username: &str) -> User {
     .expect("create an invited account")
 }
 
+/// One attempt to sign in, with the budgets a deployment gets when it says
+/// nothing.
+///
+/// The tests here are about WHICH name and password open an account, not about
+/// how often they may be tried, so they go through this and let the throttle
+/// take its defaults. The throttle's own tests (`throttle.rs`) call the store
+/// directly, because the numbers ARE what they are testing.
+fn sign_in(
+    db: &AccountsDb,
+    username: &str,
+    password: &str,
+    now: i64,
+) -> Result<crate::accounts::SignInOutcome, AccountsError> {
+    db.authenticate(
+        &crate::accounts::SignInAttempt::new(username, password),
+        &crate::accounts::SignInLimits::default(),
+        now,
+    )
+}
+
 /// Every object the schema holds, by name.
 fn schema_objects(conn: &Connection) -> Vec<String> {
     let mut statement = conn
@@ -146,5 +166,6 @@ mod policy;
 mod schema;
 mod sessions;
 mod signin;
+mod throttle;
 mod tokens;
 mod users;

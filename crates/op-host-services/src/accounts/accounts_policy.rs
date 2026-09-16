@@ -49,6 +49,74 @@ pub const EMAIL_VERIFY_TTL_SECS: i64 = 24 * 60 * 60;
 /// be forgotten on purpose.
 pub const INVITE_TTL_SECS: i64 = 7 * 24 * 60 * 60;
 
+/// How many failed sign-ins one NAME may spend before it is refused.
+///
+/// Five, because the number has to survive two different readers. A person who
+/// cannot remember which of their passwords this account uses types it three or
+/// four times, and a budget that locked them out on the second would make a
+/// working account look broken. A guesser gets five tries per window against a
+/// name they have to already know, which over a day is a few hundred attempts
+/// against a password space that makes that hopeless — and the budget is spent
+/// per name, so guessing a thousand names costs a thousand budgets, which is
+/// what the per-source ceiling below is for.
+pub const SIGN_IN_MAX_FAILURES_PER_ACCOUNT: u32 = 5;
+
+/// How many failed sign-ins one ADDRESS may spend before it is refused.
+///
+/// Four times the per-name budget, and the difference is the point: an address
+/// is not a person. An office, a university, a mobile carrier and every
+/// deployment behind a reverse proxy arrive as ONE address, so this ceiling is
+/// sized to swallow a crowd's ordinary typos and still stop a machine. It is
+/// also the only bound on how many Argon2id verifications a single caller can
+/// make this process compute, which is the denial-of-service half of issue #77:
+/// without it, a caller spraying names that do not exist pays no price at all.
+pub const SIGN_IN_MAX_FAILURES_PER_SOURCE: u32 = 20;
+
+/// How far back failures are counted — and therefore how long a refusal lasts.
+///
+/// Fifteen minutes, one number for both jobs, because a second number would be
+/// a second thing to explain: the budget is spent until this long after the
+/// LAST failure, so a burst keeps its own lock alive and a person who stops
+/// trying is free again in a quarter of an hour. Long enough to make online
+/// guessing pointless, short enough that a locked-out person waits rather than
+/// telephones the operator.
+pub const SIGN_IN_FAILURE_WINDOW_SECS: i64 = 15 * 60;
+
+/// The budget a credential gets before the store stops checking it.
+///
+/// The two dimensions are separate numbers rather than one because they protect
+/// different things — see [`SIGN_IN_MAX_FAILURES_PER_ACCOUNT`] and
+/// [`SIGN_IN_MAX_FAILURES_PER_SOURCE`] — and because an operator behind a
+/// reverse proxy has to be able to widen exactly one of them.
+///
+/// A deployment with an opinion passes its own; [`Default`] is what it gets
+/// when it does not. The web tier reads the environment once and hands the
+/// result in ([`crate::accounts::SignInLimits`] is read by
+/// `web_canvas_server::account_routes`), which is the same split every other
+/// lifetime in this module follows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SignInLimits {
+    /// Failures one name may spend within the window.
+    pub max_failures_per_account: u32,
+    /// Failures one source address may spend within the window, across every
+    /// name it tries. Zero in the field would mean "no address is bounded",
+    /// and no configuration can produce it: see the environment reader, which
+    /// keeps the default for anything that is not a positive number.
+    pub max_failures_per_source: u32,
+    /// How far back failures are counted, and how long a refusal lasts.
+    pub window_secs: i64,
+}
+
+impl Default for SignInLimits {
+    fn default() -> Self {
+        Self {
+            max_failures_per_account: SIGN_IN_MAX_FAILURES_PER_ACCOUNT,
+            max_failures_per_source: SIGN_IN_MAX_FAILURES_PER_SOURCE,
+            window_secs: SIGN_IN_FAILURE_WINDOW_SECS,
+        }
+    }
+}
+
 impl OneTimePurpose {
     /// The lifetime this purpose gets when the caller names no other.
     ///

@@ -146,6 +146,72 @@ fn a_mark_that_cannot_be_compared_outranks_one_that_merely_moved() {
         LinkState::NotReadable,
         "the first link seen is the one to beat"
     );
+    // A check that did not complete is the quietest of the three
+    // un-comparable states, but it is still not a drift: nothing about the
+    // link can be said while the store has not been heard from.
+    assert_eq!(
+        louder(Some(broken), LinkState::CheckFailed),
+        LinkState::CheckFailed
+    );
+    assert_eq!(
+        louder(Some(LinkState::CheckFailed), LinkState::NotReadable),
+        LinkState::NotReadable
+    );
+    assert_eq!(
+        louder(Some(LinkState::CheckFailed), LinkState::AssetMissing),
+        LinkState::AssetMissing
+    );
+}
+
+#[test]
+fn a_failed_read_is_not_told_the_asset_is_gone() {
+    // Issue #145, and the same rule as #110 one status code over: a store that
+    // answers a server error, a request that never arrives, or a body with no
+    // digest in it leaves the caller with no digest, and "no digest" is what
+    // the panel spells "the analytics document is gone" with.
+    let link = link("analytics", "mockups");
+    assert_eq!(
+        unchecked_link_state(Some(&link)),
+        LinkState::CheckFailed,
+        "a read that did not complete is its own state"
+    );
+    assert_ne!(
+        unchecked_link_state(Some(&link)),
+        LinkState::AssetMissing,
+        "a deletion nobody confirmed must never be claimed"
+    );
+    assert_ne!(unchecked_link_state(Some(&link)), LinkState::NotReadable);
+    // The section still names a document.
+    assert!(unchecked_link_state(Some(&link)).has_analytics());
+    assert_eq!(unchecked_link_state(None), LinkState::NoAnalytics);
+}
+
+#[test]
+fn only_an_explicit_not_here_confirms_a_deletion() {
+    // The translation every caller goes through, held in one place because two
+    // readers of the same status code disagreeing is how #145 was found: the
+    // canvas read a 5xx as "gone" while the panel would have known better.
+    assert_eq!(read_outcome(200), ReadOutcome::Answered);
+    assert_eq!(read_outcome(204), ReadOutcome::Answered);
+    assert_eq!(read_outcome(404), ReadOutcome::Gone);
+    assert_eq!(read_outcome(403), ReadOutcome::Refused);
+    for status in [500, 502, 503, 0] {
+        assert_eq!(
+            read_outcome(status),
+            ReadOutcome::Unconfirmed,
+            "{status} establishes nothing about the asset"
+        );
+        assert_ne!(
+            read_outcome(status),
+            ReadOutcome::Gone,
+            "{status} must not be read as a deletion"
+        );
+    }
+    // A code this build has never seen is not a claim either: fail closed
+    // towards "we do not know" rather than towards "it was deleted".
+    for status in [400, 401, 418, 429, 301] {
+        assert_eq!(read_outcome(status), ReadOutcome::Unconfirmed, "{status}");
+    }
 }
 
 #[test]

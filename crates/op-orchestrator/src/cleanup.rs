@@ -92,6 +92,35 @@ pub(crate) fn count_descendants(node: &PenNode) -> usize {
 
 /// 统计活动页里 id 为 `root_id` 的节点的后代总数。节点不存在
 /// 时返回 0。
+/// Whether a node with this id is in the document at all.
+///
+/// A run summary names the root it produced, and the id it captured before
+/// finalisation can be gone by the time the summary is built: `finalize_design`
+/// swaps the real root in through `ReplaceSubtree`, which allocates a fresh id
+/// (issue #29). Asking whether the id still resolves is what keeps the field
+/// from naming a node that is nowhere.
+pub fn node_exists(state: &EditorState, node_id: &str) -> bool {
+    state
+        .active_children()
+        .iter()
+        .any(|node| node.id_str() == node_id)
+        || state
+            .active_children()
+            .iter()
+            .any(|node| subtree_contains(node, node_id))
+}
+
+/// Whether `node_id` is somewhere under `node`.
+fn subtree_contains(node: &PenNode, node_id: &str) -> bool {
+    node.children()
+        .map(|children| {
+            children
+                .iter()
+                .any(|child| child.id_str() == node_id || subtree_contains(child, node_id))
+        })
+        .unwrap_or(false)
+}
+
 pub fn descendant_count(state: &EditorState, root_id: &str) -> usize {
     state
         .active_children()

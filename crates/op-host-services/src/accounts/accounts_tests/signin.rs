@@ -9,9 +9,7 @@ fn the_right_password_signs_an_active_account_in() {
     let (_dir, db) = store();
     let created = active_user(&db, "u1", "alice");
 
-    let outcome = db
-        .authenticate("alice", PASSWORD, NOW + 5)
-        .expect("authenticate");
+    let outcome = sign_in(&db, "alice", PASSWORD, NOW + 5).expect("authenticate");
 
     let SignInOutcome::SignedIn(user) = outcome else {
         panic!("expected a signed-in account, got {outcome:?}");
@@ -42,7 +40,7 @@ fn a_name_is_matched_whatever_case_it_is_typed_in() {
     for typed in ["alice", "ALICE", "  Alice  "] {
         assert!(
             matches!(
-                db.authenticate(typed, PASSWORD, NOW).expect("authenticate"),
+                sign_in(&db, typed, PASSWORD, NOW).expect("authenticate"),
                 SignInOutcome::SignedIn(_)
             ),
             "{typed} should sign in"
@@ -58,17 +56,15 @@ fn a_wrong_password_and_a_name_that_matches_nothing_answer_the_same_way() {
     // One answer for both. A login form built on this cannot be talked into
     // reporting which names exist, because the store never worked it out.
     assert_eq!(
-        db.authenticate("alice", "not-the-password", NOW)
-            .expect("authenticate"),
+        sign_in(&db, "alice", "not-the-password", NOW).expect("authenticate"),
         SignInOutcome::Rejected
     );
     assert_eq!(
-        db.authenticate("nobody", PASSWORD, NOW)
-            .expect("authenticate"),
+        sign_in(&db, "nobody", PASSWORD, NOW).expect("authenticate"),
         SignInOutcome::Rejected
     );
     assert_eq!(
-        db.authenticate("alice", "", NOW).expect("authenticate"),
+        sign_in(&db, "alice", "", NOW).expect("authenticate"),
         SignInOutcome::Rejected
     );
 }
@@ -81,14 +77,14 @@ fn an_account_with_no_password_cannot_sign_in() {
     // The invite has not been accepted: the account exists and there is nothing
     // to check a password against, so every password is equally wrong.
     assert_eq!(
-        db.authenticate("bob", PASSWORD, NOW).expect("authenticate"),
+        sign_in(&db, "bob", PASSWORD, NOW).expect("authenticate"),
         SignInOutcome::Rejected
     );
     db.set_password("u1", PASSWORD, NOW)
         .expect("set a password");
     assert!(
         matches!(
-            db.authenticate("bob", PASSWORD, NOW).expect("authenticate"),
+            sign_in(&db, "bob", PASSWORD, NOW).expect("authenticate"),
             SignInOutcome::SignedIn(_)
         ),
         "once the account has a password, it signs in"
@@ -105,21 +101,18 @@ fn a_blocked_account_is_told_apart_only_after_its_password_is_right() {
     // With the password: the caller has proved it holds the account, so the
     // reason is theirs to know — it is the one thing they can act on.
     assert_eq!(
-        db.authenticate("alice", PASSWORD, NOW)
-            .expect("authenticate"),
+        sign_in(&db, "alice", PASSWORD, NOW).expect("authenticate"),
         SignInOutcome::Blocked(UserStatus::Disabled)
     );
     // Without it: the same answer a name that matches nothing gets. Checking
     // the status first would have made this a way to ask whether an account
     // exists and is disabled.
     assert_eq!(
-        db.authenticate("alice", "not-the-password", NOW)
-            .expect("authenticate"),
+        sign_in(&db, "alice", "not-the-password", NOW).expect("authenticate"),
         SignInOutcome::Rejected
     );
     assert_eq!(
-        db.authenticate("nobody", "not-the-password", NOW)
-            .expect("authenticate"),
+        sign_in(&db, "nobody", "not-the-password", NOW).expect("authenticate"),
         SignInOutcome::Rejected
     );
 }
@@ -132,8 +125,7 @@ fn a_disabled_account_is_not_recorded_as_seen() {
         .expect("disable");
 
     assert_eq!(
-        db.authenticate("alice", PASSWORD, NOW + 100)
-            .expect("authenticate"),
+        sign_in(&db, "alice", PASSWORD, NOW + 100).expect("authenticate"),
         SignInOutcome::Blocked(UserStatus::Disabled)
     );
     assert_eq!(
@@ -154,8 +146,7 @@ fn an_orphaned_account_is_blocked_too() {
         .expect("orphan");
 
     assert_eq!(
-        db.authenticate("alice", PASSWORD, NOW)
-            .expect("authenticate"),
+        sign_in(&db, "alice", PASSWORD, NOW).expect("authenticate"),
         SignInOutcome::Blocked(UserStatus::Orphan)
     );
 }
@@ -167,8 +158,7 @@ fn a_failed_attempt_changes_nothing() {
 
     for (name, password) in [("alice", "wrong"), ("nobody", PASSWORD)] {
         assert_eq!(
-            db.authenticate(name, password, NOW + 50)
-                .expect("authenticate"),
+            sign_in(&db, name, password, NOW + 50).expect("authenticate"),
             SignInOutcome::Rejected
         );
     }
@@ -194,9 +184,7 @@ fn an_account_whose_hash_cannot_be_read_is_a_fault_rather_than_a_rejection() {
         .expect("corrupt the row");
     }
 
-    let error = db
-        .authenticate("alice", PASSWORD, NOW)
-        .expect_err("a hash this build cannot read");
+    let error = sign_in(&db, "alice", PASSWORD, NOW).expect_err("a hash this build cannot read");
     assert!(matches!(error, AccountsError::PasswordHash(_)), "{error:?}");
 }
 
@@ -209,9 +197,7 @@ fn signing_in_does_not_need_an_account_to_have_been_seen_before() {
     )
     .expect("create");
 
-    let outcome = db
-        .authenticate("Someone", PASSWORD, NOW + 1)
-        .expect("authenticate");
+    let outcome = sign_in(&db, "Someone", PASSWORD, NOW + 1).expect("authenticate");
     let SignInOutcome::SignedIn(user) = outcome else {
         panic!("expected a signed-in account");
     };

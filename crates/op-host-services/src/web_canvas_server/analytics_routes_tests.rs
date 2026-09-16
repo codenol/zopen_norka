@@ -213,6 +213,38 @@ fn deleting_removes_the_asset_from_every_answer() {
 }
 
 #[test]
+fn a_store_that_cannot_answer_is_a_server_error_and_not_a_deletion() {
+    // Issue #145's other half, and the contract the browser now reads: the one
+    // status that means "there is no such analytics document" is a 404, and a
+    // store that failed answers a 5xx. A 404 here would make every client that
+    // treats it as GONE — the section panel, the canvas marks — report a
+    // deletion nobody confirmed, because a row whose markdown is gone is a
+    // damaged store, not an absent asset (`analytics_store::digest` says so).
+    let dir = TempDir::new("analytics-routes-broken-store");
+    let store = dir.open();
+    let mut state = local_state(&store);
+    let access = RequestAccess::local_operator(ServeMode::Local);
+    let key = create_asset(&mut state, &access, "Analytics", "text\n");
+    std::fs::remove_file(crate::analytics_store::assets_dir(store.dir()).join(format!("{key}.md")))
+        .expect("remove the markdown the record accounts for");
+
+    let read = handle_web_canvas_request(
+        "GET",
+        &format!("/api/analytics/{key}"),
+        "",
+        &mut state,
+        &access,
+    );
+
+    assert_eq!(read.status, "500 Internal Server Error", "{}", read.body);
+    assert_ne!(
+        error_code(&read),
+        "analytics-not-found",
+        "the store failed, and did not say the asset was deleted"
+    );
+}
+
+#[test]
 fn a_key_that_is_not_a_key_is_refused_before_a_file_is_built() {
     // The key is joined to a path, so this is the one check standing between a
     // pasted URL and the filesystem.

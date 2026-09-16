@@ -30,11 +30,18 @@ pub(super) fn write_account_reply<S: Write>(
     reply: &AccountReply,
     cors_origin: Option<&str>,
 ) -> Result<()> {
-    let headers: Vec<(&str, &str)> = reply
+    let mut headers: Vec<(&str, &str)> = reply
         .cookies
         .iter()
         .map(|cookie| ("Set-Cookie", cookie.as_str()))
         .collect();
+    // The wait a refused sign-in asks for travels in the header rather than in
+    // the body, so that the body can be byte-identical whatever caused the
+    // refusal. The string is built here because the header list borrows it.
+    let retry_after = reply.retry_after_secs.map(|secs| secs.to_string());
+    if let Some(retry_after) = retry_after.as_deref() {
+        headers.push(("Retry-After", retry_after));
+    }
     crate::mcp_serve::write_mcp_http_response_with_headers(
         stream,
         reply.status,

@@ -749,11 +749,109 @@ impl Orchestrator {
             // First surviving root is the "primary" root_frame_id — mirrors
             // the deleted concurrent path's identical convention so this
             // field's meaning never changed shape for existing callers.
-            root_frame_id: root_ids.first().cloned().unwrap_or_default(),
+            //
+            // "Surviving" is the word that had gone stale: the ids captured
+            // above are taken BEFORE `finalize_design`, which swaps the real
+            // root in through `ReplaceSubtree` and allocates a fresh id, so the
+            // field could name a node the document does not contain (issue
+            // #29). A field that names the root is worth only what it resolves
+            // to, so a stale id gives way to the root that is actually there.
+            root_frame_id: live_root_id(sink.state(), &root_ids),
             subtasks: outcomes,
             total_nodes,
             paintable_nodes,
             unfilled_screens,
         })
+    }
+}
+
+/// The root this run actually left in the document.
+///
+/// The captured ids first (the convention this field has always had), then —
+/// if `finalize_design`'s `ReplaceSubtree` replaced the scaffold with a new
+/// id — the top-level frame that is there now. An empty string when the
+/// document has no top-level frame at all, which is what the field has always
+/// answered for an empty run.
+fn live_root_id(state: &op_editor_core::EditorState, captured: &[String]) -> String {
+    if let Some(id) = captured
+        .iter()
+        .find(|id| crate::cleanup::node_exists(state, id))
+    {
+        return id.clone();
+    }
+    state
+        .active_children()
+        .first()
+        .map(|node| node.id_str().to_string())
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod live_root_tests {
+    use super::live_root_id;
+    use op_editor_core::{EditorCommand, EditorState, NodeId, PenNodeExt};
+
+    /// A document whose top-level frames carry these ids, built the way the
+    /// rest of this crate's tests build one: through the editor's own command,
+    /// so the ids are the ones the editor mints.
+    fn state_with_frames(ids: &[&str]) -> (EditorState, Vec<String>) {
+        let mut state = EditorState::new();
+        let mut minted = Vec::new();
+        // One insert for all of them: the editor mints ids per subtree, and a
+        // second insert of a lone node lands differently from a forest.
+        let nodes: Vec<_> = ids
+            .iter()
+            .map(|id| {
+                jian_ops_schema::load_str(&format!(
+                    r#"{{"version":"1.0.0","children":[{{"type":"frame","id":"{id}","name":"{id}","x":0,"y":0,"width":100,"height":100}}]}}"#
+                ))
+                .expect("fixture parses")
+                .value
+                .children
+                .into_iter()
+                .next()
+                .expect("one node")
+            })
+            .collect();
+        state.apply(EditorCommand::InsertSubtree {
+            nodes,
+            parent_id: NodeId::NONE,
+            page_id: None,
+        });
+        for node in state.active_children() {
+            minted.push(node.id_str().to_string());
+        }
+        (state, minted)
+    }
+
+    #[test]
+    fn a_captured_root_that_is_still_there_is_kept() {
+        let (state, ids) = state_with_frames(&["n1", "n2"]);
+        assert_eq!(ids.len(), 2);
+        assert_eq!(live_root_id(&state, &[ids[0].clone()]), ids[0]);
+        assert_eq!(
+            live_root_id(&state, &["gone".to_string(), ids[1].clone()]),
+            ids[1],
+            "the first id that resolves wins"
+        );
+    }
+
+    #[test]
+    fn a_root_that_was_replaced_reports_the_one_that_is_there() {
+        // What `finalize_design` does: the scaffold id it captured is gone and
+        // a fresh one stands in its place (issue #29). The field must name a
+        // node a reader can resolve.
+        let (state, ids) = state_with_frames(&["n21"]);
+        assert_eq!(live_root_id(&state, &["n1".to_string()]), ids[0]);
+        assert!(
+            crate::cleanup::node_exists(&state, &live_root_id(&state, &["n1".to_string()])),
+            "and it resolves in the document"
+        );
+    }
+
+    #[test]
+    fn an_empty_document_answers_an_empty_id() {
+        let state = EditorState::new();
+        assert_eq!(live_root_id(&state, &["n1".to_string()]), String::new());
     }
 }

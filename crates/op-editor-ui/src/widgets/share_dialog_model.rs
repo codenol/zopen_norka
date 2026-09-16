@@ -264,6 +264,13 @@ pub fn refusal_text(locale: Locale, refusal: &ShareInviteRefusal) -> String {
             .replace("{{level}}", op_i18n::translate(locale, level.i18n_key()))
             .replace("{{own}}", op_i18n::translate(locale, own.i18n_key())),
         R::AlreadyOnList { account } => raw.replace("{{account}}", account),
+        // The two refusals a person actually meets in this dialog (#146): the
+        // entry that named nobody, and the list that is full. Both sentences
+        // need the figure the refusal is about — the spelling to check, the
+        // number of accounts already on the list — so both are filled here
+        // rather than left showing a placeholder.
+        R::UnknownAccount { account } => raw.replace("{{account}}", account),
+        R::ShareLimitReached { limit } => raw.replace("{{limit}}", &limit.to_string()),
         // The daemon's own refusal: the sentence is generic on purpose, and the
         // code travels in the variant for a log line rather than the card.
         R::EmptyField

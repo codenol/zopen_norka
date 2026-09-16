@@ -70,6 +70,7 @@ mod accounts_roles;
 mod accounts_secret;
 mod accounts_sessions;
 mod accounts_signin;
+mod accounts_signin_throttle;
 mod accounts_tokens;
 mod accounts_users;
 
@@ -85,11 +86,13 @@ pub use accounts_password_strength::{
     check_password_strength, WeakPasswordReason, FIRST_ADMIN_ROLE, MIN_PASSWORD_CHARS,
 };
 pub use accounts_policy::{
-    EMAIL_VERIFY_TTL_SECS, INVITE_TTL_SECS, PASSWORD_RESET_TTL_SECS, SESSION_TTL_SECS,
+    SignInLimits, EMAIL_VERIFY_TTL_SECS, INVITE_TTL_SECS, PASSWORD_RESET_TTL_SECS,
+    SESSION_TTL_SECS, SIGN_IN_FAILURE_WINDOW_SECS, SIGN_IN_MAX_FAILURES_PER_ACCOUNT,
+    SIGN_IN_MAX_FAILURES_PER_SOURCE,
 };
 pub use accounts_roles::{canonical_roles, known_roles, split_roles, UnknownRole};
 pub use accounts_secret::{hash_from_hex, hash_hex, hash_token, issue_token, token_hash_eq};
-pub use accounts_signin::SignInOutcome;
+pub use accounts_signin::{SignInAttempt, SignInOutcome};
 
 use accounts_migrations::{Migration, MIGRATIONS};
 

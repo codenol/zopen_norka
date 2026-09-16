@@ -66,6 +66,17 @@ const MAX_ROLE: usize = 64;
 /// Longest the whole encoded role list may be. A tag list on an account, not a
 /// group membership system.
 const MAX_ROLES: usize = 512;
+/// Longest `User-Agent` a session row records.
+///
+/// The one value in this store that arrives from an untrusted caller AND is
+/// displayed back to a person: the daemon now writes the client's own
+/// description of itself into the session it issues (#76), so an operator's
+/// list of sessions shows it. `MAX_HEADER` lets a request claim 64 KiB of
+/// headers, and a browser names itself in ~120 characters — the longest
+/// desktop wrappers a little over 200 — so a few hundred is generous for what
+/// a client can honestly be, and anything past it is somebody probing what the
+/// column will hold.
+const MAX_SESSION_USER_AGENT: usize = 512;
 
 /// What an account is allowed to do, as far as the store is concerned.
 ///
@@ -340,7 +351,9 @@ pub struct NewSession<'a> {
     /// How long the session lasts. Chosen by the caller: a session's lifetime
     /// is a deployment's policy, and the store has no basis for picking one.
     pub ttl_secs: i64,
-    /// The client's user agent, as received.
+    /// The client's user agent, as received. Stored bounded by
+    /// [`MAX_SESSION_USER_AGENT`], which is the column's business rather than
+    /// this struct's.
     pub user_agent: Option<&'a str>,
     /// The client's address, as received.
     pub ip: Option<&'a str>,
@@ -705,6 +718,32 @@ pub(super) fn checked_display_name(display_name: &str) -> Result<String, Account
 /// The address of an account about to be created, checked.
 pub(super) fn checked_email(email: Option<&str>) -> Result<Option<String>, AccountsError> {
     checked_optional_text("email", email, MAX_EMAIL)
+}
+
+/// The user agent of a session about to be created, as much of it as the
+/// column will hold.
+///
+/// TRUNCATED rather than refused, and that is the whole point of the
+/// difference from [`checked_text`]: a client whose agent string is padded
+/// past the limit is not a caller to turn away from signing in, and refusing
+/// here would let anyone with a long header lock themselves — or, worse, a
+/// shared proxy that pads one — out of their own account. The head of a user
+/// agent is the part that names the browser, so the head is what is kept.
+///
+/// An empty value becomes `None`. A header that said nothing names no client,
+/// and the column's NULL is what "nothing was known" means everywhere else in
+/// this schema; a row holding `''` would read as a client that identified
+/// itself as nothing, which is a different (and false) statement.
+///
+/// Truncation is by CHARACTER, not by byte: cutting a UTF-8 sequence in half
+/// would put a replacement character into a row a person reads.
+pub(super) fn checked_user_agent(user_agent: Option<&str>) -> Option<String> {
+    let agent = user_agent?;
+    let agent: String = agent.chars().take(MAX_SESSION_USER_AGENT).collect();
+    if agent.trim().is_empty() {
+        return None;
+    }
+    Some(agent)
 }
 
 /// A role list, encoded for the column that holds it.

@@ -239,6 +239,30 @@ here at a glance.
   `OPENPENCIL_ONLINE_DATA_DIR` (which `--online` already required) and either
   the `NORKA_ADMIN_*` pair or `op admin create`.
 
+### Security
+
+- **Signing in has a budget, and a wrong guess now costs the caller rather than
+  the server.** `POST /api/auth/login` accepted any number of attempts, and
+  Argon2id makes each one cost the SERVER milliseconds — so an internet-facing
+  deployment was both a guessing target and a lever for burning its own CPU.
+  A name now gets five failed attempts and an address twenty, counted in a
+  fifteen-minute sliding window; past either, the route answers `429` with
+  `Retry-After` and never checks the password at all — including when the
+  password is right, since a limit the correct credential walks through is not
+  a limit. The counters are keyed by the name AS TYPED and the address the
+  connection arrived from, so a name that does not exist is refused exactly like
+  one that does (`401` and `429` bodies are identical either way), and the only
+  bound on how many different names one caller may burn Argon2id on is the
+  address budget. A verified sign-in clears that name's streak — a typo is not
+  punished — and clears nothing for the address, so a working account cannot
+  refund an attack. Counters live in the account database, so a restart does not
+  clear a lockout, and an operator can read one with `sqlite3`. Three variables
+  tune the numbers — `OPENPENCIL_ONLINE_SIGNIN_MAX_FAILURES`,
+  `OPENPENCIL_ONLINE_SIGNIN_MAX_FAILURES_PER_SOURCE` (raise it behind a reverse
+  proxy, where everybody shares one address) and
+  `OPENPENCIL_ONLINE_SIGNIN_LOCKOUT_SECS` — all printed in the daemon's startup
+  banner, and none of them able to turn the limit off.
+
 ### Changed
 
 - **Sharing is a property of a document, not of the account that owns it.**
@@ -262,6 +286,32 @@ here at a glance.
   reading of a file that cannot say what it was about.
 
 ### Fixed
+
+- **A deployment with no accounts no longer asks its caller to sign in.** A
+  `--serve-web` daemon answered `availability: "signInRequired"` from
+  `/api/collab/state` while its own account tier answered `available: false`
+  from `/api/auth/status` and 404ed every login route, so the collaboration
+  panel offered a sign-in that nothing on that deployment could perform (issue
+  #148). The runtime decided it from whether the BUILD links the
+  collaboration-ticket ABI, which is the same in every host, and never asked
+  the deployment. The host answers that second question now: the daemon reports
+  collaboration as `unavailable`, and the GUI hosts keep `signInRequired`,
+  where the device-login flow can actually answer it.
+
+- **A run summary names a root that is actually in the document.** The field
+  captured the scaffold's id BEFORE finalisation, and `finalize_design` swaps the
+  real root in through `ReplaceSubtree`, which mints a fresh id — so the summary
+  could report a node the document does not contain (issue #29). It reports the
+  captured id while that id still resolves, and the root that is there when it
+  does not. Nothing read the field except a debug print, which is why it went
+  unnoticed; a reader that resolves it would have caught it.
+
+- **A wrong method on a share route answers a code, like every other refusal
+  there.** It put the sentence in the `error` field (through the older families'
+  shared helper), so a client switching on that field met prose where the rest
+  of these routes give `unknown-account`, `read-only-role` or
+  `cannot-share-with-self` (issue #147). The sentence still travels, in
+  `message` where the others put it.
 
 - **Inviting yourself is refused however you spell your own account.** The
   refusal compared the string in the field against the caller's account id and
@@ -499,6 +549,28 @@ here at a glance.
   answerable, and the person can reach it. Where it goes, the panel says which
   of the two is missing instead of promising a door that is not there. The
   desktop host, whose linked auth backend is what the row opens, is unchanged.
+
+- **A 5xx on the analytics route no longer reads as "your analytics was
+  deleted".** A server error, a request that never arrived and a body with no
+  digest in it all left the caller without a fingerprint — which is also what a
+  `404` leaves — so the section wore the "what this was built from is gone"
+  octagon while the store was merely down (issue #145, one status code over from
+  #110). A link is now `checkFailed` — its own state, its own sentence ("the
+  analytics document could not be checked", in all fifteen languages) and its
+  own question-mark glyph — and only an explicit `404` confirms a deletion. The
+  rule lives in one function beside the state machine, and both readers of the
+  route (the panel and the canvas marks) ask it.
+
+- **The Share dialog says "no account called that" instead of showing
+  `unknown-account`.** A typo in the invite field — the likeliest mistake
+  anybody makes in that dialog — and the account that arrives one over the
+  document's share ceiling both fell through to the catch-all, so the person was
+  shown the daemon's machine code (issue #146). Each now has its own sentence in
+  all fifteen languages, naming the entry to check or the number of accounts
+  already on the list; the code the daemon answers with is the one the dialog
+  now names, so a rename on either side shows up on the other. A refusal about
+  an entry this dialog cannot see is still carried as a code rather than
+  answered with a sentence that would have to name nobody.
 
 ## [0.9.0] — 2026-09-14
 

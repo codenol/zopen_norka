@@ -457,8 +457,15 @@ fn serve_roles(registry: &TenantRegistry, request: Request) -> String {
         output: Vec::new(),
     };
     let barrier = crate::web_canvas_server::tenant::WriteBarrier::default();
-    serve_one_online(&mut stream, registry, &RoleVerifier, None, &barrier)
-        .expect("serve_one_online");
+    serve_one_online(
+        &mut stream,
+        registry,
+        &RoleVerifier,
+        None,
+        &barrier,
+        TEST_PEER,
+    )
+    .expect("serve_one_online");
     String::from_utf8_lossy(&stream.output).into_owned()
 }
 

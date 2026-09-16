@@ -137,7 +137,7 @@ fn a_request_that_is_not_an_administration_route_is_left_alone() {
         ("GET", USER_ROLES),
     ] {
         assert!(
-            auth.handle(&request(method, path, "{}"), &allowed_origins())
+            auth.handle(&request(method, path, "{}"), &allowed_origins(), None)
                 .is_none(),
             "{method} {path} should not be answered by the account tier"
         );

@@ -4,10 +4,14 @@
 //! ## Why this is in the store and not in the route
 //!
 //! Because it is the operation with a security consequence, and the route is
-//! the wrong place for a rule that must hold for every route. Three separate
-//! decisions live in it, and each of them is one a route would get subtly
-//! wrong on its own:
+//! the wrong place for a rule that must hold for every route. Four separate
+//! decisions live in it, and each of them is one a route would get subtly wrong
+//! on its own:
 //!
+//!   * how often the same name may be tried at all, and how often one address
+//!     may try — checked BEFORE any hash is verified, so a request that is going
+//!     to be refused costs two indexed reads instead of an Argon2id
+//!     verification ([`super::accounts_signin_throttle`]);
 //!   * the password is checked BEFORE the account's status is looked at, so the
 //!     only person who learns that an account is disabled is one who already
 //!     holds its password;
@@ -15,7 +19,9 @@
 //!     so the answer time does not say whether an account exists;
 //!   * the answer to "the password is wrong" and "there is no such account" is
 //!     ONE answer, so a login form built on it cannot be talked into telling
-//!     the difference.
+//!     the difference. The refusal above is one answer too, and for the same
+//!     reason: it is keyed on the name the caller typed, so a name that exists
+//!     and one that does not are refused identically.
 //!
 //! ## What it does not decide
 //!
@@ -24,6 +30,7 @@
 //! the roles and the document, and keeping it there is what stops this module
 //! growing an authorization policy nobody would look for here.
 
+use std::net::IpAddr;
 use std::sync::OnceLock;
 
 use rusqlite::params;
@@ -31,8 +38,53 @@ use rusqlite::params;
 use super::accounts_error::AccountsError;
 use super::accounts_model::{User, UserStatus};
 use super::accounts_password::{hash_password, verify_password};
+use super::accounts_policy::SignInLimits;
 use super::accounts_secret::issue_token;
+use super::accounts_signin_throttle::{account_key, source_key};
 use super::AccountsDb;
+
+/// One attempt to sign in, as the caller knows it.
+///
+/// A struct rather than four arguments because the parts are added to over time
+/// by callers that do not all know all of them — the source address exists only
+/// where there is a socket — and because a bare `None` in third position at
+/// every call site says nothing about what is missing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SignInAttempt<'a> {
+    /// The name as it was typed. Matched case-insensitively; the budget it
+    /// spends is folded the same way.
+    pub username: &'a str,
+    /// The password as it was typed. Never stored, never logged, never part of
+    /// an error.
+    pub password: &'a str,
+    /// The address the request arrived from, when the transport knows one.
+    ///
+    /// The source ceiling is the only bound on how many Argon2id verifications
+    /// one caller can make this process compute, and it cannot exist without
+    /// this value: the accept loop supplies it, and a caller that does not know
+    /// the address is limited by the name alone. Nothing from the request
+    /// itself (`Host`, `Origin`, a forwarding header) may be used instead —
+    /// every one of those is written by the caller, and a budget keyed on a
+    /// value the attacker chooses is not a budget.
+    pub source: Option<IpAddr>,
+}
+
+impl<'a> SignInAttempt<'a> {
+    /// An attempt from an unknown address.
+    pub const fn new(username: &'a str, password: &'a str) -> Self {
+        Self {
+            username,
+            password,
+            source: None,
+        }
+    }
+
+    /// The same attempt, from the address it arrived on.
+    pub const fn with_source(mut self, source: IpAddr) -> Self {
+        self.source = Some(source);
+        self
+    }
+}
 
 /// What came of a name and a password.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,29 +105,94 @@ pub enum SignInOutcome {
     /// and "your account is disabled" is the one answer a blocked person can
     /// act on.
     Blocked(UserStatus),
+    /// Nothing was checked: this name, or this address, has spent its budget of
+    /// failures too recently.
+    ///
+    /// Separate from [`Self::Rejected`] because the two are different facts —
+    /// "your credentials are wrong" would be a lie about a correct password —
+    /// and one variant covers both dimensions on purpose. Which ceiling fired
+    /// is not the caller's business, and splitting it here would hand back
+    /// exactly the distinction the name-keyed counter exists to hide.
+    Throttled {
+        /// Seconds until the budget starts moving again. The route puts it in
+        /// `Retry-After`, which is where a client can act on it.
+        retry_after_secs: i64,
+    },
 }
 
 impl AccountsDb {
-    /// Check a name and a password, and say what they open.
+    /// Check a name and a password, and say what they open — within the budget
+    /// this deployment allows.
+    ///
+    /// The order is the security property, so it is stated once and kept here:
+    ///
+    /// 1. the budget of the NAME TYPED and of the ADDRESS is read, and an
+    ///    exhausted one answers [`SignInOutcome::Throttled`] immediately. Before
+    ///    the lookup and before the KDF: an online attack is limited by what the
+    ///    server will compute, so a refusal that still costs an Argon2id
+    ///    verification is not a limit;
+    /// 2. only then is the account looked up and the password verified;
+    /// 3. the outcome is recorded: a failure spends the budget, a password that
+    ///    verifies gives that name's budget back.
     ///
     /// `now` is written to `users.last_seen_at` on success and nowhere else: a
-    /// failed attempt is not the account being seen, and a lockout counter built
-    /// on this column later must not count a stranger's guesses as activity.
+    /// failed attempt is not the account being seen, and the failure counter
+    /// this module now keeps is deliberately a different table — a stranger's
+    /// guesses must never read as activity on the account.
     /// `updated_at` is left alone — signing in does not change the account, and
     /// a column that moved here could no longer answer when the RECORD last
     /// changed.
+    ///
+    /// A login that accepts an ADDRESS as well as a name is composed by the
+    /// caller — [`Self::find_user_by_email`] and then this — rather than built
+    /// in here, because whether a product lets somebody type either one is a
+    /// decision about its form, not about its accounts. A caller that does that
+    /// spends the budget of the typed text, which is the conservative direction:
+    /// an address that is also somebody's name shares one budget rather than
+    /// getting two.
+    pub fn authenticate(
+        &self,
+        attempt: &SignInAttempt<'_>,
+        limits: &SignInLimits,
+        now: i64,
+    ) -> Result<SignInOutcome, AccountsError> {
+        let account_key = account_key(attempt.username);
+        let source_key = attempt.source.map(source_key);
+        if let Some(retry_after_secs) =
+            self.sign_in_retry_after(&account_key, source_key.as_deref(), limits, now)?
+        {
+            return Ok(SignInOutcome::Throttled { retry_after_secs });
+        }
+        let outcome = self.check_credentials(attempt.username, attempt.password, now)?;
+        match &outcome {
+            SignInOutcome::Rejected => {
+                self.record_sign_in_failure(&account_key, source_key.as_deref(), limits, now)?
+            }
+            // A password that verified — whether or not the account may then use
+            // it — is proof the caller holds the credential, so this name's
+            // failures are forgotten. The address's are not: see the throttle
+            // module for why a working account must not refund an attacker's
+            // budget.
+            SignInOutcome::SignedIn(_) | SignInOutcome::Blocked(_) => {
+                self.clear_sign_in_failures(&account_key)?
+            }
+            // Returned by the guard above, which has already returned; listed so
+            // that a variant added later has to be decided here rather than
+            // falling through a wildcard.
+            SignInOutcome::Throttled { .. } => {}
+        }
+        Ok(outcome)
+    }
+
+    /// The credential check itself: what the store asked before it counted
+    /// anything.
     ///
     /// Only [`UserStatus::Active`] accounts sign in. An invited account has no
     /// password to check, and disabled or orphan ones are refused after their
     /// password has been verified — which is the part that matters: an
     /// implementation that checked the status first would answer "disabled"
     /// to anybody who guessed a name.
-    ///
-    /// A login that accepts an ADDRESS as well as a name is composed by the
-    /// caller — [`Self::find_user_by_email`] and then this — rather than built
-    /// in here, because whether a product lets somebody type either one is a
-    /// decision about its form, not about its accounts.
-    pub fn authenticate(
+    fn check_credentials(
         &self,
         username: &str,
         password: &str,

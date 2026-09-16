@@ -11,7 +11,8 @@ use rusqlite::{params, OptionalExtension};
 
 use super::accounts_error::AccountsError;
 use super::accounts_model::{
-    session_from_row, IssuedSession, NewSession, Session, SESSION_COLUMNS_WITH_HASH,
+    checked_user_agent, session_from_row, IssuedSession, NewSession, Session,
+    SESSION_COLUMNS_WITH_HASH,
 };
 use super::accounts_secret::{hash_token, issue_token, token_hash_eq};
 use super::accounts_users::refused_for_unknown_user;
@@ -30,6 +31,12 @@ impl AccountsDb {
     /// result is stored. A ttl that is not positive produces a session that is
     /// never live, which is a caller's mistake rather than a corruption — the
     /// row says exactly what it was asked to say.
+    ///
+    /// What the request knew about its client — the user agent it sent, the
+    /// address it arrived from — is stored on the row, bounded by the column's
+    /// own limit rather than trusted (see [`checked_user_agent`]). Those two
+    /// values are the whole of what makes "where am I signed in" a question a
+    /// session table can answer (issue #76).
     pub fn create_session(
         &self,
         new: &NewSession<'_>,
@@ -41,7 +48,7 @@ impl AccountsDb {
             created_at: now,
             expires_at: now.saturating_add(new.ttl_secs),
             last_seen_at: None,
-            user_agent: new.user_agent.map(str::to_string),
+            user_agent: checked_user_agent(new.user_agent),
             ip: new.ip.map(str::to_string),
         };
         let conn = self.conn();

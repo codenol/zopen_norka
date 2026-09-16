@@ -159,21 +159,26 @@ fn collect_deltas(server: &MockServer, request: ChatRequest) -> Vec<ChatDelta> {
     provider.send(request).collect()
 }
 
+/// Whether a request of this method and path has reached the scripted server
+/// yet, waiting for it under the crate's one liveness budget.
+///
+/// These waits used to carry their own budget: a 2 s deadline, consulted
+/// BEFORE the predicate, with a flat 10 ms spin — issue #144's class in a test
+/// that has no subprocess in it. The producer here is a thread of the blocking
+/// iterator plus a loopback HTTP round trip, and two seconds of that is
+/// nothing on a loaded machine, while the tests that call this still assert
+/// the requests themselves — so a longer wait changes nothing about what they
+/// prove, and a broken turn still fails. [`crate::test_wait`] polls first,
+/// gives up on the budget and backs off.
 fn wait_for_request(server: &MockServer, method: &str, path: &str) -> bool {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-    while std::time::Instant::now() < deadline {
-        if server
+    crate::test_wait::wait_until(|| {
+        server
             .requests
             .lock()
             .unwrap()
             .iter()
             .any(|(seen_method, seen_path, _)| seen_method == method && seen_path == path)
-        {
-            return true;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-    false
+    })
 }
 
 // ---------------------------------------------------------------
@@ -498,8 +503,14 @@ fn receiver_drop_cancels_pending_session_create_and_cleans_reused_server() {
     );
 
     drop(rx);
+    // A liveness bound, not the property: the gate below is released only
+    // AFTER this wait, so whatever it returns the turn must have ended while
+    // session creation was still pending. It used to be 500 ms — a duration
+    // that measures a loaded machine's scheduling latency rather than the
+    // cancellation path — and the shared budget costs the suite nothing
+    // unless the worker really is stuck.
     let stopped = crate::chat_runtime::block_on_anywhere(async {
-        tokio::time::timeout(std::time::Duration::from_millis(500), worker).await
+        tokio::time::timeout(crate::test_wait::WORKER_WAIT_BUDGET, worker).await
     });
     create_gate.store(true, Ordering::Release);
     assert!(

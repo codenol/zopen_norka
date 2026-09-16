@@ -415,6 +415,11 @@ pub struct HttpRequest {
     /// `Cookie` header value, verbatim, when present. The online daemon
     /// extracts its session cookie from it; every other mode ignores it.
     pub cookie: Option<String>,
+    /// `User-Agent` header value, verbatim, when present.
+    ///
+    /// Read by the account tier alone, and only to write it into the session row
+    /// it issues, so a list of sessions can say which device each one is (#76).
+    pub user_agent: Option<String>,
     /// The raw query string (no leading `?`), when the target had one.
     ///
     /// `path` keeps its query stripped so exact-path routing is unaffected;
@@ -601,6 +606,12 @@ pub fn read_http_request<S: std::io::Read>(stream: &mut S) -> Result<HttpRequest
     }
     let authorization = header_value("authorization");
     let cookie = header_value("cookie");
+    // `User-Agent`, for the one reader that records it: the account tier writes
+    // it into the session it issues, so an operator looking at "who is signed
+    // in" can tell one row from another (#76). Read here because this function
+    // owns the header block; the bound on what reaches a row is the column's
+    // (`accounts_model::checked_user_agent`).
+    let user_agent = header_value("user-agent");
     if content_length > MAX_BODY {
         return Err(McpServeError::Protocol(format!(
             "request body exceeds {} MiB",
@@ -643,6 +654,7 @@ pub fn read_http_request<S: std::io::Read>(stream: &mut S) -> Result<HttpRequest
         content_type,
         authorization,
         cookie,
+        user_agent,
         query,
     })
 }

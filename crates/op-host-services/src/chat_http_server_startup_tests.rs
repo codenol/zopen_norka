@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use super::*;
 
@@ -23,24 +23,18 @@ fn test_client() -> reqwest::Client {
 
 /// Budget for "an expected event must eventually happen" waits (a stub
 /// reaching its listen line, a probe request arriving, a cancelled worker
-/// finishing). These are liveness bounds, not the property under test:
-/// a broken path either never fires (and still fails here) or returns
-/// the wrong result (caught by the result asserts). Generous, because a
-/// loaded machine — CI, or several test binaries running concurrently —
-/// can delay a spawn chain or timer by whole seconds, and a tight bound
-/// turns that scheduling noise into a spurious failure.
-const LIVENESS_BUDGET: Duration = Duration::from_secs(10);
-
-fn wait_until(timeout: Duration, mut predicate: impl FnMut() -> bool) -> bool {
-    let deadline = Instant::now() + timeout;
-    while Instant::now() < deadline {
-        if predicate() {
-            return true;
-        }
-        thread::sleep(Duration::from_millis(5));
-    }
-    false
-}
+/// finishing) — the one documented budget of [`crate::test_wait`], not a
+/// number of this file's own.
+///
+/// This file held the local 10 s constant that issue #144 is about. The
+/// events below are produced by a real child process — `spawn → exec → reap`
+/// — and instrumenting the #133 fix measured single cycles of 3812 / 6385 /
+/// 6444 / 7420 / 7514 ms on an 8-core machine running the full crate, with
+/// one cycle still running when a 10 s bound expired under load (~18 loadavg
+/// on 8 cores). A budget in that range bounds an idle machine, not the work;
+/// it turns scheduling noise into a failure that names the wait rather than
+/// the cause.
+const LIVENESS_BUDGET: Duration = crate::test_wait::WORKER_WAIT_BUDGET;
 
 struct HangingHealthServer {
     base: String,
@@ -73,10 +67,6 @@ impl HangingHealthServer {
             release,
             thread: Some(thread),
         }
-    }
-
-    fn wait_for_request(&self) -> bool {
-        wait_until(LIVENESS_BUDGET, || self.accepted.load(Ordering::Acquire))
     }
 }
 
@@ -141,7 +131,10 @@ fn receiver_drop_interrupts_the_default_health_probe() {
         .await;
         (result, spawned.is_some())
     });
-    assert!(server.wait_for_request(), "default probe must be in flight");
+    assert!(
+        crate::test_wait::wait_for_worker(&worker, || server.accepted.load(Ordering::Acquire)),
+        "default probe must be in flight"
+    );
 
     drop(rx);
     let stopped = crate::chat_runtime::block_on_anywhere(async {
@@ -194,12 +187,6 @@ mod unix {
         fs::read_to_string(path).ok()?.trim().parse().ok()
     }
 
-    /// How long the terminated stub tree may take to disappear from the
-    /// process table. Generous: the SIGTERM'd descendant is briefly an
-    /// orphaned zombie until launchd/init reaps it, and a loaded machine
-    /// stretches that window.
-    const TREE_REAP_BUDGET: Duration = Duration::from_secs(5);
-
     fn process_alive(pid: i32) -> bool {
         // SAFETY: signal 0 is a read-only existence probe for an exact
         // positive pid written by this test's own stub.
@@ -219,6 +206,13 @@ mod unix {
     /// is observable — no process from the retained tree survives — so
     /// that is what we poll for. A tree that really escaped cleanup (e.g.
     /// a detached handle) keeps its 30s sleep alive and still fails here.
+    ///
+    /// The wait for those pids to disappear is the shared one for the whole
+    /// class ([`crate::test_wait`]): this leg is signal delivery plus init's
+    /// zombie reap rather than a spawn chain, so it is normally quick, but
+    /// "normally quick" is what made the old 10 s bound of #144 fail, and a
+    /// second number here would be a second thing to get wrong. The cost is
+    /// paid only when this is about to fail anyway.
     fn assert_retained_tree_cleaned(
         pid_file: &Path,
         terminate: &std::io::Result<std::process::ExitStatus>,
@@ -230,10 +224,7 @@ mod unix {
             .map(|pid| pid.parse().expect("numeric stub pid"))
             .collect();
         assert_eq!(pids.len(), 2, "stub must report leader + descendant pids");
-        let deadline = Instant::now() + TREE_REAP_BUDGET;
-        while pids.iter().any(|&pid| process_alive(pid)) && Instant::now() < deadline {
-            thread::sleep(Duration::from_millis(10));
-        }
+        crate::test_wait::wait_until(|| !pids.iter().any(|&pid| process_alive(pid)));
         let survivors: Vec<i32> = pids
             .iter()
             .copied()
@@ -288,7 +279,7 @@ mod unix {
             (result, retained, terminate, script)
         });
         assert!(
-            wait_until(LIVENESS_BUDGET, || marker.exists()),
+            crate::test_wait::wait_for_worker(&worker, || marker.exists()),
             "fake OpenCode must reach its listen wait"
         );
 
@@ -333,7 +324,16 @@ mod unix {
             }
             (result, retained)
         });
-        assert!(matches!(result, Err(OpenCodeError::ServerExited { .. })));
+        // Named, because the interesting failures here are not "the stub said
+        // something else": under a loaded machine the spawn itself can fail,
+        // and the product's own 5 s listen window (`listen_timeout`) can expire
+        // before a `/bin/sh` stub has started — observed on this checkout at
+        // ~20 loadavg as `Err(ListenTimeout { millis: 5000 })`. A bare
+        // `assertion failed` hides the one value that says which happened.
+        assert!(
+            matches!(result, Err(OpenCodeError::ServerExited { .. })),
+            "the retry loop must end in the bind conflict the stub reports, not {result:?}"
+        );
         assert!(retained, "final failed attempt remains caller-owned");
 
         let invocations = fs::read_to_string(&log).expect("read invocation log");
@@ -398,7 +398,7 @@ mod unix {
 
         let mut announced_port = None;
         assert!(
-            wait_until(LIVENESS_BUDGET, || {
+            crate::test_wait::wait_for_worker(&worker, || {
                 announced_port = read_port(&port_file);
                 announced_port.is_some()
             }),
@@ -409,7 +409,7 @@ mod unix {
         let server = HangingHealthServer::from_listener(listener);
         fs::write(&gate, b"ready").expect("release listen announcement");
         assert!(
-            server.wait_for_request(),
+            crate::test_wait::wait_for_worker(&worker, || server.accepted.load(Ordering::Acquire)),
             "post-spawn identity probe must be in flight"
         );
 

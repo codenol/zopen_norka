@@ -6,6 +6,8 @@
 //! one account can read another account's document and the AI credentials
 //! sitting in its in-memory editor.
 
+use std::net::{IpAddr, Ipv4Addr};
+
 use super::*;
 
 struct MockStream {
@@ -47,6 +49,10 @@ struct Request {
     /// The session cookie's value, when the request carries one.
     cookie: Option<String>,
     origin: Option<&'static str>,
+    /// The `User-Agent` header, when the request carries one. A browser always
+    /// does; the tests that do not care about it leave it off, which is also
+    /// what a client that identifies itself as nothing looks like.
+    user_agent: Option<&'static str>,
     /// Addresses the request at another account's tenant, as the browser does
     /// with `?tenant=` on the page URL.
     tenant: Option<&'static str>,
@@ -65,6 +71,7 @@ impl Request {
             content_type: None,
             cookie: None,
             origin: None,
+            user_agent: None,
             tenant: None,
             file: None,
         }
@@ -92,6 +99,13 @@ impl Request {
 
     fn with_origin(mut self, origin: &'static str) -> Self {
         self.origin = Some(origin);
+        self
+    }
+
+    /// Present the browser's own description of itself, as every real client
+    /// does — and as the session row is expected to remember (issue #76).
+    fn with_user_agent(mut self, user_agent: &'static str) -> Self {
+        self.user_agent = Some(user_agent);
         self
     }
 
@@ -124,6 +138,10 @@ impl Request {
             .origin
             .map(|o| format!("Origin: {o}\r\n"))
             .unwrap_or_default();
+        let user_agent = self
+            .user_agent
+            .map(|agent| format!("User-Agent: {agent}\r\n"))
+            .unwrap_or_default();
         let target = match (self.tenant, self.file) {
             (Some(tenant), Some(file)) => format!("{}?tenant={tenant}&file={file}", self.path),
             (Some(tenant), None) => format!("{}?tenant={tenant}", self.path),
@@ -132,8 +150,8 @@ impl Request {
             (None, None) => self.path.to_string(),
         };
         format!(
-            "{} {target} HTTP/1.1\r\nHost: canvas.example\r\n{auth}{cookie}{origin}{content_type}\
-             Content-Length: {}\r\n\r\n{}",
+            "{} {target} HTTP/1.1\r\nHost: canvas.example\r\n{auth}{cookie}{origin}{user_agent}\
+             {content_type}Content-Length: {}\r\n\r\n{}",
             self.method,
             self.body.len(),
             self.body
@@ -152,6 +170,18 @@ fn registry() -> TenantRegistry {
         vec![PUBLIC_ORIGIN.to_string()],
     )
 }
+
+/// The address every request in these tests arrives from, in the shape the
+/// accept loop gets it (`TcpStream::peer_addr`, `.ip()`): a documentation
+/// address (`TEST-NET-3`, RFC 5737), so a test that asserts on it cannot be
+/// reading a real one by accident.
+///
+/// Passed to `serve_one_online` because that is where the real loop reads it —
+/// off the socket, before the stream is moved into the connection thread — and
+/// a test that omitted it would leave the per-address sign-in budget and the
+/// address on the session row (issue #76) out of force rather than proving
+/// anything about them.
+pub(super) const TEST_PEER: Option<IpAddr> = Some(IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7)));
 
 /// Drive one request through the online loop and return the raw response.
 fn serve(registry: &TenantRegistry, verifier: &StaticVerifier, request: Request) -> String {
@@ -175,8 +205,15 @@ fn serve_as(
     };
     // An open barrier: the shutdown path is exercised by its own tests.
     let barrier = crate::web_canvas_server::tenant::WriteBarrier::default();
-    serve_one_online(&mut stream, registry, verifier, accounts, &barrier)
-        .expect("serve_one_online");
+    serve_one_online(
+        &mut stream,
+        registry,
+        verifier,
+        accounts,
+        &barrier,
+        TEST_PEER,
+    )
+    .expect("serve_one_online");
     String::from_utf8_lossy(&stream.output).into_owned()
 }
 

@@ -119,6 +119,11 @@ pub mod section_store_error;
 // re-exports keep every `op_host_services::settings_io*` import stable.
 pub use op_editor_host_core::settings_io;
 pub use op_editor_host_core::settings_io_error;
+/// The one budget and the one shape for "wait until a real worker produces
+/// this" — see the module docs for the measurements behind it (issues #133,
+/// #144). Test-only: nothing in the product waits on a wall clock.
+#[cfg(test)]
+mod test_wait;
 pub mod user_scene_template_store;
 pub mod validation_providers;
 pub mod web_canvas_server;

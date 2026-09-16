@@ -32,9 +32,22 @@
 //! the account from whichever answer it received without a second round trip,
 //! and there is one shape to keep right instead of three.
 
+use std::net::IpAddr;
 use std::sync::Arc;
 
-use crate::accounts::{AccountsDb, AccountsError, NewSession, NewUser, SESSION_TTL_SECS};
+use crate::accounts::{
+    AccountsDb, AccountsError, NewSession, NewUser, SignInAttempt, SignInLimits, SESSION_TTL_SECS,
+};
+
+// The sign-in budgets a deployment configures, in their own file because they
+// are configuration rather than routing — see its module docs for the three
+// variables and the rule that a typo cannot remove a bound. Declared here
+// rather than in the parent so the route tier carries its own knobs; the
+// startup banner reads them through this path.
+#[path = "account_signin_limits.rs"]
+pub(super) mod account_signin_limits;
+
+use account_signin_limits::sign_in_limits_from_env;
 use op_editor_core::auth_routes;
 
 use super::account_admin_routes;
@@ -43,17 +56,23 @@ use super::account_verifier::AccountVerifier;
 use super::tenant_auth::{anonymous_auth_status_json, IdentityVerifier, PresentedCredentials};
 use crate::mcp_serve::HttpRequest;
 
-/// This deployment's account tier: the store, the verifier built on it, and the
-/// routes that start and end sessions.
+/// This deployment's account tier: the store, the verifier built on it, the
+/// routes that start and end sessions, and the sign-in budget they enforce.
 ///
-/// One struct because the three are one thing — the same store answers all of
-/// them, and a deployment either has accounts (all three) or does not (none).
+/// One struct because the four are one thing — the same store answers all of
+/// them, and a deployment either has accounts (all four) or does not (none).
 /// `None` is a real deployment state: a daemon started without a data
 /// directory serves documents and cannot sign anybody in, which its status
 /// route says out loud.
+///
+/// The budget rides here rather than inside the store because it is a
+/// DEPLOYMENT's decision, not a property of the accounts: the store's own tests
+/// bring their own numbers, and two daemons over one data directory could be
+/// sized differently.
 #[derive(Clone)]
 pub struct AccountAuth {
     db: Arc<AccountsDb>,
+    limits: SignInLimits,
 }
 
 /// One answer from the account tier, `Set-Cookie` included.
@@ -68,6 +87,10 @@ pub struct AccountReply {
     /// `Set-Cookie` values in the order they must be sent. Empty for a route
     /// that sets none.
     pub cookies: Vec<String>,
+    /// `Retry-After`, in seconds, for the one answer that asks the caller to
+    /// wait. `None` on every other answer — including an ordinary refusal,
+    /// where the honest advice is to stop guessing rather than to try again.
+    pub retry_after_secs: Option<u64>,
 }
 
 impl AccountReply {
@@ -81,6 +104,7 @@ impl AccountReply {
             status,
             body,
             cookies: Vec::new(),
+            retry_after_secs: None,
         }
     }
 
@@ -97,6 +121,27 @@ impl AccountReply {
         )
     }
 
+    /// `429` for a caller that has spent its budget of failures.
+    ///
+    /// The body carries no number, no name and no distinction between ceilings:
+    /// the SAME bytes come back for a name that exists, one that does not, and
+    /// a fresh name arriving from an address that is out of budget. That is the
+    /// point — the 401 on this route refuses to say whether an account exists,
+    /// and a 429 that named which ceiling fired would hand back the same fact
+    /// one step later. What the caller needs in order to act travels in
+    /// `Retry-After`, where a client reads it.
+    fn throttled(retry_after_secs: i64) -> Self {
+        let mut reply = Self::refusal(
+            "429 Too Many Requests",
+            "too-many-attempts",
+            "too many failed sign-in attempts; wait before trying again",
+        );
+        // At least one second whatever the store computed: a `Retry-After: 0`
+        // is an instruction to retry immediately.
+        reply.retry_after_secs = Some(retry_after_secs.max(1) as u64);
+        reply
+    }
+
     /// A sign-in answer: the caller's own identity, plus the cookie that makes
     /// it true for the next request.
     fn signed_in(identity: &super::tenant_auth::ResolvedIdentity, cookie: String) -> Self {
@@ -107,13 +152,28 @@ impl AccountReply {
             status: "200 OK",
             body: body.to_string(),
             cookies: vec![cookie],
+            retry_after_secs: None,
         }
     }
 }
 
 impl AccountAuth {
     pub fn new(db: Arc<AccountsDb>) -> Self {
-        Self { db }
+        Self::with_limits(db, SignInLimits::default())
+    }
+
+    /// The same deployment, with sign-in budgets of its own.
+    ///
+    /// What needs this is a test that must reach the ceiling in three requests
+    /// instead of twenty-six; a deployment goes through [`Self::open_from_env`],
+    /// which reads the environment once.
+    pub fn with_limits(db: Arc<AccountsDb>, limits: SignInLimits) -> Self {
+        Self { db, limits }
+    }
+
+    /// The sign-in budgets this deployment enforces.
+    pub fn limits(&self) -> SignInLimits {
+        self.limits
     }
 
     /// The deployment's account tier, when it has a data directory.
@@ -124,7 +184,8 @@ impl AccountAuth {
     /// I cannot open" is the difference between a deployment that works and
     /// one that must say so.
     pub fn open_from_env() -> Result<Option<Self>, AccountsError> {
-        Ok(AccountsDb::open_from_env()?.map(|db| Self::new(Arc::new(db))))
+        Ok(AccountsDb::open_from_env()?
+            .map(|db| Self::with_limits(Arc::new(db), sign_in_limits_from_env())))
     }
 
     pub fn db(&self) -> &Arc<AccountsDb> {
@@ -149,10 +210,18 @@ impl AccountAuth {
     /// accept loop holds it: the same list decides whether a cookie-carrying
     /// write may proceed, and a sign-in is a write against the caller's
     /// account.
+    /// `source` is the address the request arrived on, when the transport knows
+    /// one — the accept loop's `peer_addr`, and nothing that travelled inside
+    /// the request. It is what the per-address sign-in budget is spent by, so a
+    /// caller that omits it leaves that ceiling out of force rather than
+    /// guessing at one: `Host`, `Origin` and any forwarding header are written
+    /// by whoever sent the request, and a budget keyed on a value the attacker
+    /// chooses is not a budget.
     pub fn handle(
         &self,
         request: &HttpRequest,
         allowed_origins: &[String],
+        source: Option<IpAddr>,
     ) -> Option<AccountReply> {
         let route = AccountRoute::of(request)?;
         if route.is_write() {
@@ -169,9 +238,9 @@ impl AccountAuth {
         }
         Some(match route {
             AccountRoute::Status => self.status(request),
-            AccountRoute::Login => self.login(request),
+            AccountRoute::Login => self.login(request, source),
             AccountRoute::Logout => self.logout(request),
-            AccountRoute::AcceptInvite => self.accept_invite(request),
+            AccountRoute::AcceptInvite => self.accept_invite(request, source),
             // The administration routes. They are dispatched from here because
             // this tier owns the `/api/auth/` prefix, not because they are
             // anonymous: each of them resolves the caller's own session before
@@ -203,7 +272,12 @@ impl AccountAuth {
     }
 
     /// `POST /api/auth/login` — a name and a password for a session.
-    fn login(&self, request: &HttpRequest) -> AccountReply {
+    ///
+    /// The route decides nothing about who may sign in and nothing about how
+    /// often: it hands the store the attempt, including where it came from, and
+    /// maps its four outcomes onto four answers. The budget lives in the store
+    /// so that every caller of `authenticate` gets it, and this route is one.
+    fn login(&self, request: &HttpRequest, source: Option<IpAddr>) -> AccountReply {
         let Some(fields) = LoginRequest::parse(&request.body) else {
             return AccountReply::refusal(
                 "400 Bad Request",
@@ -223,11 +297,14 @@ impl AccountAuth {
                  NORKA_ADMIN_USERNAME and NORKA_ADMIN_PASSWORD and restart",
             );
         }
-        match self.db.authenticate(
-            &fields.username,
-            &fields.password,
-            crate::accounts::now_secs(),
-        ) {
+        let mut attempt = SignInAttempt::new(&fields.username, &fields.password);
+        if let Some(source) = source {
+            attempt = attempt.with_source(source);
+        }
+        match self
+            .db
+            .authenticate(&attempt, &self.limits, crate::accounts::now_secs())
+        {
             Err(_) => AccountReply::refusal(
                 "503 Service Unavailable",
                 "accounts-unavailable",
@@ -240,6 +317,14 @@ impl AccountAuth {
                 "unauthorized",
                 "the name and password do not open an account",
             ),
+            // The budget is spent: this name has failed too often from
+            // somewhere, or this address has failed too often against any name.
+            // `429` with `Retry-After` and one shared body — see
+            // [`AccountReply::throttled`] for why the body is the same either
+            // way, and why a correct password gets this answer too.
+            Ok(crate::accounts::SignInOutcome::Throttled { retry_after_secs }) => {
+                AccountReply::throttled(retry_after_secs)
+            }
             // Reached only by a caller that already proved it holds this
             // account's password, so it is not an oracle: it is the one answer
             // a blocked person can act on.
@@ -249,7 +334,7 @@ impl AccountAuth {
                 &format!("this account is {} and may not sign in", status.as_str()),
             ),
             Ok(crate::accounts::SignInOutcome::SignedIn(user)) => {
-                self.start_session(&user.id, request)
+                self.start_session(&user.id, request, source)
             }
         }
     }
@@ -307,6 +392,7 @@ impl AccountAuth {
             status: "200 OK",
             body,
             cookies: vec![cookie],
+            retry_after_secs: None,
         }
     }
 
@@ -331,7 +417,7 @@ impl AccountAuth {
     /// behind is an inert row an operator can see and remove. The reverse
     /// order cannot promise that: an account created with its password first
     /// is a second usable account for one invitation.
-    fn accept_invite(&self, request: &HttpRequest) -> AccountReply {
+    fn accept_invite(&self, request: &HttpRequest, source: Option<IpAddr>) -> AccountReply {
         let Some(fields) = InviteAcceptance::parse(&request.body) else {
             return AccountReply::refusal(
                 "400 Bad Request",
@@ -425,17 +511,36 @@ impl AccountAuth {
         {
             return self.account_error_reply(error);
         }
-        self.start_session(&user.id, request)
+        self.start_session(&user.id, request, source)
     }
 
     /// Create the session and hand back the answer that carries its cookie.
-    fn start_session(&self, user_id: &str, request: &HttpRequest) -> AccountReply {
+    ///
+    /// What the request knew about its client — the `User-Agent` it sent, the
+    /// address the connection arrived from — is recorded on the row here and
+    /// nowhere else (issue #76): without it every row of an account reads the
+    /// same, and a session nobody recognises cannot stand out from one the
+    /// person opened on their own phone. Either may honestly be absent, and
+    /// the column then holds NULL. How long a stored agent may be is the
+    /// column's limit, applied by the store (`checked_user_agent`), not here.
+    fn start_session(
+        &self,
+        user_id: &str,
+        request: &HttpRequest,
+        source: Option<IpAddr>,
+    ) -> AccountReply {
         // The store's default lifetime, not a number invented here: the
         // cookie's `Max-Age` is derived from the same constant, so the browser
         // stops presenting a credential at the moment the server stops
         // accepting it.
+        //
+        // The address goes in as a STRING and without its port: the port is a
+        // fresh ephemeral number per connection and says nothing about where
+        // the browser is, while the address is the thing a person recognises.
+        let ip = source.map(|address| address.to_string());
         let issued = match self.db.create_session(
-            &NewSession::new(user_id, SESSION_TTL_SECS),
+            &NewSession::new(user_id, SESSION_TTL_SECS)
+                .with_client(request.user_agent.as_deref(), ip.as_deref()),
             crate::accounts::now_secs(),
         ) {
             Ok(issued) => issued,
