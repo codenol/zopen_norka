@@ -612,7 +612,8 @@ fn add_user_creates_an_account_with_the_roles_it_was_asked_for() {
             Some("d@example.com"),
             input,
             output,
-            read_secret
+            read_secret,
+            false
         ),
         db,
         "",
@@ -653,7 +654,8 @@ fn add_user_refuses_a_name_that_already_exists() {
             None,
             input,
             output,
-            read_secret
+            read_secret,
+            false
         ),
         db,
         "",
@@ -681,7 +683,8 @@ fn add_user_asks_again_after_a_password_the_store_would_refuse() {
             None,
             input,
             output,
-            read_secret
+            read_secret,
+            false
         ),
         db,
         "",
@@ -717,7 +720,8 @@ fn reset_password_changes_the_password_and_never_prints_it() {
             Some("forgetful"),
             input,
             output,
-            read_secret
+            read_secret,
+            false
         ),
         db,
         "",
@@ -752,7 +756,8 @@ fn reset_password_refuses_a_name_the_store_does_not_have() {
             Some("nobody"),
             input,
             output,
-            read_secret
+            read_secret,
+            false
         ),
         db,
         "",

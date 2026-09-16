@@ -99,14 +99,20 @@ fn run(args: &[String]) -> Result<String, CliError> {
             username,
             roles,
             email,
+            password_stdin,
         } => admin_cli::run_add_user(
             data_dir.as_deref(),
             username.as_deref(),
             roles.as_deref(),
             email.as_deref(),
+            password_stdin,
         )?,
-        Command::AdminResetPassword { data_dir, username } => {
-            admin_cli::run_reset_password(data_dir.as_deref(), username.as_deref())?
+        Command::AdminResetPassword {
+            data_dir,
+            username,
+            password_stdin,
+        } => {
+            admin_cli::run_reset_password(data_dir.as_deref(), username.as_deref(), password_stdin)?
         }
         Command::AdminInvite {
             data_dir,
@@ -275,6 +281,11 @@ enum Command {
         roles: Option<String>,
         /// `--email`: the address recorded on the row.
         email: Option<String>,
+        /// `--password-stdin`: take the password from the first line of stdin
+        /// instead of asking twice, for a provisioning script. The secret is
+        /// never an ARGUMENT — that would put it in the shell history and in
+        /// the process table.
+        password_stdin: bool,
     },
     /// `op admin reset-password` — give an existing account a new password.
     ///
@@ -286,6 +297,8 @@ enum Command {
         data_dir: Option<String>,
         /// The account to change. Asked for when omitted.
         username: Option<String>,
+        /// `--password-stdin`: as above.
+        password_stdin: bool,
     },
     SkillExport {
         name: String,
