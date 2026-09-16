@@ -78,7 +78,16 @@ thread_local! {
     /// A record the store read back, waiting for a frame to install it.
     static PENDING_STORED: RefCell<Option<Option<CopyIdentity>>> = const { RefCell::new(None) };
 
+    /// The last probe answer this module was told, so an unchanged answer does
+    /// not ask for a frame every 400 ms — while a CHANGED one always does.
+    static LAST_NOTED_VERSION: RefCell<Option<Option<u64>>> = const { RefCell::new(None) };
+
     static STATE: RefCell<StoreState> = const { RefCell::new(StoreState::new()) };
+
+    /// How many times the document has been serialized, for the test that pins
+    /// "never serialize merely to find out that no write is due".
+    #[cfg(test)]
+    static SERIALIZATIONS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 
 struct StoreState {
@@ -133,6 +142,33 @@ impl StoreState {
 /// not be collapsed into it.
 pub(crate) fn note_daemon_version(version: Option<u64>) {
     PENDING_DAEMON_VERSION.with(|slot| *slot.borrow_mut() = Some(version));
+    // The probe runs on its own 400 ms interval, and this module only publishes
+    // inside a frame. Parking the answer without asking for that frame leaves the
+    // canvas showing the previous standing until something else happens to
+    // repaint — measured: with no other activity the strip kept saying "this
+    // canvas has edits the daemon has not confirmed" while the daemon had moved
+    // on, which is the bug this whole surface exists to report.
+    if changed_answer(&LAST_NOTED_VERSION, version) {
+        crate::repaint_coalescer::request();
+    }
+}
+
+/// Whether an answer differs from the last one noted, recording it either way.
+///
+/// Split out so the "wake only on a change" rule is one place: without it, a
+/// steady daemon would be repainted 2.5 times a second forever.
+fn changed_answer(
+    last: &'static std::thread::LocalKey<RefCell<Option<Option<u64>>>>,
+    answer: Option<u64>,
+) -> bool {
+    last.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if *slot == Some(answer) {
+            return false;
+        }
+        *slot = Some(answer);
+        true
+    })
 }
 
 #[cfg(test)]
@@ -140,6 +176,15 @@ pub(crate) fn reset_for_test() {
     PENDING_DAEMON_VERSION.with(|slot| *slot.borrow_mut() = None);
     PENDING_STORED.with(|slot| *slot.borrow_mut() = None);
     STATE.with(|slot| *slot.borrow_mut() = StoreState::new());
+    LAST_NOTED_VERSION.with(|slot| *slot.borrow_mut() = None);
+    SERIALIZATIONS.with(|count| count.set(0));
+}
+
+/// How many documents this tab has serialized since the last reset. Test-only:
+/// the count is the only way to see a cost that has no other symptom.
+#[cfg(test)]
+pub(crate) fn serializations_for_test() -> u64 {
+    SERIALIZATIONS.with(std::cell::Cell::get)
 }
 
 /// Read back the record this browser keeps for the document on screen.
@@ -179,6 +224,10 @@ fn ensure_read(subject: &str, doc_key: Option<&str>) {
                 .and_then(StoredCopy::parse)
                 .map(|stored| stored.identity());
             PENDING_STORED.with(|slot| *slot.borrow_mut() = Some(identity));
+            // IndexedDB is asynchronous and this runs long after the frame that
+            // asked for the read: without a wake, the copy the browser keeps
+            // would stay unknown until an unrelated repaint.
+            crate::repaint_coalescer::request();
         }),
     );
 }
@@ -190,6 +239,8 @@ fn ensure_read(subject: &str, doc_key: Option<&str>) {
 /// something that size in the wasm heap is the memory growth the recovery stash
 /// refuses for the same reason.
 fn document_for_store<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) -> Option<String> {
+    #[cfg(test)]
+    SERIALIZATIONS.with(|count| count.set(count.get() + 1));
     let borrowed = inner.try_borrow().ok()?;
     let state = borrowed.host().editor_state();
     let json = serde_json::to_string(&state.doc).ok()?;
@@ -243,6 +294,10 @@ fn write(
                     state.written_fingerprint = Some(fingerprint);
                     state.recorded_version = daemon_version;
                     PENDING_STORED.with(|slot| *slot.borrow_mut() = Some(Some(identity)));
+                    // The stored identity is part of what the strip says, so the
+                    // write landing owes a frame for the same reason the read
+                    // does.
+                    crate::repaint_coalescer::request();
                 }
             });
         }),
@@ -357,48 +412,55 @@ pub(crate) fn publish<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) -> bo
     // the only one that can carry a version. A local copy waits out the floor,
     // because it is written from the editing path, and is skipped when its bytes
     // are the ones already on disk.
-    if let Some(document) = document_for_store(inner) {
-        let due = STATE.with(|state| {
+    //
+    // Whether a write is due is decided FIRST, from flags alone. The document is
+    // megabytes, and this function runs on every frame: serializing it merely to
+    // discover that nothing is due is the kind of cost that shows up as a
+    // stutter rather than as a bug, and it is invisible in every test that
+    // asserts what was written (a first draft did exactly that — `serializations`
+    // below is what makes the mistake fail a test instead of a person).
+    let due = STATE.with(|state| {
+        let state = state.borrow();
+        !state.in_flight && now_ms.saturating_sub(state.attempted_at_ms) >= LOCAL_WRITE_FLOOR_MS
+    });
+    // A daemon version this tab has neither stored nor tried to store: the write
+    // happens on the frame the version moves, which is what makes the stored
+    // identity track the daemon instead of trailing it. An attempt that already
+    // failed waits for the floor like any other retry.
+    let daemon_version_moved = facts.applied_version.filter(|version| {
+        STATE.with(|state| {
             let state = state.borrow();
-            !state.in_flight && now_ms.saturating_sub(state.attempted_at_ms) >= LOCAL_WRITE_FLOOR_MS
-        });
-        let fingerprint = document_fingerprint(&document);
-        let already_stored =
-            STATE.with(|state| state.borrow().written_fingerprint == Some(fingerprint));
-        // A daemon version this tab has neither stored nor tried to store: the
-        // write happens on the frame the version moves, which is what makes the
-        // stored identity track the daemon instead of trailing it. An attempt
-        // that already failed waits for the floor like any other retry.
-        let daemon_version_moved = facts
-            .applied_version
-            .filter(|version| {
-                STATE.with(|state| {
-                    let state = state.borrow();
-                    state.recorded_version != Some(*version)
-                        && state.attempted_version != Some(*version)
-                })
-            })
-            .map(|version| (CopyOrigin::Daemon, Some(version)));
-        let write_now = match daemon_version_moved {
+            state.recorded_version != Some(*version) && state.attempted_version != Some(*version)
+        })
+    });
+    let local_candidate = facts.local_edits && due;
+
+    if daemon_version_moved.is_some() || local_candidate {
+        if let Some(document) = document_for_store(inner) {
+            let fingerprint = document_fingerprint(&document);
+            let already_stored =
+                STATE.with(|state| state.borrow().written_fingerprint == Some(fingerprint));
             // Origin follows the side that last wrote. A version the daemon
-            // attested is its copy; a local edit is this tab's own and carries
-            // NO version — inventing one would make the tab claim an agreement
-            // with the daemon that it does not have.
-            Some(pair) => Some(pair),
-            None if facts.local_edits && due && !already_stored => Some((CopyOrigin::Local, None)),
-            None => None,
-        };
-        if let Some((origin, version)) = write_now {
-            write(
-                &subject,
-                doc_key.as_deref(),
-                &name,
-                origin,
-                version,
-                document,
-                wall_now_ms,
-            );
-            changed = true;
+            // attested is its copy; a local edit is this tab's own and carries NO
+            // version — inventing one would make the tab claim an agreement with
+            // the daemon that it does not have.
+            let write_now = match daemon_version_moved {
+                Some(version) => Some((CopyOrigin::Daemon, Some(version))),
+                None if local_candidate && !already_stored => Some((CopyOrigin::Local, None)),
+                None => None,
+            };
+            if let Some((origin, version)) = write_now {
+                write(
+                    &subject,
+                    doc_key.as_deref(),
+                    &name,
+                    origin,
+                    version,
+                    document,
+                    wall_now_ms,
+                );
+                changed = true;
+            }
         }
     }
 

@@ -163,6 +163,31 @@ fn a_probe_answer_becomes_the_daemon_version_and_the_standing() {
 }
 
 #[test]
+fn a_changed_probe_answer_asks_for_the_frame_that_paints_it() {
+    // The probe runs on its own interval and this module only publishes inside a
+    // frame. A parked answer with no frame owed is a status that stays wrong
+    // until something unrelated repaints — which is how the strip kept reporting
+    // "edits not confirmed" while the daemon had moved on.
+    reset_for_test();
+    assert!(
+        changed_answer(&LAST_NOTED_VERSION, Some(14)),
+        "the first answer is a change"
+    );
+    assert!(
+        !changed_answer(&LAST_NOTED_VERSION, Some(14)),
+        "a steady daemon must not ask for a frame every 400 ms"
+    );
+    assert!(
+        changed_answer(&LAST_NOTED_VERSION, Some(15)),
+        "a moved version is a change again"
+    );
+    assert!(
+        changed_answer(&LAST_NOTED_VERSION, None),
+        "a silent probe is a change too, and the one a person needs to see"
+    );
+}
+
+#[test]
 fn an_unanswered_probe_publishes_silence_not_agreement() {
     let inner = context();
     let _sync = install(&inner, Some(12), false);
@@ -288,6 +313,32 @@ fn an_observation_that_arrives_while_the_shell_is_borrowed_is_not_lost() {
             daemon: 14
         },
         "the parked answer must be published on the next frame"
+    );
+}
+
+#[test]
+fn the_document_is_not_serialized_on_frames_that_owe_no_write() {
+    // The document is megabytes and this runs per frame. Serializing it to find
+    // out that nothing is due is a stutter with no other symptom, so the count is
+    // pinned: one write is due (the daemon's version), and every frame after it
+    // must cost nothing.
+    let inner = context();
+    let _sync = install(&inner, Some(12), false);
+
+    publish(&inner);
+    assert_eq!(
+        serializations_for_test(),
+        1,
+        "the frame that owes a write serializes the document once"
+    );
+
+    for _ in 0..10 {
+        publish(&inner);
+    }
+    assert_eq!(
+        serializations_for_test(),
+        1,
+        "and eleven idle frames cost nothing"
     );
 }
 

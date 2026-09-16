@@ -209,7 +209,11 @@ here at a glance.
   daemon stopped answering. It paints nothing when the canvas *is* the daemon's
   copy, and it takes no press, so a click on it reaches the canvas. It states the
   divergence and does not resolve it: which copy wins is issue #169, and that
-  decision is the operator's.
+  decision is the operator's. Saying so required one change to the sync loop: the
+  400 ms tick returned *before* its `GET /api/mcp/version` whenever the pull gate
+  was closed, so in exactly the state the report exists for the tab could not name
+  the daemon's version. The probe is now unconditional; the fetch and the apply
+  stay as gated as they were, and a gated tab still issues no document request.
 
 - **The browser keeps a copy of the document** (issue #171). The last document
   this tab saw is mirrored into IndexedDB — the same bytes the sync path moves,
