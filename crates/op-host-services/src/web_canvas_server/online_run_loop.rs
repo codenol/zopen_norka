@@ -703,10 +703,12 @@ pub(super) fn serve_one_online<S: Read + Write>(
             &req.method,
             &req.path,
             &req.body,
-            &identity,
-            &own,
-            registry,
-            accounts,
+            super::share_routes::ShareCall {
+                identity: &identity,
+                lease: &own,
+                registry,
+                accounts,
+            },
             document_key.as_deref(),
         );
         crate::mcp_serve::write_mcp_http_response_with_origin(

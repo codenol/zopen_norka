@@ -179,6 +179,16 @@ mod web_chat_persist;
 // written by `web_autosave`, which the CanvasKit build is the only one to run.
 #[cfg(feature = "canvaskit")]
 mod web_recovery;
+// The browser's copy of the document: the IndexedDB record it keeps and the
+// identity beside it (issue #171), and the projection that says whether the
+// canvas is painting the daemon's current copy (issue #191). The pure model —
+// identity, fingerprint, standing — lives in
+// `op_editor_core::editor_ui_state::copy_status`, where it is unit-tested
+// without a browser.
+#[cfg(feature = "canvaskit")]
+mod document_store_idb;
+#[cfg(feature = "canvaskit")]
+mod web_copy_status;
 // Pure web_sys clipboard/download — Ctrl+C/X in inputs + Figma/file paste.
 #[cfg(feature = "canvaskit")]
 mod web_clipboard;

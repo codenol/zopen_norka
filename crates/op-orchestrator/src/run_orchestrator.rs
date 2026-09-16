@@ -662,12 +662,14 @@ impl Orchestrator {
         );
 
         Ok(close::close_run(
-            sink,
+            close::RunChannels {
+                sink,
+                on_progress,
+                abort,
+            },
             &quality,
             &request,
             providers,
-            on_progress,
-            abort,
             outcomes,
             &root_ids,
         ))

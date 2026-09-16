@@ -30,6 +30,7 @@ impl Default for EditorUiState {
             recovery_draft: None,
             recovery_answered: false,
             recovery_request: None,
+            document_copy: Default::default(),
             now_unix_ms: 0.0,
             file_key: None,
             local_document: false,

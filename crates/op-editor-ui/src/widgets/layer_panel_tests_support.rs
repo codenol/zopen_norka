@@ -12,7 +12,10 @@ use op_editor_core::EditorState;
 pub(super) const SECTION_HEADER_HEIGHT: f32 = 28.0;
 pub(super) const PAGE_ROW_HEIGHT: f32 = 32.0;
 pub(super) const LAYER_ROW_HEIGHT: f32 = 28.0;
-pub(super) const SECTION_GAP: f32 = 8.0;
+// `SECTION_GAP` used to sit here. No test in `layer_panel_tests` ever read it,
+// and a second copy of the gap is exactly the kind of number that drifts away
+// from the one the panel uses: a test that needs it should read
+// `LayerPanelMetrics::section_gap`, which is what the paint path reads.
 
 /// Build an `EditorState` from a canonical `.op` JSON string.
 pub(super) fn state_from(src: &str) -> EditorState {

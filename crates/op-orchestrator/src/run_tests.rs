@@ -18,15 +18,6 @@ fn stub_providers() -> ValidationProviders<'static> {
     }
 }
 
-/// The rules a real turn carries: resolved, so the working agreement and the
-/// kit's component rules are part of the prompt under test.
-fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
-    op_editor_core::effective_design_rules(None)
-        .into_iter()
-        .map(|entry| entry.rule)
-        .collect()
-}
-
 fn req() -> DesignRequest {
     DesignRequest {
         prompt: "a landing page".into(),

@@ -29,7 +29,7 @@
 
 use op_editor_core::access::Rights;
 use op_editor_core::share_routes::{self, LINK_ACCESS};
-use op_editor_core::{ShareGrant, ShareLevel};
+use op_editor_core::ShareLevel;
 
 use super::request_access::{AccessRefusal, DocumentAction, RequestAccess};
 use super::tenant::{AclChange, TenantLease, TenantRegistry};
@@ -159,28 +159,46 @@ pub(super) fn is_share_route(path: &str) -> bool {
     )
 }
 
-/// Dispatch one `/api/share/*` request.
+/// Who is asking, and everything a share is decided from.
 ///
-/// `lease` is the CALLER's own tenant: grant and revoke edit the caller's
-/// access list, never the tenant a `?tenant=` parameter pointed at. A visitor
-/// cannot re-share a document they were merely given access to.
+/// The four travel together because no one of them answers anything on its own:
+/// a share is authorised against the caller's identity, the caller's OWN tenant
+/// (never the tenant a `?tenant=` parameter pointed at — a visitor cannot
+/// re-share a document they were merely given access to), the registry that
+/// holds every tenant's access lists, and the deployment's account list, which
+/// is what says whether the account named in the body exists at all.
+pub(super) struct ShareCall<'a> {
+    /// The resolved caller.
+    pub identity: &'a ResolvedIdentity,
+    /// The caller's own tenant lease.
+    pub lease: &'a TenantLease,
+    /// Every tenant's access lists.
+    pub registry: &'a TenantRegistry,
+    /// The deployment's account list, when it has one. Both halves of the
+    /// mutation ask it what the account in the body is — see
+    /// `canonical_account`, and `mutate` for the one answer the halves give
+    /// differently.
+    pub accounts: Option<&'a super::account_routes::AccountAuth>,
+}
+
+/// Dispatch one `/api/share/*` request.
 pub(super) fn handle(
     method: &str,
     path: &str,
     body: &str,
-    identity: &ResolvedIdentity,
-    lease: &TenantLease,
-    registry: &TenantRegistry,
-    // The deployment's account list, when it has one. Both halves of the
-    // mutation ask it what the account in the body is — see `canonical_account`,
-    // and `mutate` for the one answer the halves give differently.
-    accounts: Option<&super::account_routes::AccountAuth>,
+    call: ShareCall<'_>,
     // The document this call is about, read from the path, the query or the
     // body by `share_routes::document_from_request`. `None` is refused: a share
     // that does not name a document is a share of everything the account owns
     // (issue #127).
     document: Option<&str>,
 ) -> WebReply {
+    let ShareCall {
+        identity,
+        lease,
+        registry,
+        accounts,
+    } = call;
     let Some(key) = document else {
         return error_reply(ShareError::MissingDocument);
     };

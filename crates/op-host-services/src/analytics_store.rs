@@ -208,6 +208,12 @@ pub(crate) fn read(db: &DocumentDb, key: &str) -> Result<AnalyticsDocument, Sect
 /// error rather than `None` — see [`SectionStoreError::MissingFile`] — because a
 /// section that references it must not be told the analytics was deleted when
 /// nobody deleted it.
+///
+/// `cfg(test)`: the only callers are in `analytics_store_tests.rs`, which use
+/// it to say "the digest changed / did not change" around a write. Production
+/// reads the same value off [`read`]'s `AnalyticsDocument`, so the accessor is
+/// compiled where it is used and nowhere else.
+#[cfg(test)]
 pub(crate) fn digest(
     db: &DocumentDb,
     key: &str,

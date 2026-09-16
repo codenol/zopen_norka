@@ -188,6 +188,101 @@ fn modify_plan_is_none_for_an_empty_page() {
 }
 
 // ---------------------------------------------------------------------------
+// #207 — the recipe-base rule reaches the route a recipe turn takes
+// ---------------------------------------------------------------------------
+
+/// The recipe the kit ships for a screen prompt, as the placement names it.
+fn a_placed_recipe() -> (String, String) {
+    let recipe = op_editor_core::session_kit()
+        .recipes
+        .first()
+        .expect("the kit ships recipes");
+    (recipe.id.clone(), recipe.name.clone())
+}
+
+/// The prompt contract of issue #207, at the level the plan controls: a turn
+/// told that the host just placed a recipe carries the `doc:recipe-base`
+/// instruction in the system prompt it builds, and an ordinary edit turn does
+/// not — so the assertion below is about the flag and not about a constant
+/// that is always there.
+///
+/// This is the unit half of the check. The wire half lives in
+/// `web_chat_standard::recipe_reference_tests`, which captures the request the
+/// route really sends.
+#[test]
+fn a_recipe_turn_carries_the_recipe_base_rule_in_its_system_prompt() {
+    let mut state = state_with_page();
+    state.set_single_selection(op_editor_core::NodeId::new("page-1"));
+    let (recipe_id, recipe_name) = a_placed_recipe();
+
+    let plain = build_modify_plan(&state, "make it red").expect("plan");
+    assert!(
+        !plain.system_prompt.contains("Recipe already placed"),
+        "an ordinary edit turn stands on no placement and must not be told it does"
+    );
+
+    let hint = super::RecipeBaseHint {
+        recipe_id,
+        name: recipe_name.clone(),
+    };
+    let plan =
+        build_modify_plan_with(&state, "make it red", Some(&hint)).expect("recipe turn plan");
+
+    assert!(
+        plan.system_prompt.contains("Recipe already placed"),
+        "the route a recipe turn takes must carry the rule the code builds for \
+         it; system prompt was: {}",
+        plan.system_prompt
+    );
+    assert!(
+        plan.system_prompt
+            .contains("Do not compose this screen again and do not rebuild its structure"),
+        "the rule's instruction, not only its title, has to reach the model"
+    );
+    assert!(
+        plan.system_prompt.contains(&recipe_name),
+        "the rule names the recipe it is about"
+    );
+    assert!(
+        plan.system_prompt.contains("page-1"),
+        "…and the node the host placed it as"
+    );
+    assert!(
+        plan.system_prompt.contains("SESSION RULES"),
+        "the placement rule rides in the same rules block as the document's own"
+    );
+    assert!(
+        plan.rewrites_a_placed_recipe,
+        "the whole-screen reply the preamble asks for is tied to this flag"
+    );
+}
+
+/// One wording, two routes: the rule the modify plan renders is the value the
+/// new-design route inserts into its `DesignRequest`, so this pins the text
+/// both prompts carry (issue #207).
+#[test]
+fn the_new_design_route_and_the_modify_plan_share_one_recipe_base_rule() {
+    let (recipe_id, _) = a_placed_recipe();
+    let recipe = op_editor_core::session_kit()
+        .recipes
+        .iter()
+        .find(|recipe| recipe.id == recipe_id)
+        .expect("the recipe the placement named");
+    let node_id = op_editor_core::NodeId::new("n42");
+
+    let rule = crate::web_chat_standard::recipe_base_rule(recipe, &node_id);
+    assert_eq!(rule.id, "doc:recipe-base");
+    assert_eq!(rule.kind, jian_ops_schema::DesignRuleKind::Require);
+    assert_eq!(rule.scope, jian_ops_schema::DesignRuleScope::Global);
+    assert_eq!(rule.priority, i32::MIN + 1);
+
+    let rendered = op_editor_core::build_design_rules_policy(&[rule]);
+    assert!(rendered.contains(&format!("Recipe already placed: {}", recipe.name)));
+    assert!(rendered.contains("as node `n42`"));
+    assert!(rendered.contains("adapt what it provides"));
+}
+
+// ---------------------------------------------------------------------------
 // apply_design_modification (extractAndApplyDesignModification port)
 // ---------------------------------------------------------------------------
 

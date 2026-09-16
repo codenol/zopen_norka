@@ -348,7 +348,7 @@ pub fn state_route(state: &crate::EditorState, file: RouteFile) -> RouteTarget {
             .filter(|slug| !slug.is_empty()),
         page: (state.ui.active_page_index != 0).then_some(state.ui.active_page_index),
         node,
-        embed: (state.editor_ui.embed != EmbedHost::None).then_some(state.editor_ui.embed.clone()),
+        embed: (state.editor_ui.embed != EmbedHost::None).then_some(state.editor_ui.embed),
     })
 }
 

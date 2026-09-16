@@ -281,10 +281,7 @@ fn a_commenter_is_offered_two_levels_and_not_four() {
         .map(|(level, _, _)| *level)
         .collect();
     assert_eq!(levels, vec![ShareLevel::Commenter, ShareLevel::Viewer]);
-    assert!(
-        model.invite_enabled == false,
-        "an empty field is not invitable"
-    );
+    assert!(!model.invite_enabled, "an empty field is not invitable");
 }
 
 #[test]

@@ -649,6 +649,35 @@ impl WidgetHost {
             )
         };
 
+        // Which copy of the document this canvas is showing (issues #171 /
+        // #191), directly under the recovery bar in the same band. It goes
+        // BEFORE the comments popover and every menu / modal, exactly as the
+        // bar does, so a dialog covers it; and it registers in no press tier,
+        // so a click on it reaches the canvas underneath (a statement, not a
+        // control — resolving the divergence is #169's decision, not this
+        // wave's).
+        //
+        // The rect the bar was just painted at is passed in rather than
+        // re-derived: the bar's slot moves with the align toolbar and the
+        // toast, and a second copy of that arithmetic is how the two surfaces
+        // end up overlapping.
+        {
+            let mut cx = PaintCx {
+                backend: &mut *backend,
+            };
+            let canvas_rect = op_editor_ui::widgets::host_canvas_geometry::canvas_rect(
+                &self.editor_state,
+                viewport_width,
+                viewport_height,
+            );
+            op_editor_ui::widgets::copy_status_bar::paint(
+                &mut cx,
+                &self.editor_state,
+                canvas_rect,
+                self.recovery_banner_rect,
+            );
+        }
+
         // The open thread's popover: a box that hangs off its pin, so it paints
         // in the same band as the recovery banner — above the canvas (and above
         // the rail, which it may overlap near the right edge) and below every

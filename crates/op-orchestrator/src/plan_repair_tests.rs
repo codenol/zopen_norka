@@ -409,7 +409,7 @@ fn coerce_subtask_elements_array_joined() {
 
 /// A session kit is the design system, so `finalize_plan` never pins a
 /// catalog style guide — the markdown brief that used to force
-/// `design-md-custom` is gone from the product.
+/// [`DESIGN_MD_STYLE_GUIDE_NAME`] is gone from the product.
 #[test]
 fn finalize_plan_never_pins_a_catalog_style_guide() {
     let obj = json!({
@@ -418,7 +418,10 @@ fn finalize_plan_never_pins_a_catalog_style_guide() {
     });
     let plan = repair_plan_object(&obj, &req_with_design_md("a landing page"))
         .expect("repair should succeed");
-    assert_ne!(plan.style_guide_name.as_deref(), Some("design-md-custom"));
+    assert_ne!(
+        plan.style_guide_name.as_deref(),
+        Some(DESIGN_MD_STYLE_GUIDE_NAME)
+    );
 }
 
 /// When `design_md` is absent the session kit owns fill and catalog names are dropped.
@@ -505,7 +508,7 @@ fn finalize_plan_genom_like_keeps_table_strips_analytics() {
         "table body must survive: {ids:?}"
     );
     assert!(
-        ids.iter().any(|id| *id == "pagination"),
+        ids.contains(&"pagination"),
         "pagination must survive: {ids:?}"
     );
 }

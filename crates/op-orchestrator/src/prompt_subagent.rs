@@ -553,7 +553,9 @@ CRITICAL LAYOUT CONSTRAINTS:\n\
     // silently ran at one number while this report claimed another. Deriving
     // both from the same constant keeps them honest, and is why the deck arm
     // above reads the constant instead of restating it.
-    let budget_max = budget_override.unwrap_or_else(|| Phase::Generation.default_budget());
+    // `budget_override` above is `Some` of exactly this expression, so the
+    // fallback arm could never fire and the two numbers could never differ.
+    let budget_max = phase_budget.saturating_add(rules_tokens);
     let included: Vec<SkillLoadEntry> = filtered
         .iter()
         .map(|s| SkillLoadEntry {

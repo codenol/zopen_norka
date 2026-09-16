@@ -51,10 +51,13 @@ pub fn blink_period_ms(freshness: BuildFreshness) -> Option<u64> {
 }
 
 /// Whether the stamp is in its visible half of the blink cycle.
+///
+/// `Some(0)` is "fixed on", not a division by zero: a zero period would
+/// otherwise panic in the arm below.
 pub fn blink_visible(now_ms: u64, period: Option<u64>) -> bool {
     match period {
         None => true,
-        Some(period) if period == 0 => true,
+        Some(0) => true,
         Some(period) => (now_ms % period) < period / 2,
     }
 }

@@ -346,7 +346,9 @@ fn a_daemon_with_no_accounts_never_asks_a_caller_to_sign_in() {
          fact the status route publishes"
     );
     runtime.refresh_availability(&mut host);
-    drop(host);
+    // No `drop(host)`: `CollabHost` holds no destructor, so the call released
+    // the borrow of `state` only as far as NLL already does at this last use,
+    // and it read as though the host owned a resource it does not.
 
     let wire: CollabStateWire = serde_json::from_str(
         &call("GET", op_editor_core::collab_routes::STATE, "", &mut state).body,

@@ -44,8 +44,14 @@ fn the_shipped_default_clears_the_measured_spawn_cycle() {
     // remove, so the assertion is stated against the measurements rather than
     // against a number copied from the constant.
     const SLOWEST_MEASURED_CYCLE_SECS: u64 = 10;
+    // The window the daemon actually runs with, asked for the way a deployment
+    // with no setting asks for it. Comparing the two constants directly would be
+    // decided by the compiler and would not notice a reader that stopped
+    // returning `DEFAULT_LISTEN_WINDOW_SECS` at all — which is the failure this
+    // test is here to catch.
+    let shipped = listen_window_from(None);
     assert!(
-        DEFAULT_LISTEN_WINDOW_SECS >= SLOWEST_MEASURED_CYCLE_SECS,
-        "the shipped window must clear the slowest measured cycle, not sit inside it"
+        shipped >= Duration::from_secs(SLOWEST_MEASURED_CYCLE_SECS),
+        "the shipped window ({shipped:?}) must clear the slowest measured cycle, not sit inside it"
     );
 }

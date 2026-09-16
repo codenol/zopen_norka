@@ -409,8 +409,8 @@ mod tests {
         let names: Vec<&str> = pages.iter().map(|p| p.name.as_str()).collect();
         assert!(names.contains(&"Components/Button"));
         assert!(names.contains(&"Components/Logo"));
-        assert!(!names.iter().any(|n| *n == COMPONENTS_PAGE_NAME));
-        assert!(!names.iter().any(|n| *n == crate::COMPONENTS_PAGE_PREFIX));
+        assert!(!names.contains(&COMPONENTS_PAGE_NAME));
+        assert!(!names.contains(&crate::COMPONENTS_PAGE_PREFIX));
         let button = pages
             .iter()
             .find(|p| p.name == "Components/Button")

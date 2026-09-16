@@ -18,7 +18,10 @@ fn get_design_prompt_defaults_to_all_and_lists_sections() {
             assert!(
                 prompt.contains("WORKING AGREEMENT"),
                 "the section's rules lead every prompt; got: {}",
-                &prompt[..prompt.len().min(300)]
+                // Character-based: this is only built when the assertion
+                // fails, and a byte cut there would panic inside the message
+                // and hide the real failure (the same class as issue #203).
+                prompt.chars().take(300).collect::<String>()
             );
             assert!(
                 prompt.contains("COMPONENT RULES"),

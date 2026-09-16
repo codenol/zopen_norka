@@ -195,17 +195,15 @@ fn press_level_option(ui: &mut ShareUiState, option: usize, level: Option<ShareL
             }
             result
         }
-        Some(ShareLevelTarget::Person(index)) => ui.set_person_level(index, level).and_then(|()| {
+        // `map`, not `and_then`: the closure only ever produced `Ok(())`, so it
+        // queued a request and then claimed an error it could not report.
+        Some(ShareLevelTarget::Person(index)) => ui.set_person_level(index, level).map(|()| {
             // Re-levelling somebody is a grant of the same account at a new
             // level; the server treats it as an upsert.
             let account = ui.people().get(index).map(|grant| grant.account.clone());
-            match account {
-                Some(account) => {
-                    ui.busy = true;
-                    ui.request(ShareAction::Grant { account, level });
-                    Ok(())
-                }
-                None => Ok(()),
+            if let Some(account) = account {
+                ui.busy = true;
+                ui.request(ShareAction::Grant { account, level });
             }
         }),
     };

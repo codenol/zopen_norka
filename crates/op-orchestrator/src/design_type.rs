@@ -180,6 +180,13 @@ const CARD_DISQUALIFIER: &[&str] = &["组件", "組件", "component"];
 
 /// Is this a social-card-series request? See the word tables above for why
 /// the platform words stand alone while the card nouns need a series word.
+///
+/// A pure forwarder for `is_card_series`, kept because
+/// `style_guide_context::infer_tags_from_prompt` is its only caller and that
+/// whole catalogue path is reachable only from its own tests — see the module
+/// note in `style_guide_context.rs` and issue #194. `is_card_series` itself is
+/// live: the design-type rung calls it directly.
+#[allow(dead_code)] // catalogue path: its own tests only, see `style_guide_context`
 pub(crate) fn is_card_series_prompt(lower: &str) -> bool {
     is_card_series(lower)
 }

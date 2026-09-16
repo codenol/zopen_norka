@@ -43,7 +43,18 @@ use super::accounts_password_strength::{
 use super::AccountsDb;
 
 /// What came of asking for a first administrator.
+///
+/// `clippy::large_enum_variant` is wrong here, and the box it asks for would be
+/// a pessimisation. `User` is ~224 bytes because an account IS nine owned
+/// strings; the enum is the store's answer to one boot-time question, returned
+/// once, matched once, and never stored in a collection or passed through a
+/// channel — which is the case the lint exists for. Boxing `Created` would put
+/// an allocation on the one success path that produces it, and hand every
+/// caller (`op admin create`, the boot route) a `Box<User>` to unwrap for a
+/// value it owns anyway. It would also move a `pub` variant of a crate that
+/// `op-host-services` re-exports.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum FirstAdmin {
     /// The account was created, with the admin role and an active status.
     Created(User),

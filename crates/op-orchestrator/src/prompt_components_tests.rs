@@ -7,15 +7,6 @@ use super::*;
 
 use jian_ops_schema::node::PenNode;
 use op_editor_core::{Component, NodeId};
-/// The rules a real turn carries: resolved, so the shipped working agreement
-/// and the kit's component rules are part of the prompt under test.
-fn resolved_rules() -> Vec<jian_ops_schema::DesignRule> {
-    op_editor_core::effective_design_rules(None)
-        .into_iter()
-        .map(|entry| entry.rule)
-        .collect()
-}
-
 /// Build a `ComponentLibrary` with `n` reusable masters whose names cycle
 /// through a few categories so the grouped manifest exercises bucketing.
 /// The manifest only reads each component's `id` + `name`, so the `root`

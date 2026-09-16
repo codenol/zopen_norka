@@ -186,7 +186,7 @@ pub use batch_design::{
 };
 pub use batch_design_result::{batch_design_snapshot, BatchDesign};
 pub use batch_get::{batch_get_snapshot, BatchGet};
-pub use batch_program_objects::parse_program_objects;
+pub use batch_program_objects::{normalize_generated_node_shape, parse_program_objects};
 pub use bulk_vars::{
     apply_design_system_snapshot, get_variables_snapshot, set_themes_snapshot,
     set_variables_snapshot, GetVariables, SetThemes, SetVariables,

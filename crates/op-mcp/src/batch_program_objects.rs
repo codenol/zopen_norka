@@ -14,6 +14,21 @@ pub fn parse_program_objects(program: &str) -> Vec<(String, Value)> {
         .collect()
 }
 
+/// The node-shape normalization every generated-node parse path owes its
+/// payload before it is deserialized into a `PenNode`.
+///
+/// The `batch_design` executor runs it internally
+/// (`batch_design_normalize::normalize_node_shape`). A host that extracts the
+/// node objects itself — [`parse_program_objects`] deliberately returns them
+/// raw, so modify can diff author-provided ids against the live document — must
+/// call this on each object, or its nodes reach the schema unnormalized. That
+/// is how a line naming a documented ROLE in the `type` slot
+/// (`{"type":"divider",…}`, issue #206) was refused by serde and dropped while
+/// the turn reported success: the element the person asked for never existed.
+pub fn normalize_generated_node_shape(value: &mut Value) {
+    crate::batch_design_normalize::normalize_node_shape(value);
+}
+
 fn parse_program_object(line: &str) -> Option<(String, Value)> {
     let trimmed = line.trim().trim_end_matches(';').trim();
     let call = match crate::batch_design::find_top_level_char(trimmed, '=') {

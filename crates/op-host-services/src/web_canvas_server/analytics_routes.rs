@@ -104,9 +104,7 @@ fn parse_route(path: &str) -> Option<AnalyticsRoute<'_>> {
         return Some(AnalyticsRoute::List);
     }
     let mut segments = rest.split('/');
-    let Some(key) = segments.next().filter(|key| !key.is_empty()) else {
-        return None;
-    };
+    let key = segments.next().filter(|key| !key.is_empty())?;
     match (segments.next(), segments.next()) {
         (None, None) => Some(AnalyticsRoute::Asset { key }),
         (Some("rename"), None) => Some(AnalyticsRoute::Rename { key }),

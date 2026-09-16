@@ -1,5 +1,22 @@
 //! 规划 prompt 的 style-guide 上下文构造 —— port of
 //! `orchestrator-prompt-optimizer.ts` 的 catalog 路径。
+//!
+//! # What is still reachable (issue #194)
+//!
+//! `build_planning_style_guide_context` used to rank a catalogue of shipped
+//! style guides. It no longer ranks anything: the session kit IS the design
+//! system, so the context it builds names the kit and tells the model not to
+//! pick a catalogue guide, and `enforce_pinned_style_guide` — the other
+//! `pub(crate)` entry point — returns `false` without touching the plan.
+//!
+//! The catalogue path below it (tag inference, weighted scoring, ranking,
+//! metadata / snippet formatting, pin resolution) was left in place and is now
+//! called only from `style_guide_context_tests.rs` and `card_routing_tests.rs`.
+//! Each such item therefore carries an explicit `#[allow(dead_code)]` naming
+//! the situation, rather than being deleted: whether the ranking comes back or
+//! goes away for good is a product decision, and the tests are the only record
+//! of what the ported behaviour was. A `#[allow]` here is a statement of fact
+//! ("the product does not reach this"), not a silenced warning about a bug.
 
 use crate::design_type::contains_word;
 use crate::model_profile::ModelTier;
@@ -13,6 +30,7 @@ use op_ai_skills::style_guide::{
 use op_editor_core::session_kit;
 
 /// `lower` 含 `words` 任一(按 `contains_word`:ASCII 词边界 / CJK 子串)。
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 fn any(lower: &str, words: &[&str]) -> bool {
     words.iter().any(|w| contains_word(lower, w))
 }
@@ -20,6 +38,7 @@ fn any(lower: &str, words: &[&str]) -> bool {
 /// prompt → 风格 tag 列表 —— port of `inferTagsFromPrompt`
 /// (`orchestrator-prompt-optimizer.ts:439-550`)。**无去重、无上限**,
 /// 顺序 = 组顺序;空结果 → `["minimal","light-mode"]`。
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 pub(crate) fn infer_tags_from_prompt(prompt: &str) -> Vec<String> {
     let lower = prompt.to_lowercase();
     let mut tags: Vec<String> = Vec::new();
@@ -283,6 +302,7 @@ pub(crate) fn infer_tags_from_prompt(prompt: &str) -> Vec<String> {
 }
 
 /// industry tag —— 命中得 +30(其余 tag +10)。
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 const INDUSTRY_TAGS: &[&str] = &[
     "warm-tones",
     "food",
@@ -295,6 +315,7 @@ const INDUSTRY_TAGS: &[&str] = &[
 /// 单个 guide 对 `(tags, platform)` 的加权分 —— port of
 /// `styleGuidePromptScore`。industry tag +30 / 其余命中 +10 /
 /// platform 不符 -30。
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 pub(crate) fn style_guide_prompt_score(
     guide: &ParsedStyleGuide,
     tags: &[String],
@@ -325,6 +346,7 @@ pub(crate) fn style_guide_prompt_score(
 /// stale pin is logged rather than surfaced as an error — the user asked for
 /// an aesthetic, not for the request to fail — but it is logged, because a pin
 /// that silently stops applying is otherwise invisible.
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 pub(crate) fn resolve_pinned_style_guide(pinned: Option<&str>) -> Option<StyleGuideRef> {
     let name = pinned.map(str::trim).filter(|name| !name.is_empty())?;
     match find_style_guide(name) {
@@ -377,6 +399,7 @@ pub(crate) fn enforce_pinned_style_guide(
 
 /// 对全 catalog 按加权分降序排名(不过滤)—— port of
 /// `rankStyleGuidesForPrompt`。平局:platform-match 优先,再 name 升序。
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 pub(crate) fn rank_style_guides_for_prompt(
     tags: &[String],
     platform: Platform,
@@ -397,6 +420,7 @@ pub(crate) fn rank_style_guides_for_prompt(
 /// The catalog is a menu of `styleGuideName` choices; the explicit type-tags
 /// and background color are intentionally dropped so the style guide no longer
 /// dictates "what type / what color" — the model picks palette from the prompt.
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 pub(crate) fn format_guide_metadata_line(guide: &ParsedStyleGuide, _mode: PlanningMode) -> String {
     format!("- {} [{}]", guide.name, guide.platform.as_str())
 }
@@ -406,6 +430,7 @@ pub(crate) fn format_guide_metadata_line(guide: &ParsedStyleGuide, _mode: Planni
 /// dropped so the catalog suggests typography but leaves palette + shape to the
 /// model (the brand-accent-consistency RULE in the design-system / jsonl skills
 /// still keeps whatever accent it picks coherent). No-data → heading only.
+#[allow(dead_code)] // catalogue path: its own tests only, see the module note
 pub(crate) fn format_guide_snippet(guide: &ParsedStyleGuide) -> String {
     let v = extract_style_guide_values(&guide.content);
     let mut lines: Vec<String> = vec![format!("### {} [{}]", guide.name, guide.platform.as_str())];

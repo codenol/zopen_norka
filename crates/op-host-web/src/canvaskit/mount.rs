@@ -187,6 +187,13 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // while the shell was borrowed, then perform whichever answer
                 // the user gave (issue #26).
                 crate::web_recovery::tick(&inner_for_paint);
+                // Which copy of the document this tab holds, and whether the
+                // canvas is painting the daemon's current one (issues #171 /
+                // #191). Runs after the paint, so a status that changed asks
+                // for the frame that shows it.
+                if crate::web_copy_status::publish(&inner_for_paint) {
+                    crate::repaint_coalescer::request();
+                }
                 // Comment threads: install an answer that arrived while the
                 // shell was borrowed, then send what the canvas queued. The
                 // daemon pushes no signal for comments, so a re-read here is

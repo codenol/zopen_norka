@@ -16,9 +16,17 @@ use crate::types::DesignRequest;
 use op_editor_core::session_kit;
 use serde_json::Value;
 
-/// Legacy constant kept for the plan JSON contract; session rules force
-/// no catalog style guide of their own.
-/// Port of `DESIGN_MD_STYLE_GUIDE_NAME` from `orchestrator-prompt-optimizer.ts`.
+/// The catalogue style-guide name the retired `design.md` brief used to force
+/// onto the plan. Port of `DESIGN_MD_STYLE_GUIDE_NAME` from
+/// `orchestrator-prompt-optimizer.ts`.
+///
+/// Test-only, and `cfg(test)` rather than `dead_code`: a session kit is the
+/// design system, so `finalize_plan` sets `style_guide_name = None` and no
+/// production path can name this value. What still needs the name is the pair
+/// of tests that assert it is ABSENT from a plan and from the planning context
+/// — they had it as a bare `"design-md-custom"` literal, which is how a
+/// retired contract ends up living in two test files instead of one constant.
+#[cfg(test)]
 pub(crate) const DESIGN_MD_STYLE_GUIDE_NAME: &str = "design-md-custom";
 
 // ── public(crate) helpers ─────────────────────────────────────────────────────
@@ -427,10 +435,8 @@ fn normalize_body_subtask_ids(plan: &mut OrchestratorPlan, request: &DesignReque
             if st.id != "toolbar" {
                 st.id = "toolbar".into();
             }
-        } else if t.contains("paginat") || t.contains("пагинац") {
-            if st.id != "pagination" {
-                st.id = "pagination".into();
-            }
+        } else if (t.contains("paginat") || t.contains("пагинац")) && st.id != "pagination" {
+            st.id = "pagination".into();
         }
     }
 }

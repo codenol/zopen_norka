@@ -46,9 +46,10 @@ fn thread(id: i64, page: &str, bodies: &[&str]) -> CommentThread {
 /// client; the toolbar offers the tool only then, and the mode refuses to turn
 /// on without it, so every test that exercises the tool has to say so.
 fn state_with_transport() -> CommentsUiState {
-    let mut state = CommentsUiState::default();
-    state.transport = true;
-    state
+    CommentsUiState {
+        transport: true,
+        ..Default::default()
+    }
 }
 
 #[test]

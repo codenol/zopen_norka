@@ -161,17 +161,15 @@ fn a_clear_target_is_never_smaller_than_the_sixteen_pixel_floor() {
 
     // Only the selection chip carries a ✕ now: the rules row cannot be
     // switched off, so it has no target to floor.
-    for clear in [panel
+    let clear = panel
         .selection_chip_clear_rect(input_rect)
-        .expect("selection ✕")]
-    {
-        assert!(
-            clear.size.x >= 16.0 && clear.size.y >= 16.0,
-            "the ✕ must stay hittable, got {}×{}",
-            clear.size.x,
-            clear.size.y
-        );
-    }
+        .expect("selection ✕");
+    assert!(
+        clear.size.x >= 16.0 && clear.size.y >= 16.0,
+        "the ✕ must stay hittable, got {}×{}",
+        clear.size.x,
+        clear.size.y
+    );
 }
 
 #[test]

@@ -32,6 +32,22 @@ fn registry() -> TenantRegistry {
     )
 }
 
+/// The share call these tests make: the caller, the caller's own lease, and the
+/// two stores a share is decided from.
+fn share_call<'a>(
+    identity: &'a ResolvedIdentity,
+    lease: &'a TenantLease,
+    registry: &'a TenantRegistry,
+    accounts: Option<&'a AccountAuth>,
+) -> ShareCall<'a> {
+    ShareCall {
+        identity,
+        lease,
+        registry,
+        accounts,
+    }
+}
+
 fn body_of(reply: &WebReply) -> serde_json::Value {
     serde_json::from_str(&reply.body).expect("json body")
 }
@@ -43,10 +59,7 @@ fn grant(registry: &TenantRegistry, owner: &str, target: &str) -> WebReply {
         "POST",
         share_routes::GRANT,
         &serde_json::json!({ "userId": target }).to_string(),
-        &identity,
-        &lease,
-        registry,
-        None,
+        share_call(&identity, &lease, registry, None),
         Some(DOCUMENT),
     )
 }
@@ -77,10 +90,7 @@ fn a_grant_for_an_account_that_does_not_exist_is_refused() {
         "POST",
         share_routes::GRANT,
         &serde_json::json!({ "userId": "fourth" }).to_string(),
-        &identity,
-        &lease,
-        &registry,
-        Some(&accounts),
+        share_call(&identity, &lease, &registry, Some(&accounts)),
         Some(DOCUMENT),
     );
 
@@ -128,10 +138,7 @@ fn a_grant_by_account_name_grants_that_account() {
             "POST",
             share_routes::GRANT,
             &serde_json::json!({ "userId": named }).to_string(),
-            &identity,
-            &lease,
-            &registry,
-            Some(&accounts),
+            share_call(&identity, &lease, &registry, Some(&accounts)),
             Some(DOCUMENT),
         );
         // A display name is not a handle and is not an id: only the two the
@@ -194,10 +201,7 @@ fn a_revoke_takes_effect_on_the_next_request() {
         "POST",
         share_routes::REVOKE,
         r#"{"userId":"userB"}"#,
-        &owner,
-        &lease,
-        &registry,
-        None,
+        share_call(&owner, &lease, &registry, None),
         Some(DOCUMENT),
     );
     assert_eq!(reply.status, "200 OK");
@@ -242,10 +246,7 @@ fn revoking_an_account_that_was_never_granted_is_not_an_error() {
         "POST",
         share_routes::REVOKE,
         r#"{"userId":"nobody"}"#,
-        &owner,
-        &lease,
-        &registry,
-        None,
+        share_call(&owner, &lease, &registry, None),
         Some(DOCUMENT),
     );
     assert_eq!(reply.status, "200 OK");
@@ -267,10 +268,7 @@ fn mutate_as(
         "POST",
         route,
         &serde_json::json!({ "userId": target }).to_string(),
-        &owner,
-        &lease,
-        registry,
-        accounts,
+        share_call(&owner, &lease, registry, accounts),
         Some(DOCUMENT),
     )
 }
@@ -558,10 +556,7 @@ fn the_list_reports_both_directions() {
         "GET",
         share_routes::LIST,
         "",
-        &visitor,
-        &lease,
-        &registry,
-        None,
+        share_call(&visitor, &lease, &registry, None),
         Some(DOCUMENT),
     );
     let body = body_of(&reply);
@@ -632,10 +627,7 @@ fn a_malformed_share_body_is_refused() {
             "POST",
             share_routes::GRANT,
             body,
-            &owner,
-            &lease,
-            &registry,
-            None,
+            share_call(&owner, &lease, &registry, None),
             Some(DOCUMENT),
         );
         assert_eq!(reply.status, "400 Bad Request", "{body:?}");
@@ -652,10 +644,7 @@ fn an_oversized_share_body_is_refused_before_it_is_parsed() {
         "POST",
         share_routes::GRANT,
         &body,
-        &owner,
-        &lease,
-        &registry,
-        None,
+        share_call(&owner, &lease, &registry, None),
         Some(DOCUMENT),
     );
     assert_eq!(reply.status, "413 Payload Too Large");
@@ -670,10 +659,7 @@ fn a_wrong_method_on_a_share_route_is_405() {
         "GET",
         share_routes::GRANT,
         "",
-        &owner,
-        &lease,
-        &registry,
-        None,
+        share_call(&owner, &lease, &registry, None),
         Some(DOCUMENT),
     );
     assert_eq!(reply.status, "405 Method Not Allowed");
@@ -721,10 +707,7 @@ fn the_grant_past_the_ceiling_is_refused_rather_than_silently_dropped() {
             "POST",
             share_routes::GRANT,
             &serde_json::json!({ "userId": format!("guest-{index}") }).to_string(),
-            &owner,
-            &lease,
-            &registry,
-            None,
+            share_call(&owner, &lease, &registry, None),
             Some(DOCUMENT),
         );
         assert_eq!(reply.status, "200 OK", "grant {index}");
@@ -733,10 +716,7 @@ fn the_grant_past_the_ceiling_is_refused_rather_than_silently_dropped() {
         "POST",
         share_routes::GRANT,
         r#"{"userId":"one-too-many"}"#,
-        &owner,
-        &lease,
-        &registry,
-        None,
+        share_call(&owner, &lease, &registry, None),
         Some(DOCUMENT),
     );
     assert_eq!(overflow.status, "400 Bad Request", "{}", overflow.body);
@@ -760,10 +740,7 @@ fn a_repeat_grant_at_the_ceiling_still_succeeds() {
             "POST",
             share_routes::GRANT,
             &serde_json::json!({ "userId": format!("guest-{index}") }).to_string(),
-            &owner,
-            &lease,
-            &registry,
-            None,
+            share_call(&owner, &lease, &registry, None),
             Some(DOCUMENT),
         );
     }
@@ -771,10 +748,7 @@ fn a_repeat_grant_at_the_ceiling_still_succeeds() {
         "POST",
         share_routes::GRANT,
         r#"{"userId":"guest-0"}"#,
-        &owner,
-        &lease,
-        &registry,
-        None,
+        share_call(&owner, &lease, &registry, None),
         Some(DOCUMENT),
     );
     assert_eq!(repeat.status, "200 OK", "{}", repeat.body);
@@ -791,10 +765,7 @@ fn a_wrong_method_on_a_share_route_answers_a_code_not_prose() {
         "DELETE",
         share_routes::GRANT,
         "",
-        &identity,
-        &lease,
-        &registry,
-        None,
+        share_call(&identity, &lease, &registry, None),
         Some(DOCUMENT),
     );
 

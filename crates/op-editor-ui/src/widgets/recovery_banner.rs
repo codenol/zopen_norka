@@ -186,6 +186,16 @@ impl<'a> RecoveryBanner<'a> {
         (canvas.size.x - SIDE_MARGIN - VERTICAL_TOOLBAR_RESERVE).min(MAX_WIDTH)
     }
 
+    /// The width this strip gives any surface standing in it.
+    ///
+    /// Shared with the copy-status strip (see `copy_status_bar`), which stacks
+    /// directly under this bar: two surfaces in one strip that derived their own
+    /// widths would drift apart the first time a margin changed, and the drift
+    /// would look like a bug in whichever one was narrower.
+    pub fn strip_width(canvas: Rect) -> f32 {
+        Self::width_for_canvas(canvas)
+    }
+
     /// Place the bar in the canvas region.
     ///
     /// `align_toolbar_visible` / `toast_visible` push it below those two — the

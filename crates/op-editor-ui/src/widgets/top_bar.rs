@@ -113,14 +113,18 @@ pub enum TopBarHit {
     Account,
 }
 
-/// Version + build time, stamped by `build.rs`.
-mod build_info {
-    include!(concat!(env!("OUT_DIR"), "/build_info.rs"));
-}
-
 /// The top bar's build label — "v0.8.5 · 2026-09-11 06:20".
+///
+/// Read from [`crate::widgets::build_stamp`], which is where the generated
+/// `build_info.rs` is included. `include!`ing it here a second time declared a
+/// second `BUILD_EPOCH` that nothing in this module reads — one constant, two
+/// copies, and no way for them to disagree usefully.
 pub fn build_label() -> String {
-    format!("v{} · {}", build_info::VERSION, build_info::BUILD_TIME)
+    format!(
+        "v{} · {}",
+        crate::widgets::build_stamp::VERSION,
+        crate::widgets::build_stamp::BUILD_TIME
+    )
 }
 
 pub struct TopBar {

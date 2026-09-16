@@ -37,19 +37,25 @@ impl McpTool for UseRecipe {
         let (doc_x, doc_y) = match (args.get("x"), args.get("y")) {
             (None, None) => (None, None),
             (x, y) => {
+                // The closure answers with the MESSAGE, not with a
+                // `ToolOutcome`: a `ToolOutcome` is the largest thing in this
+                // crate's wire layer (it carries an `EditorCommand`), and an
+                // error type that big inside `Result` makes every parse result
+                // pay for a variant that is not there. The variant is built
+                // once, at the return, where the code is known.
                 let parse = |value: Option<&String>, key: &str| match value {
                     None => Ok(None),
                     Some(raw) if raw.is_empty() => Ok(None),
-                    Some(raw) => raw.parse::<f64>().map(Some).map_err(|_| {
-                        ToolOutcome::Err(
-                            ToolErrorCode::InvalidArgument,
-                            format!("{key} must be a number"),
-                        )
-                    }),
+                    Some(raw) => raw
+                        .parse::<f64>()
+                        .map(Some)
+                        .map_err(|_| format!("{key} must be a number")),
                 };
                 match (parse(x, "x"), parse(y, "y")) {
                     (Ok(x), Ok(y)) => (x, y),
-                    (Err(e), _) | (_, Err(e)) => return e,
+                    (Err(message), _) | (_, Err(message)) => {
+                        return ToolOutcome::Err(ToolErrorCode::InvalidArgument, message)
+                    }
                 }
             }
         };

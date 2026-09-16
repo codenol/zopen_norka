@@ -454,6 +454,47 @@ fn dump_text_content_truncated_at_30() {
     );
 }
 
+/// The 30-character cut is a cut by CHARACTER, not by byte (issue #203).
+///
+/// These three strings are the ones the measured corpus actually produced;
+/// each of them killed the daemon's SSE connection thread with
+/// `byte index 30 is not a char boundary`, because every Cyrillic letter is
+/// two bytes and the cut used `content.len()`.
+#[test]
+fn dump_text_content_truncates_the_measured_cyrillic_labels() {
+    for label in [
+        "Редактировать профиль",
+        "+12,4% к прошлому месяцу",
+        "Операторская платформа",
+    ] {
+        let state = state_with_nodes(vec![make_text("t1", label)]);
+        let dump = build_node_tree_dump(&state);
+        let expected: String = label.chars().take(30).collect();
+        assert!(
+            dump.contains(&format!("text=\"{expected}\"")),
+            "expected a 30-CHARACTER cut of {label:?} in {dump}"
+        );
+    }
+}
+
+/// Four-byte characters must cut cleanly too — a byte cut at 30 lands inside
+/// the third emoji of this label.
+#[test]
+fn dump_text_content_truncates_multi_byte_glyphs() {
+    let label = format!("{}📁📁📁", "a".repeat(29));
+    let state = state_with_nodes(vec![make_text("t1", &label)]);
+    let dump = build_node_tree_dump(&state);
+    let expected: String = label.chars().take(30).collect();
+    assert!(
+        expected.ends_with('📁'),
+        "fixture must place a 4-byte glyph at character 30"
+    );
+    assert!(
+        dump.contains(&format!("text=\"{expected}\"")),
+        "expected a 30-CHARACTER cut in {dump}"
+    );
+}
+
 /// Exact dump string for a simple two-node tree (regression fixture).
 #[test]
 fn dump_exact_format_simple_tree() {

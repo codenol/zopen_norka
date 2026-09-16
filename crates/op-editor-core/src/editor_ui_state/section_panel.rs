@@ -540,7 +540,13 @@ mod tests {
 
         assert!(state.dirty);
         assert!(state.pending_save.is_none(), "typing is not saving");
-        assert!(!state.request_save() == false);
+        // `!request_save() == false` was the same claim written so that it read
+        // as its own opposite; the request is expected to be ACCEPTED here, and
+        // the queued write below is what accepting it means.
+        assert!(
+            state.request_save(),
+            "a typed field is exactly what makes a save worth queueing"
+        );
         let queued = state.pending_save.clone().expect("a queued write");
         assert_eq!(queued.summary.what_it_is, "Checkout!");
         assert!(state.saving);

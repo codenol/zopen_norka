@@ -236,6 +236,17 @@ pub(super) fn parse_modify_response(full_response: &str) -> ModifyNodeParse {
             op_mcp::parse_program_objects(program)
                 .into_iter()
                 .map(|(parent, mut node)| {
+                    // This route extracts the script's node objects itself, so
+                    // it owes them the same shape normalization the program-DSL
+                    // path runs before deserializing: a name the catalogue
+                    // documents as a ROLE in the `type` slot (`divider`,
+                    // issue #206) is translated here. Left as authored, the
+                    // unknown variant travels through the scope checks and into
+                    // the applied-json delta the transcript echoes; the insert
+                    // tool would repair it later (`insert_node_data` runs the
+                    // same normalizer), but nothing downstream of the parse
+                    // should have to.
+                    op_mcp::normalize_generated_node_shape(&mut node);
                     op_orchestrator::parse::normalize_generated_node_json(&mut node);
                     (parent, node)
                 })
@@ -393,9 +404,43 @@ pub fn build_modify_plan_with(
         .map(|s| s.content.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
-    let rules_policy = op_editor_core::build_effective_rules_policy(
-        &op_editor_core::effective_design_rules(state.doc.design_md.as_ref()),
-    );
+
+    // The turn's own rule list: the document's saved rules, with the placement
+    // rule at the head when the host just placed a recipe (issue #207).
+    //
+    // A recipe turn is *this* route, not the new-design one: the placement runs
+    // before classification, it selects the base, and a selected Frame is what
+    // forces `DesignIntent::Modify`. The `doc:recipe-base` rule used to be
+    // built for such a turn and inserted only on the new-design route, so the
+    // one instruction that says "this screen is already on the page, adapt it,
+    // do not rebuild its shell" never reached the prompt the turn sends —
+    // measured absent from the captured request, 0 occurrences.
+    //
+    // Built by the recipe module, not copied here: one rule, one wording, and
+    // the new-design route inserts the same value into its `DesignRequest`
+    // (issue #207). Both routes insert at index 0, so the order the model reads
+    // is the same on either.
+    let mut rules: Vec<jian_ops_schema::DesignRule> =
+        op_editor_core::effective_design_rules(state.doc.design_md.as_ref())
+            .into_iter()
+            .map(|entry| entry.rule)
+            .collect();
+    if let Some(base) = recipe_base {
+        // The placed root is the selection — `place_recipe_base` sets a single
+        // selection on it — so the head of `target_frame_ids` is the node the
+        // rule must name, and the node the user message above already names.
+        let placed = target_frame_ids.first().and_then(|node_id| {
+            crate::web_chat_standard::kit_recipe(&base.recipe_id)
+                .map(|recipe| (recipe, op_editor_core::NodeId::new(node_id)))
+        });
+        if let Some((recipe, node_id)) = placed {
+            rules.insert(
+                0,
+                crate::web_chat_standard::recipe_base_rule(recipe, &node_id),
+            );
+        }
+    }
+    let rules_policy = op_editor_core::build_design_rules_policy(&rules);
     if !rules_policy.is_empty() {
         system_prompt.push_str("\n\nSESSION RULES (follow these EXACTLY):\n");
         system_prompt.push_str(&rules_policy);

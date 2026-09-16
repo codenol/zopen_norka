@@ -125,7 +125,8 @@ fn a_catalog_pin_does_not_replace_the_session_rules() {
     assert!(ctx.available_style_guides.contains("SESSION RULES"));
     assert!(ctx.available_style_guides.contains("WORKING AGREEMENT"));
     assert!(
-        !ctx.available_style_guides.contains("design-md-custom"),
+        !ctx.available_style_guides
+            .contains(crate::plan_repair::DESIGN_MD_STYLE_GUIDE_NAME),
         "the markdown brief is gone; nothing may pin it"
     );
 }
@@ -174,18 +175,12 @@ fn minimal_mode_has_no_snippets() {
 }
 
 #[test]
-fn design_md_branch_skips_catalog() {
-    let spec = jian_ops_schema::DesignMdSpec {
-        raw: String::new(),
-        project_name: None,
-        visual_theme: Some("calm".into()),
-        color_palette: None,
-        typography: None,
-        component_styles: None,
-        layout_principles: None,
-        generation_notes: None,
-        rules: Vec::new(),
-    };
+fn rich_mode_context_names_the_session_kit() {
+    // This was `design_md_branch_skips_catalog`, and it built a
+    // `DesignMdSpec` to put a design.md in play. Neither survives here: the
+    // builder takes `&[DesignRule]`, not a spec, and the design.md branch that
+    // read one is gone (the session kit is the design system). What is left to
+    // check is that Rich mode names the kit and reports no catalogue.
     let ctx = build_planning_style_guide_context(
         "a page",
         Some("claude-opus"),
