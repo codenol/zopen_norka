@@ -364,6 +364,10 @@ fn command_dispatch_has_no_legacy_allocator_escape_hatch() {
     let source = [
         include_str!("command_apply.rs"),
         include_str!("command_apply/helpers.rs"),
+        // The selection + clipboard arms live in a sibling of the spine, so the
+        // scan has to follow them there — the routes they carry are still the
+        // ones this guard exists to pin.
+        include_str!("command_apply/selection.rs"),
     ]
     .concat();
     for required in [
