@@ -377,49 +377,18 @@ mod tests {
 ///
 /// Selection lives here, not in the prompt, for the same reason the rules do:
 /// "the model should pick the recipe" is a hope, while a keyword match is a
-/// decision. The longest match wins so a specific recipe beats a broad one,
-/// and a request that names nothing keeps the plain path.
+/// decision. It is a decision the product has to be able to defend, though —
+/// a placed recipe becomes the page and the turn becomes a rewrite of it — so
+/// the matching itself lives in [`crate::design_recipe_match`], where a needle
+/// has to land on a word the request actually uses, at least one needle has to
+/// name the recipe's own subject, and the request may not contradict the
+/// recipe's shape or the script its copy is written in (issues #181, #187).
+/// A request that names nothing keeps the plain, model-drawn route.
 pub fn select_recipe<'a>(
     prompt: &str,
     kit: &'a crate::KitManifest,
 ) -> Option<&'a crate::kit_manifest::KitRecipe> {
-    let haystack = prompt.to_lowercase();
-    kit.recipes
-        .iter()
-        .filter_map(|recipe| {
-            let score: usize = recipe
-                .matches
-                .iter()
-                .filter(|needle| {
-                    let needle = needle.to_lowercase();
-                    !needle.is_empty() && haystack.contains(&needle)
-                })
-                .map(|needle| needle.chars().count())
-                .sum();
-            (score > 0).then_some((score, recipe))
-        })
-        .max_by_key(|(score, recipe)| (*score, std::cmp::Reverse(recipe.id.clone())))
-        .map(|(_, recipe)| recipe)
-}
-
-#[cfg(test)]
-mod recipe_selection_tests {
-    use super::*;
-
-    #[test]
-    fn an_ops_list_request_selects_the_ops_recipe() {
-        let kit = crate::session_kit();
-        let selected = select_recipe("Собери экран: список коммутаторов с фильтром", kit)
-            .expect("a matching recipe");
-        assert_eq!(selected.id, "ops-servers-screen");
-        assert_eq!(selected.template, "tpl-recipe-ops-servers");
-    }
-
-    #[test]
-    fn an_unrelated_request_selects_nothing() {
-        let kit = crate::session_kit();
-        assert!(select_recipe("нарисуй кота в шляпе", kit).is_none());
-    }
+    crate::design_recipe_match::recipe_decision(prompt, kit).recipe()
 }
 
 /// The recipe blocks a request asks to be left out.

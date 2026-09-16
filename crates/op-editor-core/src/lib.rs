@@ -72,6 +72,7 @@ pub mod compositing;
 pub mod conversion;
 pub mod design_md;
 pub mod design_md_button_state;
+pub mod design_recipe_match;
 pub mod design_rules;
 pub mod design_rules_policy;
 pub mod design_rules_ui;

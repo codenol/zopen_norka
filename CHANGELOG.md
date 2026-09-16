@@ -317,6 +317,68 @@ here at a glance.
 
 ### Fixed
 
+- **A recipe is placed only when the request asks for that screen.** The kit's
+  keyword matcher used to look for its needles anywhere inside the prompt and
+  take the longest total match, which meant a mobile profile request scored 17
+  off "пользовател" and "список" and was answered with the 1440-wide ops
+  equipment table; "лог" matched inside "логина" and inside "каталога"; "list"
+  in "a left navigation list" was the whole evidence for an English settings
+  prompt, which came back in Russian. What a person sees differently: a request
+  for a phone screen no longer gets a desktop master, an English request no
+  longer gets a screen whose copy is Russian, and a request that only says
+  "list" or "список" gets the screen it described instead of a stored one. The
+  kit now declares which of its words name the screen's subject and which only
+  support it, a needle has to land on a word the request actually uses, and a
+  short needle no longer stands for any word that merely starts with it —
+  refusal costs the kit's help, while a wrong screen replaces the one that was
+  asked for (issues #181, #187).
+
+- **A picture you attach decides the turn, whether or not you mention it.** Two
+  turns looked identical to the code and were not: attaching a screenshot and
+  writing "build me a server list" was read as having no reference, while
+  writing "like on the screenshot" with nothing attached was read as having one
+  — "does this turn point at a picture" was being guessed from the words. It is
+  read from the attachment list now. What a person sees differently: attach a
+  picture, say nothing about it, and the library screen the request would
+  otherwise have matched is no longer laid over it — no recipe is placed, and
+  the prompt no longer carries the "the product already placed recipe X, keep
+  it" instruction that used to override the picture they actually sent. And a
+  phrase alone no longer suppresses a recipe: "список коммутаторов как на
+  картинке" with nothing attached gets the ops screen it asked for by name.
+  The word-based guess survives in exactly one place, where a request arrives
+  with no attachment list to read at all (a JSON hop drops it — the field is
+  `serde(skip)`), and that is now stated where it happens instead of standing in
+  silently for a knowable fact.
+
+- **Retrying one failed section of a reference-grounded turn keeps your
+  picture.** The per-section "Retry" re-runs a failed row from the request the
+  turn stored, and that stash is JSON — where the reference attachments are not
+  serialized at all. The retried section was therefore generated as if the
+  screenshot had never been attached and no longer matched the rest of the
+  design. The bytes were never gone (the turn's own message keeps them), so the
+  retry reads them back and re-derives the reference brief the sub-agent prompt
+  consumes, exactly as the original run did.
+
+- **The post-generation comparison against a reference image is real now.** The
+  vision-validation prompt told the model "A REFERENCE DESIGN screenshot was
+  also provided. Compare the current design against the reference" while the
+  request carried a single picture — the result screenshot. The model was asked
+  to compare against a picture it was never given, and whatever it answered, it
+  answered about one image. `VisionCallRequest` now carries a labelled list of
+  pictures (`image 1` is the design, `image 2` the reference), the prompt names
+  them by the positions they really occupy, and the vision client puts both on
+  the wire — or refuses the call outright when one of them cannot be delivered,
+  rather than sending half a comparison (#62).
+
+- **The reference picture is shown beside the canvas.** After "make me a screen
+  like this picture", the picture lived only as a thumbnail inside the chat
+  transcript, so judging fidelity meant keeping it open somewhere else and
+  looking back and forth. Clicking the reference thumbnail in a turn's message
+  now opens a card in the canvas corner — the picture, aspect-fit, with its file
+  name and a close button — so the result and the reference are looked at
+  together. The card loses to every panel and modal, wins over the canvas, and
+  exists only while the picture does: New Chat takes it away (#63).
+
 - **A turn's reply budget covers the model's reasoning, not just its answer.**
   The browser asked for 4096 output tokens; a reasoning model spends that same
   budget inside `<think>` before it writes one visible character. Measured on
