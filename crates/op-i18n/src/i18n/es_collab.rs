@@ -334,6 +334,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         // section (what it was built from, what it says, its flows); «Дизайн»
         // beside it carries only design. Issue #59's panel, split in two.
         "rightPanel.overview" => "Resumen",
+        // The model roles (issues #250/#251): one model builds a design turn, a
+        // second checks what it drew, and the chat no longer chooses per turn.
+        "settings.agents.roles" => "Roles",
+        "settings.agents.rolesBuilder" => "Construye",
+        "settings.agents.rolesVerifier" => "Verifica",
         _ => return None,
     })
 }
