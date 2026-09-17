@@ -6,16 +6,18 @@ This file provides guidance to Codex when working with code in this repository.
 
 ## Where the code lives (read this before cloning on another device)
 
-**The canonical remote is `codenol/zopen_norka`** — the repository the issues
-live on, and the one every commit and tag of this work is pushed to.
+**This work lives in the fork: `codenol/zopen_norka`.** That is the repository
+the issues are on, and the one every commit and tag is pushed to.
 
 - On another machine: `git clone https://github.com/codenol/zopen_norka.git`.
-- The `origin` remote of this checkout, `ZSeven-W/openpencil`, is an **older
-  mirror** — measured 2026-09-17, 227 commits behind — and this tree's
-  credentials cannot push to it (`403 Permission ... denied to codenol`). Do not
-  clone from it and do not expect it to be current.
-- The operator's decision (2026-09-17) is to take the code from
-  `codenol/zopen_norka`; mirroring the other way is not set up.
+- This checkout's `origin` is **`ZSeven-W/openpencil` — the ORIGINAL project this
+  repository is a fork of** (operator, 2026-09-17). It is somebody else's
+  repository: it is not ours to push to, and the `403 Permission ... denied to
+  codenol` this tree gets from it is correct rather than a broken credential.
+  Read it as upstream, never as "our backup" — nothing of this work is there, and
+  no count of commits "behind" applies, because its history never had them.
+- Pulling from upstream is therefore a deliberate act (to take their changes),
+  not a sync.
 
 ## The product is the generation. Everything else is in service of it.
 
