@@ -268,6 +268,19 @@ pub struct AgentSettings {
     /// into the async provider probe (`provider_probe_host.rs`).
     pub pending_provider_connect: Option<AgentProvider>,
     pub builtin_agents: Vec<BuiltinAgentConfig>,
+    /// Which configured model BUILDS a design turn, by its model id
+    /// (`builtin:<provider>:<model>`), and which one CHECKS the result.
+    ///
+    /// Roles rather than a per-turn choice (operator, 2026-09-17, issues #250
+    /// and #251): models are configured once here, the turn does not pick, and
+    /// the loop the product runs is "one builds, a second checks". The defaults
+    /// name the pair the operator chose — a fast builder, a stronger checker.
+    ///
+    /// `None` means "whatever the deployment's shared model is": a
+    /// single-model deployment must keep generating with both roles falling to
+    /// the same model rather than refusing to run.
+    pub builder_model: Option<String>,
+    pub verifier_model: Option<String>,
     pub builtin_agent_draft: Option<BuiltinAgentConfig>,
     pub builtin_preset_menu_open: Option<BuiltinAgentPresetMenuTarget>,
     pub builtin_preset_menu_scroll: jian_core::scroll::ScrollState,
@@ -357,6 +370,49 @@ pub struct AgentSettings {
     pub web_credential_sync_error: Option<String>,
 }
 
+/// The two models a design turn runs with (issue #250).
+///
+/// `builder` draws the mockup; `verifier` looks at what it drew — a picture of
+/// the canvas and the layer tree both (operator, 2026-09-17, #252) — and the
+/// turn goes round again on what it says. They may be the same model: a
+/// deployment that has one must keep generating, and a checker that is the
+/// builder is honest rather than a reason to refuse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelRoles {
+    pub builder: String,
+    pub verifier: String,
+}
+
+impl ModelRoles {
+    /// Whether the checker is a different model from the builder.
+    pub fn verifier_is_separate(&self) -> bool {
+        self.builder != self.verifier
+    }
+}
+
+impl AgentSettings {
+    /// Resolve the configured roles against the models this deployment has.
+    ///
+    /// `available` is the model ids the deployment offers, in the order they
+    /// are preferred — the first is what a turn uses when no role is set (the
+    /// shared model, on a deployment that has one). A role that names a model
+    /// the deployment does not have falls back the same way rather than
+    /// failing: a settings file carried from another machine must not stop a
+    /// turn, and the fallback is visible in the roles the caller gets back.
+    pub fn model_roles(&self, available: &[String]) -> Option<ModelRoles> {
+        let default = available.first()?;
+        let pick = |named: &Option<String>| -> String {
+            match named {
+                Some(model) if available.iter().any(|m| m == model) => model.clone(),
+                _ => default.clone(),
+            }
+        };
+        let builder = pick(&self.builder_model);
+        let verifier = pick(&self.verifier_model);
+        Some(ModelRoles { builder, verifier })
+    }
+}
+
 impl Default for AgentSettings {
     fn default() -> Self {
         Self {
@@ -366,6 +422,11 @@ impl Default for AgentSettings {
             provider_connection: Default::default(),
             pending_provider_connect: None,
             builtin_agents: Vec::new(),
+            // The operator's pair: flash builds, vision-exp checks. Left
+            // unset when that model is not among the configured ones, so a
+            // deployment that has only one model still runs with it.
+            builder_model: None,
+            verifier_model: None,
             builtin_agent_draft: None,
             builtin_preset_menu_open: None,
             builtin_preset_menu_scroll: Default::default(),
@@ -443,5 +504,63 @@ mod tests {
 
         assert_eq!(s.builtin_preset_menu_scroll.offset, 18.0);
         assert_eq!(s.scroll_y.offset, 42.0);
+    }
+}
+
+#[cfg(test)]
+mod model_role_tests {
+    use super::*;
+
+    fn models() -> Vec<String> {
+        vec![
+            "builtin:deployment-1:deepseek-v4-flash".to_string(),
+            "builtin:deployment-1:deepseek-v4-flash-vision-exp".to_string(),
+        ]
+    }
+
+    #[test]
+    fn the_operators_pair_is_resolved_from_what_the_deployment_has() {
+        let settings = AgentSettings {
+            builder_model: Some(models()[0].clone()),
+            verifier_model: Some(models()[1].clone()),
+            ..AgentSettings::default()
+        };
+        let roles = settings.model_roles(&models()).expect("two models");
+        assert_eq!(roles.builder, models()[0]);
+        assert_eq!(roles.verifier, models()[1]);
+        assert!(roles.verifier_is_separate());
+    }
+
+    #[test]
+    fn one_model_checks_its_own_work_rather_than_refusing_to_run() {
+        // The deployment the operator actually has today offers one model. A
+        // loop that needed two would simply not run there.
+        let one = vec![models()[0].clone()];
+        let settings = AgentSettings::default();
+        let roles = settings.model_roles(&one).expect("one model");
+        assert_eq!(roles.builder, one[0]);
+        assert_eq!(roles.verifier, one[0]);
+        assert!(!roles.verifier_is_separate());
+    }
+
+    #[test]
+    fn a_role_naming_a_model_this_deployment_lacks_falls_back_to_the_shared_one() {
+        let settings = AgentSettings {
+            builder_model: Some("builtin:somewhere-else:gpt-9".to_string()),
+            verifier_model: Some("builtin:somewhere-else:o-9".to_string()),
+            ..AgentSettings::default()
+        };
+        let roles = settings.model_roles(&models()).expect("two models");
+        assert_eq!(
+            roles.builder,
+            models()[0],
+            "a settings file carried from another machine must not stop a turn"
+        );
+        assert_eq!(roles.verifier, models()[0]);
+    }
+
+    #[test]
+    fn no_models_at_all_is_no_roles() {
+        assert!(AgentSettings::default().model_roles(&[]).is_none());
     }
 }
