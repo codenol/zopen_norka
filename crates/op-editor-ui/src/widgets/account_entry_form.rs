@@ -512,7 +512,15 @@ impl AccountEntryForm<'_> {
         let text_size = 13.0;
         let text_x = field.input.origin.x + 12.0;
         let max_w = (field.input.size.x - 24.0).max(0.0);
-        let baseline = field.input.origin.y + field.input.size.y / 2.0 + 4.5;
+        // The project's one centring rule — `rect.y + h/2 + font_size * 0.35` —
+        // and not `rect.y + h/2 + font_size`, which put this text 8.45px below
+        // the middle of a 42px field. `draw_left` takes the TOP of the run and
+        // adds `font_size` to reach the baseline, so the centred baseline comes
+        // back off it again. The submit button in this same file centres
+        // correctly (`h/2 + 4.5` for a 13px label, which is 0.35 of the font),
+        // which is how the fields could look wrong next to a button that looks
+        // right.
+        let baseline = jian_widgets::centered_text_baseline_y(field.input, text_size);
         let text = painted_text(field.field, self.entry.field(field.field));
         if text.is_empty() {
             // The caret marks the focused field even while it is empty; an
@@ -526,7 +534,7 @@ impl AccountEntryForm<'_> {
         draw_left(
             cx.backend,
             &fitted,
-            Point2D::new(text_x, baseline - 4.5),
+            Point2D::new(text_x, baseline - text_size),
             max_w,
             text_size,
             400,

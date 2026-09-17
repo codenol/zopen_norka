@@ -532,3 +532,56 @@ fn every_refusal_reason_has_its_own_string() {
         error_key(E::Unavailable)
     );
 }
+
+#[test]
+fn the_text_inside_a_field_is_centred_by_the_projects_own_rule() {
+    // Found on the live deployment: the letters sat ~8px below the middle of
+    // their field, because the baseline was `rect.y + h/2 + font_size` instead
+    // of the workspace's `centered_text_baseline_y` (`rect.y + h/2 + fs*0.35`).
+    // The submit button in the same file was already centred correctly, which
+    // is exactly how one right surface next to one wrong one goes unnoticed.
+    let mut state = signed_out_state();
+    state.editor_ui.account_entry.username = "operator".to_string();
+    state.editor_ui.account_entry.password = "correct horse".to_string();
+    state
+        .editor_ui
+        .account_entry
+        .focus_field(op_editor_core::AccountField::Username);
+    let (layout, backend) = paint(&state);
+
+    for field in &layout.fields {
+        // The password field paints its mask, not what was typed, so the
+        // string to look for is the one the widget itself would draw.
+        let typed = painted_text(
+            field.field,
+            AccountEntryForm::for_editor(&state, VW, VH)
+                .expect("the state shows a form")
+                .entry
+                .field(field.field),
+        );
+        let (_, origin) = backend
+            .texts
+            .iter()
+            .find(|(text, _)| *text == typed)
+            .unwrap_or_else(|| panic!("{typed:?} was never painted"));
+        // `draw_text` takes the baseline, and the workspace's rule for a centred
+        // one is `centered_text_baseline_y`.
+        let centred = jian_widgets::centered_text_baseline_y(field.input, 13.0);
+        assert!(
+            (origin.y - centred).abs() < 0.01,
+            "{:?} paints at {} where the middle of its field is {}",
+            field.field,
+            origin.y,
+            centred
+        );
+        // And the old formula would have failed this, so the test is about the
+        // defect rather than about the arithmetic being what it is.
+        let hand_rolled = field.input.origin.y + field.input.size.y / 2.0 + 13.0;
+        assert!(
+            (origin.y - hand_rolled).abs() > 1.0,
+            "the hand-rolled baseline is back: {} vs {}",
+            origin.y,
+            hand_rolled
+        );
+    }
+}
