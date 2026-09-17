@@ -10,6 +10,25 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.4] — 2026-09-17
+
+### Changed
+
+- **A section's inspector has two tabs: «Обзор» and «Дизайн».** Everything about
+  flow and analytics — what the section was built from, its summary and its flows
+  — is the whole of «Обзор», and «Дизайн» carries only design: position, layout,
+  size, layer, fill, stroke, effects. The code inspector is gone **for a section
+  only**, because a section is assembled from analytics and has no generated code
+  to read; every other selection keeps «Дизайн | Код» exactly as it was. A tab
+  retained from another selection (Code or Interact) presents as «Обзор» rather
+  than «Дизайн», since falling back to design would hide the block a section
+  exists for.
+
+### Fixed
+
+- **A new section is filled `#E5E5E5`.** It was the frame's white, which read as
+  another frame against the canvas.
+
 ## [0.10.3] — 2026-09-17
 
 ### Changed
@@ -1271,7 +1290,8 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.3...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.4...HEAD
+[0.10.4]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.4
 [0.10.3]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.3
 [0.10.2]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.2
 [0.10.1]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.1

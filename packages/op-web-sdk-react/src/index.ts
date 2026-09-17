@@ -1,4 +1,4 @@
-export const VERSION = '0.10.3';
+export const VERSION = '0.10.4';
 export { DesignProvider, useViewer } from './use-viewer.js';
 export { useDocument, useViewport, useActivePage } from './hooks.js';
 export { DesignView, type DesignViewProps } from './design-view.js';
