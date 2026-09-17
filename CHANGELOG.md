@@ -10,6 +10,22 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.5] — 2026-09-17
+
+### Fixed
+
+- **«Обзор» on a section paints the block and nothing else.** 0.10.4 split the
+  tabs in the state and in the hit-test, and the paint pass kept drawing the
+  design half on «Обзор»: it reads the section capabilities and the snapshot for
+  most sections rather than the visibility mask the split had switched off. So the
+  tab said «Обзор» with Position, Flex, Size, Layer, Fill, Stroke, Effects,
+  Interactions and Export underneath the block. The pass now ends after the block
+  on that tab.
+- **A section opens on «Обзор».** It keeps its own tab, separately from the
+  ordinary one, so a designer reading Code on a text node who clicks a section
+  lands on the analytics and comes back to Code when they click away — neither
+  selection overwrites the other's choice.
+
 ## [0.10.4] — 2026-09-17
 
 ### Changed
@@ -1290,7 +1306,8 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.4...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.5...HEAD
+[0.10.5]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.5
 [0.10.4]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.4
 [0.10.3]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.3
 [0.10.2]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.2
