@@ -22,7 +22,12 @@ fn serve_one_get_root_serves_html_not_jsonrpc() {
     // never the old 405 from the JSON-RPC path guard.
     let r = serve("GET", "/", "");
     assert!(r.contains("Content-Type: text/html"), "{r}");
-    assert!(!r.contains("405"), "{r}");
+    // The status line, not the whole response: as a substring over everything,
+    // `405` also matches a `Content-Length: 1405` — which is exactly what the
+    // bundle-less build-help page is, so this test read a header as a status and
+    // failed on Windows, where CI has no bundle (#217).
+    let status_line = r.lines().next().unwrap_or_default();
+    assert!(!status_line.contains("405"), "{r}");
     // `POST /` keeps dispatching JSON-RPC (web_static ignores non-GET).
     let post = serve(
         "POST",
