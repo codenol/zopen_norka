@@ -100,12 +100,39 @@ fn short_panel_drops_occluded_example_pills_from_hit_testing() {
 
 #[test]
 fn no_model_disables_model_picker_toggle() {
+    // The chip with no model behind it does not toggle a picker — there is
+    // nothing to pick from. Its press opens the settings screen where a
+    // provider is connected, because a chip that reads "no models connected"
+    // is the one control in the composer that names what is missing.
     let s = EditorState::new();
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
     let p = Point2D::new(PAD + 8.0, toolbar_center_y());
 
-    assert_eq!(panel.hit_test(rect, p), Some(AIChatHit::FocusInput));
+    assert_eq!(panel.hit_test(rect, p), Some(AIChatHit::OpenAgentSettings));
+}
+
+#[test]
+fn the_chip_opens_the_agents_tab_and_only_when_there_is_nothing_to_pick() {
+    use crate::widgets::chat_click_flow::apply_chat_hit;
+    use op_editor_core::agent_settings::AgentSettingsTab;
+
+    // With no model, the press lands on the Agents tab — the tab that carries
+    // the provider cards, not MCP beside it.
+    let mut s = EditorState::new();
+    s.editor_ui.agent_settings.tab = AgentSettingsTab::System;
+    apply_chat_hit(&mut s, AIChatHit::OpenAgentSettings, 1_000);
+    assert!(s.editor_ui.agent_settings_open, "settings must open");
+    assert_eq!(s.editor_ui.agent_settings.tab, AgentSettingsTab::Agents);
+
+    // With a model, the same chip still toggles the picker: the new press is a
+    // fallback for the empty case and not a replacement for the old one.
+    let mut with_model = EditorState::new();
+    seed_available_model(&mut with_model);
+    let panel = AIChatPlaceholder::from_editor(&with_model);
+    let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_HEIGHT);
+    let p = Point2D::new(PAD + 8.0, toolbar_center_y());
+    assert_eq!(panel.hit_test(rect, p), Some(AIChatHit::ToggleModelPicker));
 }
 
 #[test]

@@ -54,6 +54,12 @@ pub enum AIChatHit {
     /// The pre-flight MCP notice above the input — opens Settings on the MCP
     /// tab so the missing integration is one click from the warning.
     OpenMcpSettings,
+    /// The model chip when there is no model to switch to — opens Settings on
+    /// the Agents tab, where a provider gets connected. In that state the chip
+    /// reads "no models connected", so its press has to lead somewhere: the
+    /// picker it would otherwise toggle is a list of the models that are not
+    /// there.
+    OpenAgentSettings,
     /// Click on the footer Agent Team chip — host cycles
     /// `ChatState::agent_team_size`.
     CycleAgentTeam,

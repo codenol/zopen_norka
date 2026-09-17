@@ -247,7 +247,11 @@ impl<'a> AIChatPlaceholder<'a> {
                     return Some(if can_use_model {
                         AIChatHit::ToggleModelPicker
                     } else {
-                        AIChatHit::FocusInput
+                        // A chip reading "no models connected" has no list behind
+                        // it to toggle: it is the one place in the composer that
+                        // says something is missing, so its press is how you go
+                        // and fix that.
+                        AIChatHit::OpenAgentSettings
                     });
                 }
                 if (footer.prompt_center).contains(point) {

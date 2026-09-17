@@ -229,6 +229,14 @@ pub fn apply_chat_hit(state: &mut EditorState, hit: AIChatHit, now_ms: u64) -> C
             state.editor_ui.agent_settings_open = true;
             ChatClickStep::Dirty
         }
+        AIChatHit::OpenAgentSettings => {
+            // The mirror of the notice above: this one is about a provider that
+            // was never connected, and that lives on the Agents tab.
+            state.editor_ui.agent_settings.tab =
+                op_editor_core::agent_settings::AgentSettingsTab::Agents;
+            state.editor_ui.agent_settings_open = true;
+            ChatClickStep::Dirty
+        }
         AIChatHit::CycleAgentTeam => {
             state.cycle_agent_team_size();
             ChatClickStep::Dirty
