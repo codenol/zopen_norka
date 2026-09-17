@@ -10,6 +10,20 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-09-17
+
+### Fixed
+
+- **The sign-in form's fields centre the text you type in them.** The baseline
+  inside an input was `rect.y + height/2 + font_size`, where this workspace's one
+  centring rule is `rect.y + height/2 + font_size * 0.35` — so a 13px label in a
+  42px field painted 8.45px below the middle, and the letters visibly sat low.
+  Nothing else on that card was wrong, which is how it lasted: the submit button
+  next to it and the caret inside it were both centred correctly. Found on the
+  live deployment, fixed in `account_entry_form`, and pinned by a test that
+  compares the drawn baseline against `centered_text_baseline_y` for every field
+  of a filled form.
+
 ## [0.10.1] — 2026-09-17
 
 ### Fixed
@@ -1245,7 +1259,8 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.2...HEAD
+[0.10.2]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.2
 [0.10.1]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.1
 [0.10.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.0
 [0.9.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.9.0
