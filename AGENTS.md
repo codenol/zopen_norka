@@ -4,6 +4,19 @@ This file provides guidance to Codex when working with code in this repository.
 
 > **The TypeScript OpenPencil has been retired.** `apps/web`, `apps/desktop`, `apps/cli`, and the `pen-*` packages are gone. The product is **Rust** (`crates/`) + a **wasm-backed web SDK** (`packages/op-web-sdk*`). See git history (last TS tag `v0.7.5`) for the retired code.
 
+## Where the code lives (read this before cloning on another device)
+
+**The canonical remote is `codenol/zopen_norka`** — the repository the issues
+live on, and the one every commit and tag of this work is pushed to.
+
+- On another machine: `git clone https://github.com/codenol/zopen_norka.git`.
+- The `origin` remote of this checkout, `ZSeven-W/openpencil`, is an **older
+  mirror** — measured 2026-09-17, 227 commits behind — and this tree's
+  credentials cannot push to it (`403 Permission ... denied to codenol`). Do not
+  clone from it and do not expect it to be current.
+- The operator's decision (2026-09-17) is to take the code from
+  `codenol/zopen_norka`; mirroring the other way is not set up.
+
 ## The product is the generation. Everything else is in service of it.
 
 Written down by the operator on 2026-09-17, and it governs how work is chosen and
