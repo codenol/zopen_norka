@@ -4,6 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **The TypeScript OpenPencil has been retired.** `apps/web`, `apps/desktop`, `apps/cli`, and the `pen-*` packages (pen-types/core/engine/renderer/figma/mcp/ai-skills/sdk/react/acp) are gone. The product is now implemented in **Rust** (`crates/`) with a thin **wasm-backed web SDK** (`packages/op-web-sdk*`). Historical `// ported from pen-*` comments in the Rust sources name the retired TS as their origin — that code no longer exists in-tree; consult git history (last TS tag `v0.7.5`) if you need it.
 
+> **The product is the generation** (operator, 2026-09-17): a person types what
+> they want and the canvas holds that screen, made from the components the kit
+> has and the rules the product ships. If that does not happen, nothing else
+> here matters. Generation work comes first; deploys and tooling follow it. See
+> `AGENTS.md` for the full statement.
+
 Detailed module docs load automatically in subdirectories:
 
 - **`crates/CLAUDE.md`** — Rust shell: crate layout, editor core, widgets, hosts (native/web/desktop), MCP, AI, orchestrator, codegen. **The canonical architecture doc.**

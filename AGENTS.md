@@ -4,6 +4,28 @@ This file provides guidance to Codex when working with code in this repository.
 
 > **The TypeScript OpenPencil has been retired.** `apps/web`, `apps/desktop`, `apps/cli`, and the `pen-*` packages are gone. The product is **Rust** (`crates/`) + a **wasm-backed web SDK** (`packages/op-web-sdk*`). See git history (last TS tag `v0.7.5`) for the retired code.
 
+## The product is the generation. Everything else is in service of it.
+
+Written down by the operator on 2026-09-17, and it governs how work is chosen and
+ordered here:
+
+> У этого продукта основная задача — это генерация через ИИ. Всё. Если ИИ не
+> генерирует из текущих компонентов по текущим правилам, этот продукт в целом не
+> нужен.
+
+- **The one job.** A person types what they want and the canvas ends up holding
+  that screen, assembled from the components the kit actually has, following the
+  rules the product actually ships. Nothing else this repository does matters if
+  that does not happen.
+- **"Из текущих компонентов по текущим правилам" is the acceptance test**, not
+  a preference: a turn that invents components the kit does not have, or ignores
+  the rules it was given, has failed even if the canvas is full.
+- **Order of work.** Generation first; deploys, packaging, tooling and the rest
+  follow it. A fix that makes a deploy faster while a prompt still draws nothing
+  is the wrong fix to be making.
+- **Every task is read through this.** Before picking up a task, ask what it does
+  for the generation path — and if the answer is "nothing", it waits.
+
 For full guidance see **`CLAUDE.md`** (this directory). Authoritative Rust architecture lives in **`crates/CLAUDE.md`**; remaining packages in **`packages/CLAUDE.md`**.
 
 ## Commands
