@@ -651,6 +651,22 @@ fn save_document(
         Err(error) => return store_error_reply(error),
     };
     let body = body.trim();
+    // An autosave is the tab's copy; if the daemon moved this document itself
+    // and no tab has taken the result, that copy is older — writing it would
+    // put the starter back over the screen a turn just drew, in the file and in
+    // memory (issue #247). An explicit Save is still honoured: "save" means
+    // "what I see", and that is the operator's call (#169), not a rule to guess.
+    if matches!(kind, WriteKind::Quiet) && !body.is_empty() && state.daemon_document_ahead {
+        return WebReply {
+            status: "409 Conflict",
+            body: serde_json::json!({
+                "ok": false,
+                "error": "stale-autosave",
+                "message": "the daemon holds a newer copy of this document than this tab; \n                            reload the page to take it before autosaving",
+            })
+            .to_string(),
+        };
+    }
     // One error type for both branches: the caller only needs to know the
     // write failed and why.
     let saved: std::result::Result<(), String> = if body.is_empty() || body == "{}" {
@@ -662,6 +678,7 @@ fn save_document(
             .map(|next| {
                 state.editor = next;
                 state.version += 1;
+                state.daemon_document_ahead = false;
             })
             .map_err(|error| error.to_string())
     };

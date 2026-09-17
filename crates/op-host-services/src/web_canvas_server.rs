@@ -85,6 +85,19 @@ pub struct WebCanvasState {
     /// Monotonic sync version, bumped on every document mutation — the key the
     /// browser shell uses to detect that the live document changed.
     pub(crate) version: u64,
+    /// The DAEMON moved this document and no tab has taken the result yet.
+    ///
+    /// Set when the agent's own tools commit (see the MCP write path) and
+    /// cleared when a tab takes the document (`GET /api/mcp/document`) or hands
+    /// one back through a save. While it is set, an AUTOSAVE from a tab is
+    /// refused: that body is the tab's older copy — the whole reason the
+    /// copy-status strip exists — and adopting it writes the starter over the
+    /// screen the turn just drew, in the file AND in memory (issue #247,
+    /// measured: a dashboard of 211 nodes left as one empty frame on disk).
+    ///
+    /// An explicit Save is still honoured, because "save" means "what I see",
+    /// and that is the operator's decision to make rather than a rule to guess.
+    pub(crate) daemon_document_ahead: bool,
     /// The bound port, reported by `GET /api/mcp/server` (TS `server.get.ts`
     /// parity).
     pub(crate) port: u16,
@@ -167,6 +180,7 @@ impl WebCanvasState {
             credential_persistence,
             current_path,
             version: 0,
+            daemon_document_ahead: false,
             port,
             managed_token: None,
             allow_origins: Vec::new(),

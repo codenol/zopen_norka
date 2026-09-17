@@ -543,6 +543,10 @@ pub(super) fn dispatch<S: Read + Write>(
         }
         if applied_any {
             guard.version += 1;
+            // The daemon moved the document itself; no tab has seen this yet,
+            // so an autosave from one must not be allowed to write its own
+            // older copy over it (issue #247).
+            guard.daemon_document_ahead = true;
         }
         // Atomic bump+broadcast under the state lock (see the REST path) so SSE
         // version events stay monotonic across concurrent mutations.

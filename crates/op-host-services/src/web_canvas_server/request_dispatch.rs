@@ -77,38 +77,44 @@ pub fn handle_web_canvas_request(
             ),
         },
         ("POST", "/api/mcp/server") => update_mcp_server_settings(body, state),
-        ("GET", "/api/mcp/document") => match serde_json::to_string(&state.editor.doc) {
-            Ok(doc_json) => WebReply {
-                status: "200 OK",
-                body: format!(
-                    // `fileKey` is the STORE's name for this document, when the
-                    // daemon is holding one it took from the store. A tab on
-                    // `/` otherwise has no way to learn it: its Save then takes
-                    // the key-less route, the daemon refuses (no bound path),
-                    // and the client silently downloads the document instead of
-                    // saving it — issue #97.
-                    r#"{{"document":{doc_json},"version":{},"activePageIndex":{},"preserveAuthoredGeometry":{},"scenario":{},"fileKey":{}}}"#,
-                    state.version,
-                    state.editor.ui.active_page_index,
-                    state.editor.editor_ui.preserve_authored_geometry,
-                    // The scene tag rides the same wire as the rest of the
-                    // editor meta: a Slides deck must reach the browser as a
-                    // deck or web preview cannot enter its presentation.
-                    match state.editor.editor_ui.scenario {
-                        Some(scene) => format!("\"{}\"", scene.as_str()),
-                        None => "null".to_string(),
-                    },
-                    match state.editor.editor_ui.file_key.as_deref() {
-                        Some(key) => format!("\"{key}\""),
-                        None => "null".to_string(),
-                    }
-                ),
-            },
-            Err(e) => WebReply {
-                status: "500 Internal Server Error",
-                body: crate::mcp_serve::rest_error_body(&e.to_string()),
-            },
-        },
+        // Taking the document is what catches a tab up with a turn the daemon
+        // ran on its own, so the guard that keeps a stale autosave off it (issue
+        // #247) comes down here.
+        ("GET", "/api/mcp/document") => {
+            state.daemon_document_ahead = false;
+            match serde_json::to_string(&state.editor.doc) {
+                Ok(doc_json) => WebReply {
+                    status: "200 OK",
+                    body: format!(
+                        // `fileKey` is the STORE's name for this document, when the
+                        // daemon is holding one it took from the store. A tab on
+                        // `/` otherwise has no way to learn it: its Save then takes
+                        // the key-less route, the daemon refuses (no bound path),
+                        // and the client silently downloads the document instead of
+                        // saving it — issue #97.
+                        r#"{{"document":{doc_json},"version":{},"activePageIndex":{},"preserveAuthoredGeometry":{},"scenario":{},"fileKey":{}}}"#,
+                        state.version,
+                        state.editor.ui.active_page_index,
+                        state.editor.editor_ui.preserve_authored_geometry,
+                        // The scene tag rides the same wire as the rest of the
+                        // editor meta: a Slides deck must reach the browser as a
+                        // deck or web preview cannot enter its presentation.
+                        match state.editor.editor_ui.scenario {
+                            Some(scene) => format!("\"{}\"", scene.as_str()),
+                            None => "null".to_string(),
+                        },
+                        match state.editor.editor_ui.file_key.as_deref() {
+                            Some(key) => format!("\"{key}\""),
+                            None => "null".to_string(),
+                        }
+                    ),
+                },
+                Err(e) => WebReply {
+                    status: "500 Internal Server Error",
+                    body: crate::mcp_serve::rest_error_body(&e.to_string()),
+                },
+            }
+        }
         ("POST", "/api/mcp/document") => match state.apply_document_push(body, None) {
             Ok(outcome) if outcome.applied => WebReply {
                 status: "200 OK",
