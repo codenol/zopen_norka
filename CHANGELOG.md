@@ -10,6 +10,24 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-09-17
+
+### Fixed
+
+- **The daemon starts on Windows, where it used to die before it could say
+  anything.** `op-host-web-server --serve-web` needs a little over a megabyte of
+  stack while starting up; Unix hands a main thread 8 MiB and Windows hands it
+  1 MiB, so on Windows the process was killed by its own stack before printing
+  its handshake line — which is why three tests on that leg had been failing with
+  an empty handshake rather than a message. Measured on macOS by capping the main
+  stack: the same binary dies at `ulimit -s 1024` and comes up at
+  `ulimit -s 2048`. The entry point now runs its work on a thread with an
+  explicit 8 MiB stack. The recursion that consumes the megabyte is not
+  identified — issue #217 stays open for it — so this is a portability fix rather
+  than a repair: a program whose startup depends on the platform's default stack
+  only works on the platforms it has been tried on. The browser deployment is
+  unaffected (Linux gives 8 MiB either way, and the turn path is untouched).
+
 ## [0.10.0] — 2026-09-16
 
 ### Added
@@ -1227,7 +1245,8 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.1
 [0.10.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.0
 [0.9.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.9.0
 [0.8.6]: https://github.com/codenol/zopen_norka/releases/tag/v0.8.6
