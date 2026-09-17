@@ -284,6 +284,21 @@ const MODEL_PROFILES: &[Entry] = &[
         true,
         "DeepSeek V4+ Flash",
     ),
+    // The vision/experimental variant of the flash lane, named explicitly
+    // because the lane above matches the suffix `-flash` EXACTLY and this id
+    // ends in `-flash-vision-exp` — so it fell through to the conservative
+    // default and ran design turns with thinking ON. Measured on the live
+    // model (2026-09-17): 6 800+ characters of reasoning, no `delta`, no
+    // terminal frame at 300 s, and #248's tail leaving `pages[0]` empty.
+    // Thinking is disabled for a DESIGN turn by the same reasoning as the
+    // lane it belongs to (#179): the budget goes to the screen, not to the
+    // model's notes about it.
+    e(
+        Match::Sub("deepseek-v4-flash-vision"),
+        ModelTier::Standard,
+        true,
+        "DeepSeek V4 Flash Vision",
+    ),
     e(
         Match::Exact(&["deepseek-chat", "deepseek-reasoner"]),
         ModelTier::Standard,
