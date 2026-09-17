@@ -10,6 +10,18 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.3] — 2026-09-17
+
+### Changed
+
+- **The composer's "no models connected" chip opens the settings that fix it.**
+  The chip has two states and only one of them led anywhere: with models saved it
+  toggles the picker, and with none it read «Нет подключённых моделей» while its
+  press fell through to focusing the input — the one control in the composer that
+  names what is missing was inert. It now opens Settings on the **Agents** tab,
+  where a provider is connected, exactly as the MCP notice above the input opens
+  Settings on the MCP tab. A chip *with* models still toggles the picker.
+
 ## [0.10.2] — 2026-09-17
 
 ### Fixed
@@ -1259,7 +1271,8 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.2...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.3...HEAD
+[0.10.3]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.3
 [0.10.2]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.2
 [0.10.1]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.1
 [0.10.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.0
