@@ -190,22 +190,34 @@ fn tab_state_refuses_overview_off_a_section_and_lands_on_it_from_code() {
     assert_eq!(ui.property_tab, PropertyTab::Design);
     assert_eq!(ui.effective_property_tab(), PropertyTab::Design);
 
-    // A section: the retained value wins when it is one of the two tabs a
-    // section has...
-    ui.property_tab = PropertyTab::Design;
+    // A section opens on its own tab, which is «Обзор»: the analytics is why a
+    // section exists, and the operator asked for it as the default.
+    ui.property_tab = PropertyTab::Code;
     ui.section_panel
         .select(Some(op_editor_core::NodeId::new("section-1")));
     assert!(ui.selection_is_section());
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Overview);
+
+    // Asking for «Дизайн» on the section is remembered in the section's OWN
+    // slot, so it neither needs to be asked for twice nor overwrites the tab
+    // chosen on an ordinary selection.
+    assert!(ui.set_property_tab(PropertyTab::Design));
     assert_eq!(ui.effective_property_tab(), PropertyTab::Design);
+    ui.section_panel.select(None);
+    assert_eq!(
+        ui.effective_property_tab(),
+        PropertyTab::Code,
+        "the ordinary selection still has the tab it had before the section"
+    );
 
-    // ...and anything else presents as Overview, because falling back to Design
-    // would hide the block the section exists for.
-    ui.property_tab = PropertyTab::Code;
-    assert_eq!(ui.effective_property_tab(), PropertyTab::Overview);
-    ui.property_tab = PropertyTab::Interact;
-    assert_eq!(ui.effective_property_tab(), PropertyTab::Overview);
-
-    // And Overview is allowed again once a section is what is selected.
+    // Back on a section: still Дизайн, because that is what was asked for there.
+    ui.section_panel
+        .select(Some(op_editor_core::NodeId::new("section-2")));
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Design);
+    // And «Обзор» is one press away, on the section's own slot.
     assert!(ui.set_property_tab(PropertyTab::Overview));
-    assert_eq!(ui.property_tab, PropertyTab::Overview);
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Overview);
+    // Code is not a value a section can be on, whatever is asked for.
+    ui.set_property_tab(PropertyTab::Code);
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Overview);
 }

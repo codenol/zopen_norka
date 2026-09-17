@@ -44,8 +44,12 @@ impl EditorUiState {
     /// block the section exists for.
     pub fn effective_property_tab(&self) -> crate::PropertyTab {
         if self.selection_is_section() {
-            return match self.property_tab {
-                crate::PropertyTab::Overview | crate::PropertyTab::Design => self.property_tab,
+            // The section's own slot, which opens on Overview and remembers
+            // Design once it is asked for. A stale value from before this slot
+            // existed (or a hand-built state) falls back to Overview rather
+            // than to Design: the block is what a section is for.
+            return match self.property_tab_section {
+                crate::PropertyTab::Design => crate::PropertyTab::Design,
                 _ => crate::PropertyTab::Overview,
             };
         }
@@ -62,12 +66,24 @@ impl EditorUiState {
     /// dispatch to reopen Code in a Compact layout. Returns whether the stored
     /// value changed.
     pub fn set_property_tab(&mut self, requested: crate::PropertyTab) -> bool {
+        // A section writes its own slot: the two pairs never share a value, so
+        // clicking a section cannot clobber the tab chosen on another selection
+        // and vice versa.
+        if self.selection_is_section() {
+            let next = if matches!(requested, crate::PropertyTab::Design) {
+                crate::PropertyTab::Design
+            } else {
+                crate::PropertyTab::Overview
+            };
+            let changed = self.property_tab_section != next;
+            self.property_tab_section = next;
+            return changed;
+        }
         // The two values a selection or a layout can refuse: Overview anywhere
         // but on a section, and Code on a Compact phone. Both fall back to
         // Design, which everything has — one condition rather than two branches
         // with the same body.
-        let refused = (matches!(requested, crate::PropertyTab::Overview)
-            && !self.selection_is_section())
+        let refused = matches!(requested, crate::PropertyTab::Overview)
             || (matches!(requested, crate::PropertyTab::Code)
                 && !self.code_property_tab_available());
         let next = if refused {

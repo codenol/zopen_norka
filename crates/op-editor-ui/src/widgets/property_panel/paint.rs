@@ -139,6 +139,18 @@ impl Widget for PropertyPanel {
                 w,
             );
         }
+        // A section's «Обзор» tab is the block and nothing else. The mask
+        // `visible_sections()` returns for it switches every inspector section
+        // off, but the paint pass reads `caps` and the snapshot rather than that
+        // mask for most of them — so honouring the answer here is what makes the
+        // two halves of the split real. (Hit-test and the content-height walker
+        // already read the mask, which is why a tab that painted the design half
+        // would still have refused clicks on it.)
+        if self.overview_only() {
+            cx.backend.restore();
+            self.end_density_paint(cx.backend);
+            return;
+        }
         if self.visible_sections().create_component {
             y = crate::widgets::property_panel_instance::paint_component_block(
                 cx,

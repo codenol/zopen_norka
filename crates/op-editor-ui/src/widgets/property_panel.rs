@@ -361,6 +361,12 @@ impl PropertyPanel {
         self.section_selected
     }
 
+    /// Whether the panel is on a section's «Обзор» tab, where the block is the
+    /// whole of the content.
+    pub(crate) fn overview_only(&self) -> bool {
+        self.section_selected() && matches!(self.tab, op_editor_core::PropertyTab::Overview)
+    }
+
     /// Which tabs the strip offers for this selection — one answer for paint,
     /// hover and the press arm.
     pub(crate) fn tab_strip_tabs(&self) -> sections::TabStripTabs {
@@ -377,7 +383,7 @@ impl PropertyPanel {
         // half lives on the other tab, which is the whole point of splitting
         // them. Returning early keeps paint, the two layout walkers and the
         // three hit-test ladders on the same mask.
-        if self.section_selected() && matches!(self.tab, op_editor_core::PropertyTab::Overview) {
+        if self.overview_only() {
             return sections::VisibleSections::overview_only(self.section_block_height);
         }
         let caps = self.capabilities();

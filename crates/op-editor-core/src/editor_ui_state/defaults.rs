@@ -151,6 +151,8 @@ impl Default for EditorUiState {
             embed: EmbedHost::None,
             align_toolbar_hover: None,
             property_tab: PropertyTab::Design,
+            // A section opens on its analytics — the operator's default.
+            property_tab_section: PropertyTab::Overview,
             flex_layout: FlexLayout::Free,
             padding_edit_mode: None,
             padding_edit_mode_anchor: String::new(),

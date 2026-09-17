@@ -559,6 +559,15 @@ pub struct EditorUiState {
     // --- Property panel: tabs + layout toggles ---------------------
     /// Active PropertyPanel tab — toggled by `Cmd+Shift+C`.
     pub property_tab: PropertyTab,
+    /// The tab a SECTION's inspector is on, remembered separately.
+    ///
+    /// A section offers a different pair (see `PropertyTab::Overview`) and has
+    /// to open on «Обзор» — the analytics is why a section exists — without
+    /// stealing the ordinary tab: a designer who was reading Code on a text node
+    /// and clicks a section should come back to Code, not find their choice
+    /// overwritten. Two slots is what makes "Обзор by default, and Дизайн when
+    /// you say so" true for each selection independently.
+    pub property_tab_section: PropertyTab,
     /// Active flex-layout mode for the property panel's row.
     pub flex_layout: FlexLayout,
     /// Padding-section edit mode pinned via the gear popover. `None`
