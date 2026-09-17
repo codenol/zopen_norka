@@ -56,13 +56,58 @@ single-document daemon (desktop's `--serve-web`), where it lets a browser persis
 a credential into that process's own settings file — which is exactly why its
 shipped default is fail-closed.
 
+## Updating it — two ways, and one of them is twenty minutes faster
+
+### The fast one: build the bundle here, ship it
+
+For anything that changes the interface — widgets, panels, i18n, the canvas —
+the bundle is the whole payload, and building it on this machine and uploading
+it skips the CI queue entirely:
+
+```sh
+bash deploy/web/build-bundle.sh                      # ≈ 3 min, writes dist/web-local/pkg
+bash deploy/web/deploy.sh --host root@html.norka.cc \
+    --dir "$PWD/dist/web-local" --bundle-only         # ≈ 1.5 min (15 MB up)
+```
+
+Measured on 2026-09-17, on this machine and this link:
+
+| | through CI (a tag) | locally |
+| --- | --- | --- |
+| queue in front of the run | 10-20 min | — |
+| build | 6 min 46 s | 2-3 min |
+| browser smoke | 1 min | — |
+| artifacts to download | ~100 MB | — |
+| upload | — | 15 MB, 35 s |
+| swap + health check | ~10 s | ~10 s |
+| **total** | **≈ 22-30 min** | **≈ 4-5 min** |
+
+The CI lane is not slow at its job — its cache works and both jobs finish inside
+seven minutes. What costs the time is the queue and the round trip, and neither
+exists when the build happens where the change was made.
+
+`wasm-opt -Oz` is NOT applied here unless it is on the `PATH` (the CI gate runs
+it). Measured on one commit: 18 256 602 bytes of optimised wasm against
+20 558 138 unoptimised, but **5 719 075 against 5 719 643 gzipped** — `-Oz`
+removes the redundancy gzip already removes, so what a browser downloads is the
+same size either way. The script says which of the two it produced.
+
+**The daemon is not part of this.** `op-host-web-server` is a Linux x86_64
+binary, so it still comes from CI — but it changes far less often than the
+interface does, and `--bundle-only` does not touch it. When the daemon HAS
+changed (anything under `op-host-services`, `op-acp`, the AI crates or the
+accounts crate), use the full path below.
+
+### The full one: the CI pair
+
 ## Updating it
 
 ```sh
 # 1. Get the built pair onto this machine. The workflow publishes the pair on a
 #    `v*` tag push and on a manual dispatch — a plain push to main publishes
 #    NOTHING (its pull_request runs deliberately upload no artifacts), so a run
-#    id from `gh run list` may have nothing to download:
+#    id from `gh run list` may have nothing to download. Needed when the DAEMON
+#    changed; a bundle-only change is faster through build-bundle.sh above:
 gh run list --workflow=web-deploy-build.yml --limit 5
 gh workflow run web-deploy-build.yml --ref <branch-or-tag>   # when there is no tag run
 gh run download <run-id> --dir dist/web

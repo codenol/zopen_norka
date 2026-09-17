@@ -11,7 +11,7 @@
 #
 # Usage:
 #   deploy.sh --host <ssh target> [--dir <payload dir>] [--service <unit>]
-#             [--root <install root>] [--dry-run]
+#             [--root <install root>] [--bundle-only] [--dry-run]
 #
 #   --dir  A directory holding `op-host-web-server` and `pkg/`. Defaults to
 #          `dist/web` next to the repository root; both CI artifacts
@@ -29,6 +29,7 @@ payload="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/dist/web"
 service="norka-op"
 root="/opt/norka/src"
 dry_run=0
+bundle_only=0
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -36,6 +37,7 @@ while [ "$#" -gt 0 ]; do
         --dir) payload="$2"; shift 2 ;;
         --service) service="$2"; shift 2 ;;
         --root) root="$2"; shift 2 ;;
+        --bundle-only) bundle_only=1; shift ;;
         --dry-run) dry_run=1; shift ;;
         -h | --help) sed -n '2,26p' "${BASH_SOURCE[0]}"; exit 0 ;;
         *) printf 'unknown argument: %s\n' "$1" >&2; exit 2 ;;
@@ -43,11 +45,14 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -n "$host" ] || { printf 'error: --host is required (e.g. root@html.norka.cc)\n' >&2; exit 2; }
-[ -x "$payload/op-host-web-server" ] || {
-    printf 'error: %s/op-host-web-server is missing or not executable\n' "$payload" >&2
-    printf 'hint: gh run download <run-id> --dir %s\n' "$payload" >&2
-    exit 2
-}
+if [ "$bundle_only" = 0 ]; then
+    [ -x "$payload/op-host-web-server" ] || {
+        printf 'error: %s/op-host-web-server is missing or not executable\n' "$payload" >&2
+        printf 'hint: gh run download <run-id> --dir %s\n' "$payload" >&2
+        printf 'hint: for an interface-only change, %s --bundle-only\n' "${BASH_SOURCE[0]}" >&2
+        exit 2
+    }
+fi
 [ -d "$payload/pkg" ] || { printf 'error: %s/pkg is missing\n' "$payload" >&2; exit 2; }
 [ -f "$payload/pkg/op_host_web_bg.wasm" ] || {
     printf 'error: %s/pkg has no op_host_web_bg.wasm\n' "$payload" >&2
@@ -59,10 +64,17 @@ done
 # without guessing from a timestamp.
 revision="$(git -C "$(dirname "$payload")/.." rev-parse --short HEAD 2>/dev/null || echo unknown)"
 bundled_bytes="$(wc -c < "$payload/pkg/op_host_web_bg.wasm" | tr -d ' ')"
-binary_bytes="$(wc -c < "$payload/op-host-web-server" | tr -d ' ')"
+binary_bytes=0
+if [ "$bundle_only" = 0 ]; then
+    binary_bytes="$(wc -c < "$payload/op-host-web-server" | tr -d ' ')"
+fi
 
 printf 'deploying to %s\n' "$host"
-printf '  binary : %s bytes\n' "$binary_bytes"
+if [ "$bundle_only" = 0 ]; then
+    printf '  binary : %s bytes\n' "$binary_bytes"
+else
+    printf '  binary : unchanged (bundle-only deploy)\n'
+fi
 printf '  bundle : %s bytes (wasm)\n' "$bundled_bytes"
 printf '  revision: %s\n' "$revision"
 printf '  unit   : %s   install root: %s\n' "$service" "$root"
@@ -81,7 +93,11 @@ ssh "$host" "set -euo pipefail
     rm -rf '$root/.deploy/$stamp/pkg'
     mkdir -p '$root/.deploy/$stamp/pkg'
 "
-tar -C "$payload" -cf - op-host-web-server pkg | ssh "$host" "tar -C '$root/.deploy/$stamp' -xf -"
+if [ "$bundle_only" = 0 ]; then
+    tar -C "$payload" -cf - op-host-web-server pkg | ssh "$host" "tar -C '$root/.deploy/$stamp' -xf -"
+else
+    tar -C "$payload" -cf - pkg | ssh "$host" "tar -C '$root/.deploy/$stamp' -xf -"
+fi
 
 # 2. Stop, back up, install, start. The data directories are NOT touched: the
 #    account store and documents live under /var/lib/norka, outside this root.
@@ -91,14 +107,16 @@ ssh "$host" "set -euo pipefail
     systemctl stop \"\$unit\"
 
     mkdir -p \"\$root/.backups\"
-    if [ -x \"\$root/target/release/op-host-web-server\" ]; then
+    if [ -x \"\$root/.deploy/\$stamp/op-host-web-server\" ] && [ -x \"\$root/target/release/op-host-web-server\" ]; then
         cp -a \"\$root/target/release/op-host-web-server\" \"\$root/.backups/op-host-web-server-\$stamp\"
     fi
     if [ -d \"\$root/crates/op-host-web/pkg\" ]; then
         mv \"\$root/crates/op-host-web/pkg\" \"\$root/.backups/pkg-\$stamp\"
     fi
 
-    install -m 0755 \"\$root/.deploy/\$stamp/op-host-web-server\" \"\$root/target/release/op-host-web-server\"
+    if [ -x \"\$root/.deploy/\$stamp/op-host-web-server\" ]; then
+        install -m 0755 \"\$root/.deploy/\$stamp/op-host-web-server\" \"\$root/target/release/op-host-web-server\"
+    fi
     mkdir -p \"\$root/crates/op-host-web\"
     mv \"\$root/.deploy/\$stamp/pkg\" \"\$root/crates/op-host-web/pkg\"
     printf '%s\n' '$revision' > \"\$root/.deployed-revision\"
