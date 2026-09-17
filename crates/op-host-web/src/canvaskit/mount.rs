@@ -177,7 +177,7 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // Checked after every frame, not only on input: a page that
                 // is never touched still has to start blinking once the
                 // build crosses the three-minute mark.
-                crate::build_stamp_pump::ensure(&inner_for_paint);
+                crate::widget_host::build_stamp_pump::ensure(&inner_for_paint);
                 // The file browser fetches its list from the frame: reached by
                 // address or by a click, this is the one path both share.
                 crate::route_sync::tick_files(&inner_for_paint);
@@ -187,6 +187,13 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // while the shell was borrowed, then perform whichever answer
                 // the user gave (issue #26).
                 crate::web_recovery::tick(&inner_for_paint);
+                // Which copy of the document this tab holds, and whether the
+                // canvas is painting the daemon's current one (issues #171 /
+                // #191). Runs after the paint, so a status that changed asks
+                // for the frame that shows it.
+                if crate::web_copy_status::publish(&inner_for_paint) {
+                    crate::repaint_coalescer::request();
+                }
                 // Comment threads: install an answer that arrived while the
                 // shell was borrowed, then send what the canvas queued. The
                 // daemon pushes no signal for comments, so a re-read here is
@@ -204,7 +211,7 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
     // below routinely completes before the network fetch, and detection is a
     // one-shot modal that would otherwise report every bundled family missing.
     // A page that is never touched must still start the blink cycle.
-    crate::build_stamp_pump::ensure(&inner);
+    crate::widget_host::build_stamp_pump::ensure(&inner);
     // Read the address before the first user interaction: a link may name a
     // node, and Back/Forward has to keep working from here on.
     {
@@ -491,7 +498,7 @@ pub(super) async fn mount_ck(canvas_id: String) -> Result<(), JsValue> {
                 // The build stamp blinks on its own schedule once the build
                 // is older than three minutes; arm its waker here so the
                 // first stale frame starts the cycle.
-                crate::build_stamp_pump::ensure(&inner);
+                crate::widget_host::build_stamp_pump::ensure(&inner);
             },
         )?;
     }

@@ -166,6 +166,7 @@ mod paint_chrome_menus;
 mod paint_floating_panels;
 mod paint_mobile;
 mod paint_pan_cache;
+mod paint_panel_arms;
 mod paint_rail;
 mod paint_topmost_overlays;
 #[cfg(test)]
@@ -184,6 +185,7 @@ mod press_ctx;
 mod press_helpers;
 mod press_overlay_tiers;
 mod press_property_tiers;
+mod press_reference_view_tier;
 mod press_surface_tiers;
 mod preview_edge_swipe;
 #[cfg(all(test, not(target_os = "windows")))]

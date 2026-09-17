@@ -213,9 +213,24 @@ pub(crate) fn start<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, sync: S
 }
 
 /// Probe the daemon version; on a newer version fetch + apply the document.
-/// Gated on the sync-gate FIRST (before any network round-trip): an accept
-/// window broken by an intervening local edit re-enters the conflict flow,
-/// and otherwise `pull_allowed` must hold for the current pair.
+///
+/// The PROBE is unconditional; the FETCH is gated. Those are two different
+/// things and only the second one is a sync decision:
+///
+/// * the probe is a read-only `GET /api/mcp/version` whose answer is what lets
+///   the canvas say which copy the daemon holds (#191). Returning before it
+///   whenever the pull gate is closed — which is the state after ANY local edit
+///   — meant the one case the report exists for was the one case it could not
+///   describe: the canvas could not name the daemon's version at all, so a turn
+///   applied to the daemon was indistinguishable from a turn that did nothing,
+///   which is the bug (#191) verbatim;
+/// * the fetch and the apply stay exactly as gated as they were: `pull_allowed`
+///   is still re-checked here, on the CURRENT pair, and again inside
+///   `apply_document_response` after the response lands. Nothing about which
+///   document gets installed changes.
+///
+/// `accept_window_broken` and the in-session auto-resolve still run first, so a
+/// broken accept window still re-enters the conflict flow before any request.
 fn poll_version<C: RepaintContext + 'static>(
     inner: &Rc<RefCell<C>>,
     base: &str,
@@ -243,9 +258,6 @@ fn poll_version<C: RepaintContext + 'static>(
         return;
     }
     maybe_auto_resolve_conflict_in_session(inner, sync, pair);
-    if !sync.borrow().gate.pull_allowed(pair) {
-        return;
-    }
 
     let inner = inner.clone();
     let sync = sync.clone();
@@ -265,9 +277,26 @@ fn poll_version<C: RepaintContext + 'static>(
         // its own loop rather than opening a second probe; a `collabSeq` bump
         // must never reach the document fetch below.
         crate::collab_sync::note_version_probe(&body);
-        let Some(version) = WebSyncClient::parse_version_probe(&body) else {
+        let version = WebSyncClient::parse_version_probe(&body);
+        // The only place the daemon's current version is observed, so the only
+        // place the copy status can learn it (#191) — and an unanswered probe
+        // reports SILENCE, not agreement.
+        crate::web_copy_status::note_daemon_version(version);
+        let Some(version) = version else {
             return; // daemon down / non-JSON error body — retry next tick
         };
+        // The fetch is what the gate is for, and it is re-checked HERE rather
+        // than before the probe: the pair may have moved while the answer was in
+        // flight, and a probe that only reported a version has no side effects
+        // to gate. `apply_document_response` checks it a second time, after the
+        // (expensive) document response lands.
+        let pull_allowed = inner
+            .try_borrow()
+            .map(|borrowed| sync.borrow().gate.pull_allowed(current_pair(&*borrowed)))
+            .unwrap_or(false);
+        if !pull_allowed {
+            return;
+        }
         let wants_version = sync
             .try_borrow()
             .map(|s| s.client.wants_version(version))
@@ -847,7 +876,8 @@ thread_local! {
 #[path = "live_sync_controller.rs"]
 mod live_sync_controller;
 pub(crate) use live_sync_controller::{
-    acknowledge_current_pair, acknowledge_daemon_save, SharedSync, SyncController,
+    acknowledge_current_pair, acknowledge_daemon_save, sync_facts, SharedSync, SyncController,
+    SyncFacts,
 };
 // Spine-local: the two identity pairs every gating decision here is keyed on.
 use live_sync_controller::{current_oversize_identity, current_pair};
@@ -859,6 +889,8 @@ mod live_sync_identity;
 pub(crate) use live_sync_identity::{auth_is_invalid, note_auth_invalid, reset_for_new_identity};
 // Only the latch's own test lifts it; the reset clears it internally.
 use live_sync_conflict::{auto_resolve_is_safe, probe_serve_mode, server_is_authoritative};
+#[cfg(test)]
+pub(crate) use live_sync_controller::install_for_test;
 #[cfg(test)]
 pub(crate) use live_sync_identity::clear_auth_invalid;
 // Lives here rather than beside `lib.rs`'s modules because the two paths it

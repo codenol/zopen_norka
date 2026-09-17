@@ -73,13 +73,26 @@ pub(crate) fn map_admin(positionals: &[String], flags: &Flags) -> Result<Command
             email: flag_value(flags, "email"),
             origin: flag_value(flags, "origin"),
         }),
+        "add-user" => Ok(Command::AdminAddUser {
+            data_dir: flag_value(flags, "data-dir"),
+            username: positionals.get(1).cloned(),
+            roles: flag_value(flags, "roles"),
+            email: flag_value(flags, "email"),
+            password_stdin: flags.contains_key("password-stdin"),
+        }),
+        "reset-password" => Ok(Command::AdminResetPassword {
+            data_dir: flag_value(flags, "data-dir"),
+            username: positionals.get(1).cloned(),
+            password_stdin: flags.contains_key("password-stdin"),
+        }),
         "" => Err(CliError::usage(
             "Usage: op admin create [--data-dir DIR] | op admin invite [--roles a,b] [--email ADDR] \
-             [--origin URL] [--data-dir DIR]",
+             [--origin URL] [--data-dir DIR] | op admin add-user [USERNAME] [--roles a,b] \
+             [--email ADDR] [--data-dir DIR] | op admin reset-password [USERNAME] [--data-dir DIR]",
         )),
         other => Err(CliError::usage(format!(
-            "unknown admin subcommand {other:?}; the two are `op admin create` and `op admin \
-             invite`"
+            "unknown admin subcommand {other:?}; the four are `op admin create`, `op admin \
+             invite`, `op admin add-user` and `op admin reset-password`"
         ))),
     }
 }
@@ -282,6 +295,213 @@ pub(crate) fn create_admin(
     }
 }
 
+/// Run `op admin add-user`, printing what was created.
+pub(crate) fn run_add_user(
+    data_dir: Option<&str>,
+    username: Option<&str>,
+    roles: Option<&str>,
+    email: Option<&str>,
+    password_stdin: bool,
+) -> Result<String, CliError> {
+    let store = open_store(data_dir)?;
+    let mut stdin = std::io::stdin().lock();
+    let mut stdout = std::io::stdout();
+    let mut read_secret = if password_stdin {
+        read_secret_from_stdin
+    } else {
+        read_secret_from_terminal
+    };
+    add_user(
+        &store,
+        username,
+        roles,
+        email,
+        &mut stdin,
+        &mut stdout,
+        &mut read_secret,
+        password_stdin,
+    )
+}
+
+/// Run `op admin reset-password`, printing what changed.
+pub(crate) fn run_reset_password(
+    data_dir: Option<&str>,
+    username: Option<&str>,
+    password_stdin: bool,
+) -> Result<String, CliError> {
+    let store = open_store(data_dir)?;
+    let mut stdin = std::io::stdin().lock();
+    let mut stdout = std::io::stdout();
+    let mut read_secret = if password_stdin {
+        read_secret_from_stdin
+    } else {
+        read_secret_from_terminal
+    };
+    reset_password(
+        &store,
+        username,
+        &mut stdin,
+        &mut stdout,
+        &mut read_secret,
+        password_stdin,
+    )
+}
+
+/// The name to act on: the argument when given, otherwise asked for.
+fn resolve_username(
+    store: &AccountsDb,
+    username: Option<&str>,
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+) -> Result<String, CliError> {
+    let username = match username {
+        Some(value) if !value.trim().is_empty() => value.trim().to_string(),
+        _ => {
+            let typed = ask(input, output, "Username: ")?;
+            let typed = typed.trim().to_string();
+            if typed.is_empty() {
+                return Err(CliError::usage("a username must not be empty"));
+            }
+            typed
+        }
+    };
+    if store
+        .find_user_by_username(&username)
+        .map_err(|error| CliError::Io(format!("cannot read the account store: {error}")))?
+        .is_none()
+    {
+        return Err(CliError::usage(format!(
+            "no account named `{username}` in {}",
+            store.dir().join("accounts.db").display()
+        )));
+    }
+    Ok(username)
+}
+
+/// Ask for a password twice, applying the store's own policy between the two,
+/// exactly as `op admin create` does — a weak password is answered with a
+/// reason and another question rather than a failure after the confirmation.
+fn ask_new_password(
+    username: &str,
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+    read_secret: &mut impl FnMut(&mut dyn BufRead) -> Result<String, CliError>,
+    confirm: bool,
+) -> Result<String, CliError> {
+    loop {
+        let password = read_secret(input)?;
+        if let Err(weak) = check_password_strength(&password, username) {
+            writeln!(output, "  {weak}").map_err(io_error)?;
+            continue;
+        }
+        // A script answering `--password-stdin` has one line to give and no
+        // second chance: asking it to confirm would compare the secret with
+        // itself or fail on the end of the pipe. The strength policy above
+        // still applies, so the weak-secret refusal is not lost with it.
+        if !confirm {
+            return Ok(password);
+        }
+        let repeated = read_secret(input)?;
+        if repeated != password {
+            writeln!(output, "  the two passwords do not match").map_err(io_error)?;
+            continue;
+        }
+        return Ok(password);
+    }
+}
+
+/// Create one account with a password. Prints the name, the roles and the
+/// store — never the password.
+// Four data args mirror `Command::AdminAddUser` one-for-one and four are the
+// dialogue's reader, writer, secret reader and its source flag; bundling
+// either group into a struct would only shadow what it wraps.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn add_user(
+    store: &AccountsDb,
+    username: Option<&str>,
+    roles: Option<&str>,
+    email: Option<&str>,
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+    read_secret: &mut impl FnMut(&mut dyn BufRead) -> Result<String, CliError>,
+    stdin_secret: bool,
+) -> Result<String, CliError> {
+    let username = match username {
+        Some(value) if !value.trim().is_empty() => value.trim().to_string(),
+        _ => {
+            let typed = ask(input, output, "Username: ")?;
+            let typed = typed.trim().to_string();
+            if typed.is_empty() {
+                return Err(CliError::usage("a username must not be empty"));
+            }
+            typed
+        }
+    };
+    if store
+        .find_user_by_username(&username)
+        .map_err(|error| CliError::Io(format!("cannot read the account store: {error}")))?
+        .is_some()
+    {
+        return Err(CliError::usage(format!(
+            "`{username}` already exists; use `op admin reset-password {username}` to give it a              new password"
+        )));
+    }
+    let password = ask_new_password(&username, input, output, read_secret, !stdin_secret)?;
+    // The product's own vocabulary, asked before anything is written — a role
+    // this build does not have would be stored and would then grant nothing.
+    let requested = split_roles(roles.unwrap_or_default());
+    let role_list = canonical_roles(&requested)
+        .map_err(|unknown| CliError::usage(format!("--roles: {unknown}")))?;
+    let borrowed: Vec<&str> = role_list.iter().map(String::as_str).collect();
+    let new = op_accounts::accounts::NewUser {
+        id: None,
+        username: &username,
+        display_name: &username,
+        email: email.filter(|value| !value.trim().is_empty()),
+        password: Some(&password),
+        roles: &borrowed,
+    };
+    let user = store
+        .create_user(&new, now_secs())
+        .map_err(|error| CliError::Io(format!("cannot write the account store: {error}")))?;
+    Ok(format!(
+        "created `{}` ({}) with role(s) {} in {}",
+        user.username,
+        user.status.as_str(),
+        if borrowed.is_empty() {
+            "none".to_string()
+        } else {
+            borrowed.join(", ")
+        },
+        store.dir().join("accounts.db").display()
+    ))
+}
+
+/// Give an existing account a new password. Prints the name and the store —
+/// never the password.
+pub(crate) fn reset_password(
+    store: &AccountsDb,
+    username: Option<&str>,
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+    read_secret: &mut impl FnMut(&mut dyn BufRead) -> Result<String, CliError>,
+    stdin_secret: bool,
+) -> Result<String, CliError> {
+    let username = resolve_username(store, username, input, output)?;
+    let user = store
+        .find_user_by_username(&username)
+        .map_err(|error| CliError::Io(format!("cannot read the account store: {error}")))?
+        .ok_or_else(|| CliError::usage(format!("no account named `{username}`")))?;
+    let password = ask_new_password(&username, input, output, read_secret, !stdin_secret)?;
+    store
+        .set_password(&user.id, &password, now_secs())
+        .map_err(|error| CliError::Io(format!("cannot write the account store: {error}")))?;
+    Ok(format!(
+        "gave `{username}` a new password in {}",
+        store.dir().join("accounts.db").display()
+    ))
+}
+
 /// Ask one question and read one answer.
 fn ask(
     input: &mut impl BufRead,
@@ -316,6 +536,21 @@ fn read_secret_from_terminal(input: &mut dyn BufRead) -> Result<String, CliError
     let first = read_line_raw(input)?;
     println!();
     Ok(first)
+}
+
+/// One password line from stdin, for a script.
+///
+/// `--password-stdin` exists because a provisioning script has no terminal to
+/// be prompted on: the alternative is putting the secret in an argument, where
+/// it lands in the shell history and in the process table — which is the thing
+/// this command's whole shape avoids. A pipe is not observable the same way.
+///
+/// The confirmation question is skipped, and that is deliberate: a script has
+/// no second chance to answer, and reading the same line twice from one pipe
+/// would compare the secret with itself. The store's strength policy still
+/// applies, so a weak secret is refused with a reason.
+fn read_secret_from_stdin(input: &mut dyn BufRead) -> Result<String, CliError> {
+    read_line_raw(input)
 }
 
 /// Say one line, then read.

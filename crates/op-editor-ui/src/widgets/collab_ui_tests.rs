@@ -6,7 +6,13 @@ use op_editor_core::{
 
 #[test]
 fn home_offers_create_and_join_paths() {
-    let mut ui = EditorUiState::default();
+    // The labels asserted below are the Chinese catalogue's, so the test says
+    // so: a test that reads whatever the product default is tests the default,
+    // not the panel (which is what the Russian default change proved).
+    let mut ui = EditorUiState {
+        locale: op_editor_core::Locale::ZhCn,
+        ..EditorUiState::default()
+    };
     ui.collab.availability = CollabAvailability::Ready;
 
     let model = CollabPanelModel::for_editor_ui(&ui);
@@ -26,7 +32,10 @@ fn home_offers_create_and_join_paths() {
 
 #[test]
 fn open_create_is_navigation_only_and_exposes_connection_choices() {
-    let mut ui = EditorUiState::default();
+    let mut ui = EditorUiState {
+        locale: op_editor_core::Locale::ZhCn,
+        ..EditorUiState::default()
+    };
     ui.collab.availability = CollabAvailability::Ready;
     ui.collab.panel.open = true;
 
@@ -169,7 +178,10 @@ fn join_target_and_action_debug_are_redacted() {
 #[test]
 fn owner_model_projects_redacted_invite_and_relay_region() {
     let raw_invite = "opc1_secret-route-capability";
-    let mut ui = EditorUiState::default();
+    let mut ui = EditorUiState {
+        locale: op_editor_core::Locale::ZhCn,
+        ..EditorUiState::default()
+    };
     ui.collab.availability = CollabAvailability::Ready;
     ui.collab.set_authenticated_session(
         CollabConnectionPhase::Active,

@@ -11,10 +11,38 @@
 //! Public submodules group chrome, picker, Git, panel, and slide-navigation
 //! data. Private `defaults`, `methods`, and `tests` modules hold the struct's
 //! implementations and regression coverage.
+//!
+//! # This file is a documented exception to the 800-line cap
+//!
+//! Measured 2026-09-16: 922 lines — 61 of header and 859 of `EditorUiState`
+//! body, closed by one brace. The body is 245 field declarations plus 568
+//! lines of doc comments about them; there is no function left to move,
+//! because every `impl` already lives in a sibling module. Getting under the
+//! cap therefore means taking 122 lines out of the struct body, and neither
+//! way to do that is code motion:
+//!
+//! - Grouping fields into sub-structs (the [`groups`] precedent) rewrites
+//!   `ui.field` into `ui.group.field`. The families big enough to matter are
+//!   the popular ones — `variables` is 17 fields / 43 lines / 305 accesses,
+//!   `pending` 11 / 40 / 111, `component` 11 / 30 / 97 — against 7,339
+//!   `editor_ui.<field>` accesses across 720 files and 15 crates. That is an
+//!   API change for the whole workspace, not a split.
+//! - Moving the field *documentation* out (`#[doc = include_str!(…)]` per
+//!   field) leaves the API untouched, but it is documentation extraction
+//!   rather than a split: 568 prose lines become 245 attribute lines
+//!   pointing away from the fields they describe.
+//!
+//! Moving [`AppScreen`] into a sibling is genuine code motion and buys 13
+//! lines — 909, still 109 over. Split it only together with the grouping
+//! decision; issue #158 carries the measurement and that choice.
+//!
+//! This note is 26 of the file's 949 lines and the file was 922 before it:
+//! the exception is recorded on purpose, not by drift.
 
 pub mod chrome;
 pub mod comments;
 pub mod comments_page_counts;
+pub mod copy_status;
 mod defaults;
 mod exports;
 pub mod git_panel;
@@ -107,6 +135,11 @@ pub struct EditorUiState {
     /// A banner press the host has yet to perform — the widget layer owns no
     /// transport, so the answer reaches the frame tick through here.
     pub recovery_request: Option<crate::editor_ui_state::recovery::RecoveryRequest>,
+    /// Which copy of the document the canvas paints, and whether it is the
+    /// daemon's current one (issues #171 / #191): filled by the browser host,
+    /// read by the status strip in the recovery bar's own strip, and defaulted
+    /// to "nothing known", which paints nothing.
+    pub document_copy: crate::editor_ui_state::copy_status::DocumentCopyStatus,
     /// Wall clock in Unix milliseconds, refreshed by the host each frame.
     ///
     /// The chrome needs real time for exactly one thing: telling how old the
@@ -847,6 +880,12 @@ pub struct EditorUiState {
     /// Floating Design-MD panel — open flag, hover target, position,
     /// expanded-section bitmask, scroll, and the queued host request.
     pub design_md_panel: DesignMdPanelState,
+
+    // --- Reference comparison view ----------------------------------
+    /// The picture the current turn was asked to match, shown beside the
+    /// canvas so fidelity can actually be checked — see
+    /// [`ReferenceViewState`].
+    pub reference_view: ReferenceViewState,
 
     // --- Prompt Center ----------------------------------------------
     /// Floating prompt catalogue, search, save form, and custom entries.

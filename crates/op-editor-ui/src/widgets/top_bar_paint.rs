@@ -414,15 +414,18 @@ impl TopBar {
             // looking at. An ageing stamp also blinks, so "you are looking at
             // a stale binary" is visible without reading the timestamp.
             let age = crate::widgets::build_stamp::build_age_secs(self.now_unix_ms);
-            let freshness = crate::widgets::build_stamp::freshness(age);
-            let period = crate::widgets::build_stamp::blink_period_ms(freshness);
+            // A release build shows a version label in the normal text colour
+            // and never blinks: freshness is a question about a build somebody
+            // just made, and a released binary is old by definition.
+            let release = crate::widgets::build_stamp::is_release_build();
+            let tone = crate::widgets::build_stamp::stamp_tone(age, release);
+            let period = crate::widgets::build_stamp::stamp_blink_period_ms(age, release);
             if crate::widgets::build_stamp::blink_visible(self.now_unix_ms as u64, period) {
-                let color = match freshness {
-                    crate::widgets::build_stamp::BuildFreshness::Fresh => self.theme.status_success,
-                    crate::widgets::build_stamp::BuildFreshness::Ageing => {
-                        self.theme.status_warning
-                    }
-                    crate::widgets::build_stamp::BuildFreshness::Stale => self.theme.destructive,
+                let color = match tone {
+                    crate::widgets::build_stamp::StampTone::Fresh => self.theme.status_success,
+                    crate::widgets::build_stamp::StampTone::Ageing => self.theme.status_warning,
+                    crate::widgets::build_stamp::StampTone::Stale => self.theme.destructive,
+                    crate::widgets::build_stamp::StampTone::Plain => self.theme.muted_foreground,
                 };
                 let stamp_w = text_metrics::measure_chrome(cx.backend, &self.build_label, 10.0);
                 let stamp_x = chip_rect.origin.x - 10.0 - stamp_w;

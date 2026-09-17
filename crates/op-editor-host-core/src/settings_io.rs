@@ -458,7 +458,6 @@ fn load_checked_from_path(state: &mut EditorState, path: &Path) -> Result<(), Se
 /// model catalog must reflect web/OpenPencil settings only, rather than expose
 /// machine-local Zode providers that the browser settings UI cannot manage.
 pub fn load_checked(state: &mut EditorState) -> Result<(), SettingsIoError> {
-    seed_system_locale(state);
     let path = settings_path().ok_or(SettingsIoError::PathUnresolved)?;
     load_checked_from_path(state, &path)?;
     Ok(())
@@ -469,11 +468,6 @@ pub fn load_checked(state: &mut EditorState) -> Result<(), SettingsIoError> {
 /// than this shared loader so the web daemon cannot inherit desktop-only
 /// configuration sources.
 pub fn load(state: &mut EditorState) {
-    // Seed the locale from the OS BEFORE the settings file is read.
-    // `apply_payload`'s persisted-locale arm overrides this when a
-    // saved choice exists; first-run / missing-file lands the
-    // detected locale instead of leaving the EnUs default.
-    seed_system_locale(state);
     if let Some(path) = settings_path() {
         if let Ok(bytes) = std::fs::read(&path) {
             if let Ok(payload) = serde_json::from_slice::<SettingsPayload>(&bytes) {
@@ -483,15 +477,20 @@ pub fn load(state: &mut EditorState) {
     }
 }
 
-/// Seed the first-run locale through the shared i18n environment resolver.
-///
-/// `Locale::from_environment` owns POSIX precedence and parsing semantics, so
-/// desktop and web-server startup cannot drift from the translation layer.
-fn seed_system_locale(state: &mut EditorState) {
-    if let Some(locale) = Locale::from_environment() {
-        state.editor_ui.locale = locale;
-    }
-}
+// ## Why the process locale is not consulted
+//
+// Both loaders above used to seed the first-run locale from the process
+// environment (`LC_ALL` / `LC_MESSAGES` / `LANG`) before reading the file, so a
+// missing or silent `locale` field landed the MACHINE's language. The product's
+// language is now its own: the interface is Russian from the very first paint,
+// on every machine, and the two things that may change it are the locale picker
+// and the persisted `locale` field this file carries (see
+// `apply_payload`). A deployment whose operator wants another language sets it
+// once and it is saved; nobody has to be shown English because their server's
+// environment happens to say so.
+//
+// The resolver itself stays in `op_i18n::Locale::from_environment` — it has its
+// own tests and is what a host that DOES want the machine's language would call.
 
 /// Persist settings and report any failure to the caller.
 pub fn save_checked(state: &EditorState) -> Result<(), SettingsIoError> {

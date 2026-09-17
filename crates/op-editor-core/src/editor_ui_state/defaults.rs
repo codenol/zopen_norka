@@ -5,8 +5,8 @@
 
 use super::{
     DesignMdPanelState, EditorUiState, EmbedHost, ExportFormat, FlexLayout, GitPanelState, Locale,
-    PencilCursorStyle, PreviewState, PromptCenterState, PropertyTab, SaveNameDialogState,
-    SceneTemplateCenterState, SizeToggleState, ThemeMode, UpdateStatus,
+    PencilCursorStyle, PreviewState, PromptCenterState, PropertyTab, ReferenceViewState,
+    SaveNameDialogState, SceneTemplateCenterState, SizeToggleState, ThemeMode, UpdateStatus,
 };
 use crate::tool::Tool;
 use std::collections::HashSet;
@@ -30,6 +30,7 @@ impl Default for EditorUiState {
             recovery_draft: None,
             recovery_answered: false,
             recovery_request: None,
+            document_copy: Default::default(),
             now_unix_ms: 0.0,
             file_key: None,
             local_document: false,
@@ -43,7 +44,12 @@ impl Default for EditorUiState {
             mobile_sheet: None,
             theme_mode: ThemeMode::Dark,
             host_theme_override: None,
-            locale: Locale::ZhCn,
+            // The product's language, not the machine's. A browser tab that has
+            // never been told otherwise paints Russian — the first frame
+            // included — and the locale picker or a persisted setting is what
+            // changes it (see `settings_io`, which no longer seeds this from
+            // the process environment).
+            locale: Locale::Ru,
             host_locale_override: None,
             locale_picker: jian_widgets::components::select::SelectState::default(),
             preferred_agent_team_size: 1,
@@ -242,6 +248,7 @@ impl Default for EditorUiState {
             update_status: UpdateStatus::Idle,
             git_panel: GitPanelState::default(),
             design_md_panel: DesignMdPanelState::default(),
+            reference_view: ReferenceViewState::default(),
             prompt_center: PromptCenterState::default(),
             scene_template_center: SceneTemplateCenterState::default(),
             pinned_style_guide: None,

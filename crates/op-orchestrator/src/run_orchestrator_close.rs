@@ -11,6 +11,20 @@
 use super::*;
 use crate::repair_summary::RepairSummary;
 
+/// The channels a closing stage talks through: where the document is written,
+/// where progress is reported, and the flag that says the run was cancelled.
+///
+/// One value rather than three arguments because every stage in this module
+/// needs all three and none of them means anything alone — a sink with no
+/// progress channel reports nothing, and an abort flag with no sink has nothing
+/// to abort. `finalize_run_cleanup` takes the two it uses directly, because it
+/// never has to ask whether the run was cancelled.
+pub(super) struct RunChannels<'a> {
+    pub sink: &'a mut dyn DocSink,
+    pub on_progress: &'a mut dyn FnMut(Progress),
+    pub abort: &'a AbortFlag,
+}
+
 /// Phase 4's cleanup call, scoped either to the roots this run appended into
 /// or to every screen-group root it inserted, plus the tally the passes left.
 pub(super) fn finalize_run_cleanup(
@@ -31,7 +45,7 @@ pub(super) fn finalize_run_cleanup(
         let target_roots: Vec<&str> = root_ids.iter().map(String::as_str).collect();
         crate::repair_scope::finalize_appended_design(
             sink,
-            &plan,
+            plan,
             &new_roots,
             &target_roots,
             &mut quality,
@@ -49,7 +63,7 @@ pub(super) fn finalize_run_cleanup(
         let root_id_refs: Vec<&str> = root_ids.iter().map(String::as_str).collect();
         finalize_design_with_summary_and_policy(
             sink,
-            &plan,
+            plan,
             &root_id_refs,
             &mut quality,
             CleanupPolicy {
@@ -68,15 +82,18 @@ pub(super) fn finalize_run_cleanup(
 /// Phase 5 / 6 and the answer: report the cleanup tally, run the vision
 /// validation, name the screens that came out empty, and build the summary.
 pub(super) fn close_run(
-    sink: &mut dyn DocSink,
+    channels: RunChannels<'_>,
     quality: &RepairSummary,
     request: &DesignRequest,
     providers: &ValidationProviders<'_>,
-    on_progress: &mut dyn FnMut(Progress),
-    abort: &AbortFlag,
     outcomes: Vec<SubtaskOutcome>,
     root_ids: &[String],
 ) -> RunSummary {
+    let RunChannels {
+        sink,
+        on_progress,
+        abort,
+    } = channels;
     // Turn the cleanup stage's tally into a user-visible credential. Only
     // fires when the passes actually ran (an empty summary means cleanup
     // was skipped entirely), so nothing is ever vouched for that nobody
@@ -113,7 +130,7 @@ pub(super) fn close_run(
             providers.screenshot,
             providers.vision,
             &providers.system_prompt,
-            &request,
+            request,
             on_progress,
             abort,
         );
@@ -147,7 +164,7 @@ pub(super) fn close_run(
         // field could name a node the document does not contain (issue
         // #29). A field that names the root is worth only what it resolves
         // to, so a stale id gives way to the root that is actually there.
-        root_frame_id: live_root_id(sink.state(), &root_ids),
+        root_frame_id: live_root_id(sink.state(), root_ids),
         subtasks: outcomes,
         total_nodes,
         paintable_nodes,

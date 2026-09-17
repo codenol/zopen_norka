@@ -168,7 +168,7 @@ mod canvas_pins_tests {
     #[test]
     fn zoom_and_pan_move_the_marker_with_the_page() {
         let scene = scene_with(&["n1"]);
-        let mut seed = state_with(vec![]);
+        let seed = state_with(vec![]);
         let page = page_of(&seed);
         let plain =
             CanvasViewport::from_editor(&state_with(vec![thread(1, &page, 300.0, 200.0)]), &scene)

@@ -535,3 +535,80 @@ fn absent_layout_still_infers_a_horizontal_row() {
     assert_eq!(a.bounds.origin.x, 0.0);
     assert_eq!(b.bounds.origin.x, 110.0);
 }
+
+#[test]
+fn a_row_is_as_tall_as_its_tallest_child_not_as_far_as_one_was_placed() {
+    // Issue #186, family root cause. A row's height is its tallest child's
+    // height plus padding. It must NOT be "as far down as a child's resolved
+    // bottom", because that number folds in where the row placed the child —
+    // and a `center` / `end` row derives that placement FROM its own height, so
+    // the repair re-inflates by the same amount on every pass and never
+    // converges. Measured on the corpus (`.openpencil-tmp/gq/06-vague-ru.op`): a
+    // 24px `cb-slot` resolved 500px (= its 20px checkbox + 480 of its own
+    // height) and a 24px `cell-status` resolved 243px, which inflated the token
+    // table to 4276px, its body to 5296px and — through the orchestrator's
+    // root-height repair — the root to 5408px.
+    //
+    // The child here is placed 480px below its parent's top, the same distance
+    // the corpus measured.
+    let src = r##"{
+      "version":"1.0.0","pages":[{"id":"p","name":"P","children":[
+        {"type":"frame","id":"row","width":1090,"height":528,
+         "layout":"horizontal","gap":16,"padding":[14,24],"alignItems":"center",
+         "children":[
+           {"type":"frame","id":"cb-slot","width":"fill_container","height":24,
+            "layout":"horizontal","justifyContent":"center","alignItems":"center",
+            "children":[
+              {"type":"frame","id":"checkbox","y":480,"width":55,"height":20,
+               "layout":"horizontal","children":[]}
+            ]}
+         ]}
+      ]}],"children":[]
+    }"##;
+    let scene = editor_state_to_layout_scene(&state_from(src));
+    let slot = scene.pages[0].find("cb-slot").expect("cb-slot");
+    assert_eq!(
+        slot.bounds.size.y, 24.0,
+        "a 24px slot must stay 24px tall; its child's placement is not its size"
+    );
+}
+
+#[test]
+fn a_fill_height_child_does_not_inflate_its_parent() {
+    // The same circularity in a column: a `height: fill_container` child is as
+    // tall as its parent's own height, so it can never be evidence that the
+    // parent is too short — growing the parent grows the child by the same
+    // amount and the surplus never closes. Measured (issue #186): the corpus'
+    // `Content` column declares 1006 and resolved 1070 in all three documents,
+    // exactly the kit's 48px breadcrumb row plus its 16px gap.
+    //
+    // `content` is nested on purpose: a PAGE ROOT is implicitly clipped, and a
+    // clipped container keeps its authored height instead of absorbing
+    // overflow, which would hide the growth this test is about.
+    let src = r##"{
+      "version":"1.0.0","pages":[{"id":"p","name":"P","children":[
+        {"type":"frame","id":"outer","width":1440,"height":1200,"layout":"none",
+         "children":[
+          {"type":"frame","id":"content","width":1137,"height":1006,
+           "layout":"vertical","gap":16,"alignItems":"start",
+           "children":[
+            {"type":"frame","id":"breadcrumbs","width":"fill_container","height":48},
+            {"type":"frame","id":"main","width":"fill_container","height":"fill_container",
+             "clipContent":true,"layout":"vertical","padding":[24,24],
+             "children":[
+               {"type":"frame","id":"body","width":"fill_container","height":"fit_content",
+                "layout":"vertical","children":[
+                  {"type":"frame","id":"big","width":"fill_container","height":5000}
+                ]}
+             ]}
+           ]}
+         ]}
+      ]}],"children":[]
+    }"##;
+    let scene = editor_state_to_layout_scene(&state_from(src));
+    let content = scene.pages[0].find("content").expect("content");
+    assert_eq!(
+        content.bounds.size.y, 1006.0,
+        "a fill-height child follows the column; it must not grow the column"
+    );
+}

@@ -127,9 +127,10 @@ pub fn base_animation_deadline_ms(
     // would freeze on whichever frame happened to paint last.
     if let Some(deadline) = crate::widgets::build_stamp::next_blink_deadline_ms(
         now_ms,
-        crate::widgets::build_stamp::blink_period_ms(crate::widgets::build_stamp::freshness(
+        crate::widgets::build_stamp::stamp_blink_period_ms(
             crate::widgets::build_stamp::build_age_secs(state.editor_ui.now_unix_ms),
-        )),
+            crate::widgets::build_stamp::is_release_build(),
+        ),
     ) {
         next = earliest(next, deadline);
     }

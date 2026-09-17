@@ -661,6 +661,59 @@ fn strip_reasoning(text: &str) -> &str {
     }
 }
 
+/// Drop the progress scaffold a reply may carry around its script.
+///
+/// The chat system prompt tells the model to open with `<step>` tags
+/// (`chat_system_prompt.rs`: "START DIRECTLY WITH `<step>`"), and the transcript
+/// renderer already reads those blocks as activity markup rather than answer
+/// text (`op-editor-ui/src/widgets/ai_chat_transcript_steps.rs`). They arrive on
+/// this ladder anyway, because the modify route's transcript carries the turn's
+/// own `<step title="Checking guidelines">` line at the head of the text its
+/// reply is read from (measured: issue #182). QuickJS stops at the `<`, so a
+/// reply whose every `I(…)` statement is complete was discarded as "response
+/// was not valid modification JavaScript" and nothing was applied.
+///
+/// A *closed* block is removed whole, body included — by the transcript's own
+/// reading that body is one prose activity line, never code. An unterminated
+/// `<step …>` loses only the tag: what it introduces cannot be told apart from
+/// the script that follows it, and keeping the body is the difference between a
+/// salvaged reply and a dropped one.
+fn strip_progress_steps(text: &str) -> Option<String> {
+    let lower = text.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+    let mut changed = false;
+    while let Some(rel) = lower[cursor..].find("<step") {
+        let open = cursor + rel;
+        // `<stepper` is not the tag: the name must end at whitespace or `>`.
+        if !matches!(
+            bytes.get(open + 5),
+            Some(b' ' | b'\t' | b'\r' | b'\n' | b'>' | b'/')
+        ) {
+            out.push_str(&text[cursor..open + 5]);
+            cursor = open + 5;
+            continue;
+        }
+        let Some(tag_end) = lower[open..].find('>').map(|i| open + i) else {
+            break;
+        };
+        let block_end = lower[tag_end..]
+            .find("</step")
+            .map(|i| tag_end + i)
+            .and_then(|close| lower[close..].find('>').map(|i| close + i + 1));
+        out.push_str(&text[cursor..open]);
+        out.push('\n');
+        cursor = block_end.unwrap_or(tag_end + 1);
+        changed = true;
+    }
+    if !changed {
+        return None;
+    }
+    out.push_str(&text[cursor..]);
+    Some(out)
+}
+
 /// Extract the JavaScript program from a raw model response.
 ///
 /// Robust to what real models actually emit around the script — not just a
@@ -670,12 +723,17 @@ fn strip_reasoning(text: &str) -> &str {
 ///    full of draft JS; feeding that to QuickJS is a guaranteed syntax error,
 ///    which used to drop the model onto the fragile flat-JSONL retry rung
 ///    (measured: a full travel page collapsed to 44 flat siblings).
-/// 2. A ```` ``` ```` fenced block is extracted from ANYWHERE — models add a
+/// 2. The turn's progress scaffold is stripped ([`strip_progress_steps`]): the
+///    route's own `<step title="…">…</step>` line sits at the head of the delta
+///    a modify reply is read from, and `<` is a syntax error to QuickJS.
+/// 3. A ```` ``` ```` fenced block is extracted from ANYWHERE — models add a
 ///    prose preamble ("Here's the design:") before the fence, so a
 ///    start-anchored strip missed it and passed the prose to the runtime.
-/// 3. No fence → the reasoning-stripped text is the script (bare-script case).
+/// 4. No fence → the reasoning-stripped text is the script (bare-script case).
 fn strip_fences(text: &str) -> String {
-    let text = strip_reasoning(text).trim();
+    let reasoning = strip_reasoning(text).trim();
+    let stripped = strip_progress_steps(reasoning).unwrap_or_else(|| reasoning.to_string());
+    let text = stripped.trim();
     if let Some(open) = text.find("```") {
         // Drop the ``` and any language tag on the fence line (```js).
         let after_open = &text[open + 3..];

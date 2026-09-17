@@ -1,7 +1,31 @@
 use super::*;
 
+/// These six are the suite's only tests that drive real sockets and then assert
+/// a WALL-CLOCK budget: each binds its own relay listener, spawns a server that
+/// sleeps for seconds, and gives the client a deadline to pair inside.
+///
+/// They are correct one at a time and wrong together. `cargo test -p
+/// op-collab-relay-client --lib` runs 46 tests across the machine's cores, two
+/// tokio worker threads apiece, and the six then assert their budgets against a
+/// machine competing with itself: measured, six fail with `PairedTimeout` under
+/// the default parallelism and five of them pass when only this module runs in
+/// parallel — so the contention is among these six, and `--test-threads=1`
+/// makes the whole binary green (46 passed, 13.02s). Issue #242.
+///
+/// The permit below is the fix and not a workaround for a wrong assertion: the
+/// tests claim a deadline, and a deadline claim needs a quiet machine to mean
+/// anything. Nothing asserts against a shared resource — every listener binds
+/// `127.0.0.1:0` — so there is nothing to reset, only to serialize.
+static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Held for the length of one of these tests. See [`SERIAL`].
+async fn serial() -> tokio::sync::MutexGuard<'static, ()> {
+    SERIAL.lock().await
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn guest_pair_gate_keeps_slow_relay_wait_outside_the_local_transport_deadline() {
+    let _serial = serial().await;
     let relay_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay_addr = relay_listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -50,6 +74,7 @@ async fn guest_pair_gate_keeps_slow_relay_wait_outside_the_local_transport_deadl
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn guest_pair_gate_preserves_an_authentication_rejection() {
+    let _serial = serial().await;
     let relay_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay_addr = relay_listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -90,6 +115,7 @@ async fn guest_pair_gate_preserves_an_authentication_rejection() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn active_guest_ping_pong_survives_multiple_idle_windows_without_local_tcp_traffic() {
+    let _serial = serial().await;
     let relay_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay_addr = relay_listener.local_addr().unwrap();
     let (observed_tx, observed_rx) = tokio::sync::oneshot::channel();
@@ -149,6 +175,7 @@ async fn active_guest_ping_pong_survives_multiple_idle_windows_without_local_tcp
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn active_guest_processes_pongs_while_local_tcp_writes_continuously() {
+    let _serial = serial().await;
     let relay_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay_addr = relay_listener.local_addr().unwrap();
     let (observed_tx, observed_rx) = tokio::sync::oneshot::channel();
@@ -219,6 +246,7 @@ async fn active_guest_processes_pongs_while_local_tcp_writes_continuously() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn active_guest_without_a_pong_fails_on_the_bounded_idle_watchdog() {
+    let _serial = serial().await;
     let relay_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay_addr = relay_listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -263,6 +291,7 @@ async fn active_guest_without_a_pong_fails_on_the_bounded_idle_watchdog() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn continuous_local_writes_cannot_starve_the_unanswered_ping_watchdog() {
+    let _serial = serial().await;
     let relay_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay_addr = relay_listener.local_addr().unwrap();
     let server = tokio::spawn(async move {

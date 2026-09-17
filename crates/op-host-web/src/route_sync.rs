@@ -13,16 +13,33 @@
 //!
 //! The vocabulary lives in `op_editor_core::route`; this file only reads and
 //! writes the browser around it.
+//!
+//! ## How this file is split
+//!
+//! The parsing half — reading the address, naming what the editor state says,
+//! reading a file list, finding the page a node is on — lives in
+//! `route_sync_parse.rs`; the file browser's legs (list, open, create, rename,
+//! delete, name) in `route_sync_files.rs`. Both are `#[path]` siblings, and the
+//! spine re-exports what moved, so every import path into `route_sync` stays
+//! where it was.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use op_editor_core::route::{self, DocumentRoute, RouteFile, RoutePath, RouteTarget};
-use op_editor_core::NodeId;
+use op_editor_core::route::{self, DocumentRoute, RouteTarget};
 use wasm_bindgen::JsCast;
 
 use crate::repaint_ctx::RepaintContext;
 use crate::widget_host::WidgetHost;
+
+#[path = "route_sync_parse.rs"]
+mod parse;
+use parse::{current_location, page_of, route_file_of, set_title, state_route};
+
+#[path = "route_sync_files.rs"]
+mod files;
+use files::open_named_document;
+pub(crate) use files::{request_file_list, tick_files};
 
 thread_local! {
     /// A file list that arrived while the shell was busy.
@@ -71,33 +88,6 @@ const PENDING_GIVE_UP_FRAMES: u32 = 300;
 /// Roughly two seconds: long enough to outlast the daemon's first document.
 const PENDING_SETTLE_FRAMES: u32 = 120;
 
-/// Read the tab's current route, if it names one.
-pub(crate) fn current_location() -> Option<RouteTarget> {
-    let window = web_sys::window()?;
-    let location = window.location();
-    let path = location.pathname().ok()?;
-    let query = location.search().unwrap_or_default();
-    match route::parse(&path, &query) {
-        RoutePath::Known(target) => Some(target),
-        RoutePath::NotARoute => None,
-    }
-}
-
-/// The route the editor state currently describes, for the address bar.
-///
-/// Two clauses, on purpose. The document mapping is the shared
-/// [`route::state_route`] — the same rule the desktop records for Back/Forward
-/// — and the browser adds the one thing that rule cannot know: `/files` is a
-/// screen rather than a place in a document. A copy of the document mapping
-/// here is exactly the drift the shared rule exists to prevent, so there is
-/// none.
-pub(crate) fn state_route(state: &op_editor_core::EditorState) -> RouteTarget {
-    if state.editor_ui.screen == op_editor_core::AppScreen::Files {
-        return RouteTarget::Files;
-    }
-    route::state_route(state, route::file_from_key(state))
-}
-
 /// Write the state's route into the address bar when it differs from what is
 /// there. Called once per frame.
 pub(crate) fn tick_pending(host: &mut WidgetHost, viewport: (f32, f32)) -> bool {
@@ -116,7 +106,15 @@ pub(crate) fn tick(host: &WidgetHost) {
     // address to `/` before it has been accepted would throw the link away (and
     // a refresh would lose it entirely). Once the acceptance succeeds the token
     // is cleared, and the next tick writes the editor's own address as usual.
-    if crate::web_auth_sync::invitation_address_active(host) {
+    //
+    // A link that names a document does too, while this tab has no session to
+    // open one with (issue #231): the daemon refuses an anonymous open, and what
+    // the state is left holding is an untitled editor — so writing `/` over the
+    // link would lose the document before the visitor ever reached the sign-in
+    // form. `crate::front_door` opens it again once there is a session.
+    if crate::web_auth_sync::invitation_address_active(host)
+        || crate::front_door::address_awaits_a_document()
+    {
         return;
     }
     if PENDING.with(|pending| pending.borrow().is_some()) {
@@ -161,31 +159,6 @@ pub(crate) fn tick(host: &WidgetHost) {
     set_title(host, &target);
 }
 
-/// The document part of an address, for comparing two routes.
-fn route_file_of(path: &str) -> Option<String> {
-    match route::parse(path, "") {
-        RoutePath::Known(RouteTarget::Document(route)) => Some(match &route.file {
-            RouteFile::Key(key) => key.clone(),
-            RouteFile::Untitled => "/".to_string(),
-        }),
-        _ => None,
-    }
-}
-
-fn set_title(host: &WidgetHost, target: &RouteTarget) {
-    let Some(document) = web_sys::window().and_then(|w| w.document()) else {
-        return;
-    };
-    let name = host.editor_state().editor_ui.file_name_display.clone();
-    let base = op_editor_ui::PRODUCT_NAME;
-    let title = match (&target, name) {
-        (RouteTarget::Files, _) => format!("Files — {base}"),
-        (RouteTarget::Document(_), Some(name)) => format!("{name} — {base}"),
-        (RouteTarget::Document(_), None) => format!("Untitled — {base}"),
-    };
-    document.set_title(&title);
-}
-
 /// Apply whatever the address says: switch page, select and reveal a node.
 ///
 /// Returns whether anything changed, so the caller can repaint.
@@ -227,417 +200,6 @@ pub(crate) fn apply_current(host: &mut WidgetHost, viewport: (f32, f32)) -> bool
         });
     }
     changed
-}
-
-/// Open the document the address names, when it is not the open one.
-///
-/// The browser cannot read a file; the daemon can. This is the one call that
-/// turns `/f/<key>` into a document, and it deliberately does nothing when the
-/// key already matches the open document (a reload of the same file must not
-/// throw away unsaved work).
-fn open_named_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, host: &mut WidgetHost) {
-    let Some(RouteTarget::Document(route)) = current_location() else {
-        return;
-    };
-    let Some(key) = route.key().map(str::to_string) else {
-        return;
-    };
-    if host.editor_state().editor_ui.file_key.as_deref() == Some(key.as_str()) {
-        return;
-    }
-    let base = crate::daemon_base::daemon_base();
-    let inner_for_response = inner.clone();
-    let key_for_response = key.clone();
-    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&response) else {
-            return;
-        };
-        if value.get("ok").and_then(|ok| ok.as_bool()) != Some(true) {
-            // Unknown or deleted key: keep the address out of the way and let
-            // the shell show whatever document is already open.
-            PENDING.with(|pending| *pending.borrow_mut() = None);
-            return;
-        }
-        let name = value
-            .get("name")
-            .and_then(|name| name.as_str())
-            .map(str::to_string);
-        let can_write = can_write_from_open(&value);
-        if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-            let state = borrowed.host_mut().editor_state_mut();
-            state
-                .editor_ui
-                .set_document_key(Some(key_for_response.clone()));
-            if let Some(can_write) = can_write {
-                state.editor_ui.document_read_only = !can_write;
-            }
-            if name.is_some() {
-                state.editor_ui.file_name_display = name;
-            }
-            borrowed.host_mut().mark_editor_state_dirty();
-            let _ = borrowed.repaint();
-        }
-        // A name that did not travel with the open (an older daemon, or a
-        // document whose index row is older than the file) is read from the
-        // list rather than left as "Untitled" in the tab title.
-        request_name_for_key(&inner_for_response, &key_for_response);
-        // The document itself arrives through the normal version pull; the
-        // pending route then lands on the page/node it names.
-        crate::live_sync_glue::request_document_pull(&inner_for_response);
-    });
-    if !crate::live_sync::post_json(
-        &format!("{base}/api/files/{key}/open"),
-        "{}",
-        Some(on_response),
-    ) {
-        PENDING.with(|pending| *pending.borrow_mut() = None);
-    }
-}
-
-/// Open a stored document and put its address in the bar.
-fn open_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key: &str) {
-    let base = crate::daemon_base::daemon_base();
-    let inner_for_response = inner.clone();
-    let key = key.to_string();
-    // The closure owns the key for the state write; the request URL needs its
-    // own copy.
-    let key_for_url = key.clone();
-    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
-        let ok = serde_json::from_str::<serde_json::Value>(&response)
-            .ok()
-            .and_then(|value| value.get("ok").and_then(|ok| ok.as_bool()))
-            .unwrap_or(false);
-        if !ok {
-            if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-                borrowed
-                    .host_mut()
-                    .editor_state_mut()
-                    .editor_ui
-                    .server_files_error = Some("That file could not be opened".to_string());
-                let _ = borrowed.repaint();
-            }
-            return;
-        }
-        if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-            let state = borrowed.host_mut().editor_state_mut();
-            state.editor_ui.set_document_key(Some(key.clone()));
-            state.editor_ui.screen = op_editor_core::AppScreen::Editor;
-            borrowed.host_mut().mark_editor_state_dirty();
-            let _ = borrowed.repaint();
-        }
-        // The document itself arrives on the version pull; the address is
-        // written on the next frame from the state the open just set.
-        crate::live_sync_glue::request_document_pull(&inner_for_response);
-    });
-    let _ = crate::live_sync::post_json(
-        &format!("{base}/api/files/{key_for_url}/open"),
-        "{}",
-        Some(on_response),
-    );
-    LAST_WRITTEN.with(|last| *last.borrow_mut() = None);
-}
-
-/// Create a stored document and open it.
-fn create_stored_document<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
-    let base = crate::daemon_base::daemon_base();
-    let inner_for_response = inner.clone();
-    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
-        let key = serde_json::from_str::<serde_json::Value>(&response)
-            .ok()
-            .and_then(|value| value.get("file").cloned())
-            .and_then(|file| {
-                file.get("key")
-                    .and_then(|key| key.as_str())
-                    .map(str::to_string)
-            });
-        let Some(key) = key else {
-            if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-                borrowed
-                    .host_mut()
-                    .editor_state_mut()
-                    .editor_ui
-                    .server_files_error = Some("A new file could not be created".to_string());
-                let _ = borrowed.repaint();
-            }
-            return;
-        };
-        if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-            let state = borrowed.host_mut().editor_state_mut();
-            state.editor_ui.set_document_key(Some(key));
-            state.editor_ui.screen = op_editor_core::AppScreen::Editor;
-            // The list shown next time must include this file.
-            state.editor_ui.server_files.clear();
-            borrowed.host_mut().mark_editor_state_dirty();
-            let _ = borrowed.repaint();
-        }
-        crate::live_sync_glue::request_document_pull(&inner_for_response);
-    });
-    if crate::live_sync::post_json(&format!("{base}/api/files"), "{}", Some(on_response)) {
-        LAST_WRITTEN.with(|last| *last.borrow_mut() = None);
-    }
-}
-
-/// Keep the file browser's list current.
-///
-/// Called once per frame with the shell in hand: the screen can be reached by
-/// the address (applied in `install`) or by a click, and a click has no
-/// route to fetch from — so the frame is the one place both paths go through.
-pub(crate) fn tick_files<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
-    // Apply a list that arrived while the shell was busy.
-    let arrived = PENDING_LIST.with(|pending| pending.borrow_mut().take());
-    if let Some(arrived) = arrived {
-        if let Ok(mut borrowed) = inner.try_borrow_mut() {
-            let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-            ui.server_files_loading = false;
-            match arrived {
-                Ok(files) => {
-                    ui.server_files = files;
-                    ui.server_files_error = None;
-                }
-                Err(error) => ui.server_files_error = Some(error),
-            }
-            borrowed.host_mut().mark_editor_state_dirty();
-            let _ = borrowed.repaint();
-        } else {
-            PENDING_LIST.with(|pending| *pending.borrow_mut() = Some(arrived));
-            return;
-        }
-    }
-    // A click on the file screen, performed here because the widget layer has
-    // no transport of its own.
-    let base = crate::daemon_base::daemon_base();
-    let (open_request, create_request) = {
-        let Ok(mut borrowed) = inner.try_borrow_mut() else {
-            return;
-        };
-        let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-        (
-            ui.server_files_open_request.take(),
-            std::mem::take(&mut ui.server_files_create_request),
-        )
-    };
-    if let Some(key) = open_request {
-        open_stored_document(inner, &key);
-        return;
-    }
-    // Rename and delete are asked for by the screen and performed here.
-    let (rename_request, delete_request) = {
-        let Ok(mut borrowed) = inner.try_borrow_mut() else {
-            return;
-        };
-        let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-        (
-            ui.server_files_rename_request.take(),
-            ui.server_files_delete_request.take(),
-        )
-    };
-    if let Some((key, name)) = rename_request {
-        // Optimistic: the card shows the new name immediately, and the fresh
-        // list below is the authority.
-        if let Ok(mut borrowed) = inner.try_borrow_mut() {
-            let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-            if let Some(file) = ui.server_files.iter_mut().find(|file| file.key == key) {
-                file.name = name.clone();
-            }
-            borrowed.host_mut().mark_editor_state_dirty();
-            let _ = borrowed.repaint();
-        }
-        let body = serde_json::json!({ "name": name }).to_string();
-        let inner_for_response = inner.clone();
-        let on_response: Rc<dyn Fn(String)> = Rc::new(move |_response: String| {
-            // The optimistic rename above is corrected by a fresh list.
-            request_file_list(&inner_for_response);
-        });
-        let _ = crate::live_sync::post_json(
-            &format!("{base}/api/files/{key}/rename"),
-            &body,
-            Some(on_response),
-        );
-        return;
-    }
-    if let Some(key) = delete_request {
-        let inner_for_response = inner.clone();
-        let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
-            let ok = serde_json::from_str::<serde_json::Value>(&response)
-                .ok()
-                .and_then(|value| value.get("ok").and_then(|ok| ok.as_bool()))
-                .unwrap_or(false);
-            if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-                let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-                if !ok {
-                    ui.server_files_error = Some("That file could not be deleted".to_string());
-                }
-            }
-            request_file_list(&inner_for_response);
-        });
-        let _ =
-            crate::live_sync::delete_json(&format!("{base}/api/files/{key}"), Some(on_response));
-        return;
-    }
-    if create_request {
-        create_stored_document(inner);
-        return;
-    }
-    let (is_files, needs_list) = {
-        let Ok(borrowed) = inner.try_borrow() else {
-            return;
-        };
-        let ui = &borrowed.host().editor_state().editor_ui;
-        let is_files = ui.screen == op_editor_core::AppScreen::Files;
-        // An empty list with no error and no request in flight is "never
-        // asked", not "nothing there": ask.
-        let needs_list = ui.server_files.is_empty()
-            && !ui.server_files_loading
-            && ui.server_files_error.is_none();
-        (is_files, needs_list)
-    };
-    if is_files && needs_list {
-        request_file_list(inner);
-    }
-}
-
-/// Fetch `/api/files` into the state the file screen paints.
-pub(crate) fn request_file_list<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>) {
-    {
-        let Ok(mut borrowed) = inner.try_borrow_mut() else {
-            return;
-        };
-        let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-        if ui.server_files_loading {
-            return;
-        }
-        ui.server_files_loading = true;
-        ui.server_files_error = None;
-    }
-    let base = crate::daemon_base::daemon_base();
-    let inner_for_response = inner.clone();
-    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
-        let parsed = parse_file_list(&response);
-        let Ok(mut borrowed) = inner_for_response.try_borrow_mut() else {
-            // Busy right now — hand it to the next frame rather than losing
-            // it, and ask for that frame: a page sitting still has no frame
-            // coming of its own.
-            PENDING_LIST.with(|pending| *pending.borrow_mut() = Some(parsed));
-            crate::repaint_coalescer::request();
-            return;
-        };
-        let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-        ui.server_files_loading = false;
-        match parsed {
-            Ok(files) => {
-                // A document that is gone takes its preview with it, so a file
-                // recreated under the same key cannot show the old picture.
-                for stale in ui
-                    .server_files
-                    .iter()
-                    .map(|file| file.key.clone())
-                    .filter(|key| !files.iter().any(|file| &file.key == key))
-                    .collect::<Vec<_>>()
-                {
-                    op_editor_ui::files_thumb_runtime::forget_thumb(&stale);
-                }
-                ui.server_files = files;
-                ui.server_files_error = None;
-            }
-            Err(error) => {
-                ui.server_files_error = Some(error);
-            }
-        }
-        borrowed.host_mut().mark_editor_state_dirty();
-        let _ = borrowed.repaint();
-    });
-    if !crate::live_sync::get(&format!("{base}/api/files"), on_response) {
-        if let Ok(mut borrowed) = inner.try_borrow_mut() {
-            let ui = &mut borrowed.host_mut().editor_state_mut().editor_ui;
-            ui.server_files_loading = false;
-            ui.server_files_error = Some("Could not reach the server".to_string());
-        }
-    }
-}
-
-/// Read a `/api/files` response, newest first, capped for the screen.
-fn parse_file_list(response: &str) -> Result<Vec<op_editor_core::ServerFile>, String> {
-    let value: serde_json::Value = serde_json::from_str(response)
-        .map_err(|_| "The server sent an unreadable list".to_string())?;
-    if value.get("ok").and_then(|ok| ok.as_bool()) != Some(true) {
-        return Err(value
-            .get("error")
-            .and_then(|error| error.as_str())
-            .unwrap_or("The server refused the list")
-            .to_string());
-    }
-    let files = value
-        .get("files")
-        .and_then(|files| files.as_array())
-        .map(|files| {
-            files
-                .iter()
-                .filter_map(|file| {
-                    Some(op_editor_core::ServerFile {
-                        key: file.get("key")?.as_str()?.to_string(),
-                        name: file
-                            .get("name")
-                            .and_then(|name| name.as_str())
-                            .unwrap_or("Untitled")
-                            .to_string(),
-                        updated_at: file
-                            .get("updatedAt")
-                            .and_then(|value| value.as_u64())
-                            .unwrap_or(0),
-                        size: file
-                            .get("size")
-                            .and_then(|value| value.as_u64())
-                            .unwrap_or(0),
-                        has_thumbnail: file
-                            .get("hasThumbnail")
-                            .and_then(|value| value.as_bool())
-                            .unwrap_or(false),
-                    })
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    let mut files = files;
-    files.truncate(op_editor_core::SERVER_FILE_CAP);
-    Ok(files)
-}
-
-/// Fill in the open document's display name from the file list.
-fn request_name_for_key<C: RepaintContext + 'static>(inner: &Rc<RefCell<C>>, key: &str) {
-    let base = crate::daemon_base::daemon_base();
-    let inner_for_response = inner.clone();
-    let key = key.to_string();
-    let on_response: Rc<dyn Fn(String)> = Rc::new(move |response: String| {
-        let Some(name) = serde_json::from_str::<serde_json::Value>(&response)
-            .ok()
-            .and_then(|value| {
-                value
-                    .get("files")
-                    .and_then(|files| files.as_array())
-                    .and_then(|files| {
-                        files.iter().find(|file| {
-                            file.get("key").and_then(|value| value.as_str()) == Some(key.as_str())
-                        })
-                    })
-                    .and_then(|file| file.get("name"))
-                    .and_then(|name| name.as_str())
-                    .map(str::to_string)
-            })
-        else {
-            return;
-        };
-        if let Ok(mut borrowed) = inner_for_response.try_borrow_mut() {
-            let state = borrowed.host_mut().editor_state_mut();
-            // Only when the key is still the open one: a fast second open must
-            // not title the new document with the previous one's name.
-            if state.editor_ui.file_key.as_deref() == Some(key.as_str()) {
-                state.editor_ui.file_name_display = Some(name);
-                borrowed.host_mut().mark_editor_state_dirty();
-                let _ = borrowed.repaint();
-            }
-        }
-    });
-    let _ = crate::live_sync::get(&format!("{base}/api/files"), on_response);
 }
 
 /// Retry a route that named a node the document did not have yet.
@@ -713,16 +275,6 @@ fn drive_pending(host: &mut WidgetHost, viewport: (f32, f32)) -> bool {
     false
 }
 
-/// The page index holding `node`, when the document has it.
-fn page_of(state: &op_editor_core::EditorState, node: &NodeId) -> Option<usize> {
-    let pages = state.doc.pages.as_ref()?;
-    pages.iter().position(|page| {
-        page.children.iter().any(|root| {
-            op_editor_core::walkers::find_node(std::slice::from_ref(root), node).is_some()
-        })
-    })
-}
-
 /// Listen for Back/Forward and apply the address on the first frame.
 pub(crate) fn install<C: RepaintContext + 'static>(
     inner: &Rc<RefCell<C>>,
@@ -770,75 +322,19 @@ pub(crate) fn install<C: RepaintContext + 'static>(
 }
 
 /// Called by the mount before it tears the shell down.
+// The mount's teardown does not exist yet (see the leaking-handle note in
+// `canvaskit/mount.rs`), so the sibling of `document_store_idb::forget_handle`
+// — which sign-out DOES call — has no caller here. Wiring one would change
+// behaviour, so the hook is kept for that teardown to pick up.
+#[allow(dead_code)]
 pub(crate) fn forget_last_written() {
     LAST_WRITTEN.with(|last| *last.borrow_mut() = None);
 }
 
-/// Keeps `route::slugify` reachable from the host without importing the crate
-/// path everywhere; also documents the only place the slug is produced.
-pub(crate) fn slug_for(name: &str) -> String {
-    route::slugify(name)
-}
+#[cfg(test)]
+#[path = "route_sync_tests.rs"]
+mod tests;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_document_part_is_extracted_for_history_comparison() {
-        assert_eq!(route_file_of("/"), Some("/".to_string()));
-        assert_eq!(route_file_of("/f/abc/slug"), Some("abc".to_string()));
-        assert_eq!(route_file_of("/files"), None);
-    }
-
-    #[test]
-    fn slugs_come_from_the_shared_rule() {
-        assert_eq!(slug_for("Список токенов"), "spisok-tokenov");
-    }
-}
-
-/// Whether an open answer says this caller may write the document.
-///
-/// `None` when the answer does not say — an older daemon, or a deployment with
-/// no accounts. Silence is "no opinion", not "no": the caller keeps whatever it
-/// knew rather than a working editor turning read-only because a field is
-/// missing (issue #43).
-fn can_write_from_open(value: &serde_json::Value) -> Option<bool> {
-    value.get("canWrite").and_then(|can| can.as_bool())
-}
-
-#[cfg(test)]
-mod document_rights_tests {
-    use super::can_write_from_open;
-
-    #[test]
-    fn the_open_answer_decides_who_may_write() {
-        assert_eq!(
-            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": true })),
-            Some(true)
-        );
-        assert_eq!(
-            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": false })),
-            Some(false),
-            "a reader is told so with the open, not by a refused push"
-        );
-    }
-
-    #[test]
-    fn an_answer_that_does_not_say_leaves_the_question_open() {
-        // An older daemon, or a local one with no accounts to decide about.
-        assert_eq!(
-            can_write_from_open(&serde_json::json!({ "ok": true, "version": 3 })),
-            None
-        );
-        assert_eq!(
-            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": null })),
-            None
-        );
-        assert_eq!(
-            can_write_from_open(&serde_json::json!({ "ok": true, "canWrite": "yes" })),
-            None,
-            "a string is not a boolean"
-        );
-    }
-}
+#[path = "route_sync_rights_tests.rs"]
+mod document_rights_tests;

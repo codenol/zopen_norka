@@ -180,6 +180,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Kaydedilmemiş çalışma bulundu: {{when}}",
         "recovery.banner.restore" => "Geri yükle",
         "recovery.banner.discard" => "Yoksay",
+        "copy.status.behind" => "Daemon'un en yeni değişikliği bu tuvalde değil (tuval v{{shown}}, daemon v{{daemon}})",
+        "copy.status.conflict" => "Senkronizasyon çakışması — bu tuval v{{shown}}, daemon v{{daemon}} sürümünde; tuval artık daemon'u izlemiyor",
+        "copy.status.localEdits" => "Bu tuvalde daemon'un doğrulamadığı değişiklikler var (tuval v{{shown}})",
+        "copy.status.silent" => "Daemon yanıt vermiyor — bu tuval tarayıcının sakladığı kopya {{when}}",
+        "copy.status.silentNoCopy" => "Daemon yanıt vermiyor — bu tuval daemon'un belgesini almadı",
         "comments.panel.title" => "Yorumlar",
         "comments.panel.loading" => "Yorumlar yükleniyor…",
         "comments.panel.empty" => "Bu sayfada henüz yorum yok",
@@ -306,6 +311,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Canlı işbirliği oturumu…",
         "share.topbar.share" => "Paylaş",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Referans",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Dosyalar",
+        "files.new" => "Yeni dosya",
+        "files.search" => "Dosyalarda ara",
+        "files.loading" => "Dosyalar yükleniyor…",
+        "files.empty" => "Henüz dosya yok — başlamak için bir tane oluşturun",
+        "files.noMatch" => "Bu aramayla eşleşen yok",
+        "files.rename" => "Yeniden adlandır",
+        "files.delete" => "Sil",
+        "files.editedRecently" => "Yakın zamanda düzenlendi",
+        "files.editedJustNow" => "Az önce düzenlendi",
+        "files.editedMinutes" => "{n} dk önce düzenlendi",
+        "files.editedHours" => "{n} sa önce düzenlendi",
+        "files.editedDays" => "{n} gün önce düzenlendi",
         _ => return None,
     })
 }

@@ -3,8 +3,6 @@
 
 use super::*;
 
-use super::*;
-
 #[test]
 fn a_link_access_answer_is_read_in_both_directions() {
     assert_eq!(

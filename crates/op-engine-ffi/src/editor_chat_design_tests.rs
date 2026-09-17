@@ -6,7 +6,7 @@
 use super::*;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use op_editor_core::{BuiltinAgentKind, PenNodeExt, Viewport};
@@ -42,6 +42,20 @@ fn send_user_message(host: &mut WidgetHostNative, text: &str) {
     let chat = &mut host.editor_state_mut().chat;
     chat.set_input_text(text);
     assert!(chat.begin_send(), "begin_send must queue the turn");
+}
+
+/// Serializes this file's design-loop cases against every other test in the
+/// binary that reads the process-global agent-indicator registry.
+///
+/// A real design turn goes through `start_design_turn`, which opens an
+/// `agent_indicators` epoch and keeps it live for the length of the turn. While
+/// that epoch is live the registry contributes a `now + REVEAL_FRAME_MS`
+/// (16 ms) wake-up to `WidgetHostNative::next_animation_deadline_ms`, which is
+/// exactly what `editor_pointer_clock_tests` asserts on — so without this guard
+/// the two suites overlap and the pointer clock's deadline depends on test
+/// scheduling. Hold it for the whole test body.
+fn design_indicators_guard() -> MutexGuard<'static, ()> {
+    op_editor_core::agent_indicators::test_guard()
 }
 
 /// Serve one canned HTTP response per accepted connection, in order,
@@ -255,6 +269,7 @@ fn tool_call_turn_events() -> Vec<String> {
 
 #[test]
 fn design_request_runs_tool_loop_inserts_nodes_and_fits_output() {
+    let _agent_indicators = design_indicators_guard();
     let turn_one = tool_call_turn_events();
     // Turn 1 calls batch_design; turn 2 stops. Extra stop responses absorb
     // any corrective rounds (fill / blocker nudges) the shared loop decides
@@ -346,6 +361,7 @@ fn design_request_runs_tool_loop_inserts_nodes_and_fits_output() {
 /// targets; the same code path runs host-side in this test).
 #[test]
 fn design_request_executes_script_mode_batch_design() {
+    let _agent_indicators = design_indicators_guard();
     let script = r##"
         const cards = [["Recently played", 4], ["Made for you", 6]];
         const root = I(null, {type:"frame", name:"ScriptHome", width:390, height:844, fill:"#0B0B10", layout:"vertical", padding:20, gap:12});
@@ -442,6 +458,7 @@ fn plain_chat_request_keeps_the_plain_streaming_path() {
 
 #[test]
 fn design_loop_provider_error_lands_in_bubble_and_clears_designing_header() {
+    let _agent_indicators = design_indicators_guard();
     let (base_url, _requests) = spawn_sequential_chat_server(vec![
         "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
             .to_string(),

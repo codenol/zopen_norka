@@ -52,6 +52,15 @@ impl WidgetHost {
         viewport_width: f32,
         viewport_height: f32,
     ) {
+        // A signed-out visit is a gate, not a screen with a card over it. It
+        // owns the viewport — its scrim covers everything, and it already owned
+        // the keyboard — so nothing of the app paints behind it: no starter
+        // document nobody asked for, and no half-loaded file list either. The
+        // gate decides for itself when it exists (`account_entry_mode`), which
+        // is also what keeps it off a deployment that has no accounts.
+        if self.paint_account_gate(backend, viewport_width, viewport_height) {
+            return;
+        }
         // The file browser is a screen, not an overlay: when the address says
         // `/files`, nothing of the editor paints behind it.
         if self.editor_state.editor_ui.screen == op_editor_core::AppScreen::Files {
@@ -513,6 +522,24 @@ impl WidgetHost {
             backend.stroke_rect(rect, primary, 1.0);
         }
 
+        // Reference card (issue #63) — the picture the turn was asked to
+        // match, beside the generated frame. Over the canvas (so it cannot be
+        // selected or dragged), under every panel and modal that follows,
+        // which is also the order `apply_press` uses.
+        if let Some(rect) = op_editor_ui::widgets::ReferenceView::card_rect(
+            &self.editor_state,
+            viewport_width,
+            viewport_height,
+        ) {
+            if let Some(view) = op_editor_ui::widgets::ReferenceView::from_state(&self.editor_state)
+            {
+                let mut cx = PaintCx {
+                    backend: &mut *backend,
+                };
+                view.paint(&mut cx, rect);
+            }
+        }
+
         // PropertyPanel overlays — painted after canvas floating
         // controls so the image-fill popover can cover the zoom
         // status pill when it extends into the canvas.
@@ -630,6 +657,35 @@ impl WidgetHost {
                 self.now_ms,
             )
         };
+
+        // Which copy of the document this canvas is showing (issues #171 /
+        // #191), directly under the recovery bar in the same band. It goes
+        // BEFORE the comments popover and every menu / modal, exactly as the
+        // bar does, so a dialog covers it; and it registers in no press tier,
+        // so a click on it reaches the canvas underneath (a statement, not a
+        // control — resolving the divergence is #169's decision, not this
+        // wave's).
+        //
+        // The rect the bar was just painted at is passed in rather than
+        // re-derived: the bar's slot moves with the align toolbar and the
+        // toast, and a second copy of that arithmetic is how the two surfaces
+        // end up overlapping.
+        {
+            let mut cx = PaintCx {
+                backend: &mut *backend,
+            };
+            let canvas_rect = op_editor_ui::widgets::host_canvas_geometry::canvas_rect(
+                &self.editor_state,
+                viewport_width,
+                viewport_height,
+            );
+            op_editor_ui::widgets::copy_status_bar::paint(
+                &mut cx,
+                &self.editor_state,
+                canvas_rect,
+                self.recovery_banner_rect,
+            );
+        }
 
         // The open thread's popover: a box that hangs off its pin, so it paints
         // in the same band as the recovery banner — above the canvas (and above

@@ -440,7 +440,7 @@ impl<'a> Widget for CanvasViewport<'a> {
                 &self.section_marks,
                 &self.theme,
                 rect,
-                &viewport,
+                viewport,
             );
             super::canvas_collab_presence::paint(
                 cx,

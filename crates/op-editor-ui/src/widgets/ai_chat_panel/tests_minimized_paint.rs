@@ -11,6 +11,9 @@ use crate::widgets::{AI_CHAT_MINIMIZED_HEIGHT, AI_CHAT_WIDTH};
 #[test]
 fn paint_minimized_bar_reads_as_a_compact_input() {
     let mut s = EditorState::new();
+    // The placeholder asserted below has to fit the compact bar to be painted
+    // whole, so the test states the locale it is about.
+    s.editor_ui.locale = op_editor_core::Locale::EnUs;
     s.chat.minimize();
     let panel = AIChatPlaceholder::from_editor(&s);
     let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_MINIMIZED_HEIGHT);

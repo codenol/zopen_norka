@@ -43,6 +43,17 @@ pub(crate) use crate::web_model_catalog::{fetch_models, reconcile_models};
 
 type EventQueue = Rc<RefCell<VecDeque<AiEvent>>>;
 
+/// Shown when a turn ends with no answer and no reasoning either — the model
+/// simply produced nothing.
+const NO_RESULT: &str = "No result: the model finished without writing an answer.";
+
+/// Shown when a turn ends with no answer but with reasoning streamed. This is
+/// the shape of a budget the reasoning consumed before the answer began; the
+/// person needs to know the turn was starved, not that the model declined.
+const NO_RESULT_AFTER_REASONING: &str =
+    "No result: the model used its whole reply budget on reasoning and never \
+     wrote an answer. Try again, or pick a model that reasons less.";
+
 /// The in-flight chat turn: the XHR abort handle plus its generation. wasm is
 /// single-threaded, so a thread_local slot is the natural owner — every drain
 /// site and the rAF pump reach the same instance.
@@ -352,7 +363,12 @@ pub(crate) fn prepare_turn(state: &mut EditorState) -> Option<PreparedTurn> {
         // orchestrator; skills are resolved daemon-side per route.
         "skills": [],
         "user": user_text,
-        "max_output_tokens": 4096u32,
+        // A turn's reply budget is shared with the model's hidden reasoning,
+        // and this bundle used to send 4096 — measured (issue #179) as 19 s of
+        // `thinking`, 0 characters of answer, then `done`: the turn looked
+        // finished and the canvas stayed empty. Shared with the daemon's own
+        // parser default so a client that omits the field isn't the small one.
+        "max_output_tokens": op_ai::chat_provider::DEFAULT_TURN_MAX_OUTPUT_TOKENS,
         "thinking": thinking,
         "effort": effort,
         "agent_team_size": agent_team_size,
@@ -391,7 +407,21 @@ pub(crate) fn apply_event_to_chat(chat: &mut ChatState, evt: &AiEvent) -> bool {
             msg.content = format!("error: {e}");
             msg.streaming = false;
         }
-        AiEvent::Done => msg.streaming = false,
+        AiEvent::Done => {
+            msg.streaming = false;
+            // A turn that streamed reasoning and then ended with no answer is
+            // the visible half of #179: `max_output_tokens` is spent inside
+            // `<think>`, the stream still ends with `done`, the bubble stops,
+            // and the transcript shows nothing — indistinguishable from "the
+            // model had nothing to say". Say which one it was.
+            if msg.content.is_empty() {
+                msg.content = if msg.thinking.is_empty() {
+                    NO_RESULT.to_string()
+                } else {
+                    NO_RESULT_AFTER_REASONING.to_string()
+                };
+            }
+        }
     }
     terminal
 }
@@ -436,7 +466,10 @@ mod tests {
         assert_eq!(body["provider"], "claude-code");
         assert_eq!(body["model"], "builtin:server-1:claude-sonnet-4-5");
         assert_eq!(body["user"], "design a login page");
-        assert_eq!(body["max_output_tokens"], 4096);
+        assert_eq!(
+            body["max_output_tokens"],
+            op_ai::chat_provider::DEFAULT_TURN_MAX_OUTPUT_TOKENS
+        );
         assert_eq!(body["agent_team_size"], 3);
         assert!(body["document"].is_object());
         assert_eq!(body["editorMeta"]["activePageIndex"], 0);
@@ -564,6 +597,26 @@ mod tests {
         assert_eq!(msg.agent_name.as_deref(), Some("Mochi"));
         assert_eq!(msg.agent_color.as_deref(), Some("#4ECDC4"));
         assert!(!msg.streaming, "Done clears the streaming flag");
+    }
+
+    #[test]
+    fn reasoning_only_turn_reports_no_result() {
+        let mut chat = chat_with_queued_send("hello");
+        let _ = apply_event_to_chat(&mut chat, &AiEvent::Thinking("thinking…".into()));
+        assert!(apply_event_to_chat(&mut chat, &AiEvent::Done));
+        let msg = chat.messages.last().expect("assistant bubble");
+        assert_eq!(msg.content, NO_RESULT_AFTER_REASONING);
+        assert_eq!(msg.thinking, "thinking…");
+        assert!(!msg.streaming);
+    }
+
+    #[test]
+    fn empty_turn_reports_no_result() {
+        let mut chat = chat_with_queued_send("hello");
+        assert!(apply_event_to_chat(&mut chat, &AiEvent::Done));
+        let msg = chat.messages.last().expect("assistant bubble");
+        assert_eq!(msg.content, NO_RESULT);
+        assert!(!msg.streaming);
     }
 
     #[test]

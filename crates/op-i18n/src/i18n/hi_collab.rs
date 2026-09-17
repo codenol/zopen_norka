@@ -184,6 +184,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "बिना सहेजा गया काम मिला: {{when}}",
         "recovery.banner.restore" => "पुनर्स्थापित करें",
         "recovery.banner.discard" => "छोड़ दें",
+        "copy.status.behind" => "डेमन का नवीनतम बदलाव इस कैनवास पर नहीं है (कैनवास v{{shown}}, डेमन v{{daemon}})",
+        "copy.status.conflict" => "सिंक संघर्ष — यह कैनवास v{{shown}} पर है और डेमन v{{daemon}} पर, इसलिए कैनवास ने डेमन का पीछा करना बंद कर दिया",
+        "copy.status.localEdits" => "इस कैनवास पर ऐसे बदलाव हैं जिन्हें डेमन ने पुष्ट नहीं किया (कैनवास v{{shown}})",
+        "copy.status.silent" => "डेमन जवाब नहीं दे रहा — यह कैनवास ब्राउज़र द्वारा रखी गई प्रति है {{when}}",
+        "copy.status.silentNoCopy" => "डेमन जवाब नहीं दे रहा — इस कैनवास को डेमन का दस्तावेज़ नहीं मिला",
         "comments.panel.title" => "टिप्पणियाँ",
         "comments.panel.loading" => "टिप्पणियाँ लोड हो रही हैं…",
         "comments.panel.empty" => "इस पेज पर अभी कोई टिप्पणी नहीं",
@@ -310,6 +315,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "लाइव सहयोग सत्र…",
         "share.topbar.share" => "साझा करें",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "संदर्भ",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "फ़ाइलें",
+        "files.new" => "नई फ़ाइल",
+        "files.search" => "फ़ाइलें खोजें",
+        "files.loading" => "फ़ाइलें लोड हो रही हैं…",
+        "files.empty" => "अभी कोई फ़ाइल नहीं — शुरू करने के लिए एक बनाएँ",
+        "files.noMatch" => "इस खोज से कुछ मेल नहीं खाता",
+        "files.rename" => "नाम बदलें",
+        "files.delete" => "हटाएँ",
+        "files.editedRecently" => "हाल ही में संपादित",
+        "files.editedJustNow" => "अभी-अभी संपादित",
+        "files.editedMinutes" => "{n} मिनट पहले संपादित",
+        "files.editedHours" => "{n} घंटे पहले संपादित",
+        "files.editedDays" => "{n} दिन पहले संपादित",
         _ => return None,
     })
 }

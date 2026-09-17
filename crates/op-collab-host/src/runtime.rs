@@ -46,8 +46,8 @@ use op_collab::{
 };
 use op_collab_transport::{JoinIntent, SharedQueueBudget, StaticKeyStore, TransportConfig};
 use op_editor_core::{
-    CollabAvailability, CollabConnectionPhase, CollabNoticeKind, CollabPendingEditUi,
-    CollabRejectUiCode, CollabTransportCapabilities, CollabUiAction,
+    CollabConnectionPhase, CollabNoticeKind, CollabPendingEditUi, CollabRejectUiCode,
+    CollabTransportCapabilities, CollabUiAction,
 };
 use support::{production_key_store, random_epoch};
 

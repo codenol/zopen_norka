@@ -11,13 +11,34 @@ fn source(name: &str) -> String {
 #[test]
 fn each_save_destination_builds_only_its_own_payload() {
     let io = source("dom_io/document_io.rs");
+    // The decision moved one function out: `save_document` now asks
+    // `save_destination(daemon_first, local_document)` and matches on the
+    // answer. The contract is the same — the dispatcher decides by
+    // `daemon_first`, and the dispatcher builds no payload — so it is checked
+    // where the decision lives now, and the hand-off is checked too. Pointing
+    // at a slice of the file is what let this test keep passing while the
+    // function under it changed shape (issues #224, #225).
     let dispatcher = io
         .split("pub(super) fn save_document")
         .nth(1)
         .and_then(|tail| tail.split("fn save_to_daemon").next())
         .expect("save dispatcher");
-    assert!(dispatcher.contains("if daemon_first"));
+    assert!(
+        dispatcher.contains("save_destination(daemon_first, local)"),
+        "the dispatcher asks the decision function"
+    );
     assert!(!dispatcher.contains("serialize_save_payload"));
+
+    let destination = io
+        .split("fn save_destination")
+        .nth(1)
+        .and_then(|tail| tail.split("pub(super) fn save_document").next())
+        .expect("save destination decision");
+    assert!(
+        destination.contains("daemon_first"),
+        "the decision is still `daemon_first`'s to make"
+    );
+    assert!(!destination.contains("serialize_save_payload"));
 
     let daemon = io
         .split("fn save_to_daemon")

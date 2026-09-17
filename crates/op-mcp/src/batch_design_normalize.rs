@@ -19,6 +19,10 @@ pub(crate) fn normalize_node_shape(value: &mut serde_json::Value) {
     // drop as unknown keys, leaving the frame with no layout → it renders as an
     // unstyled horizontal strip. Rename before anything else reads them.
     normalize_pencil_autolayout_dialect(obj);
+    // A model that names a documented ROLE where a node `type` belongs
+    // (`type:"divider"`) must still get its element — see
+    // `normalize_role_type_aliases`. Runs before every type-dependent pass.
+    normalize_role_type_aliases(obj);
     // Flatten a STRUCTURED `layout` object (`{type,gap,padding}` or the
     // externally-tagged `{Horizontal:{…}}`) down to our flat `layout` string +
     // hoisted gap/padding. glm-5.2 in the loop emits this Figma/flex shape; serde
@@ -64,6 +68,81 @@ pub(crate) fn normalize_node_shape(value: &mut serde_json::Value) {
         for child in children {
             normalize_node_shape(child);
         }
+    }
+}
+
+/// Node types a model reaches for because the skills catalogue documents the
+/// word as a semantic ROLE rather than as a `PenNode` variant.
+///
+/// Measured (issue #206): the two-screen prompt produced
+/// `b46=I(b38, {"type":"divider","name":"card-divider","width":"fill_container",
+/// "height":1,"fill":[…]})`. `divider` is not a variant, so serde refused the
+/// line as an unknown `PenNode` payload, the executor dropped it, and the turn
+/// still walked the success path — the person was told the screen was drawn
+/// while the card's hairline was missing. An element that was asked for must
+/// not disappear without a word, so the alias becomes the real node the role
+/// rides on, keeping every prop the model authored.
+///
+/// The alias table is deliberately short: it holds names the catalogue defines
+/// as roles and that carry an unambiguous node shape. A genuine typo
+/// (`type:"sprocket"`) is still rejected by the schema, loudly.
+const ROLE_TYPE_ALIASES: &[(&str, &str)] = &[("divider", "rectangle"), ("separator", "rectangle")];
+
+/// The hairline colour a divider gets when the model named none: a rectangle
+/// with neither fill nor stroke paints no pixel, which is the same silent loss
+/// in another costume. Matches `role_defaults`' light-theme divider fill; it
+/// reads as a hairline on a dark surface too, and a theme-coloured one would
+/// need a theme this parser does not have.
+const DIVIDER_FALLBACK_FILL: &str = "#E2E8F0";
+
+fn normalize_role_type_aliases(obj: &mut serde_json::Map<String, serde_json::Value>) {
+    let Some(raw_kind) = obj.get("type").and_then(serde_json::Value::as_str) else {
+        return;
+    };
+    let kind = raw_kind.trim().to_ascii_lowercase();
+    let Some((alias, base)) = ROLE_TYPE_ALIASES.iter().find(|(alias, _)| *alias == kind) else {
+        return;
+    };
+    obj.insert(
+        "type".into(),
+        serde_json::Value::String((*base).to_string()),
+    );
+    // Keep the word the model used as the role, unless it already named one.
+    obj.entry("role".to_string())
+        .or_insert_with(|| serde_json::Value::String((*alias).to_string()));
+    // Both aliases so far are the divider family; a future alias with a
+    // different shape must add its own arm here rather than inherit this one.
+    if matches!(*alias, "divider" | "separator") {
+        apply_divider_geometry(obj);
+    }
+}
+
+/// The size (and, if needed, the hairline) a divider needs to be visible.
+///
+/// The role catalogue documents `width=fill_container, height=1, layout=none`
+/// (a vertical divider flips the axis) and the defaults pass that would inject
+/// them is disabled (`role_infer::resolve_tree_roles`), so the alias has to
+/// carry them itself.
+fn apply_divider_geometry(obj: &mut serde_json::Map<String, serde_json::Value>) {
+    let vertical = obj
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .map(|name| name.to_lowercase().contains("vertical"))
+        .unwrap_or(false);
+    let (width, height) = if vertical {
+        (serde_json::json!(1), serde_json::json!("fill_container"))
+    } else {
+        (serde_json::json!("fill_container"), serde_json::json!(1))
+    };
+    obj.entry("width".to_string()).or_insert(width);
+    obj.entry("height".to_string()).or_insert(height);
+    obj.entry("layout".to_string())
+        .or_insert_with(|| serde_json::json!("none"));
+    if !obj.contains_key("fill") && !obj.contains_key("stroke") {
+        obj.insert(
+            "fill".into(),
+            serde_json::json!([{ "type": "solid", "color": DIVIDER_FALLBACK_FILL }]),
+        );
     }
 }
 

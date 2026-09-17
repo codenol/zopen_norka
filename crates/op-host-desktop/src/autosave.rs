@@ -82,9 +82,7 @@ impl DesktopApp {
 
     /// When the event loop should next wake for autosave, if at all.
     pub(crate) fn autosave_deadline(&self) -> Option<Instant> {
-        if self.current_path.is_none() {
-            return None;
-        }
+        self.current_path.as_ref()?;
         let changed_at = self.autosave.changed_at?;
         let due = changed_at + DEBOUNCE;
         let due = match self.autosave.attempted_at {

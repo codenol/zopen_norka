@@ -9,6 +9,10 @@
 //! When the build is fresh the loop parks on a slow re-check instead of
 //! stopping, so a page left open starts blinking on its own the moment the
 //! build crosses the three-minute mark.
+//!
+//! It lives in this module rather than beside `lib.rs` because it reads a
+//! widget's own blink period: the `op_editor_ui::widgets` facade is reachable
+//! only from `widget_host` (spec §1.4, `tools/check-widget-boundary.sh`).
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;

@@ -269,7 +269,11 @@ fn rejects_a_same_key_signed_release_matrix_not_adopted_by_source_policy() {
     let path = fixture.prebuilt_root.join("RELEASE-MANIFEST");
     let changed = fs::read_to_string(&path)
         .unwrap()
-        .replacen("version=1.0.0", "version=0.9.0", 1);
+        // A version the source policy deliberately does not adopt, and NOT the
+        // current product version: coupling this fixture to whatever the
+        // workspace version happens to be makes the test pass for the wrong
+        // reason the day the policy adopts that number.
+        .replacen("version=1.0.0", "version=9.9.9", 1);
     fs::write(&path, changed.as_bytes()).unwrap();
     let signing_key = SigningKey::from_bytes(&[7_u8; 32]);
     fs::write(

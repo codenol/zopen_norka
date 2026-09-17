@@ -241,19 +241,19 @@ pub fn run_online_web_canvas(options: ServeWebOptions) -> Result<()> {
         ),
     }
 
-    let registry = Arc::new(TenantRegistry::with_store(
-        bound,
-        limits,
-        allow_origins,
-        store,
-    ));
+    // Read once, from the operator's own settings file — see `deployment_providers`.
+    let registry = Arc::new(
+        TenantRegistry::with_store(bound, limits, allow_origins, store).with_deployment_providers(
+            super::deployment_providers::DeploymentProviders::from_process_settings(),
+        ),
+    );
     let conn_count = Arc::new(AtomicUsize::new(0));
     let write_barrier = Arc::new(super::tenant::WriteBarrier::default());
     let shutdown = Arc::new(AtomicBool::new(false));
     // A container stop is a SIGTERM, and without a handler it kills the
     // process where it stands — losing every resident tenant that had not
-    // happened to be evicted. The handler only raises the flag the accept
-    // loop already observes, so the existing exit path (which flushes) runs.
+    // happened to be evicted. The handler only raises the flag the accept loop
+    // already observes, so the existing exit path (which flushes) runs.
     install_shutdown_signals(&shutdown, local_addr)?;
     spawn_sweeper(&registry, &shutdown)?;
 
@@ -703,10 +703,12 @@ pub(super) fn serve_one_online<S: Read + Write>(
             &req.method,
             &req.path,
             &req.body,
-            &identity,
-            &own,
-            registry,
-            accounts,
+            super::share_routes::ShareCall {
+                identity: &identity,
+                lease: &own,
+                registry,
+                accounts,
+            },
             document_key.as_deref(),
         );
         crate::mcp_serve::write_mcp_http_response_with_origin(

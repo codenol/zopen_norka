@@ -41,10 +41,7 @@ mod live_sync;
 // Daemon → browser agent-indicator relay (poll + local mirror + rAF pump).
 #[cfg(feature = "canvaskit")]
 mod agent_indicator_sync;
-// Top-bar hover-tooltip dwell → rAF repaint (the web host has no
-// animation-deadline scheduler of its own).
-#[cfg(feature = "canvaskit")]
-mod build_stamp_pump;
+
 // File-screen preview fetch, address-bar routing, and the tooltip dwell pump.
 // All three drive the CanvasKit host — `repaint_ctx` / `widget_host` /
 // `repaint_coalescer` / `raf_pump` / `listener` are themselves `canvaskit`
@@ -55,6 +52,10 @@ mod build_stamp_pump;
 mod files_thumb_fetch;
 #[cfg(feature = "canvaskit")]
 mod route_sync;
+// Which screen a load shows when the address names no document, and the
+// document a link named while nobody was signed in (issue #231).
+#[cfg(feature = "canvaskit")]
+mod front_door;
 #[cfg(feature = "canvaskit")]
 mod tooltip_pump;
 // Identity-epoch glue: the document/sync reset a change of account needs.
@@ -179,6 +180,16 @@ mod web_chat_persist;
 // written by `web_autosave`, which the CanvasKit build is the only one to run.
 #[cfg(feature = "canvaskit")]
 mod web_recovery;
+// The browser's copy of the document: the IndexedDB record it keeps and the
+// identity beside it (issue #171), and the projection that says whether the
+// canvas is painting the daemon's current copy (issue #191). The pure model —
+// identity, fingerprint, standing — lives in
+// `op_editor_core::editor_ui_state::copy_status`, where it is unit-tested
+// without a browser.
+#[cfg(feature = "canvaskit")]
+mod document_store_idb;
+#[cfg(feature = "canvaskit")]
+mod web_copy_status;
 // Pure web_sys clipboard/download — Ctrl+C/X in inputs + Figma/file paste.
 #[cfg(feature = "canvaskit")]
 mod web_clipboard;

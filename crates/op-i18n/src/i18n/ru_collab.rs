@@ -210,6 +210,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Найдена несохранённая работа: {{when}}",
         "recovery.banner.restore" => "Восстановить",
         "recovery.banner.discard" => "Отказаться",
+        "copy.status.behind" => "Последнее изменение демона не на этом холсте (холст v{{shown}}, демон v{{daemon}})",
+        "copy.status.conflict" => "Конфликт синхронизации — холст на v{{shown}}, демон на v{{daemon}}, холст перестал следовать за демоном",
+        "copy.status.localEdits" => "На этом холсте есть правки, которые демон не подтвердил (холст v{{shown}})",
+        "copy.status.silent" => "Демон не отвечает — этот холст — копия, сохранённая браузером {{when}}",
+        "copy.status.silentNoCopy" => "Демон не отвечает — этот холст не получил документ от демона",
         "comments.panel.title" => "Комментарии",
         "comments.panel.loading" => "Загрузка комментариев…",
         "comments.panel.empty" => "Пока нет комментариев на этой странице",
@@ -336,6 +341,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Сеанс совместной работы…",
         "share.topbar.share" => "Поделиться",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Референс",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Файлы",
+        "files.new" => "Новый файл",
+        "files.search" => "Поиск файлов",
+        "files.loading" => "Загрузка файлов…",
+        "files.empty" => "Пока нет файлов — создайте первый",
+        "files.noMatch" => "Ничего не найдено",
+        "files.rename" => "Переименовать",
+        "files.delete" => "Удалить",
+        "files.editedRecently" => "Изменён недавно",
+        "files.editedJustNow" => "Изменён только что",
+        "files.editedMinutes" => "Изменён {n} мин назад",
+        "files.editedHours" => "Изменён {n} ч назад",
+        "files.editedDays" => "Изменён {n} дн назад",
         _ => return None,
     })
 }

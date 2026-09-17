@@ -245,10 +245,7 @@ pub fn paint_section_block(
                     t(locale, key),
                     CAPTION_SIZE,
                     theme.muted_foreground,
-                    x0,
-                    top,
-                    w,
-                    12.0,
+                    at(x0, top, w, 12.0),
                 );
             }
             Row::Note(key) => {
@@ -257,10 +254,7 @@ pub fn paint_section_block(
                     t(locale, key),
                     LABEL_SIZE,
                     theme.muted_foreground,
-                    x0,
-                    top,
-                    w,
-                    12.0,
+                    at(x0, top, w, 12.0),
                 );
             }
             Row::Analytics { name, state_key } => {
@@ -272,17 +266,14 @@ pub fn paint_section_block(
                         Some(key) if key != "section.state.inSync" => theme.destructive,
                         _ => theme.foreground,
                     };
-                    line(cx, &name, LABEL_SIZE, color, x0, top, w, 12.0);
+                    line(cx, &name, LABEL_SIZE, color, at(x0, top, w, 12.0));
                     if let Some(key) = state_key {
                         line(
                             cx,
                             t(locale, key),
                             CAPTION_SIZE,
                             theme.muted_foreground,
-                            x0,
-                            top,
-                            w,
-                            26.0,
+                            at(x0, top, w, 26.0),
                         );
                     }
                 }
@@ -301,10 +292,7 @@ pub fn paint_section_block(
                     t(locale, "section.analytics.attach"),
                     LABEL_SIZE,
                     color,
-                    x0,
-                    top,
-                    w,
-                    12.0,
+                    at(x0, top, w, 12.0),
                 );
             }
             Row::Field { field, key, value } => {
@@ -313,10 +301,7 @@ pub fn paint_section_block(
                     t(locale, key),
                     CAPTION_SIZE,
                     theme.muted_foreground,
-                    x0,
-                    top,
-                    w,
-                    10.0,
+                    at(x0, top, w, 10.0),
                 );
                 // The focused question paints what is being typed rather than
                 // what is stored: the two are the same until somebody edits,
@@ -338,19 +323,33 @@ pub fn paint_section_block(
                         shown,
                         LABEL_SIZE,
                         theme.foreground,
-                        rect.origin.x + 8.0,
-                        rect.origin.y,
-                        rect.size.x - 16.0,
-                        (INPUT_HEIGHT - 8.0) / 2.0,
+                        at(
+                            rect.origin.x + 8.0,
+                            rect.origin.y,
+                            rect.size.x - 16.0,
+                            (INPUT_HEIGHT - 8.0) / 2.0,
+                        ),
                     );
                 } else {
-                    line(cx, shown, LABEL_SIZE, theme.foreground, x0, top, w, 24.0);
+                    line(
+                        cx,
+                        shown,
+                        LABEL_SIZE,
+                        theme.foreground,
+                        at(x0, top, w, 24.0),
+                    );
                 }
             }
             Row::Flow { name, steps } => {
                 // A flow row is its name and how many steps it has: a list of
                 // names alone cannot say whether the flow was ever finished.
-                line(cx, &name, LABEL_SIZE, theme.foreground, x0, top, w, 12.0);
+                line(
+                    cx,
+                    &name,
+                    LABEL_SIZE,
+                    theme.foreground,
+                    at(x0, top, w, 12.0),
+                );
                 let count =
                     t(locale, "section.flows.stepCount").replace("{{count}}", &steps.to_string());
                 line(
@@ -358,10 +357,7 @@ pub fn paint_section_block(
                     &count,
                     CAPTION_SIZE,
                     theme.muted_foreground,
-                    x0,
-                    top,
-                    w,
-                    25.0,
+                    at(x0, top, w, 25.0),
                 );
             }
             Row::Overflow { count } => {
@@ -370,10 +366,7 @@ pub fn paint_section_block(
                     &format!("+{count}"),
                     CAPTION_SIZE,
                     theme.muted_foreground,
-                    x0,
-                    top,
-                    w,
-                    12.0,
+                    at(x0, top, w, 12.0),
                 );
             }
         }
@@ -435,21 +428,40 @@ fn t(locale: Locale, key: &'static str) -> &'static str {
     op_i18n::translate(locale, key)
 }
 
-/// One line of text, fitted to the panel's width.
-fn line(
-    cx: &mut PaintCx<'_>,
-    label: &str,
-    size: f32,
-    color: Color,
-    x0: f32,
+/// Where one line of text lands: the box it is fitted into, plus how far below
+/// the box's top its baseline sits.
+///
+/// The four numbers travel together at every call site — they are one row's
+/// position, not four independent choices — so they are one value here.
+#[derive(Clone, Copy)]
+struct LineAt {
+    /// Left edge of the box. `line` insets the text from it by `PAD_X`;
+    /// `line_in` uses it as given, because its caller has already inset.
+    x: f32,
+    /// Top edge of the box.
     top: f32,
-    w: f32,
+    /// Width of the box. `line` fits the text to `width - PAD_X * 2.0`.
+    width: f32,
+    /// Baseline offset below `top`.
     offset: f32,
-) {
+}
+
+/// One row's line placement.
+fn at(x: f32, top: f32, width: f32, offset: f32) -> LineAt {
+    LineAt {
+        x,
+        top,
+        width,
+        offset,
+    }
+}
+
+/// One line of text, fitted to the panel's width.
+fn line(cx: &mut PaintCx<'_>, label: &str, size: f32, color: Color, at: LineAt) {
     if label.is_empty() {
         return;
     }
-    let fitted = text_metrics::fit_chrome(cx.backend, label, w - PAD_X * 2.0, size);
+    let fitted = text_metrics::fit_chrome(cx.backend, label, at.width - PAD_X * 2.0, size);
     let layout = TextLayout::single_run(
         &fitted,
         "system-ui",
@@ -458,22 +470,13 @@ fn line(
         Point2D::new(0.0, 0.0),
     );
     cx.backend
-        .draw_text(&layout, Point2D::new(x0 + PAD_X, top + offset));
+        .draw_text(&layout, Point2D::new(at.x + PAD_X, at.top + at.offset));
 }
 
 /// A line drawn inside a rect the caller has already measured — what the
 /// focused question shows instead of the stored answer.
-fn line_in(
-    cx: &mut PaintCx<'_>,
-    label: &str,
-    size: f32,
-    color: Color,
-    x: f32,
-    top: f32,
-    width: f32,
-    offset: f32,
-) {
-    let fitted = text_metrics::fit_chrome(cx.backend, label, width, size);
+fn line_in(cx: &mut PaintCx<'_>, label: &str, size: f32, color: Color, at: LineAt) {
+    let fitted = text_metrics::fit_chrome(cx.backend, label, at.width, size);
     let layout = TextLayout::single_run(
         &fitted,
         "system-ui",
@@ -481,7 +484,8 @@ fn line_in(
         color.to_jian(),
         Point2D::new(0.0, 0.0),
     );
-    cx.backend.draw_text(&layout, Point2D::new(x, top + offset));
+    cx.backend
+        .draw_text(&layout, Point2D::new(at.x, at.top + at.offset));
 }
 
 #[cfg(test)]

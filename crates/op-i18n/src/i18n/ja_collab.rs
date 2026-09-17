@@ -196,6 +196,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "保存されていない作業が見つかりました：{{when}}",
         "recovery.banner.restore" => "復元",
         "recovery.banner.discard" => "破棄",
+        "copy.status.behind" => "デーモンの最新の変更はこのキャンバスにありません（キャンバス v{{shown}}、デーモン v{{daemon}}）",
+        "copy.status.conflict" => "同期の競合 — このキャンバスは v{{shown}}、デーモンは v{{daemon}}で、キャンバスはデーモンに追従しなくなりました",
+        "copy.status.localEdits" => "このキャンバスにはデーモンが確認していない編集があります（キャンバス v{{shown}}）",
+        "copy.status.silent" => "デーモンが応答していません — このキャンバスはブラウザが保持しているコピーです {{when}}",
+        "copy.status.silentNoCopy" => "デーモンが応答していません — このキャンバスはデーモンのドキュメントを受け取っていません",
         "comments.panel.title" => "コメント",
         "comments.panel.loading" => "コメントを読み込み中…",
         "comments.panel.empty" => "このページにはまだコメントがありません",
@@ -322,6 +327,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "ライブ共同編集セッション…",
         "share.topbar.share" => "共有",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "参考画像",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "ファイル",
+        "files.new" => "新規ファイル",
+        "files.search" => "ファイルを検索",
+        "files.loading" => "ファイルを読み込み中…",
+        "files.empty" => "ファイルはまだありません — 作成して始めましょう",
+        "files.noMatch" => "一致するファイルはありません",
+        "files.rename" => "名前を変更",
+        "files.delete" => "削除",
+        "files.editedRecently" => "最近編集",
+        "files.editedJustNow" => "たった今編集",
+        "files.editedMinutes" => "{n} 分前に編集",
+        "files.editedHours" => "{n} 時間前に編集",
+        "files.editedDays" => "{n} 日前に編集",
         _ => return None,
     })
 }

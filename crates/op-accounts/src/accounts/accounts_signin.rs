@@ -87,7 +87,16 @@ impl<'a> SignInAttempt<'a> {
 }
 
 /// What came of a name and a password.
+///
+/// `clippy::large_enum_variant` is wrong here for the same reason it is on
+/// [`crate::accounts::FirstAdmin`]: `User` is ~224 bytes because an account is
+/// nine owned strings, and this value is produced once per sign-in attempt and
+/// matched immediately. Boxing `SignedIn` would allocate on the SUCCESS path of
+/// every sign-in to shrink a value that lives on one stack frame, and would
+/// change a `pub` variant on the surface `op-host-services` and `op-cli`
+/// re-export.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum SignInOutcome {
     /// The credentials are right and the account may be used.
     SignedIn(User),

@@ -124,7 +124,7 @@ mod tests {
         state.chat.messages.push(ChatMessage::user("привет"));
         assert_ne!(fingerprint(&state.chat.messages), empty);
         let after = fingerprint(&state.chat.messages);
-        state.chat.messages[0].content.push_str("!");
+        state.chat.messages[0].content.push('!');
         assert_ne!(fingerprint(&state.chat.messages), after);
     }
 

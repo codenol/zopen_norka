@@ -180,6 +180,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Travail non enregistré trouvé : {{when}}",
         "recovery.banner.restore" => "Restaurer",
         "recovery.banner.discard" => "Ignorer",
+        "copy.status.behind" => "La dernière modification du démon n'est pas sur ce canevas (canevas v{{shown}}, démon v{{daemon}})",
+        "copy.status.conflict" => "Conflit de synchronisation — ce canevas est en v{{shown}} et le démon en v{{daemon}} : le canevas ne suit plus le démon",
+        "copy.status.localEdits" => "Ce canevas contient des modifications que le démon n'a pas confirmées (canevas v{{shown}})",
+        "copy.status.silent" => "Le démon ne répond pas — ce canevas est la copie conservée par ce navigateur {{when}}",
+        "copy.status.silentNoCopy" => "Le démon ne répond pas — ce canevas n'a pas reçu le document du démon",
         "comments.panel.title" => "Commentaires",
         "comments.panel.loading" => "Chargement des commentaires…",
         "comments.panel.empty" => "Aucun commentaire sur cette page",
@@ -306,6 +311,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Session de collaboration en direct…",
         "share.topbar.share" => "Partager",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Référence",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Fichiers",
+        "files.new" => "Nouveau fichier",
+        "files.search" => "Rechercher des fichiers",
+        "files.loading" => "Chargement des fichiers…",
+        "files.empty" => "Aucun fichier pour l’instant — créez-en un pour commencer",
+        "files.noMatch" => "Aucun résultat pour cette recherche",
+        "files.rename" => "Renommer",
+        "files.delete" => "Supprimer",
+        "files.editedRecently" => "Modifié récemment",
+        "files.editedJustNow" => "Modifié à l’instant",
+        "files.editedMinutes" => "Modifié il y a {n} min",
+        "files.editedHours" => "Modifié il y a {n} h",
+        "files.editedDays" => "Modifié il y a {n} j",
         _ => return None,
     })
 }

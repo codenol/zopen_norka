@@ -127,11 +127,11 @@ fn a_pin_is_read_back_exactly_as_it_was_written() {
     seed_document(&db, key, "Work");
 
     for (page_id, x, y) in [
-        ("page-1", 1234.567_890_123_4, -0.125),
+        ("page-1", 1_234.567_890_123_4, -0.125),
         ("page-1", 0.0, 0.0),
         // The page is part of the address: the same numbers on another page
         // are another pin.
-        ("page-2", 1234.567_890_123_4, -0.125),
+        ("page-2", 1_234.567_890_123_4, -0.125),
     ] {
         create_thread(&db, key, pin(page_id, x, y), comment(None, "", "here"), 10)
             .expect("create")
@@ -147,9 +147,9 @@ fn a_pin_is_read_back_exactly_as_it_was_written() {
     assert_eq!(
         placements,
         vec![
-            Some(pin("page-1", 1234.567_890_123_4, -0.125)),
+            Some(pin("page-1", 1_234.567_890_123_4, -0.125)),
             Some(pin("page-1", 0.0, 0.0)),
-            Some(pin("page-2", 1234.567_890_123_4, -0.125)),
+            Some(pin("page-2", 1_234.567_890_123_4, -0.125)),
         ],
         "and the third is not the first: a pin is page and point together"
     );

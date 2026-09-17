@@ -101,6 +101,18 @@ fn fields_for(mode: AccountEntryMode) -> &'static [op_editor_core::AccountField]
     op_editor_ui::widgets::account_entry_form::fields_for(mode)
 }
 
+/// The sentence a refusal puts on screen, in the locale the tests read it in.
+///
+/// Here rather than at the call site because the widget facade is reachable
+/// only from this module (spec §1.4 — `tools/check-widget-boundary.sh` refuses an
+/// `op_editor_ui::widgets::*` pull from anywhere else in this crate, including a
+/// test), and here rather than in the widget because a test that asserted on its
+/// own copy of the sentence would stop noticing when the widget's wording moves.
+#[cfg(test)]
+pub(crate) fn refusal_sentence(error: op_editor_core::AccountEntryError) -> String {
+    op_editor_ui::widgets::account_entry_form::error_text(op_editor_core::Locale::EnUs, error)
+}
+
 /// The field after `field`, or `None` when it was the last one.
 fn next_field(
     mode: AccountEntryMode,

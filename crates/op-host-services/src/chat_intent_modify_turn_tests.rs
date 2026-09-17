@@ -674,3 +674,40 @@ fn route_resolution_degrades_modify_like_ts() {
     assert_eq!(resolve_route(Chat, true, false), Chat);
     assert_eq!(resolve_route(New, false, true), New);
 }
+
+/// Issue #206 on the modify route.
+///
+/// This route does not go through the `batch_design` executor: it extracts the
+/// model's node objects with `op_mcp::parse_program_objects` (which is
+/// deliberately raw) and then hands them to the insert tool. A tool that names
+/// a documented ROLE in the `type` slot must be normalized on the way, or the
+/// insert refuses the node, the count is 0 and the hairline is lost with a
+/// stderr line nobody reads.
+#[test]
+fn a_divider_typed_modify_line_is_normalized_before_it_is_applied() {
+    let response = r##"
+        I("page-1", {
+            type:"divider",
+            name:"card-divider",
+            width:"fill_container",
+            height:1,
+            fill:[{ type:"solid", color:"#E6EBF3" }]
+        });
+    "##;
+
+    let (_deltas, state, nodes) = run_modify_turn_with_apply(response);
+
+    assert_eq!(nodes[0].0, "page-1");
+    assert_eq!(
+        nodes[0].1["type"],
+        serde_json::json!("rectangle"),
+        "the divider alias must be normalized before the apply: {:?}",
+        nodes[0].1
+    );
+    assert_eq!(nodes[0].1["role"], serde_json::json!("divider"));
+    let doc = serde_json::to_string(&state.doc).expect("document json");
+    assert!(
+        doc.contains("card-divider"),
+        "the divider must reach the document: {doc}"
+    );
+}

@@ -225,11 +225,3 @@ fn skill_content(name: &str) -> String {
         .map(|skill| skill.content.clone())
         .unwrap_or_default()
 }
-
-fn truncate_chars(s: &str, max: usize) -> String {
-    if s.chars().count() > max {
-        format!("{}...", s.chars().take(max).collect::<String>())
-    } else {
-        s.to_string()
-    }
-}

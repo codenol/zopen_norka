@@ -235,13 +235,17 @@ pub(crate) fn design_turn_thinking_mode(host: &WidgetHostNative) -> ThinkingMode
 
 /// Pure decision behind [`design_turn_thinking_mode`]: a model whose profile
 /// is `thinking_disabled` is forced to `Disabled` for the design turn;
-/// everything else (unknown model included → keep the user's choice) keeps the
-/// chat default. Split out so the policy is unit-testable without a host.
+/// everything else keeps the chat default. Unknown non-empty ids resolve to
+/// `DEFAULT_PROFILE`, which also asks for thinking off — only a genuinely
+/// reasoning-free model (Claude, …) or no model at all keeps the user's
+/// choice. Split out so the policy is unit-testable without a host.
+///
+/// The profile lookup is [`op_orchestrator::design_turn_disables_thinking`] —
+/// one predicate for every design entry point (desktop here, the mobile FFI
+/// turn, the orchestrator's LLM client, the web daemon's routes), so a new
+/// reasoning model is registered once in the profile table and nowhere else.
 fn resolve_design_thinking(model: Option<&str>, chat_default: ThinkingMode) -> ThinkingMode {
-    let thinking_disabled = model
-        .map(|m| op_orchestrator::resolve_model_profile(m).thinking_disabled)
-        .unwrap_or(false);
-    if thinking_disabled {
+    if op_orchestrator::design_turn_disables_thinking(model) {
         ThinkingMode::Disabled
     } else {
         chat_default

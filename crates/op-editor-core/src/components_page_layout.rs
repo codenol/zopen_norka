@@ -184,7 +184,7 @@ fn restack_store_pages(state: &mut EditorState) {
         }
         store.sort_by(|a, b| {
             super::component_store_page_label(&a.name)
-                .cmp(&super::component_store_page_label(&b.name))
+                .cmp(super::component_store_page_label(&b.name))
         });
         design.append(&mut store);
         let new_index = active_id
@@ -213,7 +213,7 @@ fn layout_all_store_galleries(state: &mut EditorState) -> bool {
 
 /// Sort masters and place them in wrapping rows with gaps large enough
 /// that frame labels do not collide.
-pub(super) fn layout_components_gallery(nodes: &mut Vec<PenNode>) -> bool {
+pub(super) fn layout_components_gallery(nodes: &mut [PenNode]) -> bool {
     if nodes.is_empty() {
         return false;
     }
@@ -409,8 +409,8 @@ mod tests {
         let names: Vec<&str> = pages.iter().map(|p| p.name.as_str()).collect();
         assert!(names.contains(&"Components/Button"));
         assert!(names.contains(&"Components/Logo"));
-        assert!(!names.iter().any(|n| *n == COMPONENTS_PAGE_NAME));
-        assert!(!names.iter().any(|n| *n == crate::COMPONENTS_PAGE_PREFIX));
+        assert!(!names.contains(&COMPONENTS_PAGE_NAME));
+        assert!(!names.contains(&crate::COMPONENTS_PAGE_PREFIX));
         let button = pages
             .iter()
             .find(|p| p.name == "Components/Button")

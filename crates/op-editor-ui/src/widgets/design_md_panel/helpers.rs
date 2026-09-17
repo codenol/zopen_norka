@@ -1,33 +1,15 @@
-use crate::Color;
+//! The panel's one shared helper.
+//!
+//! `hex_to_color` used to live here too — a private hex → `Color` wrapper over
+//! `op_editor_core::parse_hex_rgb`, kept from before `op-util` became the
+//! workspace's single source for hex parsing. Nothing in the panel ever called
+//! it, which is how a second copy of the same rule sat next to the real parser.
+//!
+//! The `tick_layout_call` / `layout_call_count` pair went the same way: it
+//! counted `DesignMdPanel::layout` calls so a test could prove one
+//! paint/hit-test pass resolved the layout once instead of up to three times.
+//! The cache it guarded (`design_md_line_cache`, added in `11ae71fe`) no longer
+//! exists, the counter was never wired into `layout`, and no test read it — so
+//! it measured nothing and asserted nothing.
 
 pub(super) use crate::util::truncate_ellipsis as truncate;
-
-pub(super) fn hex_to_color(hex: &str) -> Color {
-    match op_editor_core::parse_hex_rgb(hex) {
-        Some((r, g, b)) => Color { r, g, b, a: 1.0 },
-        None => Color {
-            r: 0.5,
-            g: 0.5,
-            b: 0.5,
-            a: 1.0,
-        },
-    }
-}
-
-// Test-only call counter for `DesignMdPanel::layout` — lets tests prove a
-// single `paint` / `hit_test` pass resolves the section layout exactly
-// once instead of the pre-fix up-to-3×.
-#[cfg(test)]
-thread_local! {
-    static LAYOUT_CALL_COUNT: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
-}
-
-#[cfg(test)]
-pub(super) fn tick_layout_call() {
-    LAYOUT_CALL_COUNT.with(|c| c.set(c.get() + 1));
-}
-
-#[cfg(test)]
-pub(crate) fn layout_call_count() -> u64 {
-    LAYOUT_CALL_COUNT.with(std::cell::Cell::get)
-}

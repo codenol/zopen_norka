@@ -131,38 +131,68 @@ fn find_scene_node<'a>(nodes: &'a [SceneNode], node_id: &str) -> Option<&'a Scen
 ///
 /// `SceneNode::aggregate_bounds()` intentionally returns a bounded node's own
 /// rectangle, so it cannot reveal descendants that overflow a fixed-height
-/// root. Raw scene bounds are absolute; walking every descendant preserves the
-/// real layout bottom even when an ancestor clips or has an authored height.
+/// root. Raw scene bounds are absolute, so the walk visits descendants — but it
+/// STOPS at a clipping one. `clipContent` crops everything below its own box,
+/// so nothing inside it reaches the canvas and nothing inside it may make an
+/// ancestor taller. That is jian-scene's own paint-visible rule
+/// (`SceneNode::visual_bounds`: "a clipping container stops the walk at its own
+/// bounds") and the rule the declared-vs-resolved diagnostic already applies to
+/// itself (`collect_vertical_spill_diagnostics` returns early on a clipped
+/// frame).
+///
+/// Without the stop, a cropped body was mistaken for content the root had to
+/// contain. Measured on `.openpencil-tmp/gq/06-vague-ru.op`: the root was
+/// written to 5408px — the bottom of a table body resolving at 5296px INSIDE a
+/// clipped `Main container` — for a design whose visible content ends at
+/// 1026px. `05-dark-theme-ru` and `08-pricing-en` were written 1184px and
+/// 1513px the same way, out of the same pass.
 fn resolved_subtree_height(root: &SceneNode) -> Option<f64> {
     let root_top = f64::from(root.bounds.origin.y);
     if !root_top.is_finite() {
         return None;
     }
-    let bottom = max_raw_bottom(root)?;
+    // The root's OWN box is not content: a root that is ALREADY far too tall
+    // must not be able to justify its own height, and its own clip must not
+    // bound how tall its content needs it to be (a generated artboard is
+    // wrapped in `clipContent` by construction). So the walk starts at the
+    // children and asks what THEY can paint; a childless root falls back to its
+    // own box, which is then all there is.
+    let bottom = root
+        .children
+        .iter()
+        .filter_map(max_visible_bottom)
+        .fold(None, |acc, bottom| {
+            Some(acc.map_or(bottom, |current: f64| current.max(bottom)))
+        })
+        .or_else(|| own_bottom(root))?;
     let height = bottom - root_top;
     height.is_finite().then_some(height.max(0.0))
 }
 
-fn max_raw_bottom(node: &SceneNode) -> Option<f64> {
+/// Bottom edge this subtree can actually PAINT: its own box, plus every
+/// descendant no clipping ancestor crops away.
+fn max_visible_bottom(node: &SceneNode) -> Option<f64> {
+    let own = own_bottom(node);
+    if node.clip_content {
+        return own;
+    }
+    node.children
+        .iter()
+        .filter_map(max_visible_bottom)
+        .fold(own, |acc, bottom| {
+            Some(acc.map_or(bottom, |current| current.max(bottom)))
+        })
+}
+
+fn own_bottom(node: &SceneNode) -> Option<f64> {
     let y = f64::from(node.bounds.origin.y);
     let height = f64::from(node.bounds.size.y);
-    let own_bottom = if y.is_finite() && height.is_finite() && height >= 0.0 {
+    if y.is_finite() && height.is_finite() && height >= 0.0 {
         let bottom = y + height;
         bottom.is_finite().then_some(bottom)
     } else {
         None
-    };
-
-    node.children
-        .iter()
-        .filter_map(max_raw_bottom)
-        .fold(own_bottom, |max_bottom, child_bottom| {
-            Some(
-                max_bottom
-                    .map(|current| current.max(child_bottom))
-                    .unwrap_or(child_bottom),
-            )
-        })
+    }
 }
 
 fn collect_rects(nodes: &[SceneNode], map: &mut HashMap<String, Rect>) {
@@ -348,6 +378,10 @@ pub fn geometry_diagnostics(state: &EditorState) -> Vec<String> {
     out.truncate(MAX_DIAGNOSTICS);
     out
 }
+
+#[cfg(test)]
+#[path = "geometry_hidden_extent_tests.rs"]
+mod hidden_extent_tests;
 
 #[cfg(test)]
 #[path = "geometry_chip_private_tests.rs"]

@@ -16,7 +16,6 @@
 
 use std::collections::HashMap;
 
-use jian_ops_schema::{DesignMdColor, DesignMdSpec, DesignMdTypography};
 use op_ai_skills::budget::estimate_tokens;
 use op_ai_skills::resolver::inject_dynamic_content;
 
@@ -29,47 +28,25 @@ use crate::plan::{Region, RootFrameSpec};
 /// leaves the same blind spot `{{availableStyleGuides}}` sat in.
 const AUGMENTED_PLANNING_KEYS: [&str; 1] = ["availableStyleGuides"];
 
-/// A design.md spec filled to the size limits `build_design_md_style_policy`
-/// enforces (200/300/400-char truncations, 10 palette rows, 6 surface rows),
-/// so the design.md branch is measured at ITS worst case too — that branch
-/// interpolates USER content, and a fixed budget has to cover it.
-fn saturated_design_md() -> DesignMdSpec {
-    let color = |i: usize| DesignMdColor {
-        name: format!("Palette Color Number {i}"),
-        hex: format!("#0000{i:02}"),
-        role: format!("surface role {i} — card, panel and sidebar backgrounds"),
-    };
-    DesignMdSpec {
-        raw: String::new(),
-        project_name: Some("A Rather Long Project Name For Measurement".into()),
-        visual_theme: Some("v".repeat(400)),
-        color_palette: Some((0..20).map(color).collect()),
-        typography: Some(DesignMdTypography {
-            font_family: Some("f".repeat(120)),
-            headings: Some("h".repeat(120)),
-            body: Some("b".repeat(120)),
-            scale: Some("s".repeat(400)),
-        }),
-        component_styles: Some("c".repeat(600)),
-        layout_principles: Some("l".repeat(800)),
-        generation_notes: Some("n".repeat(800)),
-        rules: Vec::new(),
-    }
-}
-
-/// The worst-case value of `{{availableStyleGuides}}` over every branch that
-/// can produce one: both catalog planning modes crossed with every model tier
-/// (the tier sets the snippet count), plus the design.md branch.
+/// The worst-case value of `{{availableStyleGuides}}` over every input the
+/// builder still reads: both planning modes crossed with every model tier
+/// (the tier used to set the snippet count) and every prompt shape, with and
+/// without a resolved rule.
+///
+/// `saturated_design_md` used to be measured here as well — a design.md spec
+/// filled to the policy's truncation limits, because the old design.md branch
+/// interpolated user content into this context. That branch is gone (the
+/// session kit is the design system), the builder takes `&[DesignRule]` rather
+/// than a spec, and the fixture's value was discarded, so it measured a branch
+/// no caller can reach.
 fn worst_case_style_guide_context() -> (String, String) {
-    // One model id per tier — `snippet_limit` is the only tier-sensitive
-    // input, and it is what makes the catalog branch grow.
+    // One model id per tier — the tier was the only tier-sensitive input.
     let models = ["claude-opus", "glm-4", "minimax-m3", ""];
     let prompts = [
         "a fintech dashboard",
         "a dark minimalist mobile music app landing page",
         "xyz123",
     ];
-    let design_md = saturated_design_md();
     let mut worst = (String::new(), String::new());
     for mode in [PlanningMode::Rich, PlanningMode::Minimal] {
         for model in models {
@@ -86,8 +63,14 @@ fn worst_case_style_guide_context() -> (String, String) {
                     overrides: None,
                 }];
                 for rules in [&[][..], &one_rule[..]] {
-                    let ctx =
-                        build_planning_style_guide_context(prompt, Some(model), mode, rules, None);
+                    let ctx = build_planning_style_guide_context(
+                        prompt,
+                        Some(model),
+                        mode,
+                        rules,
+                        None,
+                        op_editor_core::ReferenceEvidence::Unknown,
+                    );
                     if ctx.available_style_guides.chars().count() > worst.0.chars().count() {
                         let label = format!(
                             "mode={mode:?} model={model:?} with_rules={} prompt={prompt:?}",

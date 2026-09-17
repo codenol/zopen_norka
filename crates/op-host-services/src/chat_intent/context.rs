@@ -236,6 +236,17 @@ pub(super) fn parse_modify_response(full_response: &str) -> ModifyNodeParse {
             op_mcp::parse_program_objects(program)
                 .into_iter()
                 .map(|(parent, mut node)| {
+                    // This route extracts the script's node objects itself, so
+                    // it owes them the same shape normalization the program-DSL
+                    // path runs before deserializing: a name the catalogue
+                    // documents as a ROLE in the `type` slot (`divider`,
+                    // issue #206) is translated here. Left as authored, the
+                    // unknown variant travels through the scope checks and into
+                    // the applied-json delta the transcript echoes; the insert
+                    // tool would repair it later (`insert_node_data` runs the
+                    // same normalizer), but nothing downstream of the parse
+                    // should have to.
+                    op_mcp::normalize_generated_node_shape(&mut node);
                     op_orchestrator::parse::normalize_generated_node_json(&mut node);
                     (parent, node)
                 })
@@ -333,14 +344,36 @@ pub fn build_modify_plan_with(
     let context_json = serde_json::to_string(&context).ok()?;
     let mut user_message = String::new();
     if let Some(base) = recipe_base {
+        // The placed screen, by id. Naming it is the point of this paragraph: a
+        // root-level statement carrying *this* id is the one reply shape that
+        // both composes a screen and leaves a single screen on the page, so the
+        // turn has to ask for that shape by name (issue #197).
+        let screen_id = target_frame_ids
+            .first()
+            .map(String::as_str)
+            .unwrap_or("the selected screen");
         user_message.push_str(&format!(
-            "THIS SCREEN WAS JUST PLACED FROM RECIPE `{}` ({}) AND IS SELECTED ABOVE.\n\
-             Everything it shows is the kit's placeholder sample, not this product's content. \
-             Replace it with content that answers the request: retitle the columns to what \
-             this list actually has, and replace EVERY sample row with a distinct realistic \
-             row of the same kind (the sample repeats one row; that is not data). Keep the \
-             layout, the table chrome and the shell exactly as they are.\n\n",
-            base.recipe_id, base.name
+            "THIS SCREEN WAS JUST PLACED FROM RECIPE `{}` ({}) AND IS SELECTED ABOVE AS `{}`.\n\
+             Everything it shows is the kit's placeholder sample, not this product's content: \
+             the columns name something else and the table repeats one sample row.\n\
+             WHAT TO RETURN: the whole screen, as one root-level statement carrying its id —\n\
+             I(null, {{id:\"{}\", type:\"frame\", name:\"…\", width:1440, height:850, children:[…]}})\n\
+             That statement is this turn's deliverable: the complete screen the request \
+             describes — retitled for this product, with a distinct realistic row for every row \
+             this list needs, and the optional blocks (filter strip, pagination strip, \
+             column-settings button) kept or dropped as the request asks.\n\
+             WRITE IT SMALL. This reply has room for a screen of roughly a hundred nodes; a \
+             longer one is cut off mid-sentence and lands as a fragment, which is worse than a \
+             modest screen that is whole. So do NOT re-emit the sample's node tree from CONTEXT \
+             NODES — those nodes show you which blocks and kit components exist, not what to \
+             write. Write the screen itself: the shell frame, the blocks this request names, and \
+             the rows.\n\
+             WHAT NOT TO RETURN: statements naming a node *inside* the screen. \
+             I(null, {{id:\"<an id below {}\", type:\"frame\", children:[…]}}) replaces that one \
+             node and leaves the rest of the sample standing, so a reply built only of those has \
+             not answered the request. Do not re-emit the sample rows, and do not add a second \
+             screen beside this one.\n\n",
+            base.recipe_id, base.name, screen_id, screen_id, screen_id
         ));
     }
     user_message.push_str(&format!(
@@ -371,9 +404,43 @@ pub fn build_modify_plan_with(
         .map(|s| s.content.as_str())
         .collect::<Vec<_>>()
         .join("\n\n");
-    let rules_policy = op_editor_core::build_effective_rules_policy(
-        &op_editor_core::effective_design_rules(state.doc.design_md.as_ref()),
-    );
+
+    // The turn's own rule list: the document's saved rules, with the placement
+    // rule at the head when the host just placed a recipe (issue #207).
+    //
+    // A recipe turn is *this* route, not the new-design one: the placement runs
+    // before classification, it selects the base, and a selected Frame is what
+    // forces `DesignIntent::Modify`. The `doc:recipe-base` rule used to be
+    // built for such a turn and inserted only on the new-design route, so the
+    // one instruction that says "this screen is already on the page, adapt it,
+    // do not rebuild its shell" never reached the prompt the turn sends —
+    // measured absent from the captured request, 0 occurrences.
+    //
+    // Built by the recipe module, not copied here: one rule, one wording, and
+    // the new-design route inserts the same value into its `DesignRequest`
+    // (issue #207). Both routes insert at index 0, so the order the model reads
+    // is the same on either.
+    let mut rules: Vec<jian_ops_schema::DesignRule> =
+        op_editor_core::effective_design_rules(state.doc.design_md.as_ref())
+            .into_iter()
+            .map(|entry| entry.rule)
+            .collect();
+    if let Some(base) = recipe_base {
+        // The placed root is the selection — `place_recipe_base` sets a single
+        // selection on it — so the head of `target_frame_ids` is the node the
+        // rule must name, and the node the user message above already names.
+        let placed = target_frame_ids.first().and_then(|node_id| {
+            crate::web_chat_standard::kit_recipe(&base.recipe_id)
+                .map(|recipe| (recipe, op_editor_core::NodeId::new(node_id)))
+        });
+        if let Some((recipe, node_id)) = placed {
+            rules.insert(
+                0,
+                crate::web_chat_standard::recipe_base_rule(recipe, &node_id),
+            );
+        }
+    }
+    let rules_policy = op_editor_core::build_design_rules_policy(&rules);
     if !rules_policy.is_empty() {
         system_prompt.push_str("\n\nSESSION RULES (follow these EXACTLY):\n");
         system_prompt.push_str(&rules_policy);

@@ -1,5 +1,4 @@
 use super::WidgetHostNative;
-use op_editor_ui::widgets::LayerPanelHit;
 use op_editor_ui::Point2D;
 
 const VIEWPORT_W: f32 = 1200.0;

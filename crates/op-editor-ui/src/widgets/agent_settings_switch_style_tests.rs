@@ -637,6 +637,9 @@ fn pressed_agent_add_buttons_use_shared_button_feedback() {
 #[test]
 fn builtin_add_provider_text_is_centered_in_hover_wash() {
     let mut state = EditorState::default();
+    // A geometry assertion on a label that fits its wash: it states the locale
+    // it measures (the Russian copy is longer than this button's wash).
+    state.editor_ui.locale = op_editor_core::Locale::EnUs;
     state.editor_ui.theme_mode = ThemeMode::Light;
     state.editor_ui.agent_settings.hover_add_provider = true;
     let panel = AgentSettingsPanel::for_editor(&state);

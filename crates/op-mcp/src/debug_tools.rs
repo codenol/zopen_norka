@@ -474,7 +474,14 @@ fn parse_since_ms(args: &BTreeMap<String, String>) -> Result<Option<i64>, DebugA
 }
 
 fn parse_iso_timestamp_ms(line: &str) -> Option<i64> {
-    if line.len() < 20 || line.as_bytes().get(19) != Some(&b'Z') && !line[19..].contains('Z') {
+    // Both offsets read here are BYTE offsets into a line that can carry
+    // model-authored text (this parses the daemon log, which holds the
+    // generated DSL and the provider's own messages). `get` yields `None` for
+    // an offset that lands inside a multi-byte character instead of panicking
+    // the reader — the same class as the byte cut on Cyrillic that killed the
+    // daemon's connection thread (issue #203).
+    let after_prefix = line.get(19..)?;
+    if line.as_bytes().get(19) != Some(&b'Z') && !after_prefix.contains('Z') {
         return None;
     }
     let year = line.get(0..4)?.parse::<i32>().ok()?;
@@ -484,7 +491,7 @@ fn parse_iso_timestamp_ms(line: &str) -> Option<i64> {
     let minute = line.get(14..16)?.parse::<i64>().ok()?;
     let second = line.get(17..19)?.parse::<i64>().ok()?;
     let millis = if line.as_bytes().get(19) == Some(&b'.') {
-        let z = line[20..].find('Z')? + 20;
+        let z = line.get(20..)?.find('Z')? + 20;
         let mut frac = line.get(20..z)?.chars().take(3).collect::<String>();
         while frac.len() < 3 {
             frac.push('0');
@@ -719,5 +726,22 @@ mod tests {
             "openpencil-debug-tools-{label}-{}-{nanos}",
             std::process::id()
         ))
+    }
+
+    /// A log line whose 19th byte sits inside a multi-byte character must be
+    /// read as "no timestamp", not kill the reader. The daemon log carries
+    /// model-authored Russian, so this is reachable on an ordinary turn.
+    #[test]
+    fn log_lines_with_multibyte_text_do_not_panic_the_timestamp_reader() {
+        // 10 ASCII bytes, then Cyrillic — byte 19 is the second byte of 'к'.
+        let line = "[ai] fail ошибка загрузки модели";
+        assert_eq!(parse_iso_timestamp_ms(line), None);
+        // And a genuine timestamp still parses, fraction included.
+        let with_fraction =
+            parse_iso_timestamp_ms("2026-09-16T19:15:00.250Z hello").expect("fraction timestamp");
+        let whole_second =
+            parse_iso_timestamp_ms("2026-09-16T19:15:00Z hello").expect("whole-second timestamp");
+        assert_eq!(with_fraction - whole_second, 250);
+        assert!(parse_iso_timestamp_ms("short").is_none());
     }
 }

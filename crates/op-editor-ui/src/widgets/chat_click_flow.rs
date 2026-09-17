@@ -264,6 +264,26 @@ pub fn apply_chat_hit(state: &mut EditorState, hit: AIChatHit, now_ms: u64) -> C
             state.clear_selection();
             ChatClickStep::Dirty
         }
+        // A reference picture in the transcript is the button that shows it
+        // beside the canvas (issue #63). The image ID is what the card
+        // remembers, not the transcript index: a later turn can drop or
+        // reorder messages, and the card must then show nothing rather than
+        // whatever slid into that slot.
+        AIChatHit::ShowReference(msg_idx, image_idx) => {
+            let image_id = state
+                .chat
+                .messages
+                .get(msg_idx)
+                .and_then(|message| message.images.get(image_idx))
+                .map(|image| image.id);
+            match image_id {
+                Some(id) => {
+                    state.editor_ui.reference_view.toggle(id);
+                    ChatClickStep::Dirty
+                }
+                None => ChatClickStep::Clean,
+            }
+        }
         AIChatHit::ToggleThinking(idx) => {
             state.chat.toggle_message_thinking(idx);
             ChatClickStep::Dirty

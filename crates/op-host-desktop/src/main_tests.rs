@@ -369,11 +369,22 @@ fn selected_count_chip_clear_click_clears_canvas_selection() {
     let chat = &app.host.editor_state().chat;
     let chat_rect = op_editor_ui::Rect::xywh(100.0, 100.0, chat.panel_width, chat.panel_height);
     let panel = op_editor_ui::widgets::AIChatPlaceholder::from_editor(app.host.editor_state());
-    let input = panel.input_rect(chat_rect);
-    let clear_point = (0..160)
-        .flat_map(|dx| (0..28).map(move |dy| (dx, dy)))
+    // Sweep the panel's own rect rather than a fixed box hung off the input's
+    // corner. The chip's geometry comes from measured label text, and text
+    // measurement is per-platform: a 160x28 box anchored at the input's origin
+    // contains the clear button on macOS and does not on Linux or Windows,
+    // where this test failed with "clear-selection hit point" (CI run
+    // 35161439349, both platforms). The assertion is unchanged — some point in
+    // the panel reports ClearSelection, and clicking it empties the selection —
+    // and the scan is of the surface the chip is painted on, so it cannot pass
+    // on a chip that is not there.
+    let clear_point = (0..chat_rect.size.x as u32)
+        .flat_map(|dx| (0..chat_rect.size.y as u32).map(move |dy| (dx, dy)))
         .map(|(dx, dy)| {
-            op_editor_ui::Point2D::new(input.origin.x + dx as f32, input.origin.y + dy as f32)
+            op_editor_ui::Point2D::new(
+                chat_rect.origin.x + dx as f32,
+                chat_rect.origin.y + dy as f32,
+            )
         })
         .find(|point| {
             panel.hit_test(chat_rect, *point)

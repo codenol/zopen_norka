@@ -180,6 +180,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Trabalho não guardado encontrado: {{when}}",
         "recovery.banner.restore" => "Restaurar",
         "recovery.banner.discard" => "Descartar",
+        "copy.status.behind" => "A alteração mais recente do daemon não está nesta tela (tela v{{shown}}, daemon v{{daemon}})",
+        "copy.status.conflict" => "Conflito de sincronização — esta tela está em v{{shown}} e o daemon em v{{daemon}}, por isso a tela deixou de seguir o daemon",
+        "copy.status.localEdits" => "Esta tela tem alterações que o daemon não confirmou (tela v{{shown}})",
+        "copy.status.silent" => "O daemon não está a responder — esta tela é a cópia que este navegador guardou {{when}}",
+        "copy.status.silentNoCopy" => "O daemon não está a responder — esta tela não recebeu o documento do daemon",
         "comments.panel.title" => "Comentários",
         "comments.panel.loading" => "Carregando comentários…",
         "comments.panel.empty" => "Ainda não há comentários nesta página",
@@ -306,6 +311,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Sessão de colaboração ao vivo…",
         "share.topbar.share" => "Compartilhar",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Referência",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Arquivos",
+        "files.new" => "Novo arquivo",
+        "files.search" => "Pesquisar arquivos",
+        "files.loading" => "Carregando arquivos…",
+        "files.empty" => "Ainda não há arquivos — crie um para começar",
+        "files.noMatch" => "Nada corresponde a essa busca",
+        "files.rename" => "Renomear",
+        "files.delete" => "Excluir",
+        "files.editedRecently" => "Editado recentemente",
+        "files.editedJustNow" => "Editado agora mesmo",
+        "files.editedMinutes" => "Editado há {n} min",
+        "files.editedHours" => "Editado há {n} h",
+        "files.editedDays" => "Editado há {n} d",
         _ => return None,
     })
 }

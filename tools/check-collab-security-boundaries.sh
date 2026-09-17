@@ -762,11 +762,24 @@ $high_signal_hits"
 fi
 
 # Keep security-sensitive modules reviewable under the repository-wide cap.
+#
+# The policy lives in ONE place: `tools/check-file-line-cap.sh`, which also owns
+# the ceiling table (a file that cannot be split carries a recorded ceiling and
+# the issue that owns it). This script used to carry its own 800-line check, so
+# the two disagreed — a file with a recorded ceiling passed one gate and failed
+# the other, which is a red job whose message names a rule that has an exception
+# it does not know about (issue #228's sibling problem).
 while IFS= read -r source_file; do
     line_count=$(wc -l < "$source_file")
     line_count=${line_count//[[:space:]]/}
-    if [[ "$line_count" -gt 800 ]]; then
-        record_failure "$source_file has $line_count lines; maximum is 800"
+    ceiling="$(bash tools/check-file-line-cap.sh --ceiling-for "$source_file" 2>/dev/null || true)"
+    [[ -n "$ceiling" ]] || ceiling=800
+    if [[ "$line_count" -gt "$ceiling" ]]; then
+        if [[ "$ceiling" -gt 800 ]]; then
+            record_failure "$source_file has $line_count lines; its recorded ceiling is $ceiling"
+        else
+            record_failure "$source_file has $line_count lines; maximum is 800"
+        fi
     fi
 done < <(collab_rust_source_files)
 

@@ -10,6 +10,7 @@ fn catalog_context_lists_session_kit() {
         PlanningMode::Rich,
         &[],
         None,
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     assert_eq!(ctx.metadata_count, 0);
     let kit = op_editor_core::session_kit();
@@ -35,6 +36,7 @@ fn a_pin_beats_the_prompt_ranking() {
         PlanningMode::Rich,
         &[],
         Some(AGAINST_THE_GRAIN),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
 
     assert_eq!(
@@ -55,6 +57,7 @@ fn a_stale_pin_falls_back_to_the_ranking_unchanged() {
         PlanningMode::Rich,
         &[],
         None,
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     let stale = build_planning_style_guide_context(
         FOOD_PROMPT,
@@ -62,6 +65,7 @@ fn a_stale_pin_falls_back_to_the_ranking_unchanged() {
         PlanningMode::Rich,
         &[],
         Some("a-guide-that-was-retired"),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
 
     assert_eq!(stale.available_style_guides, auto.available_style_guides);
@@ -82,6 +86,7 @@ fn a_blank_pin_is_no_pin() {
         PlanningMode::Rich,
         &[],
         None,
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     let blank = build_planning_style_guide_context(
         FOOD_PROMPT,
@@ -89,6 +94,7 @@ fn a_blank_pin_is_no_pin() {
         PlanningMode::Rich,
         &[],
         Some("  "),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     assert_eq!(blank.available_style_guides, auto.available_style_guides);
 }
@@ -109,6 +115,7 @@ fn a_catalog_pin_does_not_replace_the_session_rules() {
         PlanningMode::Rich,
         &rules,
         Some(AGAINST_THE_GRAIN),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
 
     assert_eq!(
@@ -118,7 +125,8 @@ fn a_catalog_pin_does_not_replace_the_session_rules() {
     assert!(ctx.available_style_guides.contains("SESSION RULES"));
     assert!(ctx.available_style_guides.contains("WORKING AGREEMENT"));
     assert!(
-        !ctx.available_style_guides.contains("design-md-custom"),
+        !ctx.available_style_guides
+            .contains(crate::plan_repair::DESIGN_MD_STYLE_GUIDE_NAME),
         "the markdown brief is gone; nothing may pin it"
     );
 }
@@ -129,14 +137,24 @@ fn a_pin_also_short_circuits_compact_planning() {
         FOOD_PROMPT,
         &[],
         Some(AGAINST_THE_GRAIN),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     assert_eq!(cp.selected_style_guide_name, "");
 
-    let auto = crate::compact_prompt::build_compact_planning_prompt(FOOD_PROMPT, &[], None);
+    let auto = crate::compact_prompt::build_compact_planning_prompt(
+        FOOD_PROMPT,
+        &[],
+        None,
+        op_editor_core::ReferenceEvidence::Unknown,
+    );
     assert_eq!(auto.selected_style_guide_name, "");
 
-    let stale =
-        crate::compact_prompt::build_compact_planning_prompt(FOOD_PROMPT, &[], Some("gone"));
+    let stale = crate::compact_prompt::build_compact_planning_prompt(
+        FOOD_PROMPT,
+        &[],
+        Some("gone"),
+        op_editor_core::ReferenceEvidence::Unknown,
+    );
     assert_eq!(
         stale.selected_style_guide_name,
         auto.selected_style_guide_name
@@ -151,29 +169,25 @@ fn minimal_mode_has_no_snippets() {
         PlanningMode::Minimal,
         &[],
         None,
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     assert_eq!(ctx.snippet_count, 0);
 }
 
 #[test]
-fn design_md_branch_skips_catalog() {
-    let spec = jian_ops_schema::DesignMdSpec {
-        raw: String::new(),
-        project_name: None,
-        visual_theme: Some("calm".into()),
-        color_palette: None,
-        typography: None,
-        component_styles: None,
-        layout_principles: None,
-        generation_notes: None,
-        rules: Vec::new(),
-    };
+fn rich_mode_context_names_the_session_kit() {
+    // This was `design_md_branch_skips_catalog`, and it built a
+    // `DesignMdSpec` to put a design.md in play. Neither survives here: the
+    // builder takes `&[DesignRule]`, not a spec, and the design.md branch that
+    // read one is gone (the session kit is the design system). What is left to
+    // check is that Rich mode names the kit and reports no catalogue.
     let ctx = build_planning_style_guide_context(
         "a page",
         Some("claude-opus"),
         PlanningMode::Rich,
         &[],
         None,
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     assert_eq!(ctx.metadata_count, 0);
     assert!(ctx.available_style_guides.contains("SESSION DESIGN SYSTEM"));
@@ -319,6 +333,7 @@ fn a_pinned_import_shrinks_the_menu_to_itself() {
         PlanningMode::Rich,
         &[],
         Some(&imported.id),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
 
     assert_eq!(
@@ -343,6 +358,7 @@ fn a_long_import_is_truncated_rather_than_dropped() {
         PlanningMode::Rich,
         &[],
         Some(&imported.id),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     assert!(ctx.available_style_guides.contains("SESSION DESIGN SYSTEM"));
     assert!(ctx
@@ -360,6 +376,7 @@ fn a_deleted_import_falls_back_to_the_ranking() {
         PlanningMode::Rich,
         &[],
         None,
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     let stale = build_planning_style_guide_context(
         FOOD_PROMPT,
@@ -367,6 +384,7 @@ fn a_deleted_import_falls_back_to_the_ranking() {
         PlanningMode::Rich,
         &[],
         Some("user:deleted-yesterday"),
+        op_editor_core::ReferenceEvidence::Unknown,
     );
     assert_eq!(stale.available_style_guides, auto.available_style_guides);
 }
@@ -447,5 +465,47 @@ fn a_colourless_guide_drops_the_exact_colors_instruction() {
     assert!(
         !summary.contains("EXACT hex colors"),
         "nothing to obey, so nothing should be demanded:\n{summary}"
+    );
+}
+
+/// Issue #65: the recipe index this context offers the planner has to stand
+/// down on a reference turn — and "reference turn" is the attachment fact, not
+/// the prompt's words. A picture attached with nothing said about it is exactly
+/// the turn that used to be handed the ops screen anyway.
+#[test]
+fn the_recipe_index_follows_the_attachment_not_the_words() {
+    let with_picture = build_planning_style_guide_context(
+        "a server list",
+        Some("claude-opus"),
+        PlanningMode::Rich,
+        &[],
+        None,
+        op_editor_core::ReferenceEvidence::Attached,
+    );
+    assert!(
+        !with_picture
+            .available_style_guides
+            .contains("AVAILABLE RECIPES"),
+        "a turn that attached a picture must not be offered a composition to \
+         copy instead:\n{}",
+        with_picture.available_style_guides
+    );
+
+    // The words alone claim a picture that the attachment list says is not
+    // there, so the recipes stay offerable.
+    let words_only = build_planning_style_guide_context(
+        "сделай как на картинке",
+        Some("claude-opus"),
+        PlanningMode::Rich,
+        &[],
+        None,
+        op_editor_core::ReferenceEvidence::NoImage,
+    );
+    assert!(
+        words_only
+            .available_style_guides
+            .contains("AVAILABLE RECIPES"),
+        "no picture was attached, so the index is not suppressed by a phrase:\n{}",
+        words_only.available_style_guides
     );
 }

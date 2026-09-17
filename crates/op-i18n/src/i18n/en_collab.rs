@@ -224,6 +224,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Unsaved work found: {{when}}",
         "recovery.banner.restore" => "Restore",
         "recovery.banner.discard" => "Discard",
+        "copy.status.behind" => "The daemon's newest change is not on this canvas (canvas v{{shown}}, daemon v{{daemon}})",
+        "copy.status.conflict" => "Sync conflict — this canvas is at v{{shown}} and the daemon at v{{daemon}}, so the canvas stopped following the daemon",
+        "copy.status.localEdits" => "This canvas has edits the daemon has not confirmed (canvas v{{shown}})",
+        "copy.status.silent" => "The daemon is not answering — this canvas is the copy this browser kept {{when}}",
+        "copy.status.silentNoCopy" => "The daemon is not answering — this canvas has not received the daemon's document",
         "comments.panel.title" => "Comments",
         "comments.panel.loading" => "Loading comments…",
         "comments.panel.empty" => "No comments on this page yet",
@@ -354,6 +359,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Live collaboration session…",
         "share.topbar.share" => "Share",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Reference",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Files",
+        "files.new" => "New file",
+        "files.search" => "Search files",
+        "files.loading" => "Loading files…",
+        "files.empty" => "No files yet — create one to get started",
+        "files.noMatch" => "Nothing matches that search",
+        "files.rename" => "Rename",
+        "files.delete" => "Delete",
+        "files.editedRecently" => "Edited recently",
+        "files.editedJustNow" => "Edited just now",
+        "files.editedMinutes" => "Edited {n} min ago",
+        "files.editedHours" => "Edited {n} h ago",
+        "files.editedDays" => "Edited {n} d ago",
         _ => return None,
     })
 }

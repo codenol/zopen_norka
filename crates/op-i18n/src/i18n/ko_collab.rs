@@ -196,6 +196,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "저장되지 않은 작업을 찾았습니다: {{when}}",
         "recovery.banner.restore" => "복원",
         "recovery.banner.discard" => "버리기",
+        "copy.status.behind" => "데몬의 최신 변경이 이 캔버스에 없습니다 (캔버스 v{{shown}}, 데몬 v{{daemon}})",
+        "copy.status.conflict" => "동기화 충돌 — 이 캔버스는 v{{shown}}, 데몬은 v{{daemon}}이며 캔버스가 데몬을 따라가지 않습니다",
+        "copy.status.localEdits" => "이 캔버스에는 데몬이 확인하지 않은 편집이 있습니다 (캔버스 v{{shown}})",
+        "copy.status.silent" => "데몬이 응답하지 않습니다 — 이 캔버스는 브라우저가 보관한 사본입니다 {{when}}",
+        "copy.status.silentNoCopy" => "데몬이 응답하지 않습니다 — 이 캔버스는 데몬의 문서를 받지 못했습니다",
         "comments.panel.title" => "댓글",
         "comments.panel.loading" => "댓글을 불러오는 중…",
         "comments.panel.empty" => "이 페이지에는 아직 댓글이 없습니다",
@@ -322,6 +327,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "실시간 협업 세션…",
         "share.topbar.share" => "공유",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "참조 이미지",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "파일",
+        "files.new" => "새 파일",
+        "files.search" => "파일 검색",
+        "files.loading" => "파일을 불러오는 중…",
+        "files.empty" => "아직 파일이 없습니다 — 새로 만들어 시작하세요",
+        "files.noMatch" => "검색 결과가 없습니다",
+        "files.rename" => "이름 바꾸기",
+        "files.delete" => "삭제",
+        "files.editedRecently" => "최근 편집됨",
+        "files.editedJustNow" => "방금 편집됨",
+        "files.editedMinutes" => "{n}분 전 편집",
+        "files.editedHours" => "{n}시간 전 편집",
+        "files.editedDays" => "{n}일 전 편집",
         _ => return None,
     })
 }

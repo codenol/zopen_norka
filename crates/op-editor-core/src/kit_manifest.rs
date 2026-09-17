@@ -53,6 +53,52 @@ pub struct KitType {
     pub dont_rules: Vec<String>,
 }
 
+/// A writing system a text is written in.
+///
+/// Used on both sides of one comparison: the script a recipe's own copy is
+/// written in, and the script detected in a request. Two scripts are enough
+/// for the question being asked — "is this the same writing system" — and a
+/// script is a fact a prompt carries, unlike a locale code it never states.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KitScript {
+    Latin,
+    Cyrillic,
+}
+
+/// The shape of screen a recipe's master is authored at.
+///
+/// A recipe is a fixed-size composed screen, so it serves one shape. Nothing
+/// used to record which, and a prompt that asked for a phone screen was
+/// answered with a 1440-wide table (issue #181); the declaration is what the
+/// selection reads to refuse that.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KitFormFactor {
+    Mobile,
+    Desktop,
+}
+
+impl KitFormFactor {
+    /// The shape an artboard width implies: a phone-shaped screen is a few
+    /// hundred points across, a desktop screen a thousand or more. Anything
+    /// between is neither, and claims nothing.
+    pub fn of_width(width: f64) -> Option<Self> {
+        if width <= MOBILE_MAX_WIDTH {
+            Some(Self::Mobile)
+        } else if width >= DESKTOP_MIN_WIDTH {
+            Some(Self::Desktop)
+        } else {
+            None
+        }
+    }
+}
+
+/// Widest artboard still read as a phone screen.
+pub const MOBILE_MAX_WIDTH: f64 = 600.0;
+/// Narrowest artboard read as a desktop screen.
+pub const DESKTOP_MIN_WIDTH: f64 = 1000.0;
+
 /// Named screen composition that picks a template and describes its slots.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct KitRecipe {
@@ -63,14 +109,56 @@ pub struct KitRecipe {
     /// Words that mark a request as this recipe's job ("коммутатор",
     /// "switch", "inventory"). The product selects on them, so the choice of
     /// recipe is deterministic instead of depending on the model's mood.
+    ///
+    /// This is the recipe's *subject* vocabulary: the nouns that name what
+    /// the screen is about. At least one of them has to appear in a request
+    /// before the recipe may be placed — a list-shaped screen is not this
+    /// screen, and words that describe any admin screen belong in
+    /// [`Self::supporting`], where they support a match without making one
+    /// (issue #181).
     #[serde(default)]
     pub matches: Vec<String>,
+    /// Words that support the choice but cannot make it.
+    ///
+    /// "list", "список", "user", "пользовател" appear in a request for almost
+    /// any screen with rows, so on their own they are evidence of nothing —
+    /// two of them once scored 17 and answered a mobile profile prompt with
+    /// the ops equipment table. They still count as evidence next to a
+    /// subject word.
+    #[serde(default)]
+    pub supporting: Vec<String>,
+    /// Shape this recipe's master is authored at. `None` falls back to the
+    /// kit canvas, which is the artboard every master in the kit is drawn at.
+    #[serde(default, rename = "formFactor")]
+    pub form_factor: Option<KitFormFactor>,
+    /// Script the copy inside this recipe's master is written in ("cyrillic"
+    /// for the Skala ops screen). A request written in another script is not
+    /// this recipe's job: placing it imports its copy and the answer comes
+    /// back in the recipe's language (issue #187).
+    #[serde(default, rename = "copyScript")]
+    pub copy_script: Option<KitScript>,
     /// Blocks this recipe carries but does not require. A request that says
     /// it does not want one ("no filter") hides it before the model runs —
     /// the same reasoning as the recipe choice: removing what the user named
     /// is a decision the product can make, not a favour to ask for.
     #[serde(default)]
     pub optional: Vec<KitRecipeOptional>,
+}
+
+impl KitRecipe {
+    /// The shape this recipe can serve.
+    ///
+    /// Its own declaration wins; a recipe that makes none inherits the kit
+    /// canvas, which is the artboard its masters are drawn at. The override
+    /// exists for the exception — a phone screen in a desktop kit — and is
+    /// the reason a recipe that is deliberately the other shape must say so.
+    pub fn form_factor(&self, kit: &KitManifest) -> Option<KitFormFactor> {
+        self.form_factor.or_else(|| {
+            kit.canvas
+                .as_ref()
+                .and_then(|canvas| KitFormFactor::of_width(canvas.width))
+        })
+    }
 }
 
 /// One optional block of a recipe.

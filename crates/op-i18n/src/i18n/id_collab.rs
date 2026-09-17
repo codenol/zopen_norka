@@ -180,6 +180,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Ditemukan pekerjaan yang belum disimpan: {{when}}",
         "recovery.banner.restore" => "Pulihkan",
         "recovery.banner.discard" => "Abaikan",
+        "copy.status.behind" => "Perubahan terbaru daemon tidak ada di kanvas ini (kanvas v{{shown}}, daemon v{{daemon}})",
+        "copy.status.conflict" => "Konflik sinkronisasi — kanvas ini di v{{shown}} dan daemon di v{{daemon}}, sehingga kanvas berhenti mengikuti daemon",
+        "copy.status.localEdits" => "Kanvas ini memiliki perubahan yang belum dikonfirmasi daemon (kanvas v{{shown}})",
+        "copy.status.silent" => "Daemon tidak menjawab — kanvas ini adalah salinan yang disimpan peramban ini {{when}}",
+        "copy.status.silentNoCopy" => "Daemon tidak menjawab — kanvas ini belum menerima dokumen dari daemon",
         "comments.panel.title" => "Komentar",
         "comments.panel.loading" => "Memuat komentar…",
         "comments.panel.empty" => "Belum ada komentar di halaman ini",
@@ -306,6 +311,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Sesi kolaborasi langsung…",
         "share.topbar.share" => "Bagikan",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Referensi",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "File",
+        "files.new" => "File baru",
+        "files.search" => "Cari file",
+        "files.loading" => "Memuat file…",
+        "files.empty" => "Belum ada file — buat satu untuk memulai",
+        "files.noMatch" => "Tidak ada yang cocok dengan pencarian itu",
+        "files.rename" => "Ganti nama",
+        "files.delete" => "Hapus",
+        "files.editedRecently" => "Baru saja diedit",
+        "files.editedJustNow" => "Baru diedit",
+        "files.editedMinutes" => "Diedit {n} menit lalu",
+        "files.editedHours" => "Diedit {n} jam lalu",
+        "files.editedDays" => "Diedit {n} hari lalu",
         _ => return None,
     })
 }

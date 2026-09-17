@@ -108,9 +108,15 @@ pub(super) fn build_subagent_prompt_core(
     // name is historical: what the sub-agent receives is the session's
     // structured rules, never a markdown brief.
     // A reference turn keeps the recipe rules out of the sub-agent prompt too:
-    // those rules are what steer generation back to the ops screen.
+    // those rules are what steer generation back to the ops screen. The
+    // evidence is read from the request, not from the prompt's words, whenever
+    // the request carries the attachment (issue #65).
     let design_md_content = op_editor_core::build_design_rules_policy(
-        &op_editor_core::rules_without_recipes_for_reference(&req.rules, &req.prompt),
+        &op_editor_core::rules_without_recipes_for_reference(
+            &req.rules,
+            &req.prompt,
+            req.reference_evidence(),
+        ),
     );
     let has_design_md = !design_md_content.is_empty();
     // Rust `OrchestratorPlan` carries only the style-guide NAME (the TS
@@ -547,7 +553,9 @@ CRITICAL LAYOUT CONSTRAINTS:\n\
     // silently ran at one number while this report claimed another. Deriving
     // both from the same constant keeps them honest, and is why the deck arm
     // above reads the constant instead of restating it.
-    let budget_max = budget_override.unwrap_or_else(|| Phase::Generation.default_budget());
+    // `budget_override` above is `Some` of exactly this expression, so the
+    // fallback arm could never fire and the two numbers could never differ.
+    let budget_max = phase_budget.saturating_add(rules_tokens);
     let included: Vec<SkillLoadEntry> = filtered
         .iter()
         .map(|s| SkillLoadEntry {

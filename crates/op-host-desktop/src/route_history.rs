@@ -102,10 +102,13 @@ impl DesktopApp {
             if self.host.editor_state_mut().set_active_page(page) {
                 changed = true;
             }
-        } else if self.host.editor_state().ui.active_page_index != 0 {
-            if self.host.editor_state_mut().set_active_page(0) {
-                changed = true;
-            }
+        } else if self.host.editor_state().ui.active_page_index != 0
+            && self.host.editor_state_mut().set_active_page(0)
+        {
+            // `&&` short-circuits, so the page is still switched only when the
+            // index is not already 0 — the call moved out of the body, not out
+            // of the guard.
+            changed = true;
         }
         match route.node.clone() {
             Some(node) => {
@@ -141,45 +144,6 @@ fn same_document(a: &DocumentRoute, b: &DocumentRoute) -> bool {
         == route::to_path(&RouteTarget::Document(b.clone()))
             .split('?')
             .next()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use op_editor_core::NodeId;
-
-    fn route(key: Option<&str>, page: Option<usize>, node: Option<&str>) -> DocumentRoute {
-        DocumentRoute {
-            file: match key {
-                Some(key) => RouteFile::Key(key.to_string()),
-                None => RouteFile::Untitled,
-            },
-            slug: None,
-            page,
-            node: node.map(|node| NodeId::new(node.to_string())),
-            embed: None,
-        }
-    }
-
-    #[test]
-    fn one_document_with_a_different_page_is_the_same_document() {
-        assert!(same_document(
-            &route(Some("k"), None, None),
-            &route(Some("k"), Some(3), None)
-        ));
-    }
-
-    #[test]
-    fn different_documents_are_not_the_same() {
-        assert!(!same_document(
-            &route(Some("a"), None, None),
-            &route(Some("b"), None, None)
-        ));
-        assert!(!same_document(
-            &route(None, None, None),
-            &route(Some("a"), None, None)
-        ));
-    }
 }
 
 /// The origin a copied link points at, when the desktop has no better answer.
@@ -244,5 +208,44 @@ impl DesktopApp {
             return true;
         }
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use op_editor_core::NodeId;
+
+    fn route(key: Option<&str>, page: Option<usize>, node: Option<&str>) -> DocumentRoute {
+        DocumentRoute {
+            file: match key {
+                Some(key) => RouteFile::Key(key.to_string()),
+                None => RouteFile::Untitled,
+            },
+            slug: None,
+            page,
+            node: node.map(|node| NodeId::new(node.to_string())),
+            embed: None,
+        }
+    }
+
+    #[test]
+    fn one_document_with_a_different_page_is_the_same_document() {
+        assert!(same_document(
+            &route(Some("k"), None, None),
+            &route(Some("k"), Some(3), None)
+        ));
+    }
+
+    #[test]
+    fn different_documents_are_not_the_same() {
+        assert!(!same_document(
+            &route(Some("a"), None, None),
+            &route(Some("b"), None, None)
+        ));
+        assert!(!same_document(
+            &route(None, None, None),
+            &route(Some("a"), None, None)
+        ));
     }
 }

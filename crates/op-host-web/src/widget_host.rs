@@ -40,7 +40,7 @@ use op_editor_ui::widgets::TOP_BAR_HEIGHT;
 use op_editor_ui::{Point2D, Rect, Theme};
 
 mod a11y_bridge;
-mod account_entry;
+pub(crate) mod account_entry;
 mod account_press;
 #[cfg(test)]
 mod agent_settings_acp_press_tests;
@@ -63,6 +63,8 @@ mod blur_inputs;
 mod blur_inputs_tests;
 #[cfg(test)]
 mod boolean_toolbar_tests;
+#[cfg(feature = "canvaskit")]
+pub(crate) mod build_stamp_pump;
 #[cfg(test)]
 mod canvas_hierarchy_tests;
 mod chat_design_apply;
@@ -176,6 +178,7 @@ mod press_ctx;
 mod press_overlay_tiers;
 mod press_property_tiers;
 mod press_recovery_banner;
+mod press_reference_view_tier;
 mod press_surface_tiers;
 mod preview_frame;
 mod preview_frame_teardown;
@@ -536,11 +539,15 @@ impl WidgetHost {
     }
 
     /// Frame clock (performance.now).
+    // Native-parity reader: `WidgetHostNative`'s tests read each clock on its
+    // own, while the web mount only ever sets both through `set_clocks`.
+    #[allow(dead_code)]
     pub fn now_ms(&self) -> u64 {
         self.now_ms
     }
 
     /// Wall clock in Unix seconds.
+    #[allow(dead_code)] // Native-parity reader; see `now_ms` above.
     pub fn wall_now_secs(&self) -> u64 {
         self.wall_now_secs
     }

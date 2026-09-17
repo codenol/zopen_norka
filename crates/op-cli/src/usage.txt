@@ -27,6 +27,14 @@ COMMON COMMANDS:
                                            none. --origin is prefixed to the printed
                                            link. The token is printed ONCE and stored
                                            only as a hash — copy the link.
+  op admin add-user [USERNAME]             create one account with a password on a
+                  [--roles a,b] [--email A] deployment that already has its first
+                  [--data-dir DIR]         administrator; --roles as above; asks for
+                                           the name when it is not given, and for the
+                                           password twice
+  op admin reset-password [USERNAME]       give an existing account a new password
+                           [--data-dir DIR] (the recovery path when nobody can sign
+                                           in); asks for the name when it is not given
   op install [--target T]                  install openpencil-skill for AI agents
   op uninstall [--target T]                uninstall openpencil-skill
   op skill:export <skill> [--out DIR]       export embedded skill as DIR/<skill>/SKILL.md

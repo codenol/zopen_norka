@@ -235,12 +235,14 @@ impl ChatProvider for BuiltInProvider {
 }
 
 /// Adapter that turns a `tokio::sync::mpsc::Receiver<ChatDelta>` into
-/// a sync `Iterator<Item = ChatDelta>`. The receiver's
-/// `blocking_recv` blocks the calling thread until a value arrives or
-/// the channel closes — exactly the contract `ChatProvider::send`'s
-/// iterator return needs. Sharing this helper across both BuiltIn +
-/// Subprocess (and the future HttpServer / Acp) keeps the async ↔
-/// sync bridge in one place.
+/// a sync `Iterator<Item = ChatDelta>`. The iterator blocks the calling
+/// thread until a value arrives or the channel closes — exactly the
+/// contract `ChatProvider::send`'s iterator return needs — by polling the
+/// receiver against a waker that unparks this thread, never by calling
+/// `Receiver::blocking_recv` (see [`Self::next`] for why that call is
+/// illegal on the threads this bridge is driven from). Sharing this helper
+/// across both BuiltIn + Subprocess (and the future HttpServer / Acp) keeps
+/// the async ↔ sync bridge in one place.
 pub struct BlockingRecvIter<T> {
     rx: Option<mpsc::Receiver<T>>,
     cancel: Option<Arc<AtomicBool>>,
@@ -270,8 +272,8 @@ impl<T> BlockingRecvIter<T> {
 
     /// A polling bridge for transports whose async task can be aborted. The
     /// short poll interval lets synchronous consumers observe cancellation
-    /// even when the provider is silent and would otherwise block forever in
-    /// `blocking_recv`.
+    /// even when the provider is silent and no message ever arrives to end
+    /// the park.
     pub fn cancellable(
         rx: mpsc::Receiver<T>,
         cancel: Arc<AtomicBool>,
@@ -288,14 +290,26 @@ impl<T> BlockingRecvIter<T> {
 impl<T> Iterator for BlockingRecvIter<T> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
-        if self.cancel.is_none() {
-            return self.rx.as_mut()?.blocking_recv();
-        }
-        // Timed blocking bridge: tokio's mpsc has no blocking recv with a
-        // timeout, so poll the receiver with a waker that unparks this
-        // thread. A message (or channel close) ends the park immediately;
-        // the 20 ms cap keeps the cancel flag observed even when the
-        // provider is silent.
+        // No arm of this iterator may call `Receiver::blocking_recv` (issue
+        // #204). Tokio's blocking receive refuses to run anywhere a runtime
+        // context is entered — `try_enter_blocking_region` only asks
+        // `EnterRuntime::is_entered`, so it panics on a worker thread *and*
+        // inside a plain `Runtime::block_on(..)` on a foreign thread, which is
+        // exactly where the daemon drives it: `op-serve-web-conn` runs the
+        // whole orchestrator turn inside `block_on_anywhere`
+        // (`web_chat_standard_routes.rs`, the `Orchestrator::run` call), and
+        // the vision provider drains its deltas inline on that same thread
+        // (`validation_providers.rs`, `ChatVisionLlmClient::complete`). The
+        // panic takes the SSE connection thread with it: design applied, no
+        // terminal event, the person never told the turn finished.
+        //
+        // Timed blocking bridge instead: tokio's mpsc has no blocking recv
+        // with a timeout, so poll the receiver with a waker that unparks this
+        // thread. A message (or channel close) ends the park immediately, so
+        // delivery latency is the same as `blocking_recv`'s; the 20 ms cap
+        // keeps an optional cancel flag observed even when the provider is
+        // silent. Polling is legal from every context, which is what makes the
+        // panic impossible by construction rather than unlikely.
         let waker = Waker::from(Arc::new(ThreadUnparker(std::thread::current())));
         let mut cx = Context::from_waker(&waker);
         loop {
@@ -527,6 +541,56 @@ mod tests {
         block_on_anywhere(async {
             cleanup_task.await.expect("provider cleanup task exits");
         });
+    }
+
+    #[test]
+    fn uncancellable_bridge_delivers_in_order_and_ends_on_close() {
+        // The non-cancellable constructor is the one a plain `send()` walk
+        // uses; it must still deliver every delta, in order, and terminate
+        // when the provider task drops its sender.
+        let (tx, rx) = mpsc::channel::<ChatDelta>(4);
+        shared_runtime().spawn(async move {
+            for delta in ["one", "two", "three"] {
+                if tx.send(ChatDelta::TextDelta(delta.into())).await.is_err() {
+                    return;
+                }
+            }
+        });
+        let texts: Vec<String> = BlockingRecvIter::<ChatDelta>::new(rx)
+            .map(|delta| match delta {
+                ChatDelta::TextDelta(text) => text,
+                other => panic!("unexpected delta {other:?}"),
+            })
+            .collect();
+        assert_eq!(texts, vec!["one", "two", "three"]);
+    }
+
+    #[test]
+    fn uncancellable_bridge_survives_a_runtime_thread() {
+        // Issue #204: the daemon's `op-serve-web-conn` thread runs a whole
+        // turn inside `block_on_anywhere`, which on a plain std thread *is*
+        // `shared_runtime().block_on(..)` — so the thread is inside a tokio
+        // runtime context while it drives this iterator. `blocking_recv`
+        // panics there ("Cannot block the current thread from within a
+        // runtime"), the SSE connection thread dies, and the turn ends with
+        // no terminal event. Draining on a thread that has entered the
+        // runtime context must simply work.
+        let (tx, rx) = mpsc::channel::<ChatDelta>(4);
+        shared_runtime().spawn(async move {
+            let _ = tx.send(ChatDelta::TextDelta("one".into())).await;
+        });
+        let drained = std::thread::spawn(move || {
+            shared_runtime().block_on(async {
+                let mut iter = BlockingRecvIter::<ChatDelta>::new(rx);
+                iter.next()
+            })
+        })
+        .join()
+        .expect("draining the bridge from a runtime thread must not panic");
+        assert!(
+            matches!(&drained, Some(ChatDelta::TextDelta(text)) if text == "one"),
+            "expected the delta the provider sent, got {drained:?}"
+        );
     }
 
     #[test]

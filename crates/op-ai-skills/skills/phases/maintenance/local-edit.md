@@ -25,6 +25,7 @@ OUTPUT:
 - MODIFY / REGENERATE example: `I(null, {id:"n217", type:"frame", name:"Player", children:[{id:"n218", type:"text", name:"Title", content:"Updated"}]});`
 - You MAY include modified existing nodes (with the same IDs) and new nodes (with no IDs) in the same program when the user asks for both.
 - You MAY include children inside a node when needed.
+- WHOLE-SCREEN TURNS: when the context nodes are a screen the user has only been *given* as a starting point — a placed template, a starter screen — the deliverable is that screen and not edits inside it. Emit it as ONE root-level statement carrying the screen root's own id: `I(null, {id:"<rootId>", …the complete screen…})`. A root-level statement naming a node *below* the root replaces that node alone and leaves the rest of the starting screen standing, which is not what such a turn asks for.
 
 RULES:
 

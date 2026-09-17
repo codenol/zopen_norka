@@ -167,9 +167,12 @@ fn walk_dump(node: &PenNode, depth: usize, lines: &mut Vec<String>) {
         if let Some(ta) = &t.text_align {
             props.push(format!("textAlign={}", format_text_align(ta)));
         }
-        // text content — first 30 chars
+        // text content — first 30 characters (NOT bytes: every Cyrillic letter
+        // is two bytes and an emoji four, so a byte cut lands mid-character and
+        // `&content[..n]` panics — measured as three corpus turns whose SSE
+        // stream died with no terminal event, issue #203).
         let content = extract_text_content(&t.content);
-        props.push(format!("text=\"{}\"", &content[..content.len().min(30)]));
+        props.push(format!("text=\"{}\"", truncate_chars(&content, 30)));
     }
 
     lines.push(format!("{indent}{}", props.join(" ")));
@@ -450,6 +453,22 @@ fn node_children(node: &PenNode) -> Option<&Vec<PenNode>> {
 }
 
 // ── formatting helpers ────────────────────────────────────────────────────────
+
+/// The first `max_chars` CHARACTERS of model-authored text.
+///
+/// Never slice a `String` by byte length: one model-authored label with a
+/// multi-byte character at the cut offset panics, and a panic on the daemon's
+/// SSE connection thread kills the turn's stream with no terminal event — the
+/// person sees a finished screen and a transcript that never says it finished
+/// (issue #203: `Редактировать профиль`, `+12,4% к прошлому месяцу`,
+/// `Операторская платформа`). Cheap enough to be the only shape any
+/// model-text excerpt takes here.
+fn truncate_chars(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+    text.chars().take(max_chars).collect()
+}
 
 /// Format a `SizingBehavior` as TS `JSON.stringify(node.width)` would:
 ///   number  → bare number literal  e.g. `390`

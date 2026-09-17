@@ -25,6 +25,10 @@ use op_host_services::design_session::fit_design_viewport_to_content;
 #[path = "design_session_workers.rs"]
 mod workers;
 
+#[path = "design_session_retry_reference.rs"]
+mod retry_reference;
+use retry_reference::restore_turn_reference_attachments;
+
 /// Drain every pending apply request from the in-flight design
 /// session and execute it against the real `EditorState`. Each
 /// request gets an ack containing a fresh state snapshot so the
@@ -240,7 +244,7 @@ pub fn launch_subtask_retry_if_pending(
         // defensive no-op, not a user-visible error (nothing was promised).
         return true;
     };
-    let request: op_orchestrator::DesignRequest = match serde_json::from_str(&request_json) {
+    let mut request: op_orchestrator::DesignRequest = match serde_json::from_str(&request_json) {
         Ok(r) => r,
         Err(e) => {
             write_inline_error(
@@ -251,6 +255,15 @@ pub fn launch_subtask_retry_if_pending(
             return true;
         }
     };
+    // Put the turn's reference picture back before anything runs (issue #95).
+    // The stash is JSON and `DesignRequest::reference_attachments` is
+    // `serde(skip)`, so the restored request is blind by construction; the
+    // bytes themselves are still on the turn's user bubble (`begin_send` copies
+    // them there for the transcript), which is the only place they survive.
+    // Without this the retried section was generated as if the picture had never
+    // been attached — a section that no longer matched the reference the rest of
+    // the design was built from, with nothing said to the person who clicked.
+    restore_turn_reference_attachments(host, msg_idx, &mut request);
     let subtask: op_orchestrator::plan::Subtask = match serde_json::from_str(&entry.subtask_json) {
         Ok(s) => s,
         Err(e) => {
@@ -276,7 +289,7 @@ pub fn launch_subtask_retry_if_pending(
     };
     let provider_arc: std::sync::Arc<dyn op_ai::chat_provider::ChatProvider> =
         std::sync::Arc::from(provider);
-    let llm = op_host_services::chat_provider_llm::ChatProviderLlmClient::new(provider_arc)
+    let llm = op_host_services::chat_provider_llm::ChatProviderLlmClient::new(provider_arc.clone())
         .with_model(crate::chat_session::selected_cli_model_id(host));
     let initial_state =
         op_editor_core::request_snapshot::narrowed_snapshot(host.editor_state_mut());
@@ -285,6 +298,10 @@ pub fn launch_subtask_retry_if_pending(
         request,
         subtask,
         initial_state,
+        // The same provider in its multimodal role: the retry worker derives
+        // the reference brief from the restored picture with it, exactly as
+        // `run_design_worker` does for the full turn.
+        Some(provider_arc),
     ));
     // Reuse the exact message that owns the failed activity row. This also
     // makes a non-primary worker bubble the explicit target for the retry's
@@ -686,6 +703,10 @@ fn count_u32(count: usize) -> u32 {
 #[cfg(test)]
 #[path = "design_session_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "design_session_retry_reference_tests.rs"]
+mod retry_reference_tests;
 
 #[cfg(test)]
 #[path = "design_session_quality_tests.rs"]

@@ -48,7 +48,7 @@ fn parse_ai_stream_body_defaults_missing_and_unknown_knobs() {
     let req = parse_ai_stream_body(r#"{"user":"hi"}"#).expect("body parses");
     assert_eq!(req.thinking, ThinkingMode::Adaptive);
     assert_eq!(req.effort, EffortLevel::Low);
-    assert_eq!(req.max_output_tokens, 4096);
+    assert_eq!(req.max_output_tokens, DEFAULT_TURN_MAX_OUTPUT_TOKENS);
     assert!(req.skills.is_empty());
 
     let req2 =

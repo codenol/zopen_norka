@@ -180,6 +180,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "發現未儲存的工作：{{when}}",
         "recovery.banner.restore" => "恢復",
         "recovery.banner.discard" => "捨棄",
+        "copy.status.behind" => "守護程式的最新變更不在這個畫布上（畫布 v{{shown}}，守護程式 v{{daemon}}）",
+        "copy.status.conflict" => "同步衝突——畫布為 v{{shown}}，守護程式為 v{{daemon}}，畫布已停止跟隨守護程式",
+        "copy.status.localEdits" => "這個畫布上有守護程式尚未確認的變更（畫布 v{{shown}}）",
+        "copy.status.silent" => "守護程式沒有回應——這個畫布是瀏覽器保留的副本 {{when}}",
+        "copy.status.silentNoCopy" => "守護程式沒有回應——這個畫布尚未收到守護程式的文件",
         "comments.panel.title" => "評論",
         "comments.panel.loading" => "正在載入評論…",
         "comments.panel.empty" => "此頁面還沒有評論",
@@ -306,6 +311,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "即時協作工作階段…",
         "share.topbar.share" => "分享",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "參考圖",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "檔案",
+        "files.new" => "新增檔案",
+        "files.search" => "搜尋檔案",
+        "files.loading" => "正在載入檔案…",
+        "files.empty" => "還沒有檔案 — 建立一個開始吧",
+        "files.noMatch" => "沒有符合的搜尋結果",
+        "files.rename" => "重新命名",
+        "files.delete" => "刪除",
+        "files.editedRecently" => "最近編輯",
+        "files.editedJustNow" => "剛剛編輯",
+        "files.editedMinutes" => "{n} 分鐘前編輯",
+        "files.editedHours" => "{n} 小時前編輯",
+        "files.editedDays" => "{n} 天前編輯",
         _ => return None,
     })
 }

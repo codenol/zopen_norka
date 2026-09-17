@@ -2,9 +2,7 @@ use super::WidgetHostNative;
 use op_editor_core::agent_settings::SettingsFocus;
 use op_editor_core::chat::{AgentProvider, ModelEntry};
 use op_editor_core::{EditorState, NodeId};
-use op_editor_ui::widgets::{
-    LayerPanel, LayerPanelHit, PropertyPanel, TopBar, TopBarHit, TOP_BAR_HEIGHT,
-};
+use op_editor_ui::widgets::{PropertyPanel, TopBar, TopBarHit, TOP_BAR_HEIGHT};
 use op_editor_ui::{Point2D, Rect};
 
 const VIEWPORT_W: f32 = 1200.0;

@@ -299,12 +299,37 @@ fn proxy_url_targets_loopback(raw: &str) -> bool {
     let Some(url) = parsed else {
         return false;
     };
-    match url.host_str() {
-        Some("localhost") => true,
-        Some(host) => host
-            .parse::<std::net::IpAddr>()
-            .is_ok_and(|addr| addr.is_loopback()),
-        None => false,
+    url.host_str().is_some_and(host_is_loopback)
+}
+
+/// Whether a URL host names the loopback interface.
+///
+/// Two shapes are easy to get wrong, and both were wrong here:
+///
+/// * a URL serializes an IPv6 host **with** its brackets (`socks5h://[::1]:1080`)
+///   and `"[::1]".parse::<IpAddr>()` is an error, so an IPv6 loopback proxy was
+///   never recognized as one;
+/// * `Ipv6Addr::is_loopback` is true only for `::1`, while an IPv4-mapped
+///   address (`::ffff:127.0.0.1`, which is what a dual-stack resolver hands
+///   back) is a loopback address too.
+///
+/// Measured: the test for the first one failed on aarch64 (macOS and Linux) and
+/// on Windows while the x86_64 legs passed, which is how it stayed unnoticed
+/// until CI ran for the first time (issues #180, #217).
+fn host_is_loopback(host: &str) -> bool {
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    let unbracketed = host
+        .strip_prefix('[')
+        .and_then(|inner| inner.strip_suffix(']'))
+        .unwrap_or(host);
+    match unbracketed.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V4(v4)) => v4.is_loopback(),
+        Ok(std::net::IpAddr::V6(v6)) => {
+            v6.is_loopback() || v6.to_ipv4_mapped().is_some_and(|v4| v4.is_loopback())
+        }
+        Err(_) => false,
     }
 }
 
@@ -384,6 +409,8 @@ mod tests {
             "http://localhost:7890",
             "socks5://127.0.0.1:64684",
             "socks5h://[::1]:1080",
+            "socks5://[::ffff:127.0.0.1]:1080",
+            "http://[0:0:0:0:0:0:0:1]:8080",
             "  http://127.0.0.1:9  ",
         ] {
             assert!(
@@ -399,6 +426,7 @@ mod tests {
             "",
             "   ",
             "http://proxy.example.com:8080",
+            "socks5h://[2001:db8::1]:1080",
             "http://10.0.0.1:7890",
             "socks5://192.168.1.1:1080",
         ] {

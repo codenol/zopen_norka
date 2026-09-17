@@ -72,6 +72,7 @@ pub mod compositing;
 pub mod conversion;
 pub mod design_md;
 pub mod design_md_button_state;
+pub mod design_recipe_match;
 pub mod design_rules;
 pub mod design_rules_policy;
 pub mod design_rules_ui;
@@ -93,6 +94,9 @@ pub mod figma_import_state;
 pub mod fill_order;
 pub mod fills;
 pub mod font_catalog;
+// Which screen a load shows, and what a session that arrives afterwards
+// finishes (`/` is the front door, `/f/<key>` is a document).
+pub mod front_door;
 pub mod geometry;
 pub mod git_button_state;
 pub mod grouping;
@@ -369,9 +373,10 @@ pub use compositing::{fill_blend_mode_at, node_blend_mode, node_mask_type};
 pub use design_md::{extract_design_md_from_document, generate_design_md, parse_design_md};
 pub use design_md_button_state::DesignMdButton;
 pub use design_rules::{
-    delete_rule, effective_design_rules, hide_blocks_in_subtree, library_design_rules,
-    recipe_to_place, refers_to_a_reference, requested_hidden_blocks, select_recipe,
-    set_rule_enabled, upsert_document_rule, DesignRuleSource, EffectiveDesignRule,
+    delete_rule, effective_design_rules, hide_blocks_in_subtree, is_reference_turn,
+    library_design_rules, recipe_to_place, refers_to_a_reference, requested_hidden_blocks,
+    select_recipe, set_rule_enabled, upsert_document_rule, DesignRuleSource, EffectiveDesignRule,
+    ReferenceEvidence,
 };
 pub use design_rules_policy::{
     build_design_rules_policy, build_effective_rules_policy, has_design_rules,
@@ -408,6 +413,9 @@ pub use fill_order::move_fill;
 pub use fills::{
     first_fill_type, first_image_fill_summary, first_solid_fill_hex, first_solid_fill_opacity,
     first_solid_stroke_hex, node_effects, ImageFillSummary,
+};
+pub use front_door::{
+    Address as DoorAddress, FrontDoor, FrontDoorStep, Landing, Session as DoorSession,
 };
 pub use geometry::{aggregate_bounds, own_bounds, union_aggregate_bounds, DocRect};
 pub use git_button_state::GitButton;

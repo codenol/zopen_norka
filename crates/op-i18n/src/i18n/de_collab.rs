@@ -180,6 +180,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Nicht gespeicherte Arbeit gefunden: {{when}}",
         "recovery.banner.restore" => "Wiederherstellen",
         "recovery.banner.discard" => "Verwerfen",
+        "copy.status.behind" => "Die neueste Änderung des Daemons ist nicht auf dieser Zeichenfläche (Zeichenfläche v{{shown}}, Daemon v{{daemon}})",
+        "copy.status.conflict" => "Synchronisierungskonflikt – diese Zeichenfläche ist auf v{{shown}}, der Daemon auf v{{daemon}}; die Zeichenfläche folgt dem Daemon nicht mehr",
+        "copy.status.localEdits" => "Diese Zeichenfläche enthält Änderungen, die der Daemon nicht bestätigt hat (Zeichenfläche v{{shown}})",
+        "copy.status.silent" => "Der Daemon antwortet nicht – diese Zeichenfläche ist die Kopie, die dieser Browser behalten hat {{when}}",
+        "copy.status.silentNoCopy" => "Der Daemon antwortet nicht – diese Zeichenfläche hat das Dokument des Daemons nicht erhalten",
         "comments.panel.title" => "Kommentare",
         "comments.panel.loading" => "Kommentare werden geladen…",
         "comments.panel.empty" => "Noch keine Kommentare auf dieser Seite",
@@ -306,6 +311,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Live-Zusammenarbeitssitzung…",
         "share.topbar.share" => "Teilen",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Referenz",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Dateien",
+        "files.new" => "Neue Datei",
+        "files.search" => "Dateien suchen",
+        "files.loading" => "Dateien werden geladen…",
+        "files.empty" => "Noch keine Dateien – lege eine an, um zu starten",
+        "files.noMatch" => "Keine Treffer für diese Suche",
+        "files.rename" => "Umbenennen",
+        "files.delete" => "Löschen",
+        "files.editedRecently" => "Kürzlich bearbeitet",
+        "files.editedJustNow" => "Gerade bearbeitet",
+        "files.editedMinutes" => "Vor {n} Min. bearbeitet",
+        "files.editedHours" => "Vor {n} Std. bearbeitet",
+        "files.editedDays" => "Vor {n} T. bearbeitet",
         _ => return None,
     })
 }

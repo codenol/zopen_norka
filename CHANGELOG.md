@@ -10,7 +10,29 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-16
+
 ### Added
+
+- **A deployment can be operated from a terminal.** `op admin create` only ever
+  makes the *first* administrator and the daemon's environment pair only seeds a
+  *fresh* store, so a self-hosted deployment with no browser in front of it could
+  never gain a second account — and a forgotten password was an outage with no
+  remedy. `op admin add-user` creates one account with a password and roles, and
+  `op admin reset-password` gives an existing one a new password. Both ask for
+  the secret twice on the terminal, apply the store's own strength policy between
+  the two, and print the account, the roles and the database — never the password.
+
+- **Generation quality is measured, not argued about.** `op-smoke quality` runs
+  a fixed corpus of eight prompts against a named daemon — one fresh document
+  each, the browser's own request, the document read back — and prints a
+  scorecard with the headline counts, the per-prompt verdict and the audit's
+  issues, then fails when a prompt regresses against the recorded baseline.
+  Where a verdict cannot be measured it prints `n/a` with the reason instead of
+  a guess, and it says in its own output that one run is one sample: three runs
+  of the same binary and prompt returned 1, 0 and 1 regressions. This is the tool
+  that turns "the AI got better" into a number (issues #215, #216 came out of its
+  first runs).
 
 - **Share, not Collaborate — the dialog a designer actually reaches for.** The
   top bar's chip now opens a Figma-shaped access dialog instead of the
@@ -174,7 +196,71 @@ here at a glance.
   success, leaves the visitor signed in. A spent, expired or unknown link says
   which of the three it is.
 
+- **The canvas says which copy of the document it is showing.** A reload while a
+  recoverable draft exists put the canvas and the daemon on two different copies
+  of the same document, with nothing on screen to say so: an AI turn could be
+  applied to the daemon's document — `<!-- APPLIED -->` in the transcript — while
+  the canvas kept painting the other copy and the person read it as "the AI did
+  nothing" (issue #191). The browser now keeps an identity for the copy it holds
+  — the daemon's document key, the daemon version the copy came from, a content
+  fingerprint and when it was written — and compares it with the daemon's current
+  version on every frame. When the two disagree, a strip in the recovery bar's
+  own band says so, in the same words for all fifteen locales: which versions the
+  canvas and the daemon are on, and why they differ — the daemon moved on, a sync
+  conflict latched, this tab holds edits the daemon has not confirmed, or the
+  daemon stopped answering. It paints nothing when the canvas *is* the daemon's
+  copy, and it takes no press, so a click on it reaches the canvas. It states the
+  divergence and does not resolve it: which copy wins is issue #169, and that
+  decision is the operator's. Saying so required one change to the sync loop: the
+  400 ms tick returned *before* its `GET /api/mcp/version` whenever the pull gate
+  was closed, so in exactly the state the report exists for the tab could not name
+  the daemon's version. The probe is now unconditional; the fetch and the apply
+  stay as gated as they were, and a gated tab still issues no document request.
+
+- **The browser keeps a copy of the document** (issue #171). The last document
+  this tab saw is mirrored into IndexedDB — the same bytes the sync path moves,
+  with the identity above beside them — one record per account and document, so
+  a document can be named, and its age stated, after a reload or while the daemon
+  is unreachable. A record is written when the daemon's copy changes and,
+  debounced and rate-limited like autosave, when this tab's own edits have not
+  reached the daemon; a copy the daemon never confirmed carries no version rather
+  than an invented one. Records are partitioned by account and the previous
+  account's copy is unreachable after a switch. It is a *mirror*: it does not
+  yet list, restore, delete or upload documents, and nothing reads it back into
+  the canvas yet — that is the next wave of #171, not a claim this one makes.
+
 ### Changed
+
+- **The interface starts in Russian, and the app opens on your files.** Two
+  things a person met in their first minute. The chrome painted whatever
+  `EditorUiState::default()` happened to carry — Chinese, inherited from the
+  TypeScript era — and the desktop and daemon startup seeded the locale from the
+  process environment, so a first run landed the language of the machine rather
+  than the one the product ships; the file browser painted English literals
+  outright ("Files", "New file", "Search files", "Edited 2 h ago"). It is
+  Russian from the first frame now, on every machine: the environment is no
+  longer consulted at all, the locale picker and the saved setting still decide
+  everything after that, and the file list speaks the shared catalogue like the
+  rest of the app.
+
+  The root is the front door rather than an empty editor with a starter
+  document: `/` shows the file list, `/files` still shows it, and `/f/<key>`
+  still opens that document — including for a visitor who has to sign in first,
+  which is the case that used to lose the link. A signed-out tab cannot open a
+  document (the daemon answers `401`), and the router then wrote the editor's own
+  `/` over the address before the sign-in form was ever reached; the link is
+  remembered across the sign-in now and opens on the document it named. A
+  sign-in also forgets the file list the refused session left behind, so the
+  account that just arrived asks the daemon again instead of reading its
+  predecessor's refusal (issue #231).
+
+- **A released build's version stamp stopped blinking.** The top bar colours the
+  version by how old the build is — green for minutes, amber past three, red past
+  six, blinking — because "am I looking at a stale binary?" is a real question
+  while working on the kit manifest, which is compiled in. On a deployment that
+  question has an obvious answer, so the stamp was blinking red once a second in
+  front of users. A release build shows the version in the interface's ordinary
+  colour, steady; a working-tree build keeps the freshness scheme unchanged.
 
 - **The account store is a crate of its own, so `op` no longer ships Skia.**
   `op admin create` has to open the same `accounts.db` the deployment opens —
@@ -209,6 +295,26 @@ here at a glance.
   leaves it, as with every other tool — and the list takes the rail the
   inspector uses, so the canvas keeps its width and nothing sits on the design.
   Threads are listed for the page being edited, with a count of the rest.
+
+- **Sharing is a property of a document, not of the account that owns it.**
+  A grant made in one document's Share dialog used to open EVERY document that
+  account owned, and the "anyone with the link" switch did the same for all of
+  them — measured against a real deployment, where a colleague granted access
+  while looking at document A could open and comment on document B that was
+  never shared. Access lists are keyed by document now: `/api/share/grant`,
+  `/revoke`, `/list` and `/link` take the document (`?file=<key>`, or `file` in
+  the body), and a request that names an owner without a document is refused
+  with `missing-document` rather than guessed at. The browser names the document
+  on every request — from the address for a link that has one, and from the key
+  the daemon reports for a tab on `/`.
+
+- **An access list written before this change is NOT migrated.** The old file
+  held one list for the whole account and never recorded which document it was
+  about, so applying it to whichever document the account opens next would hand
+  out access nobody granted for that document. It is moved aside as
+  `acl.v1.json` and reported at start-up; every share has to be issued again.
+  This is a breaking change for an existing deployment, and the only safe
+  reading of a file that cannot say what it was about.
 
 ### Removed
 
@@ -293,29 +399,159 @@ here at a glance.
   `OPENPENCIL_ONLINE_SIGNIN_LOCKOUT_SECS` — all printed in the daemon's startup
   banner, and none of them able to turn the limit off.
 
-### Changed
-
-- **Sharing is a property of a document, not of the account that owns it.**
-  A grant made in one document's Share dialog used to open EVERY document that
-  account owned, and the "anyone with the link" switch did the same for all of
-  them — measured against a real deployment, where a colleague granted access
-  while looking at document A could open and comment on document B that was
-  never shared. Access lists are keyed by document now: `/api/share/grant`,
-  `/revoke`, `/list` and `/link` take the document (`?file=<key>`, or `file` in
-  the body), and a request that names an owner without a document is refused
-  with `missing-document` rather than guessed at. The browser names the document
-  on every request — from the address for a link that has one, and from the key
-  the daemon reports for a tab on `/`.
-
-- **An access list written before this change is NOT migrated.** The old file
-  held one list for the whole account and never recorded which document it was
-  about, so applying it to whichever document the account opens next would hand
-  out access nobody granted for that document. It is moved aside as
-  `acl.v1.json` and reported at start-up; every share has to be issued again.
-  This is a breaking change for an existing deployment, and the only safe
-  reading of a file that cannot say what it was about.
-
 ### Fixed
+
+- **A shared deployment now serves the model its operator configured.** An
+  `--online` daemon builds every account's editor from that account's own stored
+  document or from the starter one, and neither of those reads the process
+  settings file — the start-up loader belongs to the single-document daemon. So
+  a deployment whose `settings.json` held a perfectly good provider answered
+  `GET /api/ai/models` with `[]` to every signed-in account, and every design
+  turn failed with "no model configured" until the account pasted a key of its
+  own. The file is now read once at start-up and its operator-owned providers are
+  installed into each account as it is created — one shared model for everybody,
+  and a person's own key still rides the request beside it. Accounts cannot
+  change the shared model: `--online` refuses every settings write outright, so
+  the shared entries come from the operator's file and nothing else. The daemon
+  says which it is at start-up ("offering N shared model(s)…", or that it offers
+  none), because the alternative is that question being answered by a failed turn
+  minutes later.
+
+- **The result is checked against the reference you attached, by default.**
+  Post-generation validation compares the screenshot of what was drawn against
+  the picture the turn was asked to match — a comparison that was announced but
+  never actually sent until now, which is why the check itself was off. With
+  both pictures travelling and a client refusing to send half a comparison,
+  there is nothing left to hide: every reference turn is validated unless
+  `OPENPENCIL_VISION_VALIDATION=0` says otherwise. That switch now buys cost, not
+  honesty — a validated turn spends one extra vision call and up to the round
+  limit in model-authored edits (issue #62).
+
+- **A design turn that only edited the template the host placed now says so.** A
+  recipe turn asks the model to rewrite the screen the kit placed as the turn's
+  base, and the wire reported both outcomes identically: `done`, no error,
+  `<!-- APPLIED -->`. The measured turn that shipped the untouched 470-node kit
+  master counted 500 nodes — the highest in the corpus — while delivering none of
+  the request, because every statement in its reply reached inside the placed
+  tree instead of composing a screen. The reply is now read against the document
+  *before* it is applied: a recipe turn whose ops never leave the placed tree
+  streams a sentence naming what happened, and keeps `<!-- APPLIED -->`, which
+  stays true — nodes really were written. A reply that does compose a screen of
+  its own is not accused of anything: its root-level `I(null, …)` carrying an id
+  the document does not hold is placed at the page root, beside the base it
+  adapted, instead of being nested inside the template (issue #182).
+
+- **A recipe is placed once per turn, not twice.** The route places the matched
+  recipe before it classifies anything — that placement is what makes the turn a
+  rewrite of an existing screen — and the new-design route then placed the same
+  recipe again, because `instantiate_component` does not dedupe by master. One
+  turn could end with two copies of the recipe root, ~20px apart, and only the
+  second one described to the model by the `doc:recipe-base` rule. The placement
+  is now carried into that route, which describes the copy already on the page
+  instead of cloning it again (issue #189).
+
+- **Placing a recipe is a document change the version pollers can see.** The
+  placement instantiates the kit master, hides the blocks the request asked to
+  drop and prunes the empty root — 470 nodes in the measured case — while
+  `GET /api/mcp/version`, the key the browser's live-sync loop polls
+  (`wants_version`), stood still. Those mutations now advance it (issue #183).
+
+- **A reply that echoes a `<step>` progress line is no longer thrown away.** The
+  chat system prompt tells the model to open with `<step>` tags, the transcript
+  reads them as activity markup, and the modify route's own transcript carries
+  `<step title="Checking guidelines">` at the head of the text its reply is read
+  from — where QuickJS stops at the `<`. A reply whose every `I(…)` statement was
+  complete was discarded as "response was not valid modification JavaScript" and
+  the document stayed as it was. The script ladder now drops a closed
+  `<step>…</step>` block before it evals, keeps the script that follows an
+  unterminated tag, and leaves bytes that merely start like the tag alone.
+
+- **A recipe is placed only when the request asks for that screen.** The kit's
+  keyword matcher used to look for its needles anywhere inside the prompt and
+  take the longest total match, which meant a mobile profile request scored 17
+  off "пользовател" and "список" and was answered with the 1440-wide ops
+  equipment table; "лог" matched inside "логина" and inside "каталога"; "list"
+  in "a left navigation list" was the whole evidence for an English settings
+  prompt, which came back in Russian. What a person sees differently: a request
+  for a phone screen no longer gets a desktop master, an English request no
+  longer gets a screen whose copy is Russian, and a request that only says
+  "list" or "список" gets the screen it described instead of a stored one. The
+  kit now declares which of its words name the screen's subject and which only
+  support it, a needle has to land on a word the request actually uses, and a
+  short needle no longer stands for any word that merely starts with it —
+  refusal costs the kit's help, while a wrong screen replaces the one that was
+  asked for (issues #181, #187).
+
+- **A picture you attach decides the turn, whether or not you mention it.** Two
+  turns looked identical to the code and were not: attaching a screenshot and
+  writing "build me a server list" was read as having no reference, while
+  writing "like on the screenshot" with nothing attached was read as having one
+  — "does this turn point at a picture" was being guessed from the words. It is
+  read from the attachment list now. What a person sees differently: attach a
+  picture, say nothing about it, and the library screen the request would
+  otherwise have matched is no longer laid over it — no recipe is placed, and
+  the prompt no longer carries the "the product already placed recipe X, keep
+  it" instruction that used to override the picture they actually sent. And a
+  phrase alone no longer suppresses a recipe: "список коммутаторов как на
+  картинке" with nothing attached gets the ops screen it asked for by name.
+  The word-based guess survives in exactly one place, where a request arrives
+  with no attachment list to read at all (a JSON hop drops it — the field is
+  `serde(skip)`), and that is now stated where it happens instead of standing in
+  silently for a knowable fact.
+
+- **Retrying one failed section of a reference-grounded turn keeps your
+  picture.** The per-section "Retry" re-runs a failed row from the request the
+  turn stored, and that stash is JSON — where the reference attachments are not
+  serialized at all. The retried section was therefore generated as if the
+  screenshot had never been attached and no longer matched the rest of the
+  design. The bytes were never gone (the turn's own message keeps them), so the
+  retry reads them back and re-derives the reference brief the sub-agent prompt
+  consumes, exactly as the original run did.
+
+- **The post-generation comparison against a reference image is real now.** The
+  vision-validation prompt told the model "A REFERENCE DESIGN screenshot was
+  also provided. Compare the current design against the reference" while the
+  request carried a single picture — the result screenshot. The model was asked
+  to compare against a picture it was never given, and whatever it answered, it
+  answered about one image. `VisionCallRequest` now carries a labelled list of
+  pictures (`image 1` is the design, `image 2` the reference), the prompt names
+  them by the positions they really occupy, and the vision client puts both on
+  the wire — or refuses the call outright when one of them cannot be delivered,
+  rather than sending half a comparison (#62).
+
+- **The reference picture is shown beside the canvas.** After "make me a screen
+  like this picture", the picture lived only as a thumbnail inside the chat
+  transcript, so judging fidelity meant keeping it open somewhere else and
+  looking back and forth. Clicking the reference thumbnail in a turn's message
+  now opens a card in the canvas corner — the picture, aspect-fit, with its file
+  name and a close button — so the result and the reference are looked at
+  together. The card loses to every panel and modal, wins over the canvas, and
+  exists only while the picture does: New Chat takes it away (#63).
+
+- **A turn's reply budget covers the model's reasoning, not just its answer.**
+  The browser asked for 4096 output tokens; a reasoning model spends that same
+  budget inside `<think>` before it writes one visible character. Measured on
+  the configured model: 19 s, 15 582 characters of reasoning streamed, **0
+  characters of answer**, then `done` — the turn looked finished and the canvas
+  stayed empty. The browser now sends the shared default (16 384) and the
+  daemon's own fallback when the field is missing matches it (issue #179).
+
+- **A turn that returns nothing now says so.** An answer with no text was
+  reported as a finished turn: the bubble stopped, the transcript showed
+  nothing, and that is indistinguishable from "the model had nothing to say".
+  A turn that ends without an answer says the model returned no result, and one
+  that streamed reasoning first says the reasoning consumed the budget — which
+  is the actionable half (issue #179).
+
+- **A screen rewrite no longer competes with the model's own reasoning.** The
+  web daemon's modify route was the one design entry point that never applied
+  the design-turn thinking policy: a model whose profile marks it
+  `thinking_disabled` (DeepSeek V4, GLM-5.x, MiniMax) ran with reasoning left
+  on, so `<think>` and the screen's JSON shared one budget — the documented
+  cause of "it changed the headers but not the data" and of an empty design.
+  Desktop, mobile and the orchestrator all forced it off; now they and the web
+  route share one predicate, `op_orchestrator::design_turn_disables_thinking`
+  (issue #179).
 
 - **The first administrator can be created from the CLI again.** `op admin create`
   hung forever: the dialogue held the stdin lock and the secret reader took the
@@ -991,5 +1227,7 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.8.6...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.0
+[0.9.0]: https://github.com/codenol/zopen_norka/releases/tag/v0.9.0
 [0.8.6]: https://github.com/codenol/zopen_norka/releases/tag/v0.8.6

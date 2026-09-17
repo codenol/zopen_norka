@@ -21,20 +21,8 @@ impl WidgetHost {
         let (x, y) = (ctx.x, ctx.y);
         let viewport_width = ctx.viewport_width;
         let viewport_height = ctx.viewport_height;
-        // Account entry form — the topmost surface there is (it paints its own
-        // full-viewport scrim last), so it is hit-tested first. It consumes
-        // EVERY press, scrim included: the editor behind it has no session to
-        // work with, so a click that looks like a canvas click must not reach
-        // one. Being first is also what keeps the collaboration panel and the
-        // TopBar unreachable while the form is up.
-        if self
-            .account_entry_form(viewport_width, viewport_height)
-            .is_some()
-        {
-            self.close_image_popovers_for_higher_overlay();
-            self.dispatch_account_entry_press(x, y, viewport_width, viewport_height);
-            return Some(true);
-        }
+        // (The account gate is not here: it takes every press before this
+        // ladder runs at all — see `WidgetHost::apply_press`.)
         let missing_fonts_rect =
             op_editor_ui::widgets::MissingFontsPanel::for_editor(&self.editor_state)
                 .map(|panel| panel.rect(viewport_width, viewport_height));
@@ -301,8 +289,8 @@ impl WidgetHost {
         }
         // Account dropdown — the same overlay tier as native §0a' (before the
         // TopBar so a re-click on the avatar closes instead of re-toggling).
-        // The entry form is not here: it is the topmost surface and is
-        // hit-tested first, in `press_topmost_overlay_tiers`.
+        // The entry form is not here: it is the topmost surface, and
+        // `apply_press` asks it before any tier runs.
         if self.editor_state.editor_ui.account_ui_available
             && self.editor_state.editor_ui.account_menu_open
         {
@@ -320,5 +308,30 @@ impl WidgetHost {
             return Some(true);
         }
         None
+    }
+}
+
+impl WidgetHost {
+    /// The account gate's press tier: it takes EVERY press while it is up.
+    ///
+    /// The topmost surface there is — it paints its own full-viewport scrim
+    /// last — so it is hit-tested first, and it consumes the scrim too: the
+    /// screen behind it is one this session cannot use (a document it may not
+    /// open, or a list it would be refused), so a click that looks like a canvas
+    /// click must not reach it. Being first is also what keeps the collaboration
+    /// panel and the TopBar unreachable while the gate is up.
+    ///
+    /// `None` when no gate is up.
+    pub(in crate::widget_host) fn press_account_gate_tier(
+        &mut self,
+        x: f32,
+        y: f32,
+        viewport_width: f32,
+        viewport_height: f32,
+    ) -> Option<bool> {
+        self.account_entry_form(viewport_width, viewport_height)?;
+        self.close_image_popovers_for_higher_overlay();
+        self.dispatch_account_entry_press(x, y, viewport_width, viewport_height);
+        Some(true)
     }
 }

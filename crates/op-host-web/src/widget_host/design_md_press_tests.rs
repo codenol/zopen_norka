@@ -3,23 +3,6 @@ use super::WidgetHost;
 const VIEWPORT_W: f32 = 1200.0;
 const VIEWPORT_H: f32 = 800.0;
 
-fn long_design_md() -> String {
-    let mut markdown = String::from("# Design System: Long\n\n## Color Palette\n");
-    for index in 0..40 {
-        markdown.push_str(&format!(
-            "- **color-{index:02}** (#{index:02X}{index:02X}{index:02X}) - role {index}\n"
-        ));
-    }
-    markdown
-}
-
-fn open_long_design_md(host: &mut WidgetHost) -> op_editor_ui::Rect {
-    host.editor_state.editor_ui.design_md_panel.open = true;
-    host.editor_state.doc.design_md = Some(op_editor_core::parse_design_md(&long_design_md()));
-    host.design_md_panel_rect(VIEWPORT_W, VIEWPORT_H)
-        .expect("design md panel rect")
-}
-
 /// A click on a rule row's switch must reach the document through the
 /// shared rules flow (`EditorCommand` + undo snapshot) rather than
 /// being swallowed by the panel's generic press handling.

@@ -180,6 +180,10 @@ fn expanded_instance_swap_rows_paint_and_hit_the_component_target() {
     let mut state = state_from(COMPONENT_DOC);
     state.set_single_selection(NodeId::new("inst1"));
     state.editor_ui.toggle_instance_component_picker("inst1");
+    // The row's button elides a label that does not fit, and this test asserts
+    // the whole label is painted: it is about the row, not about how a longer
+    // translation is shortened, so it states the locale it needs.
+    state.editor_ui.locale = op_editor_core::Locale::EnUs;
     let panel = PropertyPanel::for_selection(&state).expect("panel builds");
     let labels = super::property_panel_sections::PropertyLabels::for_editor_ui(&state.editor_ui);
     let rect = Rect {

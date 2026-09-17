@@ -65,7 +65,15 @@ fn a_one_time_link_lasts_what_its_purpose_says() {
     // The two differ, which is why the default lives on the purpose rather than
     // being one number every caller reuses: a reset link is a password with
     // extra steps, a verification link only proves an address.
-    assert!(PASSWORD_RESET_TTL_SECS < EMAIL_VERIFY_TTL_SECS);
+    //
+    // Asked of the purpose rather than of the two constants, because what has to
+    // stay true is that the PURPOSE decides. A comparison of two constants would
+    // still hold on the day `default_ttl_secs` returned the wrong one for both.
+    assert_ne!(
+        OneTimePurpose::PasswordReset.default_ttl_secs(),
+        OneTimePurpose::EmailVerify.default_ttl_secs(),
+        "the two purposes must not share one default, or naming a purpose decides nothing"
+    );
 }
 
 #[test]
@@ -88,10 +96,63 @@ fn an_invite_lasts_the_stated_week() {
 
 #[test]
 fn the_lifetimes_are_ordered_the_way_the_policy_module_says() {
+    let (_dir, db) = store();
+    active_user(&db, "u1", "alice");
+
+    // Each lifetime is MEASURED from the store — the number of seconds an
+    // operation actually granted — rather than read off the constant, which is
+    // what makes the ordering below a claim the code can fail. Four comparisons
+    // of four constants would be decided by the compiler and could never report
+    // the drift this test exists to catch.
+    let reset_secs = db
+        .issue_one_time_token(
+            "u1",
+            OneTimePurpose::PasswordReset,
+            OneTimePurpose::PasswordReset.default_ttl_secs(),
+            NOW,
+        )
+        .expect("issue a reset link")
+        .expires_at
+        - NOW;
+    let verify_secs = db
+        .issue_one_time_token(
+            "u1",
+            OneTimePurpose::EmailVerify,
+            OneTimePurpose::EmailVerify.default_ttl_secs(),
+            NOW,
+        )
+        .expect("issue a verification link")
+        .expires_at
+        - NOW;
+    let invite_secs = db
+        .create_invite(&NewInvite::new(&[], None, INVITE_TTL_SECS), NOW)
+        .expect("issue an invite")
+        .invite
+        .expires_at
+        - NOW;
+    let session_secs = db
+        .create_session(&NewSession::new("u1", SESSION_TTL_SECS), NOW)
+        .expect("create a session")
+        .session
+        .expires_at
+        - NOW;
+
     // Stated as an ordering rather than as four numbers: whoever changes one of
     // them has to say why a reset link now outlives an invite.
-    assert!(0 < PASSWORD_RESET_TTL_SECS);
-    assert!(PASSWORD_RESET_TTL_SECS < EMAIL_VERIFY_TTL_SECS);
-    assert!(EMAIL_VERIFY_TTL_SECS < INVITE_TTL_SECS);
-    assert!(INVITE_TTL_SECS < SESSION_TTL_SECS);
+    assert!(
+        0 < reset_secs,
+        "a reset link that is already dead is not a link"
+    );
+    assert!(
+        reset_secs < verify_secs,
+        "a reset link ({reset_secs}s) must not outlive a verification link ({verify_secs}s)"
+    );
+    assert!(
+        verify_secs < invite_secs,
+        "a verification link ({verify_secs}s) must not outlive an invite ({invite_secs}s)"
+    );
+    assert!(
+        invite_secs < session_secs,
+        "an invite ({invite_secs}s) must not outlive a session ({session_secs}s)"
+    );
 }

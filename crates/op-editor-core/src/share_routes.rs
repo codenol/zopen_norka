@@ -58,37 +58,6 @@ pub fn tenant_from_query(query: &str) -> Option<&str> {
         .filter(|value| !value.is_empty())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_tenant_parameter_is_read_out_of_a_query_string() {
-        assert_eq!(tenant_from_query("tenant=userA"), Some("userA"));
-        assert_eq!(tenant_from_query("x=1&tenant=userA&y=2"), Some("userA"));
-        assert_eq!(tenant_from_query("y=2&tenant=userA"), Some("userA"));
-    }
-
-    #[test]
-    fn an_absent_or_empty_tenant_parameter_is_none() {
-        for query in ["", "x=1", "tenant=", "tenants=userA", "atenant=userA"] {
-            assert_eq!(tenant_from_query(query), None, "{query:?}");
-        }
-    }
-
-    #[test]
-    fn only_the_exact_parameter_name_matches() {
-        assert_eq!(tenant_from_query("Tenant=userA"), None);
-    }
-
-    #[test]
-    fn every_route_sits_under_the_declared_prefix() {
-        for route in [GRANT, REVOKE, LIST] {
-            assert!(route.starts_with(API_PREFIX), "{route}");
-        }
-    }
-}
-
 /// Query parameter naming the DOCUMENT a request is about.
 ///
 /// The sibling of [`TENANT_QUERY`], and the answer to a measured defect: a
@@ -150,4 +119,35 @@ fn document_key_from_path(path: &str) -> Option<String> {
     let rest = path.strip_prefix("/api/files/")?;
     let key = rest.split('/').next()?;
     (!key.is_empty()).then(|| key.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_tenant_parameter_is_read_out_of_a_query_string() {
+        assert_eq!(tenant_from_query("tenant=userA"), Some("userA"));
+        assert_eq!(tenant_from_query("x=1&tenant=userA&y=2"), Some("userA"));
+        assert_eq!(tenant_from_query("y=2&tenant=userA"), Some("userA"));
+    }
+
+    #[test]
+    fn an_absent_or_empty_tenant_parameter_is_none() {
+        for query in ["", "x=1", "tenant=", "tenants=userA", "atenant=userA"] {
+            assert_eq!(tenant_from_query(query), None, "{query:?}");
+        }
+    }
+
+    #[test]
+    fn only_the_exact_parameter_name_matches() {
+        assert_eq!(tenant_from_query("Tenant=userA"), None);
+    }
+
+    #[test]
+    fn every_route_sits_under_the_declared_prefix() {
+        for route in [GRANT, REVOKE, LIST] {
+            assert!(route.starts_with(API_PREFIX), "{route}");
+        }
+    }
 }

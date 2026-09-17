@@ -192,6 +192,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "Đã tìm thấy công việc chưa lưu: {{when}}",
         "recovery.banner.restore" => "Khôi phục",
         "recovery.banner.discard" => "Bỏ qua",
+        "copy.status.behind" => "Thay đổi mới nhất của daemon không có trên canvas này (canvas v{{shown}}, daemon v{{daemon}})",
+        "copy.status.conflict" => "Xung đột đồng bộ — canvas ở v{{shown}} còn daemon ở v{{daemon}}, nên canvas đã ngừng theo daemon",
+        "copy.status.localEdits" => "Canvas này có các chỉnh sửa mà daemon chưa xác nhận (canvas v{{shown}})",
+        "copy.status.silent" => "Daemon không phản hồi — canvas này là bản sao mà trình duyệt đã giữ {{when}}",
+        "copy.status.silentNoCopy" => "Daemon không phản hồi — canvas này chưa nhận được tài liệu của daemon",
         "comments.panel.title" => "Bình luận",
         "comments.panel.loading" => "Đang tải bình luận…",
         "comments.panel.empty" => "Chưa có bình luận nào trên trang này",
@@ -318,6 +323,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "Phiên cộng tác trực tiếp…",
         "share.topbar.share" => "Chia sẻ",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "Ảnh tham chiếu",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "Tệp",
+        "files.new" => "Tệp mới",
+        "files.search" => "Tìm kiếm tệp",
+        "files.loading" => "Đang tải tệp…",
+        "files.empty" => "Chưa có tệp nào — hãy tạo một tệp để bắt đầu",
+        "files.noMatch" => "Không có kết quả nào khớp với tìm kiếm đó",
+        "files.rename" => "Đổi tên",
+        "files.delete" => "Xoá",
+        "files.editedRecently" => "Đã chỉnh sửa gần đây",
+        "files.editedJustNow" => "Vừa chỉnh sửa",
+        "files.editedMinutes" => "Đã chỉnh sửa {n} phút trước",
+        "files.editedHours" => "Đã chỉnh sửa {n} giờ trước",
+        "files.editedDays" => "Đã chỉnh sửa {n} ngày trước",
         _ => return None,
     })
 }

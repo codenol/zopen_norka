@@ -88,9 +88,14 @@ pub(super) fn ok_json(value: serde_json::Value) -> WebReply {
 }
 
 /// Split `/api/files/<key>/<action>` into its parts.
+///
+/// There is no separate `Create`: creating a document IS `POST /api/files`,
+/// which the parser answers with `List`, and the method is what tells the two
+/// apart. A `Create` variant used to sit here — matched alongside `List` in the
+/// gate and in the handler, but constructed by nothing, so it read as a second
+/// accepted spelling that the parser never accepted.
 enum FilesRoute<'a> {
     List,
-    Create,
     Document {
         key: &'a str,
         action: &'a str,
@@ -136,7 +141,7 @@ impl FilesRoute<'_> {
     /// cannot be the one that forgets the second half.
     fn key(&self) -> Option<&str> {
         match self {
-            Self::List | Self::Create => None,
+            Self::List => None,
             Self::Document { key, .. }
             | Self::Comments { key, .. }
             | Self::Sections { key, .. } => Some(key),
@@ -224,10 +229,9 @@ fn parse_route(path: &str) -> Option<FilesRoute<'_>> {
 fn required_action(method: &str, route: &FilesRoute<'_>) -> Option<DocumentAction> {
     match (method, route) {
         ("GET", FilesRoute::List) => Some(DocumentAction::View),
-        // Creating a document is a write. `POST /api/files` is the spelling the
-        // browser sends; the parser also accepts `Create`, and both are one
-        // action here so they cannot drift apart.
-        ("POST", FilesRoute::List | FilesRoute::Create) => Some(DocumentAction::Edit),
+        // Creating a document is a write, and `POST /api/files` is the spelling
+        // the browser sends.
+        ("POST", FilesRoute::List) => Some(DocumentAction::Edit),
         (
             "GET",
             FilesRoute::Document {
@@ -387,9 +391,7 @@ pub(super) fn handle(
                 Err(error) => store_error_reply(error),
             }
         }
-        ("POST", FilesRoute::List | FilesRoute::Create) => {
-            create_document(body, state, &store, access)
-        }
+        ("POST", FilesRoute::List) => create_document(body, state, &store, access),
         (
             "GET",
             FilesRoute::Document {

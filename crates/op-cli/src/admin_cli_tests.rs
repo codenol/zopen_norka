@@ -177,10 +177,7 @@ fn the_password_comes_from_the_handle_the_dialogue_owns() {
     .expect("one stream carries the name and both passwords");
 
     assert!(summary.contains("operator"), "{summary}");
-    assert_secret_never_printed(
-        &Ok(summary),
-        &String::from_utf8_lossy(&session.output).into_owned(),
-    );
+    assert_secret_never_printed(&Ok(summary), &String::from_utf8_lossy(&session.output));
     assert_eq!(db.count_users().expect("count"), 1);
 }
 
@@ -568,4 +565,205 @@ fn an_invitation_the_command_line_issued_can_be_withdrawn_by_the_id_the_listing_
         op_accounts::accounts::InviteWithdrawal::Revoked
     );
     assert_eq!(store.find_invite(&token).expect("find"), None);
+}
+
+// ── `op admin add-user` and `op admin reset-password` ───────────────────────
+//
+// Both exist because a self-hosted deployment has to be operable from a
+// terminal: `op admin create` only ever makes the FIRST administrator, and the
+// daemon's environment bootstrap only seeds a fresh store, so without these a
+// deployment whose operator has no browser could never gain a second account
+// and could never recover a forgotten password.
+
+/// Answer the prompts of whichever administrative flow is handed in, and
+/// return the outcome with everything printed.
+///
+/// Each test builds its own reader instead of sharing one: the flows take
+/// `&mut impl FnMut`, so a helper forwarding a `&mut dyn FnMut` would not
+/// compile — and the three lines it would save are not worth a wrapper.
+macro_rules! drive_flow {
+    ($run:expr, $db:expr, $typing:expr, $secrets:expr) => {{
+        let mut session = Session::typing($typing);
+        let mut secrets = $secrets.iter().map(|secret| secret.to_string());
+        let mut read_secret = move |_input: &mut dyn BufRead| {
+            secrets
+                .next()
+                .ok_or_else(|| CliError::usage("no input on stdin: this command is interactive"))
+        };
+        let outcome = $run(
+            &$db,
+            &mut session.input,
+            &mut session.output,
+            &mut read_secret,
+        );
+        let printed = String::from_utf8(session.output).expect("utf-8 output");
+        (outcome, printed)
+    }};
+}
+
+#[test]
+fn add_user_creates_an_account_with_the_roles_it_was_asked_for() {
+    let (_dir, db) = store("add-user");
+    let (outcome, printed) = drive_flow!(
+        |db, input, output, read_secret| add_user(
+            db,
+            Some("designer"),
+            Some("frontend"),
+            Some("d@example.com"),
+            input,
+            output,
+            read_secret,
+            false
+        ),
+        db,
+        "",
+        ["a-long-enough-password", "a-long-enough-password"]
+    );
+
+    let summary = outcome.expect("the account is created");
+    assert!(summary.contains("designer"), "{summary}");
+    assert!(!summary.contains("a-long-enough-password"), "{summary}");
+    assert!(!printed.contains("a-long-enough-password"), "{printed}");
+
+    let created = db
+        .find_user_by_username("designer")
+        .expect("read the store")
+        .expect("the account exists");
+    assert_eq!(created.email.as_deref(), Some("d@example.com"));
+    assert_eq!(created.status, UserStatus::Active);
+    assert!(
+        !created.roles.is_empty(),
+        "the requested role is stored: {:?}",
+        created.roles
+    );
+}
+
+#[test]
+fn add_user_refuses_a_name_that_already_exists() {
+    let (_dir, db) = store("add-user-dup");
+    // A fresh store has nobody, so the name has to exist before the refusal
+    // means anything: the deployment's first administrator is the case an
+    // operator actually hits.
+    db.create_first_admin("admin", "a-long-enough-password", now_secs())
+        .expect("seed the first administrator");
+    let (outcome, _) = drive_flow!(
+        |db, input, output, read_secret| add_user(
+            db,
+            Some("admin"),
+            None,
+            None,
+            input,
+            output,
+            read_secret,
+            false
+        ),
+        db,
+        "",
+        ["a-long-enough-password", "a-long-enough-password"]
+    );
+
+    let error = outcome.expect_err("a duplicate is refused before anything is written");
+    assert!(
+        format!("{error}").contains("reset-password"),
+        "the refusal names the way forward: {error}"
+    );
+    assert_eq!(db.count_users().expect("count"), 1, "nothing was added");
+}
+
+#[test]
+fn add_user_asks_again_after_a_password_the_store_would_refuse() {
+    let (_dir, db) = store("add-user-weak");
+    // The policy is the store's own: a weak password is answered with a reason
+    // and another question rather than with a write that fails afterwards.
+    let (outcome, printed) = drive_flow!(
+        |db, input, output, read_secret| add_user(
+            db,
+            Some("weakling"),
+            None,
+            None,
+            input,
+            output,
+            read_secret,
+            false
+        ),
+        db,
+        "",
+        ["short", "a-long-enough-password", "a-long-enough-password"]
+    );
+
+    outcome.expect("the second, strong password is accepted");
+    assert!(
+        db.find_user_by_username("weakling")
+            .expect("read the store")
+            .is_some(),
+        "the account exists"
+    );
+    assert!(
+        !printed.contains("a-long-enough-password"),
+        "no secret is echoed: {printed}"
+    );
+}
+
+#[test]
+fn reset_password_changes_the_password_and_never_prints_it() {
+    let (_dir, db) = store("reset-password");
+    let user = db
+        .create_user(
+            &NewUser::active("forgetful", "forgetful", "the-original-password"),
+            now_secs(),
+        )
+        .expect("seed the account");
+
+    let (outcome, printed) = drive_flow!(
+        |db, input, output, read_secret| reset_password(
+            db,
+            Some("forgetful"),
+            input,
+            output,
+            read_secret,
+            false
+        ),
+        db,
+        "",
+        ["the-new-longer-password", "the-new-longer-password"]
+    );
+
+    let summary = outcome.expect("the password is changed");
+    assert!(summary.contains("forgetful"), "{summary}");
+    assert!(!printed.contains("the-new-longer-password"), "{printed}");
+
+    let stored = db
+        .find_user_by_id(&user.id)
+        .expect("read the store")
+        .expect("the account exists");
+    let hash = stored.password_hash.as_deref().expect("a hash is stored");
+    assert!(
+        op_accounts::accounts::verify_password("the-new-longer-password", hash).expect("verify"),
+        "the new password verifies"
+    );
+    assert!(
+        !op_accounts::accounts::verify_password("the-original-password", hash).expect("verify"),
+        "the old password does not"
+    );
+}
+
+#[test]
+fn reset_password_refuses_a_name_the_store_does_not_have() {
+    let (_dir, db) = store("reset-password-missing");
+    let (outcome, _) = drive_flow!(
+        |db, input, output, read_secret| reset_password(
+            db,
+            Some("nobody"),
+            input,
+            output,
+            read_secret,
+            false
+        ),
+        db,
+        "",
+        ["a-long-enough-password", "a-long-enough-password"]
+    );
+
+    let error = outcome.expect_err("an unknown account is refused");
+    assert!(format!("{error}").contains("nobody"), "{error}");
 }

@@ -55,11 +55,18 @@ op-image-enrich = { path = "../op-image-enrich", features = ["net"] }
 futures = "0.3"
 # `tokio` for the runtime that `Orchestrator::run` (async) runs on.
 # `rt-multi-thread` so the LLM HTTP client can spawn its own tasks.
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+# `time` for the design-quality mode's settle sleeps after `/api/file/new` and
+# after the stream, which is what keeps a read-back from racing the daemon's
+# document commit.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 # Persist the produced PenDocument to a `.op` (canonical serde_json,
 # same shape as `persistence::save_to_path`) when `OPENPENCIL_SMOKE_OUT`
 # is set — lets the headless render / screenshot step pick up the result.
 serde_json = { workspace = true }
+# The design-quality corpus file and the scorecard JSON are serde types — the
+# corpus is data a reader reviews, so it deserializes into named fields instead
+# of being picked out of a `serde_json::Value` by hand.
+serde = { workspace = true }
 # Content-address the immutable modify baseline and each output so prompt
 # thumbnail provenance can prove both modify prompts started from the same file.
 sha2 = "0.10"

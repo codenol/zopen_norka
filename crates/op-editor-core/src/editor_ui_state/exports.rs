@@ -1,15 +1,19 @@
 //! Public re-exports for the `editor_ui_state` spine.
 
 pub use super::chrome::{
-    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ServerFile,
-    ServerFileMenu, ServerFileRename, ThemeMode, ThemePresetIo, UpdateStatus, WindowControlRequest,
-    RECENT_FILE_CAP, SERVER_FILE_CAP,
+    DesignMdRequest, EmbedHost, FileAction, PencilCursorStyle, RecentFile, ReferenceViewState,
+    ServerFile, ServerFileMenu, ServerFileRename, ThemeMode, ThemePresetIo, UpdateStatus,
+    WindowControlRequest, RECENT_FILE_CAP, SERVER_FILE_CAP,
 };
 pub use super::comments::{
     Comment, CommentAnchor, CommentAuthor, CommentComposer, CommentRequest, CommentThread,
     CommentWriteError, CommentsUiState, MAX_COMMENT_CHARS, MAX_COMMENT_COORDINATE,
 };
 pub use super::comments_page_counts::PageCommentCounts;
+pub use super::copy_status::{
+    fingerprint as document_fingerprint, record_key as document_record_key, CopyIdentity,
+    CopyOrigin, CopyStanding, DocumentCopyStatus, StoredCopy,
+};
 pub use super::git_panel::{
     CloneField, CloneFormState, CommitDiffPatch, CommitDiffSummary, CommitDiffView,
     GitBranchPickerMode, GitCandidateFile, GitCommitSummary, GitDiffTarget, GitDiffView,

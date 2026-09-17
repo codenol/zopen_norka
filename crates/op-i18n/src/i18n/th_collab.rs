@@ -182,6 +182,11 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "recovery.banner.title" => "พบงานที่ยังไม่ได้บันทึก: {{when}}",
         "recovery.banner.restore" => "กู้คืน",
         "recovery.banner.discard" => "ละทิ้ง",
+        "copy.status.behind" => "การเปลี่ยนแปลงล่าสุดของดีมอนไม่ได้อยู่บนแคนวาสนี้ (แคนวาส v{{shown}}, ดีมอน v{{daemon}})",
+        "copy.status.conflict" => "ความขัดแย้งในการซิงค์ — แคนวาสอยู่ที่ v{{shown}} และดีมอนอยู่ที่ v{{daemon}} แคนวาสจึงหยุดตามดีมอน",
+        "copy.status.localEdits" => "แคนวาสนี้มีการแก้ไขที่ดีมอนยังไม่ได้ยืนยัน (แคนวาส v{{shown}})",
+        "copy.status.silent" => "ดีมอนไม่ตอบสนอง — แคนวาสนี้คือสำเนาที่เบราว์เซอร์เก็บไว้ {{when}}",
+        "copy.status.silentNoCopy" => "ดีมอนไม่ตอบสนอง — แคนวาสนี้ยังไม่ได้รับเอกสารจากดีมอน",
         "comments.panel.title" => "ความคิดเห็น",
         "comments.panel.loading" => "กำลังโหลดความคิดเห็น…",
         "comments.panel.empty" => "ยังไม่มีความคิดเห็นในหน้านี้",
@@ -308,6 +313,25 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "share.footer.session" => "เซสชันการทำงานร่วมกันแบบสด…",
         "share.topbar.share" => "แชร์",
         "share.topbar.level" => "{{level}}",
+        // Issue #63 — the reference card beside the canvas: which of the two
+        // pictures is the one the user asked the design to match.
+        "ai.referenceView.title" => "ภาพอ้างอิง",
+        // The file browser's own strings. The screen used to paint
+        // English literals; it is the app's front door now, so its
+        // labels come from here like every other surface's.
+        "files.title" => "ไฟล์",
+        "files.new" => "ไฟล์ใหม่",
+        "files.search" => "ค้นหาไฟล์",
+        "files.loading" => "กำลังโหลดไฟล์…",
+        "files.empty" => "ยังไม่มีไฟล์ — สร้างไฟล์เพื่อเริ่มต้น",
+        "files.noMatch" => "ไม่พบสิ่งที่ตรงกับการค้นหา",
+        "files.rename" => "เปลี่ยนชื่อ",
+        "files.delete" => "ลบ",
+        "files.editedRecently" => "แก้ไขเมื่อเร็ว ๆ นี้",
+        "files.editedJustNow" => "แก้ไขเมื่อสักครู่",
+        "files.editedMinutes" => "แก้ไข {n} นาทีที่แล้ว",
+        "files.editedHours" => "แก้ไข {n} ชั่วโมงที่แล้ว",
+        "files.editedDays" => "แก้ไข {n} วันที่แล้ว",
         _ => return None,
     })
 }

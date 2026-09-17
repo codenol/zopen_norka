@@ -397,7 +397,7 @@ fn the_cookie_a_public_deployment_sets_is_secure_and_httponly() {
         assert!(cookie.contains(attribute), "{cookie}");
     }
     assert!(
-        cookie.contains(op_editor_core::auth_routes::STATUS) == false,
+        !cookie.contains(op_editor_core::auth_routes::STATUS),
         "the cookie is not scoped to a route: {cookie}"
     );
     // The response is not cacheable: it contains a credential.

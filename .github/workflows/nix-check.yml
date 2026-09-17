@@ -60,16 +60,38 @@ jobs:
       # bump forgets the flake (this broke the whole workflow when jian gained
       # the widget-style fields). Deriving the overrides from the checked-out
       # submodule HEADs makes the workflow follow the gitlinks by construction.
+      #
+      # BOTH halves of a gitlink, and the second one is the part that was wrong:
+      # the owner and repository are read from the submodule's own remote, not
+      # hard-coded. They are not all the same repository — `vendor/jian` is
+      # `codenol/jian` while the other two are `ZSeven-W/*` — so the hard-coded
+      # owner produced `github:ZSeven-W/jian/<rev>` for a revision that lives in
+      # `codenol/jian`, and Nix answered `HTTP error 404` before it evaluated
+      # anything (issue #221). The failure looked like a broken flake and was a
+      # broken URL.
       - name: Derive flake input overrides from the submodule pins
         run: |
+          set -euo pipefail
+          override_for() {
+            local path="$1" input="$2" remote rest
+            remote="$(git -C "$path" config --get remote.origin.url)"
+            case "$remote" in
+              https://github.com/*) rest="${remote#https://github.com/}" ;;
+              git@github.com:*) rest="${remote#git@github.com:}" ;;
+              *)
+                echo "unsupported submodule remote for $input: $remote" >&2
+                return 1
+                ;;
+            esac
+            rest="${rest%.git}"
+            printf ' --override-input %s github:%s/%s' \
+              "$input" "$rest" "$(git -C "$path" rev-parse HEAD)"
+          }
           {
             printf 'NIX_VENDOR_OVERRIDES=--no-write-lock-file'
-            printf ' --override-input jian github:ZSeven-W/jian/%s' \
-              "$(git -C vendor/jian rev-parse HEAD)"
-            printf ' --override-input casement github:ZSeven-W/casement/%s' \
-              "$(git -C vendor/casement rev-parse HEAD)"
-            printf ' --override-input agent github:ZSeven-W/agent-rs/%s' \
-              "$(git -C vendor/agent rev-parse HEAD)"
+            override_for vendor/jian jian
+            override_for vendor/casement casement
+            override_for vendor/agent agent
             printf '\n'
           } >> "$GITHUB_ENV"
 

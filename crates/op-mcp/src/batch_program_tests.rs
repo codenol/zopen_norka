@@ -690,3 +690,50 @@ mod image_tests;
 
 #[path = "batch_program_interactivity_tests.rs"]
 mod interactivity_tests;
+
+/// Issue #206, end to end: the measured line from the two-screen prompt.
+///
+/// The model wrote `divider` as a node TYPE although the skills catalogue
+/// documents it as a ROLE. Serde rejected the unknown `PenNode` variant, the
+/// executor dropped the line, and the turn still reported success — the
+/// person was told the screen was drawn while the card's hairline was
+/// missing. The requested element must become real.
+#[test]
+fn divider_typed_line_lands_as_a_visible_node() {
+    let mut state = op_editor_core::EditorState::new();
+    state.active_children_mut().clear();
+    // Verbatim from the daemon log of the re-run of prompt 7, minus the
+    // binding numbers that only this turn's program knows.
+    let program = r##"card=I(document, {"type":"frame","name":"Card","width":320,"height":200,"layout":"vertical"})
+b46=I(card, {"type":"divider","name":"card-divider","width":"fill_container","height":1,"fill":[{"type":"solid","color":"#E6EBF3"}]})"##;
+
+    let (envelope, cmd) = call_operations(&state, program);
+
+    assert!(
+        envelope.get("errors").is_none(),
+        "the divider line must not be dropped: {envelope}"
+    );
+    assert!(state.apply(cmd.expect("the program emits a command")));
+    let card = &state.active_children()[0];
+    let children = card.children().expect("card children");
+    assert_eq!(children.len(), 1, "the divider must be inside the card");
+    let value = serde_json::to_value(&children[0]).expect("node json");
+    assert_eq!(
+        value["type"].as_str(),
+        Some("rectangle"),
+        "the alias must become a real node: {value}"
+    );
+    assert_eq!(
+        value["role"].as_str(),
+        Some("divider"),
+        "the role the model meant must survive: {value}"
+    );
+    assert_eq!(value["height"].as_f64(), Some(1.0), "{value}");
+    assert_eq!(value["width"].as_str(), Some("fill_container"), "{value}");
+    assert!(
+        value["fill"]
+            .as_array()
+            .is_some_and(|fill| !fill.is_empty()),
+        "a divider with no fill paints nothing: {value}"
+    );
+}

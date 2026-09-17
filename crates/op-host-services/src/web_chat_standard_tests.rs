@@ -558,8 +558,8 @@ fn a_closed_write_barrier_skips_the_starter_frame_clear() {
 }
 
 /// A provider that replays one fixed text response.
-struct ScriptedProvider {
-    response: String,
+pub(super) struct ScriptedProvider {
+    pub(super) response: String,
 }
 
 impl ChatProvider for ScriptedProvider {
@@ -582,7 +582,7 @@ impl ChatProvider for ScriptedProvider {
 }
 
 /// A canvas holding one frame the modify route can target.
-fn modify_target_state() -> WebCanvasState {
+pub(super) fn modify_target_state() -> WebCanvasState {
     let doc_json = serde_json::json!({
         "version": "1.0.0",
         "children": [{
@@ -595,7 +595,7 @@ fn modify_target_state() -> WebCanvasState {
     WebCanvasState::new(EditorState::from_document(loaded.value), 3100)
 }
 
-fn modify_plan() -> crate::chat_intent::ModifyPlan {
+pub(super) fn modify_plan() -> crate::chat_intent::ModifyPlan {
     crate::chat_intent::ModifyPlan {
         rewrites_a_placed_recipe: false,
         user_message: "rename the card".into(),
@@ -628,6 +628,9 @@ fn a_closed_write_barrier_still_streams_the_modify_reply_without_writing() {
         &mut out,
         modify_plan(),
         &provider,
+        // No model selected: the design-turn thinking policy has nothing to
+        // override.
+        None,
         &state,
         &SseHub::default(),
         Some(&barrier),

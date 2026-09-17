@@ -152,9 +152,7 @@ fn schedule_frame() {
         let paint = COALESCER.with(|c| {
             let mut slot = c.borrow_mut();
             slot.as_mut().and_then(|co| {
-                if co.frame.is_none() {
-                    return None;
-                }
+                co.frame.as_ref()?;
                 co.frame = None;
                 co.scheduled = false;
                 Some(co.paint.clone())

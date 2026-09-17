@@ -5,14 +5,22 @@
 //! route on the daemon side: classify the user's turn, then dispatch to plain
 //! chat, design modification, or the orchestrator-backed new-design pipeline.
 //! Host CLI and ACP providers are intentionally unavailable on the web route.
+//!
+//! This file is the spine: the request shape and its parsing, the turn itself,
+//! the document sink it commits through, the `#[path]` test modules, and the
+//! re-exports that keep every path into the moved parts where it was. The route
+//! bodies live in `web_chat_standard_routes.rs`, the recipe and reply rules in
+//! `web_chat_standard_recipe.rs`, the snapshot and starter-frame bookkeeping in
+//! `web_chat_standard_starter.rs`.
 
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
-#[cfg(test)]
-use op_ai::chat_provider::StopReason;
-use op_ai::chat_provider::{ChatAttachment, ChatDelta, ChatHistoryRole, ChatProvider, ChatRequest};
+use op_ai::chat_provider::ThinkingMode;
+use op_ai::chat_provider::{
+    ChatAttachment, ChatDelta, ChatHistoryRole, ChatProvider, ChatRequest, StopReason,
+};
 use op_editor_core::chat::MAX_ATTACHMENT_BYTES;
 use op_editor_core::{BuiltinAgentConfig, EditorCommand, EditorState, NodeId};
 use op_orchestrator::{
@@ -41,8 +49,49 @@ use events::{
 mod model_selection;
 use model_selection::selected_model_id;
 
+#[path = "web_chat_standard_recipe.rs"]
+mod recipe;
+pub(crate) use recipe::composes_new_screen;
+// `kit_recipe` + `recipe_base_rule` are read outside this module as well: the
+// modify plan renders the rule a placement contributes into the prompt of the
+// route a recipe turn actually takes, and it builds it from this one builder
+// rather than keeping a second copy of the wording (issue #207). The rest of
+// these stay module-private — `routes` reaches them through `use super::*`.
+use recipe::{
+    insert_composed_screens, place_selected_recipe, recipe_base_to_place, reference_evidence,
+    split_composed_screens,
+};
+pub(crate) use recipe::{kit_recipe, recipe_base_rule};
+
+#[path = "web_chat_standard_routes.rs"]
+mod routes;
+use routes::{
+    resolve_standard_route, stream_chat_route, stream_modify_route, stream_new_design_route,
+};
+
+#[path = "web_chat_standard_starter.rs"]
+mod starter;
+pub(crate) use starter::clear_fresh_starter_frame_for_design;
+use starter::{apply_request_snapshot, clear_starter_frame_for_design, inject_transient_builtin};
+// Read only by the test modules below — the only reader the old path had. The
+// clear itself is called from `starter`, so nothing else needs the name.
+#[cfg(test)]
+use starter::clear_live_starter_frame_for_design;
+
 const STANDARD_MODIFY_STEP: &str =
     r#"<step title="Checking guidelines">Analyzing modification request...</step>"#;
+
+/// What a recipe turn gets when the reply only edited the placed template and
+/// composed no screen of its own (issue #182).
+///
+/// It says what happened instead of apologising, and it is the only sentence on
+/// this route that tells the user the canvas does not hold the screen they
+/// asked for. `<!-- APPLIED -->` stays: nodes really were written.
+const EDIT_WITHOUT_COMPOSE_NOTICE: &str =
+    "\n\n⚠ No new screen was composed: this turn only edited the template the host placed as \
+     the base for it, and that template's own content still stands. What the request described \
+     is not on the canvas — ask for it as a new screen, or keep editing this one until it is \
+     the screen you want.";
 
 pub struct WebStandardTurnRequest {
     pub ai: AiStreamRequest,
@@ -162,6 +211,20 @@ fn parse_chat_attachments(value: Option<&Value>) -> Vec<ChatAttachment> {
         .collect()
 }
 
+/// What the stage *before* routing decided, carried into the route that draws.
+///
+/// Both answers come out of that earlier stage and are read together by
+/// `stream_new_design_route`: whether the request carries a reference picture
+/// (no recipe base may be laid over it, issue #65) and the recipe base the
+/// pre-classification placement already put on the page (the route must not
+/// clone a second copy of it, issue #189). Bundled rather than passed one by
+/// one because the route's parameter list had reached its arity limit, and
+/// because the two facts are the same decision's two halves.
+pub(crate) struct PlacedBase {
+    pub(crate) reference: op_editor_core::ReferenceEvidence,
+    pub(crate) placed_recipe: Option<(String, op_editor_core::NodeId)>,
+}
+
 /// Everything an AI turn needs to commit to the canvas: the document
 /// authority, the stream that announces a change, and the shutdown admission
 /// that decides whether a commit may happen at all.
@@ -214,42 +277,37 @@ pub fn stream_standard_turn<W: Write>(
     };
 
     let model = selected_model_id(&req.ai, &snapshot);
-    if matches!(
+    // ── The starter frame, and the one rule about it (issue #202) ───────────
+    //
+    // The blank `Frame` the daemon opens a document with is not part of a design
+    // request, so a turn that draws drops it (issue #184). The deletion is a
+    // document mutation like any other: it takes the collab gate, write
+    // admission and a version bump. **The clear may only happen on a turn that
+    // will draw** — a turn that answers in words must leave the page exactly as
+    // it found it.
+    //
+    // So it happens in two steps, and the order is the whole fix:
+    //
+    //   1. here, before routing, a *probe* clears the frame in this turn's own
+    //      snapshot and nothing else. Routing reads that snapshot (page empty →
+    //      a classified `Modify` becomes `New`), so the route decision is
+    //      bit-for-bit the one this endpoint made when the clear was live.
+    //   2. below, once the route is known, the live clear runs for every route
+    //      except `Chat`.
+    //
+    // Before that split, the clear ran here against the *live* document, on the
+    // keyword verdict of a different classifier than the one that routes. An
+    // English "Design a settings page…" is a `Design` keyword for
+    // `op_orchestrator::classify_intent` and a conversation for the second
+    // classifier, so the document lost its only frame and the chat route then
+    // drew nothing: `pages[0]` went from 1 node to 0, the turn reported `done`,
+    // and the single version bump of the turn *was* the deletion.
+    let design_keyword = matches!(
         op_orchestrator::classify_intent(&req.ai.user),
         op_orchestrator::Intent::Design
-    ) && clear_fresh_starter_frame_for_design(&mut snapshot)
-    {
-        let tick = {
-            let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
-            // Through the gateway like every other daemon write: during a live
-            // session this housekeeping edit would be an unsequenced AI write.
-            // Skipping it only means the starter frame stays, which is strictly
-            // better than forking the shared document.
-            let gated = guard
-                .gate_daemon_mutation(
-                    op_editor_core::CollabGateAction::Document(
-                        op_editor_core::CollabDocumentMutation::NodeDelete,
-                    ),
-                    op_editor_core::CollabEditSource::Ai,
-                )
-                .is_ok();
-            // Also a document commit, so it needs the same instant of
-            // admission; a closed barrier simply skips the clear.
-            let starter_clear_pass = admit_document_write(write_barrier).ok();
-            if gated
-                && starter_clear_pass.is_some()
-                && clear_live_starter_frame_for_design(&mut guard).is_some()
-            {
-                snapshot = guard.editor.clone();
-                Some(guard.sse_tick())
-            } else {
-                None
-            }
-        };
-        if let Some(tick) = tick {
-            hub.broadcast(tick);
-        }
-    }
+    );
+    let starter_frame_probed_away =
+        design_keyword && clear_fresh_starter_frame_for_design(&mut snapshot);
     inject_transient_builtin(&mut snapshot, req.transient_builtin.as_ref());
 
     let credential_persistence = state
@@ -285,14 +343,12 @@ pub fn stream_standard_turn<W: Write>(
     // to follow the picture, and routing it into a recipe rewrite throws the
     // picture away (the modify path never sees attachments). So the reference
     // wins and the recipe stays out of the way.
-    let has_reference_image = req.attachments.iter().any(|a| a.is_image());
-    let placed_recipe = if op_editor_core::recipe_to_place(
-        &req.ai.user,
-        has_reference_image,
-        op_editor_core::session_kit(),
-    )
-    .is_some()
-    {
+    //
+    // The decision is taken on this route's own attachment list, which arrives
+    // on the wire body: whether the turn carries a picture is known exactly
+    // here, so nothing below guesses it from the prompt's words (issue #65).
+    let reference = reference_evidence(&req);
+    let placed_recipe = if recipe_base_to_place(&req.ai.user, reference, false).is_some() {
         place_selected_recipe(&req.ai.user, state, hub, write_barrier)
     } else {
         None
@@ -313,22 +369,19 @@ pub fn stream_standard_turn<W: Write>(
     // When the host placed a recipe, the turn is a rewrite of that screen's
     // placeholder content — say so, instead of leaving the model to infer it
     // from a request that reads like "build me a switches screen".
-    let recipe_hint = placed_recipe.as_ref().map(|(recipe_id, _)| {
-        let name = op_editor_core::session_kit()
-            .recipes
-            .iter()
-            .find(|r| &r.id == recipe_id)
-            .map(|r| r.name.clone())
-            .unwrap_or_else(|| recipe_id.clone());
-        crate::chat_intent::RecipeBaseHint {
-            recipe_id: recipe_id.clone(),
-            name,
-        }
-    });
+    let recipe_hint =
+        placed_recipe
+            .as_ref()
+            .map(|(recipe_id, _)| crate::chat_intent::RecipeBaseHint {
+                recipe_id: recipe_id.clone(),
+                name: kit_recipe(recipe_id)
+                    .map(|recipe| recipe.name.clone())
+                    .unwrap_or_else(|| recipe_id.clone()),
+            });
     let modify_plan =
         crate::chat_intent::build_modify_plan_with(&snapshot, &req.ai.user, recipe_hint.as_ref());
     let page_children_empty = snapshot.active_children().is_empty();
-    let intent = if has_reference_image {
+    let intent = if reference == op_editor_core::ReferenceEvidence::Attached {
         // "Make it like this picture" with the picture attached is a build
         // request by construction: the reference brief is what the turn is
         // for. Letting the classifier read it as conversation answered a
@@ -340,8 +393,30 @@ pub fn stream_standard_turn<W: Write>(
         resolve_standard_route(classified, page_children_empty, modify_plan.is_some())
     };
 
+    // Step 2 of the starter-frame rule above: the route is known, so the
+    // deletion the probe only previewed can now be committed — and it is
+    // committed for the two routes that draw, never for the one that talks.
+    //
+    // The `design_keyword` half of the condition is what keeps the drawing
+    // routes exactly as they were: a turn that did not match the design
+    // keywords never had its starter frame cleared, and a modify turn against a
+    // blank starter is the turn that rewrites that frame in place.
+    if design_keyword && !matches!(intent, crate::chat_intent::DesignIntent::Chat) {
+        clear_starter_frame_for_design(&mut snapshot, state, hub, write_barrier);
+    }
+
     match intent {
         crate::chat_intent::DesignIntent::Chat => {
+            // The chat route writes nothing to the document, so the frame the
+            // probe dropped from this turn's snapshot must still be on the
+            // canvas — and the reply has to describe the canvas the user
+            // actually has (issue #202).
+            if starter_frame_probed_away {
+                snapshot = {
+                    let guard = state.lock().unwrap_or_else(|p| p.into_inner());
+                    guard.editor.clone()
+                };
+            }
             stream_chat_route(out, &req, &snapshot, chat_provider.as_ref(), model)
         }
         crate::chat_intent::DesignIntent::Modify => {
@@ -350,537 +425,40 @@ pub fn stream_standard_turn<W: Write>(
                 out,
                 plan,
                 design_provider.as_ref(),
+                model.as_deref(),
                 state,
                 hub,
                 write_barrier,
             )
         }
-        crate::chat_intent::DesignIntent::New => stream_new_design_route(
-            out,
-            req,
-            snapshot,
-            design_provider,
-            model,
-            CanvasWriteTarget {
-                state,
-                hub,
-                write_barrier,
-            },
-        ),
-    }
-}
-
-fn apply_request_snapshot(
-    req: &WebStandardTurnRequest,
-    state: &Mutex<WebCanvasState>,
-    hub: &SseHub,
-    write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
-) -> Result<EditorState, WebChatStandardError> {
-    let mut broadcast_tick = None;
-    let mut snapshot = {
-        let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
-        if let Some(agent) = req.transient_builtin.as_ref() {
-            if !agent.has_model(req.ai.model.trim()) {
-                return Err(WebChatStandardError::TransientModelMismatch);
-            }
-            // `web_credentials` is outside this pass; carry its verdict text.
-            crate::web_credentials::validate_web_provider_base_url(&agent.base_url)
-                .map_err(|error| WebChatStandardError::EndpointRejected(error.to_string()))?;
-            if !crate::web_credentials::public_demo_transient_endpoint_allowed(agent) {
-                return Err(WebChatStandardError::EndpointNotAllowlisted);
-            }
-        }
-        if let Some(doc_json) = req.document_json.as_deref() {
-            let loaded = op_pen_loader::load_canonical(doc_json)
-                .map_err(|e| WebChatStandardError::Document(e.to_string()))?;
-            if guard.editor.doc != loaded.value {
-                // A whole-document swap during a live session is exactly what
-                // the collaboration protocol cannot sequence, so the gateway
-                // refuses it here rather than letting the AI route silently
-                // replace what peers are editing.
-                guard
-                    .gate_daemon_mutation(
-                        op_editor_core::CollabGateAction::ReplaceDocument,
-                        op_editor_core::CollabEditSource::Ai,
-                    )
-                    .map_err(WebChatStandardError::CollabRefused)?;
-                // The one instant this turn touches the document; refused
-                // outright once shutdown has closed the barrier.
-                let _write_pass = admit_document_write(write_barrier)?;
-                guard.replace_document(loaded.value);
-                broadcast_tick = Some(guard.sse_tick());
-            }
-        }
-        // `apply_editor_meta` and the active-page switch below both write
-        // state that `EditorMeta::from_state` serialises into the tenant's
-        // persisted snapshot (`active_page_index`, `preserve_authored_
-        // geometry`). They are therefore document writes for admission
-        // purposes even when the document itself is unchanged, and a closed
-        // barrier must skip them — otherwise a turn arriving during shutdown
-        // moves the active page after the flush snapshotted it.
-        //
-        // Skipped, not refused: the metadata is incidental to the turn, so a
-        // plain chat reply still streams back rather than erroring.
-        let metadata_pass = admit_document_write(write_barrier).ok();
-        if metadata_pass.is_some() {
-            if let Some(meta) = req.editor_meta.clone() {
-                op_pen_loader::apply_editor_meta(&mut guard.editor, meta);
-            }
-        }
-        if let Some(size) = req.agent_team_size {
-            guard.editor.chat.agent_team_size = size.clamp(1, 6);
-        }
-        guard.editor.selection.set = req.selected_ids.iter().map(NodeId::new).collect::<Vec<_>>();
-        guard.editor.selection.anchor = guard
-            .editor
-            .selection
-            .set
-            .last()
-            .cloned()
-            .unwrap_or(NodeId::NONE);
-        if metadata_pass.is_some() {
-            if let Some(page_id) = req.active_page_id.as_deref() {
-                if let Some(index) = guard
-                    .editor
-                    .doc
-                    .pages
-                    .as_ref()
-                    .and_then(|pages| pages.iter().position(|p| p.id == page_id))
-                {
-                    let _ = guard.editor.set_active_page(index);
-                }
-            }
-        }
-        guard.editor.clone()
-    };
-    if let Some(tick) = broadcast_tick {
-        hub.broadcast(tick);
-    }
-    inject_transient_builtin(&mut snapshot, req.transient_builtin.as_ref());
-    Ok(snapshot)
-}
-
-fn inject_transient_builtin(state: &mut EditorState, transient: Option<&BuiltinAgentConfig>) {
-    let Some(transient) = transient else {
-        return;
-    };
-    let agents = &mut state.editor_ui.agent_settings.builtin_agents;
-    agents.retain(|agent| agent.id != transient.id);
-    agents.insert(0, transient.clone());
-    state.rebuild_chat_models();
-}
-
-pub(crate) fn clear_fresh_starter_frame_for_design(state: &mut EditorState) -> bool {
-    if state.doc != EditorState::starter().doc {
-        return false;
-    }
-    state.active_children_mut().clear();
-    state.clear_selection();
-    // Raw `active_children_mut()` bypasses the command/history path, so it
-    // must advance the content revision explicitly. Save acknowledgements
-    // use that revision to avoid marking newer edits as saved.
-    state.mark_document_changed();
-    true
-}
-
-fn clear_live_starter_frame_for_design(state: &mut WebCanvasState) -> Option<u64> {
-    if !clear_fresh_starter_frame_for_design(&mut state.editor) {
-        return None;
-    }
-    state.version += 1;
-    Some(state.version)
-}
-
-/// Place the recipe this request asks for, before anything is classified.
-///
-/// Returns the placed root's id. The selection lands on it, so the turn that
-/// follows is a *modification* of an existing screen rather than a request to
-/// compose one — which is the difference between "adapt the recipe" as an
-/// instruction the model may skip and as the shape of the turn itself.
-fn place_selected_recipe(
-    user_message: &str,
-    state: &Mutex<WebCanvasState>,
-    hub: &SseHub,
-    write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
-) -> Option<(String, op_editor_core::NodeId)> {
-    let recipe = op_editor_core::select_recipe(user_message, op_editor_core::session_kit())?;
-    let master = op_editor_core::NodeId::new(recipe.template.clone());
-    let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
-    let gated = guard
-        .gate_daemon_mutation(
-            op_editor_core::CollabGateAction::Document(
-                op_editor_core::CollabDocumentMutation::BasicNodeInsert,
-            ),
-            op_editor_core::CollabEditSource::Ai,
-        )
-        .is_ok();
-    if !gated {
-        return None;
-    }
-    let _pass = admit_document_write(write_barrier).ok()?;
-    // Clear the starter BEFORE placing: the clear only recognises an
-    // untouched starter document, and placing the recipe already touched it.
-    clear_fresh_starter_frame_for_design(&mut guard.editor);
-    let node_id = guard.editor.instantiate_component(&master)?;
-    // The request may name blocks it does not want. That is a product
-    // decision like the recipe choice itself, so it happens here rather
-    // than in a prompt the model may or may not honour.
-    let hidden = op_editor_core::hide_blocks_in_subtree(
-        &mut guard.editor,
-        &node_id,
-        &op_editor_core::requested_hidden_blocks(user_message, recipe),
-    );
-    if hidden > 0 {
-        guard.editor.mark_document_changed();
-    }
-    // An empty root beside the placed screen is noise the user has to delete
-    // (it is either the untouched starter or a root the model opened and left
-    // blank). The recipe root is the page now.
-    let keep = node_id.as_str().to_string();
-    {
-        use op_editor_core::PenNodeExt as _;
-        guard.editor.active_children_mut().retain(|child| {
-            child.id_str() == keep || child.children().is_some_and(|kids| !kids.is_empty())
-        });
-    }
-    guard.editor.set_single_selection(node_id.clone());
-    let tick = guard.sse_tick();
-    drop(guard);
-    hub.broadcast(tick);
-    Some((recipe.id.clone(), node_id))
-}
-
-fn resolve_standard_route(
-    classified: crate::chat_intent::DesignIntent,
-    page_children_empty: bool,
-    has_modify_plan: bool,
-) -> crate::chat_intent::DesignIntent {
-    match classified {
-        crate::chat_intent::DesignIntent::Modify if page_children_empty => {
-            crate::chat_intent::DesignIntent::New
-        }
-        crate::chat_intent::DesignIntent::Modify if !has_modify_plan => {
-            crate::chat_intent::DesignIntent::New
-        }
-        other => other,
-    }
-}
-
-fn stream_chat_route<W: Write>(
-    out: &mut W,
-    req: &WebStandardTurnRequest,
-    state: &EditorState,
-    provider: &dyn ChatProvider,
-    model: Option<String>,
-) -> std::io::Result<()> {
-    let chat_req = ChatRequest {
-        system_prompt: crate::chat_system_prompt::build_chat_system_prompt(state, &req.ai.user),
-        user_message: req.ai.user.clone(),
-        history: req.history.clone(),
-        max_output_tokens: req.ai.max_output_tokens,
-        thinking: req.ai.thinking,
-        effort: req.ai.effort,
-        attachments: req.attachments.clone(),
-        model,
-    };
-    for delta in provider.send(chat_req) {
-        out.write_all(crate::ai_proxy::delta_to_sse(&delta).as_bytes())?;
-        out.flush()?;
-        if matches!(delta, ChatDelta::Done { .. } | ChatDelta::Error(_)) {
-            break;
-        }
-    }
-    Ok(())
-}
-
-fn stream_modify_route<W: Write>(
-    out: &mut W,
-    plan: crate::chat_intent::ModifyPlan,
-    provider: &dyn ChatProvider,
-    state: &Mutex<WebCanvasState>,
-    hub: &SseHub,
-    write_barrier: Option<&crate::web_canvas_server::WriteBarrier>,
-) -> std::io::Result<()> {
-    write_delta_event(out, STANDARD_MODIFY_STEP)?;
-    let target_frame_ids = plan.target_frame_ids;
-    // Rewriting a whole placed screen — every column header and every sample
-    // row — does not fit in the default reply budget, and a reply cut short
-    // is what "it changed the headers but not the data" looks like.
-    let max_output_tokens = if plan.rewrites_a_placed_recipe {
-        16384
-    } else {
-        8192
-    };
-    let request = ChatRequest {
-        system_prompt: plan.system_prompt,
-        user_message: plan.user_message,
-        max_output_tokens,
-        ..Default::default()
-    };
-    let mut full_response = String::new();
-    let mut stream_error: Option<String> = None;
-    for delta in provider.send(request) {
-        match delta {
-            ChatDelta::TextDelta(s) => full_response.push_str(&s),
-            ChatDelta::Thinking(_) | ChatDelta::ToolUse { .. } => {}
-            ChatDelta::Error(msg) => {
-                stream_error = Some(msg);
-                break;
-            }
-            ChatDelta::Done { .. } => break,
-        }
-    }
-
-    let nodes = crate::chat_intent::parse_modify_nodes(&full_response);
-    if !nodes.is_empty() {
-        write_delta_event(out, &format!("\n{full_response}"))?;
-        let (applied, tick) = {
-            let mut guard = state.lock().unwrap_or_else(|p| p.into_inner());
-            // `apply_design_modification` writes a batch straight into the
-            // editor, so the gate runs before it rather than per command.
-            if guard
-                .gate_daemon_mutation(
-                    op_editor_core::CollabGateAction::Document(
-                        op_editor_core::CollabDocumentMutation::NodePropertyBatch,
-                    ),
-                    op_editor_core::CollabEditSource::Ai,
-                )
-                .is_err()
-            {
-                (0, None)
-            } else {
-                // Shutting down: the reply still streams, the document is left
-                // exactly as the flush will find it.
-                let admitted = admit_document_write(write_barrier).ok();
-                let (count, mutated) = if admitted.is_none() {
-                    (0, false)
-                } else {
-                    crate::chat_canvas_tools::apply_design_modification(
-                        &mut guard.editor,
-                        &nodes,
-                        &target_frame_ids,
-                    )
-                };
-                let tick = if mutated {
-                    guard.version += 1;
-                    Some(guard.sse_tick())
-                } else {
-                    None
-                };
-                (count, tick)
-            }
-        };
-        if let Some(tick) = tick {
-            hub.broadcast(tick);
-        }
-        if applied > 0 {
-            write_delta_event(out, "\n\n<!-- APPLIED -->")?;
-        }
-        return write_done_event(out);
-    }
-
-    let message = if let Some(err) = stream_error {
-        err
-    } else {
-        let trimmed = full_response.trim();
-        let hint = if trimmed.is_empty() {
-            "The model returned an empty response.".to_string()
-        } else {
-            let preview: String = trimmed.chars().take(150).collect();
-            let ellipsis = if full_response.chars().count() > 150 {
-                "…"
-            } else {
-                ""
-            };
-            format!("Model output: \"{preview}{ellipsis}\"")
-        };
-        format!("Could not parse design nodes from model response. {hint}")
-    };
-    write_error_event(out, &message)
-}
-
-fn stream_new_design_route<W: Write>(
-    out: &mut W,
-    req: WebStandardTurnRequest,
-    snapshot: EditorState,
-    provider: Box<dyn ChatProvider>,
-    model: Option<String>,
-    target: CanvasWriteTarget<'_>,
-) -> std::io::Result<()> {
-    let append_context = crate::chat_intent::detect_append_intent(&snapshot, &req.ai.user);
-    let reference_attachments = req
-        .attachments
-        .iter()
-        .filter(|a| a.is_image())
-        .map(|a| op_orchestrator::ReferenceAttachment {
-            name: a.name.clone(),
-            media_type: a.media_type.clone(),
-            data: a.data.clone(),
-        })
-        .collect();
-    // Select and place the recipe BEFORE the model runs. "The model should
-    // pick the recipe" is a hope; matching the request against the kit's own
-    // words is a decision. Once placed, the turn is framed as adaptation of a
-    // node that already exists, which is what stops the model composing the
-    // same screen from scratch.
-    let mut rules: Vec<jian_ops_schema::DesignRule> =
-        op_editor_core::effective_design_rules(snapshot.doc.design_md.as_ref())
-            .into_iter()
-            .map(|entry| entry.rule)
-            .collect();
-    if let Some(recipe) = op_editor_core::select_recipe(&req.ai.user, op_editor_core::session_kit())
-    {
-        // Placed through the daemon's own lock, like every other write on
-        // this path, so the browser sees the base on its next sync.
-        let placed = {
-            let mut guard = target.state.lock().unwrap_or_else(|p| p.into_inner());
-            guard
-                .editor
-                .instantiate_component(&op_editor_core::NodeId::new(recipe.template.clone()))
-        };
-        if let Some(node_id) = placed {
-            rules.insert(
-                0,
-                jian_ops_schema::DesignRule {
-                    id: "doc:recipe-base".into(),
-                    title: format!("Recipe already placed: {}", recipe.name),
-                    instruction: format!(
-                        "The product already placed recipe `{}` as node `{}`. It is the base for \
-                         this turn: keep its shell, table chrome and pagination, and adapt what \
-                         it provides — retitle it for this product, replace the sample column \
-                         data, delete or hide the blocks the request does not need. Do not \
-                         compose this screen again and do not rebuild its structure.",
-                        recipe.id,
-                        node_id.as_str()
-                    ),
-                    kind: jian_ops_schema::DesignRuleKind::Require,
-                    scope: jian_ops_schema::DesignRuleScope::Global,
-                    condition: None,
-                    priority: i32::MIN + 1,
-                    enabled: true,
-                    overrides: None,
-                },
-            );
-        }
-    }
-    let mut request = DesignRequest {
-        prompt: req.ai.user,
-        model: model.clone(),
-        provider: None,
-        // The AI reads the session's resolved rules — never the document's
-        // markdown brief, which the editor no longer maintains.
-        rules,
-        continuation_context: None,
-        append_context,
-        concurrency: req
-            .agent_team_size
-            .unwrap_or(snapshot.chat.agent_team_size)
-            .clamp(1, 6),
-        validation_enabled: true,
-        visual_ref_enabled: false,
-        pinned_style_guide: snapshot.editor_ui.pinned_style_guide.clone(),
-        reference_attachments,
-        reference_brief: None,
-    };
-    // Share one provider Arc between the design LLM and vision brief /
-    // (optionally) the vision validator.
-    let provider_arc: Arc<dyn ChatProvider> = Arc::from(provider);
-    let llm = ChatProviderLlmClient::new(provider_arc.clone()).with_model(model.clone());
-    let mut sink = WebDesignDocSink::new(target.state, target.hub, target.write_barrier, snapshot);
-    let abort = AbortFlag::new();
-    let pre_validator = LintPreValidator;
-
-    // Always use a real multimodal client for reference briefs when the user
-    // attached images. Post-gen validation stays behind OPENPENCIL_VISION_VALIDATION.
-    let brief_vision = crate::validation_providers::ChatVisionLlmClient::new(provider_arc.clone())
-        .with_model(model.clone());
-    if !request.reference_attachments.is_empty() {
-        op_orchestrator::reference_brief::enrich_request_with_reference_brief(
-            &mut request,
-            &brief_vision,
-        );
-    }
-
-    // ── Class-C vision-validation provider selection (Track-1 Step 3) ──────────
-    // REAL providers only when `OPENPENCIL_VISION_VALIDATION=1` (defaults OFF);
-    // otherwise the no-op stubs keep `run_post_generation_validation` a
-    // guaranteed short-circuit, so the default path is byte-for-byte unchanged.
-    let use_real_vision = crate::validation_providers::vision_validation_enabled();
-    let stub_screenshot = SkippedScreenshotProvider;
-    let stub_vision = SkippedVisionLlmClient;
-    let real_screenshot = crate::validation_providers::RealScreenshotProvider;
-    let real_vision = crate::validation_providers::ChatVisionLlmClient::new(provider_arc.clone())
-        .with_model(model.clone());
-    let (screenshot, vision, system_prompt): (
-        &dyn op_orchestrator::ScreenshotProvider,
-        &dyn op_orchestrator::VisionLlmClient,
-        String,
-    ) = if use_real_vision {
-        (
-            &real_screenshot,
-            &real_vision,
-            crate::validation_providers::validation_system_prompt(),
-        )
-    } else {
-        (&stub_screenshot, &stub_vision, String::new())
-    };
-    let providers = ValidationProviders {
-        pre_validator: &pre_validator,
-        screenshot,
-        vision,
-        system_prompt,
-    };
-    let identity =
-        op_orchestrator::agent_identity::assign_agent_identities_seeded(1, web_identity_seed())
-            .into_iter()
-            .next()
-            .expect("one requested agent identity");
-    // The browser transcript learns the persona first. The daemon relay then
-    // confirms that exact same identity, so the canvas cursor cannot appear
-    // under a different name or colour than the visible assistant bubble.
-    write_agent_identity_event(out, &identity)?;
-    let epoch = op_editor_core::agent_indicators::begin();
-    op_editor_core::agent_indicators::confirm_cursor_agent(epoch, &identity.color, &identity.name);
-    let summary = {
-        let out_ref = &mut *out;
-        let mut on_progress = move |p: Progress| {
-            let _ = write_thinking_event(out_ref, &format!("\n{}", progress_label(&p)));
-        };
-        crate::chat_runtime::block_on_anywhere(Orchestrator::new().with_indicator_epoch(epoch).run(
-            request,
-            &mut sink,
-            &llm,
-            &mut on_progress,
-            &abort,
-            &providers,
-        ))
-    };
-    // Natural completion drains the queued reveals gracefully; an
-    // aborted turn tears the overlay down at once.
-    if abort.is_set() {
-        op_editor_core::agent_indicators::end_if_epoch(epoch);
-    } else {
-        op_editor_core::agent_indicators::finish_if_epoch(epoch);
-    }
-    match summary {
-        Ok(summary) => {
-            let ok = summary
-                .subtasks
-                .iter()
-                .filter(|o| o.error.is_none())
-                .count();
-            let failed = summary.subtasks.len() - ok;
-            write_delta_event(
+        crate::chat_intent::DesignIntent::New => {
+            // The starter frame was already cleared above, by the rule that
+            // makes the clear belong to a drawing route — the route that
+            // actually draws the screens decides it, not the keyword classifier
+            // (a Russian "сделай два экрана" is no `classify_intent` design word,
+            // and the starter frame it left behind was the third screen in the
+            // measurement, issue #184).
+            stream_new_design_route(
                 out,
-                &format!(
-                    "\n\nDone — {} subtask(s) succeeded, {} failed, {} paintable node(s) \
-                     ({} forest root(s)).",
-                    ok, failed, summary.paintable_nodes, summary.total_nodes
-                ),
-            )?;
-            write_done_event(out)
+                req,
+                snapshot,
+                design_provider,
+                model,
+                CanvasWriteTarget {
+                    state,
+                    hub,
+                    write_barrier,
+                },
+                // What the pre-classification stage decided: whether this is a
+                // reference turn, and the base this turn already stands on — if
+                // the placement put one there. Carried in so the route below
+                // cannot place a second copy of it (issue #189).
+                PlacedBase {
+                    reference,
+                    placed_recipe,
+                },
+            )
         }
-        Err(e) => write_error_event(out, &e.to_string()),
     }
 }
 
@@ -961,3 +539,23 @@ mod tests;
 #[cfg(test)]
 #[path = "web_chat_standard_model_tests.rs"]
 mod model_tests;
+
+#[cfg(test)]
+#[path = "web_chat_standard_reference_image_tests.rs"]
+mod reference_image_tests;
+
+#[cfg(test)]
+#[path = "web_chat_standard_recipe_reference_tests.rs"]
+mod recipe_reference_tests;
+
+#[cfg(test)]
+#[path = "web_chat_standard_turn_outcome_tests.rs"]
+mod turn_outcome_tests;
+
+#[cfg(test)]
+#[path = "web_chat_standard_starter_clear_tests.rs"]
+mod starter_clear_tests;
+
+#[cfg(test)]
+#[path = "web_chat_standard_truncation_tests.rs"]
+mod truncation_tests;
