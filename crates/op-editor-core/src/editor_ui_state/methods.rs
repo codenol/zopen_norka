@@ -714,47 +714,6 @@ impl EditorUiState {
         self.touch && self.size_class.is_expanded()
     }
 
-    /// The generated-code inspector needs more horizontal room than the
-    /// Compact phone sheet provides. It remains available on tablet, desktop,
-    /// and web layouts.
-    pub fn code_property_tab_available(&self) -> bool {
-        !self.compact_layout()
-    }
-
-    /// Active PropertyPanel tab after applying responsive availability. A
-    /// retained Code value (for example after resizing an iPad split view down
-    /// to Compact) presents as Design until enough room is available again.
-    pub fn effective_property_tab(&self) -> crate::PropertyTab {
-        if !self.code_property_tab_available()
-            && matches!(self.property_tab, crate::PropertyTab::Code)
-        {
-            crate::PropertyTab::Design
-        } else {
-            self.property_tab
-        }
-    }
-
-    /// Set the active PropertyPanel tab without allowing direct action
-    /// dispatch to reopen Code in a Compact layout. Returns whether the stored
-    /// value changed.
-    pub fn set_property_tab(&mut self, requested: crate::PropertyTab) -> bool {
-        let next = if !self.code_property_tab_available()
-            && matches!(requested, crate::PropertyTab::Code)
-        {
-            crate::PropertyTab::Design
-        } else {
-            requested
-        };
-        let changed = self.property_tab != next;
-        self.property_tab = next;
-        if !self.code_property_tab_available()
-            && matches!(self.property_tab_hover, Some(crate::PropertyTab::Code))
-        {
-            self.property_tab_hover = None;
-        }
-        changed
-    }
-
     /// Which account-entry surface (if any) the chrome shows right now.
     ///
     /// The single place the decision is made, so the host that paints it, the

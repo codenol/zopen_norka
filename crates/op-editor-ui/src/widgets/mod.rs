@@ -129,8 +129,8 @@ pub mod property_panel_snapshot;
 pub mod property_panel_stroke;
 #[cfg(test)]
 mod property_panel_stroke_tests;
-#[cfg(test)]
 mod property_panel_tab_interact_tests;
+pub(crate) mod property_panel_tab_strip;
 #[cfg(test)]
 mod property_panel_test_support;
 #[cfg(test)]

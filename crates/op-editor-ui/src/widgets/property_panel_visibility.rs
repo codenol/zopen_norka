@@ -286,6 +286,61 @@ pub struct VisibleSections {
 }
 
 impl VisibleSections {
+    /// The mask for a section's «Обзор» tab: the block, and none of the design
+    /// inspector.
+    ///
+    /// Built from [`Self::ALL`] with every gate switched off rather than from a
+    /// second hand-written list, so a section added to the inspector later is
+    /// hidden on this tab by default instead of appearing on it — the
+    /// conservative direction for a tab whose whole content is the block.
+    pub fn overview_only(block_height: f32) -> Self {
+        let mut all = Self::ALL;
+        all.section_block_height = block_height;
+        all.create_component = false;
+        // component_button: only read behind one of the flags above.
+        all.flex_layout = false;
+        // flex_layout_mode: only read behind one of the flags above.
+        // padding_edit_mode: only read behind one of the flags above.
+        // layout_justify: only read behind one of the flags above.
+        // layout_align: only read behind one of the flags above.
+        all.size_options = false;
+        all.touch_controls = false;
+        all.size_fill_width = false;
+        all.size_fill_height = false;
+        all.size_hug_width = false;
+        all.size_hug_height = false;
+        all.clip_content = false;
+        all.text = false;
+        all.icon = false;
+        all.widget = None;
+        all.widget_checked = false;
+        all.image = false;
+        all.image_warning = false;
+        all.opacity = false;
+        all.compositing = false;
+        all.corner_radius = false;
+        all.corner_per_corner = false;
+        all.corner_expand = false;
+        all.path_fill_rule = None;
+        all.polygon_sides = false;
+        all.ellipse_arc = false;
+        all.fill = false;
+        all.stroke = false;
+        // stroke_edit_mode: only read behind one of the flags above.
+        all.stroke_mode_popover_open = false;
+        all.color_variable_count = 0;
+        all.fill_variable_bound = false;
+        all.stroke_variable_bound = false;
+        all.effects = false;
+        all.export = false;
+        // fill_type: only read behind one of the flags above.
+        all.gradient_stop_count = 0;
+        all.interactions = false;
+        all
+    }
+}
+
+impl VisibleSections {
     pub const ALL: Self = Self {
         section_block_height: 0.0,
         create_component: true,

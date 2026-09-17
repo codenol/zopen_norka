@@ -714,9 +714,17 @@ mod hit_tests {
     const VIEWPORT: (f32, f32) = (1440.0, 900.0);
     const PANEL_WIDTH: f32 = 280.0;
 
-    /// A panel whose selection is a section carrying one answered question.
+    /// A panel whose selection is a section carrying one answered question, on
+    /// the tab that shows the block.
+    ///
+    /// `Overview` explicitly: a section's two tabs split what used to be one
+    /// column, so «Дизайн» carries only design and the block is the «Обзор»
+    /// tab's whole content. A section left on the global default therefore
+    /// opens on Design, and a test about the block has to say which tab it
+    /// means.
     fn panel_with_a_section() -> (PropertyPanel, Rect) {
         let mut state = EditorState::sample();
+        state.editor_ui.property_tab = op_editor_core::PropertyTab::Overview;
         let node = state.selection.anchor.clone();
         state.editor_ui.section_panel.select(Some(node.clone()));
         state.editor_ui.section_panel.apply(

@@ -85,7 +85,11 @@ impl EditorState {
                 set_primary_fill_hex(&mut node, "#FFFFFF");
             }
             Tool::Section => {
-                set_primary_fill_hex(&mut node, "#FFFFFF");
+                // A section is a page-sized area assembled from analytics, not
+                // a card: plain white read as "another frame" and hid the
+                // section's own edges against the canvas. #E5E5E5 is the
+                // operator's default for it.
+                set_primary_fill_hex(&mut node, "#E5E5E5");
                 mark_as_section(&mut node);
             }
             _ => {}

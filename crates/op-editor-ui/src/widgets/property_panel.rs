@@ -218,6 +218,9 @@ pub struct PropertyPanel {
     /// Whether this responsive layout exposes the generated-code tab.
     /// Compact touch layouts hide it; tablet, desktop, and web keep it.
     pub code_tab_available: bool,
+    /// Whether the selection is a section, which replaces the whole tab strip
+    /// with «Обзор» | «Дизайн» (see `PropertyTab::Overview`).
+    pub section_selected: bool,
     /// Current export format + scale, shown on the Export section's
     /// two dropdowns. Clicking a dropdown opens its inline select
     /// popup (NOT the Export modal).
@@ -350,9 +353,33 @@ impl PropertyPanel {
         )
     }
 
+    /// Whether the tab strip is a section's own — «Обзор» | «Дизайн».
+    ///
+    /// One predicate for paint, hover and the press arm, so the three cannot
+    /// disagree about which tabs exist.
+    pub(crate) fn section_selected(&self) -> bool {
+        self.section_selected
+    }
+
+    /// Which tabs the strip offers for this selection — one answer for paint,
+    /// hover and the press arm.
+    pub(crate) fn tab_strip_tabs(&self) -> sections::TabStripTabs {
+        if self.section_selected() {
+            return sections::TabStripTabs::of_section();
+        }
+        sections::TabStripTabs::ordinary(self.snapshot.widget.is_some(), self.code_tab_available)
+    }
+
     /// Section-visibility mask for the current selection, threaded
     /// into every layout walker so paint + hit-test stay aligned.
     pub(crate) fn visible_sections(&self) -> sections::VisibleSections {
+        // A section's «Обзор» tab is the block and nothing else: the design
+        // half lives on the other tab, which is the whole point of splitting
+        // them. Returning early keeps paint, the two layout walkers and the
+        // three hit-test ladders on the same mask.
+        if self.section_selected() && matches!(self.tab, op_editor_core::PropertyTab::Overview) {
+            return sections::VisibleSections::overview_only(self.section_block_height);
+        }
         let caps = self.capabilities();
         let section_block_height = self.section_block_height;
         let component_button = if self.snapshot.is_instance {

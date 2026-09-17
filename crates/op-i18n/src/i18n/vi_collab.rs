@@ -342,6 +342,10 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "files.editedMinutes" => "Đã chỉnh sửa {n} phút trước",
         "files.editedHours" => "Đã chỉnh sửa {n} giờ trước",
         "files.editedDays" => "Đã chỉnh sửa {n} ngày trước",
+        // The property panel's section tabs: «Обзор» is the analytics half of a
+        // section (what it was built from, what it says, its flows); «Дизайн»
+        // beside it carries only design. Issue #59's panel, split in two.
+        "rightPanel.overview" => "Tổng quan",
         _ => return None,
     })
 }

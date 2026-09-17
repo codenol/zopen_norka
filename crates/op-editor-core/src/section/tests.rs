@@ -198,6 +198,16 @@ fn the_section_tool_draws_a_section_and_the_frame_tool_does_not() {
         Some(section.clone()),
         "the frame's own id is the section's identity — it is what the properties row is keyed by"
     );
+    // The section's default fill is its own value and not the frame's white:
+    // the operator asked for #E5E5E5, and a section drawn as plain white reads
+    // as another frame against the canvas.
+    let fill_hex = |node: &PenNode| {
+        crate::fills::first_solid_fill_hex(node)
+            .unwrap_or_default()
+            .to_uppercase()
+    };
+    assert_eq!(fill_hex(frame_node), "#FFFFFF", "a frame is still white");
+    assert_eq!(fill_hex(section_node), "#E5E5E5", "a section is #E5E5E5");
 }
 
 #[test]

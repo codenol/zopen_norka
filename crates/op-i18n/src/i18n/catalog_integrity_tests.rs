@@ -257,7 +257,7 @@ fn every_locale_has_exactly_the_english_key_set() {
     // `account.entry.errorTooManyAttempts*` keys of issue #151 are this
     // change's; the thirteen `files.*` keys the file browser screen gained when
     // it became the app's front door are the current one's).
-    assert_eq!(expected.len(), 1870, "update the intentional catalog size");
+    assert_eq!(expected.len(), 1871, "update the intentional catalog size");
 
     for (name, main, git, lookup) in all_tables {
         let actual = table_keys(name, main, git);

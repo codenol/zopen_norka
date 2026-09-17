@@ -334,6 +334,10 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "files.editedMinutes" => "{n} मिनट पहले संपादित",
         "files.editedHours" => "{n} घंटे पहले संपादित",
         "files.editedDays" => "{n} दिन पहले संपादित",
+        // The property panel's section tabs: «Обзор» is the analytics half of a
+        // section (what it was built from, what it says, its flows); «Дизайн»
+        // beside it carries only design. Issue #59's panel, split in two.
+        "rightPanel.overview" => "अवलोकन",
         _ => return None,
     })
 }

@@ -346,6 +346,10 @@ pub fn lookup(key: &str) -> Option<&'static str> {
         "files.editedMinutes" => "{n} 分前に編集",
         "files.editedHours" => "{n} 時間前に編集",
         "files.editedDays" => "{n} 日前に編集",
+        // The property panel's section tabs: «Обзор» is the analytics half of a
+        // section (what it was built from, what it says, its flows); «Дизайн»
+        // beside it carries only design. Issue #59's panel, split in two.
+        "rightPanel.overview" => "概要",
         _ => return None,
     })
 }

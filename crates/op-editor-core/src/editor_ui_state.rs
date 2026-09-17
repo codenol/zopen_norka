@@ -49,6 +49,7 @@ pub mod git_panel;
 pub mod groups;
 mod methods;
 pub mod pickers;
+pub mod property_tabs;
 pub mod recovery;
 pub mod section_panel;
 pub mod share;

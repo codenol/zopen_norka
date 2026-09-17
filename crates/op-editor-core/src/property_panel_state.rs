@@ -1,15 +1,23 @@
 //! Property-panel state enums shared by editor core and widget hosts.
 
 /// Which PropertyPanel tab is active — toggled by `Cmd+Shift+C`.
-/// Variant order is the tab strip's left-to-right paint order:
-/// 设计 (Design) | 交互 (Interact) | 代码 (Code). `Interact` is gated
-/// behind the same `agent_settings.experimental_features_enabled`
-/// flag as the Widget section / Preview — see `PropertyPanel.show_interact`.
+///
+/// The strip a selection shows is NOT this enum's variant order: an ordinary
+/// selection offers 设计 (Design) | 交互 (Interact) | 代码 (Code), and a **section**
+/// offers Обзор (Overview) | 设计 (Design) — see
+/// `EditorUiState::selection_is_section`. `Interact` is gated behind the same
+/// `agent_settings.experimental_features_enabled` flag as the Widget section /
+/// Preview — see `PropertyPanel.show_interact`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyTab {
     Design,
     Interact,
     Code,
+    /// The analytics half of a section: what it was built from, what it says,
+    /// and the flows drawn from the analytics. Only a section offers it, and a
+    /// section shows nothing else on this tab — the operator's split is
+    /// "everything about flow and analytics" against "design, and only design".
+    Overview,
 }
 
 /// Variants the Fill section's type-selector pill exposes.

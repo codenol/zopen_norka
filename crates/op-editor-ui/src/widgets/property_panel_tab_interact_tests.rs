@@ -5,7 +5,9 @@
 
 #![cfg(test)]
 
-use crate::widgets::property_panel_sections::{tab_strip_hit, tab_strip_rects, PropertyLabels};
+use crate::widgets::property_panel_sections::{
+    tab_strip_hit, tab_strip_rects, PropertyLabels, TabStripTabs,
+};
 use crate::Point2D;
 use op_editor_core::editor_ui_state::EditorUiState;
 use op_editor_core::PropertyTab;
@@ -14,9 +16,19 @@ fn labels() -> PropertyLabels {
     PropertyLabels::for_editor_ui(&EditorUiState::new())
 }
 
+/// The optional tabs a case is about: interact, code, and whether the selection
+/// is a section (which replaces the other two).
+fn tabs(interact: bool, code: bool, section: bool) -> TabStripTabs {
+    TabStripTabs {
+        interact,
+        code,
+        section,
+    }
+}
+
 #[test]
 fn three_rects_are_adjacent_and_non_overlapping_when_interact_shown() {
-    let rects = tab_strip_rects(&labels(), 100.0, 0.0, true, true, false);
+    let rects = tab_strip_rects(&labels(), 100.0, 0.0, tabs(true, true, false), false);
     assert_eq!(rects.len(), 3);
     assert_eq!(rects[0].0, PropertyTab::Design);
     assert_eq!(rects[1].0, PropertyTab::Interact);
@@ -38,7 +50,7 @@ fn three_rects_are_adjacent_and_non_overlapping_when_interact_shown() {
 
 #[test]
 fn interact_absent_and_code_directly_follows_design_when_flag_off() {
-    let rects = tab_strip_rects(&labels(), 100.0, 0.0, false, true, false);
+    let rects = tab_strip_rects(&labels(), 100.0, 0.0, tabs(false, true, false), false);
     assert_eq!(rects.len(), 2);
     assert_eq!(rects[0].0, PropertyTab::Design);
     assert_eq!(rects[1].0, PropertyTab::Code);
@@ -48,14 +60,21 @@ fn interact_absent_and_code_directly_follows_design_when_flag_off() {
 
 #[test]
 fn tab_strip_hit_maps_clicks_onto_all_three_tabs() {
-    let rects = tab_strip_rects(&labels(), 100.0, 0.0, true, true, false);
+    let rects = tab_strip_rects(&labels(), 100.0, 0.0, tabs(true, true, false), false);
     for (tab, rect) in &rects {
         let center = Point2D::new(
             rect.origin.x + rect.size.x / 2.0,
             rect.origin.y + rect.size.y / 2.0,
         );
         assert_eq!(
-            tab_strip_hit(&labels(), 100.0, 0.0, center, true, true, false),
+            tab_strip_hit(
+                &labels(),
+                100.0,
+                0.0,
+                center,
+                tabs(true, true, false),
+                false
+            ),
             Some(*tab)
         );
     }
@@ -68,14 +87,21 @@ fn tab_strip_hit_maps_clicks_onto_all_three_tabs() {
         interact_rect.origin.y + interact_rect.size.y / 2.0,
     );
     assert_ne!(
-        tab_strip_hit(&labels(), 100.0, 0.0, interact_center, false, true, false,),
+        tab_strip_hit(
+            &labels(),
+            100.0,
+            0.0,
+            interact_center,
+            tabs(false, true, false),
+            false,
+        ),
         Some(PropertyTab::Interact)
     );
 }
 
 #[test]
 fn touch_tabs_resolve_to_at_least_44_physical_points() {
-    let rects = tab_strip_rects(&labels(), 0.0, 0.0, false, true, true);
+    let rects = tab_strip_rects(&labels(), 0.0, 0.0, tabs(false, true, false), true);
     for (_, rect) in rects {
         assert!(rect.size.y * 1.47 >= 44.0);
     }
@@ -83,8 +109,8 @@ fn touch_tabs_resolve_to_at_least_44_physical_points() {
 
 #[test]
 fn code_tab_can_be_removed_without_moving_design_hit_geometry() {
-    let with_code = tab_strip_rects(&labels(), 100.0, 0.0, false, true, true);
-    let without_code = tab_strip_rects(&labels(), 100.0, 0.0, false, false, true);
+    let with_code = tab_strip_rects(&labels(), 100.0, 0.0, tabs(false, true, false), true);
+    let without_code = tab_strip_rects(&labels(), 100.0, 0.0, tabs(false, false, false), true);
 
     assert_eq!(without_code.len(), 1);
     assert_eq!(without_code[0], with_code[0]);
@@ -94,7 +120,92 @@ fn code_tab_can_be_removed_without_moving_design_hit_geometry() {
         with_code[1].1.origin.y + with_code[1].1.size.y / 2.0,
     );
     assert_ne!(
-        tab_strip_hit(&labels(), 100.0, 0.0, code_center, false, false, true,),
+        tab_strip_hit(
+            &labels(),
+            100.0,
+            0.0,
+            code_center,
+            tabs(false, false, false),
+            true,
+        ),
         Some(PropertyTab::Code)
     );
+}
+
+#[test]
+fn a_section_offers_overview_and_design_and_nothing_else() {
+    // The operator's split: a section is assembled from analytics and has no
+    // generated code to inspect, so its strip is «Обзор» | «Дизайн» — even on a
+    // layout that would otherwise show both Interact and Code.
+    let rects = tab_strip_rects(&labels(), 100.0, 0.0, tabs(true, true, true), false);
+    assert_eq!(rects.len(), 2);
+    assert_eq!(rects[0].0, PropertyTab::Overview);
+    assert_eq!(rects[1].0, PropertyTab::Design);
+    let (r0, r1) = (rects[0].1, rects[1].1);
+    assert_eq!(
+        r1.origin.x,
+        r0.origin.x + r0.size.x + 6.0,
+        "same 6px gutter"
+    );
+    assert!(r0.origin.x + r0.size.x < r1.origin.x, "and no overlap");
+
+    // Both are hit-testable where they are painted, and the ordinary tabs are
+    // not there at all.
+    for (tab, rect) in &rects {
+        let centre = Point2D::new(
+            rect.origin.x + rect.size.x / 2.0,
+            rect.origin.y + rect.size.y / 2.0,
+        );
+        assert_eq!(
+            tab_strip_hit(&labels(), 100.0, 0.0, centre, tabs(true, true, true), false),
+            Some(*tab)
+        );
+    }
+    let code_centre = Point2D::new(
+        r1.origin.x + r1.size.x + 20.0,
+        r1.origin.y + r1.size.y / 2.0,
+    );
+    assert_eq!(
+        tab_strip_hit(
+            &labels(),
+            100.0,
+            0.0,
+            code_centre,
+            tabs(true, true, true),
+            false
+        ),
+        None,
+        "nothing sits to the right of «Дизайн» on a section"
+    );
+}
+
+#[test]
+fn tab_state_refuses_overview_off_a_section_and_lands_on_it_from_code() {
+    let mut ui = EditorUiState::new();
+    // No section selected: Overview means nothing, so the request is refused in
+    // favour of the tab every selection has. (`set_property_tab` answers "did
+    // the stored value change", so a refusal that lands where it already was
+    // answers false — the assertion is about where it landed.)
+    ui.set_property_tab(PropertyTab::Overview);
+    assert_eq!(ui.property_tab, PropertyTab::Design);
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Design);
+
+    // A section: the retained value wins when it is one of the two tabs a
+    // section has...
+    ui.property_tab = PropertyTab::Design;
+    ui.section_panel
+        .select(Some(op_editor_core::NodeId::new("section-1")));
+    assert!(ui.selection_is_section());
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Design);
+
+    // ...and anything else presents as Overview, because falling back to Design
+    // would hide the block the section exists for.
+    ui.property_tab = PropertyTab::Code;
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Overview);
+    ui.property_tab = PropertyTab::Interact;
+    assert_eq!(ui.effective_property_tab(), PropertyTab::Overview);
+
+    // And Overview is allowed again once a section is what is selected.
+    assert!(ui.set_property_tab(PropertyTab::Overview));
+    assert_eq!(ui.property_tab, PropertyTab::Overview);
 }

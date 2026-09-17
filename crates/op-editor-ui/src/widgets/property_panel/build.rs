@@ -275,8 +275,18 @@ impl PropertyPanel {
         // The Section block (#59) reads a state the daemon fills in, not the
         // document, so it is copied here rather than derived from the snapshot.
         let section_panel = ui.section_panel.clone();
-        let section_block_height =
-            crate::widgets::property_panel_section_block::section_block_height(&section_panel);
+        // A section's two tabs split what used to be one column: the block is
+        // the «Обзор» tab's whole content, and «Дизайн» carries only design. So
+        // the block has a height on Overview and none on Design, and the layout
+        // walkers that shift by it stay in step with paint for free.
+        let section_selected = ui.selection_is_section();
+        let show_section_block =
+            section_selected && matches!(property_tab, op_editor_core::PropertyTab::Overview);
+        let section_block_height = if show_section_block {
+            crate::widgets::property_panel_section_block::section_block_height(&section_panel)
+        } else {
+            0.0
+        };
         let padding_edit_mode = ui
             .padding_edit_mode
             .filter(|_| pin_applies)
@@ -420,6 +430,7 @@ impl PropertyPanel {
             stroke_mode_popover_hover: ui.stroke_mode_popover_hover,
             is_multi,
             tab: property_tab,
+            section_selected,
             tab_hover: ui.property_tab_hover.filter(|tab| {
                 code_tab_available || !matches!(tab, op_editor_core::PropertyTab::Code)
             }),
