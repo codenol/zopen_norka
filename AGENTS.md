@@ -23,6 +23,23 @@ ordered here:
 - **Order of work.** Generation first; deploys, packaging, tooling and the rest
   follow it. A fix that makes a deploy faster while a prompt still draws nothing
   is the wrong fix to be making.
+- **The shape generation takes** (operator, 2026-09-17, issue #249): models are
+  configured **once in Settings** — not chosen per turn in the chat — and one of
+  them builds while a second checks the first. The loop is:
+
+  1. take the request;
+  2. open the rules;
+  3. follow the rules;
+  4. find the right recipes — and when no recipe fits, the right **components**
+     for the job;
+  5. lay the mockup out on the canvas from the recipe and/or those components;
+  6. start the checker;
+  7. the checker looks and presses — by eye and by hand — that it is all correct,
+     all by the rules and the recipes, and that there is nothing extra;
+  8. anything wrong comes back as instructions, and the turn goes round again.
+
+  Today only step 6's deterministic half exists (a self-check over the generated
+  nodes and the layout rules); there is no second model and no role assignment.
 - **Every task is read through this.** Before picking up a task, ask what it does
   for the generation path — and if the answer is "nothing", it waits.
 
