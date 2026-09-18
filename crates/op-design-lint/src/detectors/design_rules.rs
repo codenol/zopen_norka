@@ -27,6 +27,27 @@ const SIDEBAR_WIDTH: f64 = 251.0;
 /// Kit control height (`K-02`).
 const CONTROL_HEIGHT: f64 = 32.0;
 
+/// Whether the request itself asks for more than one screen.
+///
+/// The rule is "one request, one screen" — not "one screen, always": a request
+/// that names a flow, several pages or two screens is asking for exactly that,
+/// and flagging it would make the rule wrong rather than strict.
+fn request_asks_for_many_screens(prompt: &str) -> bool {
+    let prompt = prompt.to_lowercase();
+    [
+        "два экран",
+        "три экран",
+        "несколько экран",
+        "экраны",
+        "страниц",
+        "screens",
+        "pages",
+        "flow",
+    ]
+    .iter()
+    .any(|marker| prompt.contains(marker))
+}
+
 /// Names that mean "this root is the app shell" (`L-02`).
 fn is_shell_root(name: &str) -> bool {
     let name = name.to_lowercase();
@@ -80,8 +101,33 @@ fn violation(
 ///
 /// Page-level rules (`L-02`, `G-03`) are decided from the roots; per-node rules
 /// (`C-01`, `C-02`, `K-02`, `L-03`, `G-01`) from the walk.
-pub fn detect_design_rule_violations(roots: &[PenNode]) -> Vec<Issue> {
+pub fn detect_design_rule_violations(roots: &[PenNode], prompt: &str) -> Vec<Issue> {
     let mut out = Vec::new();
+
+    // S-01 — one request, one screen, unless the request names more. This is the
+    // rule the second generation round broke: it drew a second screen instead of
+    // fixing the first (measured: 3 roots became 6 across two rounds).
+    if !request_asks_for_many_screens(prompt) {
+        let screens: Vec<&PenNode> = roots
+            .iter()
+            .filter(|root| {
+                matches!(node_kind(root), NodeKind::Frame | NodeKind::Group)
+                    && !children(root).is_empty()
+            })
+            .collect();
+        for extra in screens.iter().skip(1) {
+            out.push(violation(
+                node_id(extra).to_string(),
+                FixProperty::Remove,
+                serde_json::json!(name_of(extra)),
+                format!(
+                    "S-01: {} is a second screen on a request for one — fix the screen \
+                     that is already there instead of drawing another one",
+                    name_of(extra)
+                ),
+            ));
+        }
+    }
 
     // L-02 — one shell per page. Every extra is a screen nobody asked for.
     let shells: Vec<&PenNode> = roots

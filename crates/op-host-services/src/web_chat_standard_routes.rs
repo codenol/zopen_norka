@@ -597,12 +597,15 @@ pub(super) fn verify_rounds() -> u8 {
 /// and the person is looking at it; a round that rebuilds from scratch throws
 /// away what was right, so the notes are framed as the smallest set of fixes
 /// that answers them.
-pub(super) fn correction_prompt(original: &str, issues: &[String]) -> String {
+pub(super) fn correction_prompt(original: &str, roots: &str, issues: &[String]) -> String {
     format!(
         "{original}\n\n---\nПроверяющий посмотрел на то, что уже нарисовано, и вернул замечания. \
-         Это ПРАВКА существующего экрана, а не новая генерация:\n\
-         - НЕ создавай новых корневых фреймов и не рисуй экран заново;\n\
+         Это ПРАВКА существующего экрана, а не новая генерация.\n\n\
+         На холсте сейчас (это и есть экран, который надо править):\n{roots}\n\n\
+         Жёсткие ограничения:\n\
+         - НЕ создавай новых корневых фреймов: экран на запрос ОДИН;\n\
          - НЕ добавляй второй сайдбар, вторую оболочку или дубль панели;\n\
+         - если нужен новый элемент — добавляй его ВНУТРЬ существующего экрана;\n\
          - меняй только те узлы, которых касается замечание, и правь их на месте;\n\
          - всё, что уже соответствует запросу, оставь как есть.\n\nЗамечания:\n{notes}",
         notes = issues
@@ -775,12 +778,20 @@ pub(super) fn stream_new_design_route<W: Write>(
     // decision needs.
     let mut before_round: Option<EditorState> = None;
     let mut issues_before_round: usize = 0;
+    let mut roots_before_round: usize = 0;
     let summary = loop {
         let round_request = DesignRequest {
             prompt: if round == 1 {
                 original_prompt.clone()
             } else {
-                correction_prompt(&original_prompt, &reported_issues)
+                let roots = {
+                    let guard = target
+                        .state
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    roots_summary(&guard.editor)
+                };
+                correction_prompt(&original_prompt, &roots, &reported_issues)
             },
             ..request.clone()
         };
@@ -836,10 +847,13 @@ pub(super) fn stream_new_design_route<W: Write>(
                 .state
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            op_design_lint::detect_design_rule_violations(guard.editor.active_children())
-                .into_iter()
-                .map(|issue| issue.reason)
-                .collect::<Vec<_>>()
+            op_design_lint::detect_design_rule_violations(
+                guard.editor.active_children(),
+                &original_prompt,
+            )
+            .into_iter()
+            .map(|issue| issue.reason)
+            .collect::<Vec<_>>()
         };
         if !rule_notes.is_empty() {
             write_delta_event(
@@ -878,9 +892,19 @@ pub(super) fn stream_new_design_route<W: Write>(
         // A correction round is judged by its outcome: if the verifier now has
         // MORE to say than before the round, the round made the screen worse and
         // the better version is the one to keep.
+        // "Worse" is not only "more notes": a round that answers the notes by
+        // drawing ANOTHER screen has made the result worse even when the count
+        // is unchanged — measured, 3 roots became 6 over two rounds.
+        let roots_now = {
+            let guard = target
+                .state
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            guard.editor.active_children().len()
+        };
         let round_made_it_worse = round > 1
-            && !fresh.is_empty()
-            && fresh.len() > issues_before_round
+            && (roots_now > roots_before_round
+                || (!fresh.is_empty() && fresh.len() > issues_before_round))
             && before_round
                 .as_ref()
                 .is_some_and(|snapshot| !before_round_is_current(snapshot, target.state));
@@ -922,14 +946,16 @@ pub(super) fn stream_new_design_route<W: Write>(
         // a round that makes the result WORSE must not be what the person is
         // left looking at (measured: round 2 drew a second sidebar and the
         // verifier's notes went 5 -> 7).
-        before_round = {
+        let (snapshot, roots_before) = {
             let guard = target
                 .state
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            Some(guard.editor.clone())
+            (guard.editor.clone(), guard.editor.active_children().len())
         };
+        before_round = Some(snapshot);
         issues_before_round = fresh.len();
+        roots_before_round = roots_before;
         write_delta_event(
             out,
             &format!(

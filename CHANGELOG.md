@@ -90,6 +90,13 @@ here at a glance.
 
 ### Added
 
+- **One screen per request, enforced.** A second generation round drew another
+  screen instead of fixing the one it had (measured: 3 roots became 6 over two
+  rounds). `S-01` now says it as a rule — a second root when the request did not
+  name several screens is a violation the document itself proves, carrying its id
+  into the correction round — the correction prompt names the screen to fix and
+  forbids new roots, and a round that adds a screen is treated as "worse" and
+  rolled back even when the note count is unchanged (issue #249's loop).
 - **The generation canon, and detectors for its deterministic half.** The rules
   the product generates by were 8.8 KB of prose, and the prompt took two `do`
   and one `don't` per kit type — a rule nobody could check is a preference.

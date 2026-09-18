@@ -953,6 +953,7 @@ fn a_correction_round_is_told_to_fix_the_notes_not_redraw_the_screen() {
     // rebuilding what is already right".
     let prompt = super::routes::correction_prompt(
         "Собери экран с таблицей ПАКов",
+        "- n492 \"Layout/Default\" — 120 node(s)",
         &[
             "в таблице нет строк".to_string(),
             "лишний пустой фрейм справа".to_string(),
@@ -964,6 +965,14 @@ fn a_correction_round_is_told_to_fix_the_notes_not_redraw_the_screen() {
     assert!(
         prompt.contains("НЕ создавай новых корневых фреймов"),
         "a correction round must not throw away what was right: {prompt}"
+    );
+    assert!(
+        prompt.contains("экран на запрос ОДИН"),
+        "the one-screen rule is stated as a hard limit: {prompt}"
+    );
+    assert!(
+        prompt.contains("n492"),
+        "and the screen to fix is named: {prompt}"
     );
     assert!(
         prompt.contains("НЕ добавляй второй сайдбар"),

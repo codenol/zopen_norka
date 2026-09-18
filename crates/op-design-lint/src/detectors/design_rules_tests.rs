@@ -39,7 +39,7 @@ fn control(id: &str, name: &str, width: f64, height: f64, fill: Option<&str>) ->
 }
 
 fn reasons(roots: &[PenNode]) -> Vec<String> {
-    detect_design_rule_violations(roots)
+    detect_design_rule_violations(roots, "собери экран с таблицей")
         .into_iter()
         .map(|issue| issue.reason)
         .collect()
@@ -175,5 +175,51 @@ fn a_clean_kit_screen_reports_nothing() {
     assert!(
         found.is_empty(),
         "a canon-following screen is clean: {found:?}"
+    );
+}
+
+#[test]
+fn a_second_screen_for_a_one_screen_request_is_reported() {
+    // S-01 — the rule the second generation round broke: it drew another screen
+    // instead of fixing the one it had.
+    let roots = vec![
+        frame(
+            "n1",
+            "Layout/Default",
+            vec![frame("n2", "Main container", vec![])],
+        ),
+        frame("n3", "Layout/Default", vec![frame("n4", "Content", vec![])]),
+    ];
+    let found: Vec<String> = detect_design_rule_violations(&roots, "собери экран с таблицей")
+        .into_iter()
+        .map(|issue| issue.reason)
+        .collect();
+    assert!(
+        found.iter().any(|reason| reason.starts_with("S-01:")),
+        "a second screen on a one-screen request is reported: {found:?}"
+    );
+}
+
+#[test]
+fn a_request_that_names_several_screens_may_have_them() {
+    // The control that keeps the rule honest: "сделай два экрана" is asking for
+    // exactly that, so it must not be flagged.
+    let roots = vec![
+        frame(
+            "n1",
+            "Layout/Default",
+            vec![frame("n2", "Main container", vec![])],
+        ),
+        frame("n3", "Layout/Default", vec![frame("n4", "Content", vec![])]),
+    ];
+    let found: Vec<String> =
+        detect_design_rule_violations(&roots, "сделай два экрана: вход и регистрация")
+            .into_iter()
+            .map(|issue| issue.reason)
+            .filter(|reason| reason.starts_with("S-01:"))
+            .collect();
+    assert!(
+        found.is_empty(),
+        "a multi-screen request is not a violation: {found:?}"
     );
 }
