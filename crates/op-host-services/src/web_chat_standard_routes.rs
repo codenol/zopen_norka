@@ -422,6 +422,35 @@ pub(super) fn layer_tree_dump(state: &EditorState) -> String {
     out
 }
 
+/// One line per top-level root: id, name, and how much content it carries.
+///
+/// The verifier needs this separately from the dump because "how many screens did
+/// I just get" is the question an indented tree makes hardest to answer by
+/// eyeballing (issue #254's shape: a correct screen plus a second root nobody
+/// asked for).
+pub(super) fn roots_summary(state: &EditorState) -> String {
+    use op_editor_core::PenNodeExt;
+    fn count(node: &jian_ops_schema::node::PenNode) -> usize {
+        1 + node
+            .children()
+            .map(|kids| kids.iter().map(count).sum())
+            .unwrap_or(0)
+    }
+    state
+        .active_children()
+        .iter()
+        .map(|root| {
+            format!(
+                "- {} \"{}\" — {} node(s)",
+                root.id_str(),
+                root.base().name.as_deref().unwrap_or("(unnamed)"),
+                count(root)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// The verifier that needs no picture (issues #252/#253).
 ///
 /// The screenshot round depends on a vision call that, on this deployment,
@@ -435,21 +464,27 @@ fn tree_verifier_issues(
     provider: &dyn ChatProvider,
     model: Option<&str>,
     request_prompt: &str,
+    roots_summary: &str,
     dump: &str,
 ) -> Vec<String> {
     const SYSTEM: &str = "You are the checker in a two-model design loop. You are given the \
 person's request and the layer tree of what the builder actually put on the canvas. Judge the \
-canvas against the REQUEST: name every element the request asks for that the tree does not \
-contain, anything in the tree the request did not ask for (an extra screen, a leftover empty \
-frame, an import root nobody wanted), and any requested thing present but wrong (a table with \
-no rows, a toggle that is not a toggle). Judge only what the tree shows; do not invent layout \
-opinions. Return ONLY a JSON object: {\"issues\":[string],\"qualityScore\":number} where \
-qualityScore is 1-10. An empty issues array with a high score means the canvas answers the \
-request.";
+canvas against the REQUEST, and be specific — a vague \"looks good\" is a failed check. Name, \
+in `issues`: every element the request asks for that the tree does not contain; anything in the \
+tree the request did not ask for; and any requested thing present but wrong (a table with no \
+rows, a toggle that is not a toggle, a filter row with no controls). Three structural defects \
+count as issues even when the screen itself is right: (1) MORE THAN ONE top-level root when the \
+request asked for a single screen — each extra root is a screen nobody asked for; (2) an EMPTY \
+top-level frame (a root with no children) — leftover scaffolding, always an issue; (3) a \
+duplicated section (the same panel twice). If you report no issues, qualityScore must be 9 or \
+10 AND the tree must show exactly the root(s) the request implies. Return ONLY a JSON object: \
+{\"issues\":[string],\"qualityScore\":number} where qualityScore is 1-10.";
     let request = ChatRequest {
         system_prompt: SYSTEM.to_string(),
         user_message: format!(
-            "The person asked for:\n\"{request_prompt}\"\n\nThe canvas layer tree:\n```\n{dump}\n```"
+            "The person asked for:\n\"{request_prompt}\"\n\nTop-level roots on the page \
+             ({count}):\n{roots_summary}\n\nThe canvas layer tree:\n```\n{dump}\n```",
+            count = roots_summary.lines().count(),
         ),
         history: Vec::new(),
         max_output_tokens: 4096,
@@ -463,11 +498,27 @@ request.";
         match delta {
             ChatDelta::TextDelta(chunk) => text.push_str(&chunk),
             ChatDelta::Done { .. } => break,
-            ChatDelta::Error(_) => return Vec::new(),
+            ChatDelta::Error(message) => {
+                eprintln!("openpencil: tree verifier call failed: {message}");
+                return Vec::new();
+            }
             ChatDelta::Thinking(_) | ChatDelta::ToolUse { .. } => {}
         }
     }
-    parse_verifier_issues(&text)
+    let issues = parse_verifier_issues(&text);
+    // The verifier is the loop's only judgement; when it says nothing, the
+    // reason has to be findable afterwards rather than inferred from a turn
+    // that simply ended (issue #252).
+    eprintln!(
+        "openpencil: tree verifier: {} chars, {} issue(s): {}",
+        text.len(),
+        issues.len(),
+        text.chars()
+            .take(160)
+            .collect::<String>()
+            .replace('\n', " ")
+    );
+    issues
 }
 
 /// Pull `issues` out of a verifier reply, tolerating prose around the JSON.
@@ -744,18 +795,19 @@ pub(super) fn stream_new_design_route<W: Write>(
         // when the vision round produced nothing and the turn drew something —
         // one text call, against a model that already answers text.
         if fresh.is_empty() && summary.paintable_nodes > 0 && !abort.is_set() {
-            let dump = {
+            let (dump, roots) = {
                 let guard = target
                     .state
                     .lock()
                     .unwrap_or_else(|poisoned| poisoned.into_inner());
-                layer_tree_dump(&guard.editor)
+                (layer_tree_dump(&guard.editor), roots_summary(&guard.editor))
             };
             write_delta_event(out, "\n\n🔎 Проверяю результат по дереву слоёв…")?;
             fresh = tree_verifier_issues(
                 provider_arc.as_ref(),
                 model.as_deref(),
                 &original_prompt,
+                &roots,
                 &dump,
             )
             .into_iter()

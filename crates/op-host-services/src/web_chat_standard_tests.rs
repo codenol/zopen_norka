@@ -1013,3 +1013,20 @@ fn the_layer_tree_dump_names_what_is_on_the_page() {
         "at least the page's own node: {dump}"
     );
 }
+
+#[test]
+fn the_roots_summary_counts_the_screens_on_the_page() {
+    // "How many screens did I just get" is the question an indented tree makes
+    // hardest to answer (issue #254): the verifier gets it as a list.
+    let state = EditorState::starter();
+    let summary = super::routes::roots_summary(&state);
+    assert_eq!(
+        summary.lines().count(),
+        state.active_children().len(),
+        "one line per top-level root: {summary}"
+    );
+    assert!(
+        summary.contains("node(s)"),
+        "and how much is under each: {summary}"
+    );
+}
