@@ -10,6 +10,16 @@ here at a glance.
 
 ## [Unreleased]
 
+### Changed
+
+- **The checker runs the verifier role's model, not the builder's.** The
+  deployment names one model that builds and one that checks (the roles were
+  added in `AgentSettings`), and the post-generation check — both the tree
+  verifier and the vision validator — now resolves and uses the second one. On a
+  deployment with a single model the checker is the builder, which is stated in
+  the log rather than implied: `turn models — builder=… verifier=… separate=false`
+  (issues #249, #250, #252).
+
 ### Fixed
 
 - **A tab that is behind can no longer autosave its older copy over a screen a

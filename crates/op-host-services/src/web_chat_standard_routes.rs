@@ -516,7 +516,8 @@ duplicated section (the same panel twice). If you report no issues, qualityScore
     // reason has to be findable afterwards rather than inferred from a turn
     // that simply ended (issue #252).
     eprintln!(
-        "openpencil: tree verifier: {} chars, {} issue(s): {}",
+        "openpencil: tree verifier (model {:?}): {} chars, {} issue(s): {}",
+        model,
         text.len(),
         issues.len(),
         text.chars()
@@ -704,6 +705,49 @@ pub(super) fn stream_new_design_route<W: Write>(
         reference_attachments,
         reference_brief: None,
     };
+    // Models by ROLE (issues #249/#250/#252): the deployment names one model
+    // that BUILDS and one that CHECKS, and the check is a second opinion only
+    // when it is a second model. Resolved against the models this deployment
+    // actually offers, so a single-model deployment checks its own work instead
+    // of refusing to run — the fallback is stated in the roles themselves.
+    let offered: Vec<String> = snapshot
+        .chat
+        .available_models
+        .iter()
+        .map(|entry| entry.value.clone())
+        .collect();
+    // The turn arrives with the SHORT model name (`deepseek-v4-flash`) while the
+    // roles are stored as the deployment's full id (`builtin:<agent>:<model>`),
+    // so the builder is put in the same shape before the two are compared —
+    // otherwise "the verifier is a different model" would be true for a
+    // deployment that has exactly one.
+    let builder_id = model
+        .as_deref()
+        .and_then(|name| offered.iter().find(|id| id.as_str() == name).cloned())
+        .or_else(|| {
+            model.as_deref().and_then(|name| {
+                offered
+                    .iter()
+                    .find(|id| id.ends_with(&format!(":{name}")))
+                    .cloned()
+            })
+        })
+        .or_else(|| model.clone());
+    let roles = snapshot.editor_ui.agent_settings.model_roles(&offered);
+    let verifier_model = roles.as_ref().map(|roles| roles.verifier.clone());
+    let builder_model = roles
+        .as_ref()
+        .map(|roles| roles.builder.clone())
+        .or(builder_id);
+    eprintln!(
+        "openpencil: turn models — builder={:?} verifier={:?} separate={}",
+        builder_model,
+        verifier_model,
+        roles
+            .as_ref()
+            .is_some_and(|roles| roles.verifier_is_separate())
+    );
+
     // Share one provider Arc between the design LLM and vision brief /
     // (optionally) the vision validator.
     let provider_arc: Arc<dyn ChatProvider> = Arc::from(provider);
@@ -735,7 +779,7 @@ pub(super) fn stream_new_design_route<W: Write>(
     let stub_vision = SkippedVisionLlmClient;
     let real_screenshot = crate::validation_providers::RealScreenshotProvider;
     let real_vision = crate::validation_providers::ChatVisionLlmClient::new(provider_arc.clone())
-        .with_model(model.clone());
+        .with_model(verifier_model.clone());
     let (screenshot, vision, system_prompt): (
         &dyn op_orchestrator::ScreenshotProvider,
         &dyn op_orchestrator::VisionLlmClient,
@@ -880,7 +924,7 @@ pub(super) fn stream_new_design_route<W: Write>(
             write_delta_event(out, "\n\n🔎 Проверяю результат по дереву слоёв…")?;
             fresh = tree_verifier_issues(
                 provider_arc.as_ref(),
-                model.as_deref(),
+                verifier_model.as_deref(),
                 &original_prompt,
                 &roots,
                 &dump,
