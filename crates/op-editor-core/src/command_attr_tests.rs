@@ -337,3 +337,34 @@ fn set_node_layout_prop_writes_text_specific_fields() {
         other => panic!("expected text, got {other:?}"),
     }
 }
+
+#[test]
+fn re_applying_the_same_layout_value_is_not_an_edit() {
+    // Issue #230, measured from outside the process: the document version moved
+    // (v167 -> v169) while the serialised document stayed byte-identical. The
+    // validation pass re-sends its fixes, and a fix that set a value the
+    // document already held still counted as a change — a revision bump, a
+    // version bump, and a full document refetch in every open tab.
+    let mut s = state_with(vec![rect("n1", "r", 0.0, 0.0, 10.0, 10.0)]);
+    let write = |s: &mut crate::EditorState, value: f64| {
+        s.apply(EditorCommand::SetNodeLayoutProp {
+            node_id: id("n1"),
+            property: "gap".into(),
+            value: LayoutPropValue::Number(value),
+        })
+    };
+
+    assert!(write(&mut s, 12.0), "the first write is a change");
+    let revision = s.document_revision();
+    assert!(
+        !write(&mut s, 12.0),
+        "writing the value the document already holds is not an edit"
+    );
+    assert_eq!(
+        s.document_revision(),
+        revision,
+        "and it must not move the content revision"
+    );
+    assert!(write(&mut s, 16.0), "a different value still is a change");
+    assert!(s.document_revision() > revision);
+}

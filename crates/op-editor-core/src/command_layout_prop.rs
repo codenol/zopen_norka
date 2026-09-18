@@ -306,22 +306,19 @@ impl EditorState {
                 let LayoutPropValue::Number(n) = value else {
                     return false;
                 };
-                node.base_mut().opacity = Some(NumberOrExpression::Number(*n));
-                true
+                set_slot(&mut node.base_mut().opacity, NumberOrExpression::Number(*n))
             }
             "x" => {
                 let LayoutPropValue::Number(n) = value else {
                     return false;
                 };
-                node.base_mut().x = Some(*n);
-                true
+                set_slot(&mut node.base_mut().x, *n)
             }
             "y" => {
                 let LayoutPropValue::Number(n) = value else {
                     return false;
                 };
-                node.base_mut().y = Some(*n);
-                true
+                set_slot(&mut node.base_mut().y, *n)
             }
             "width" => {
                 let LayoutPropValue::Keyword(s) = value else {
@@ -374,260 +371,139 @@ fn property_invalidates_preserved_geometry(property: &str) -> bool {
 fn set_container_gap(node: &mut PenNode, gap: f64) -> bool {
     let noe = NumberOrExpression::Number(gap);
     match node {
-        PenNode::Frame(n) => {
-            n.container.gap = Some(noe);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.gap = Some(noe);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.gap = Some(noe);
-            true
-        }
+        PenNode::Frame(n) => set_slot(&mut n.container.gap, noe),
+        PenNode::Group(n) => set_slot(&mut n.container.gap, noe),
+        PenNode::Rectangle(n) => set_slot(&mut n.container.gap, noe),
         _ => false,
     }
 }
 
 fn set_container_layout(node: &mut PenNode, mode: LayoutMode) -> bool {
     match node {
-        PenNode::Frame(n) => {
-            n.container.layout = Some(mode);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.layout = Some(mode);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.layout = Some(mode);
-            true
-        }
+        PenNode::Frame(n) => set_slot(&mut n.container.layout, mode),
+        PenNode::Group(n) => set_slot(&mut n.container.layout, mode),
+        PenNode::Rectangle(n) => set_slot(&mut n.container.layout, mode),
         _ => false,
     }
 }
 
 fn set_container_padding(node: &mut PenNode, pad: Padding) -> bool {
     match node {
-        PenNode::Frame(n) => {
-            n.container.padding = Some(pad);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.padding = Some(pad);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.padding = Some(pad);
-            true
-        }
+        PenNode::Frame(n) => set_slot(&mut n.container.padding, pad),
+        PenNode::Group(n) => set_slot(&mut n.container.padding, pad),
+        PenNode::Rectangle(n) => set_slot(&mut n.container.padding, pad),
         _ => false,
     }
 }
 
 fn set_container_clip_content(node: &mut PenNode, value: bool) -> bool {
     match node {
-        PenNode::Frame(n) => {
-            n.container.clip_content = Some(value);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.clip_content = Some(value);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.clip_content = Some(value);
-            true
-        }
+        PenNode::Frame(n) => set_slot(&mut n.container.clip_content, value),
+        PenNode::Group(n) => set_slot(&mut n.container.clip_content, value),
+        PenNode::Rectangle(n) => set_slot(&mut n.container.clip_content, value),
         _ => false,
     }
 }
 
 fn set_container_justify(node: &mut PenNode, jc: JustifyContent) -> bool {
     match node {
-        PenNode::Frame(n) => {
-            n.container.justify_content = Some(jc);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.justify_content = Some(jc);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.justify_content = Some(jc);
-            true
-        }
+        PenNode::Frame(n) => set_slot(&mut n.container.justify_content, jc),
+        PenNode::Group(n) => set_slot(&mut n.container.justify_content, jc),
+        PenNode::Rectangle(n) => set_slot(&mut n.container.justify_content, jc),
         _ => false,
     }
 }
 
 fn set_container_align(node: &mut PenNode, ai: AlignItems) -> bool {
     match node {
-        PenNode::Frame(n) => {
-            n.container.align_items = Some(ai);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.align_items = Some(ai);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.align_items = Some(ai);
-            true
-        }
+        PenNode::Frame(n) => set_slot(&mut n.container.align_items, ai),
+        PenNode::Group(n) => set_slot(&mut n.container.align_items, ai),
+        PenNode::Rectangle(n) => set_slot(&mut n.container.align_items, ai),
         _ => false,
     }
 }
 
 fn set_text_letter_spacing(node: &mut PenNode, v: f64) -> bool {
     match node {
-        PenNode::Text(t) => {
-            t.letter_spacing = Some(v);
-            true
-        }
+        PenNode::Text(t) => set_slot(&mut t.letter_spacing, v),
         _ => false,
     }
 }
 
 fn set_text_line_height(node: &mut PenNode, v: f64) -> bool {
     match node {
-        PenNode::Text(t) => {
-            t.line_height = Some(v);
-            true
-        }
+        PenNode::Text(t) => set_slot(&mut t.line_height, v),
         _ => false,
     }
 }
 
 fn set_text_align(node: &mut PenNode, ta: TextAlign) -> bool {
     match node {
-        PenNode::Text(t) => {
-            t.text_align = Some(ta);
-            true
-        }
+        PenNode::Text(t) => set_slot(&mut t.text_align, ta),
         _ => false,
     }
 }
 
 fn set_text_align_vertical(node: &mut PenNode, ta: TextAlignVertical) -> bool {
     match node {
-        PenNode::Text(t) => {
-            t.text_align_vertical = Some(ta);
-            true
-        }
+        PenNode::Text(t) => set_slot(&mut t.text_align_vertical, ta),
         _ => false,
     }
 }
 
 fn set_text_font_family(node: &mut PenNode, family: String) -> bool {
     match node {
-        PenNode::Text(t) => {
-            t.font_family = Some(family);
-            true
-        }
+        PenNode::Text(t) => set_slot(&mut t.font_family, family),
         _ => false,
     }
 }
 
 fn set_text_growth(node: &mut PenNode, tg: TextGrowth) -> bool {
     match node {
-        PenNode::Text(t) => {
-            t.text_growth = Some(tg);
-            true
-        }
+        PenNode::Text(t) => set_slot(&mut t.text_growth, tg),
         _ => false,
     }
+}
+
+/// Set a slot, answering whether anything CHANGED.
+///
+/// Re-applying the value the document already holds is not an edit. The
+/// validation pass re-sends its fixes, and a fix that changed nothing still
+/// counted as a change — a content-revision bump, a version bump, and a full
+/// document refetch in every open tab (issue #230; measured: version
+/// v167 -> v169 while the serialised document stayed byte-identical).
+fn set_slot<T: PartialEq>(slot: &mut Option<T>, value: T) -> bool {
+    if slot.as_ref() == Some(&value) {
+        return false;
+    }
+    *slot = Some(value);
+    true
+}
+
+/// [`set_slot`] for `width`/`height`: the container kinds keep the axis on
+/// their container, every other kind keeps it on the node itself.
+macro_rules! set_size_slot {
+    ($node:expr, $value:expr, $field:ident) => {
+        match $node {
+            PenNode::Frame(n) => set_slot(&mut n.container.$field, $value),
+            PenNode::Group(n) => set_slot(&mut n.container.$field, $value),
+            PenNode::Rectangle(n) => set_slot(&mut n.container.$field, $value),
+            PenNode::Ellipse(n) => set_slot(&mut n.$field, $value),
+            PenNode::Polygon(n) => set_slot(&mut n.$field, $value),
+            PenNode::Path(n) => set_slot(&mut n.$field, $value),
+            PenNode::Text(n) => set_slot(&mut n.$field, $value),
+            PenNode::TextInput(n) => set_slot(&mut n.$field, $value),
+            PenNode::Image(n) => set_slot(&mut n.$field, $value),
+            PenNode::IconFont(n) => set_slot(&mut n.$field, $value),
+            _ => false,
+        }
+    };
 }
 
 fn set_node_width(node: &mut PenNode, sb: SizingBehavior) -> bool {
-    match node {
-        PenNode::Frame(n) => {
-            n.container.width = Some(sb);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.width = Some(sb);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.width = Some(sb);
-            true
-        }
-        PenNode::Ellipse(n) => {
-            n.width = Some(sb);
-            true
-        }
-        PenNode::Polygon(n) => {
-            n.width = Some(sb);
-            true
-        }
-        PenNode::Path(n) => {
-            n.width = Some(sb);
-            true
-        }
-        PenNode::Text(n) => {
-            n.width = Some(sb);
-            true
-        }
-        PenNode::TextInput(n) => {
-            n.width = Some(sb);
-            true
-        }
-        PenNode::Image(n) => {
-            n.width = Some(sb);
-            true
-        }
-        PenNode::IconFont(n) => {
-            n.width = Some(sb);
-            true
-        }
-        _ => false,
-    }
+    set_size_slot!(node, sb, width)
 }
 
 fn set_node_height(node: &mut PenNode, sb: SizingBehavior) -> bool {
-    match node {
-        PenNode::Frame(n) => {
-            n.container.height = Some(sb);
-            true
-        }
-        PenNode::Group(n) => {
-            n.container.height = Some(sb);
-            true
-        }
-        PenNode::Rectangle(n) => {
-            n.container.height = Some(sb);
-            true
-        }
-        PenNode::Ellipse(n) => {
-            n.height = Some(sb);
-            true
-        }
-        PenNode::Polygon(n) => {
-            n.height = Some(sb);
-            true
-        }
-        PenNode::Path(n) => {
-            n.height = Some(sb);
-            true
-        }
-        PenNode::Text(n) => {
-            n.height = Some(sb);
-            true
-        }
-        PenNode::TextInput(n) => {
-            n.height = Some(sb);
-            true
-        }
-        PenNode::Image(n) => {
-            n.height = Some(sb);
-            true
-        }
-        PenNode::IconFont(n) => {
-            n.height = Some(sb);
-            true
-        }
-        _ => false,
-    }
+    set_size_slot!(node, sb, height)
 }

@@ -66,6 +66,15 @@ here at a glance.
   now bumps the version only when the document's content revision actually
   changed (issue #230).
 
+- **Writing a property the document already holds is no longer an edit.** Every
+  layout-property writer reported "changed" even when the value was the one
+  already stored, so the validation pass re-sending its fixes bumped the content
+  revision (and therefore the version the browser polls) for nothing — measured
+  from outside: version v167 → v169 while the serialised document stayed
+  byte-identical, which is the "counter moves without a document change" half of
+  #230. Writers now compare first, so a no-op fix costs no revision, no version
+  and no document refetch (issue #230).
+
 ## [0.10.5] — 2026-09-17
 
 ### Fixed
