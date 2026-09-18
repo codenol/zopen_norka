@@ -35,6 +35,9 @@ pub enum IssueCategory {
     TextBgContrast,
     StackedHorizontalPadding,
     WidgetA11y,
+    /// A rule from the generation canon (`design/design-rules-canon.md`) — the
+    /// deterministic ones, whose `reason` carries the rule id.
+    DesignRule,
     EmptyFilledPanel,
     TopAnchoredBars,
     NoBaselineBars,

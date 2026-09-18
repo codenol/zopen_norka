@@ -18,9 +18,9 @@ pub mod plan;
 
 pub use color::{color_contrast, parse_hex_color, relative_luminance, Rgb};
 pub use detectors::{
-    detect_absolute_positioning_share, detect_all, detect_edge_section_padding,
-    detect_empty_filled_panel, detect_empty_paths, detect_excessive_frame_effects,
-    detect_excessive_nesting_depth, detect_invisible_containers,
+    detect_absolute_positioning_share, detect_all, detect_design_rule_violations,
+    detect_edge_section_padding, detect_empty_filled_panel, detect_empty_paths,
+    detect_excessive_frame_effects, detect_excessive_nesting_depth, detect_invisible_containers,
     detect_mixed_sibling_corner_radius, detect_mixed_sibling_padding, detect_redundant_wrappers,
     detect_sibling_inconsistencies, detect_stacked_horizontal_padding, detect_text_bg_contrast,
     detect_text_corner_radius, detect_text_effect, detect_text_explicit_heights,

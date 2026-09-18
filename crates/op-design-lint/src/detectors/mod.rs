@@ -14,6 +14,7 @@ use jian_ops_schema::PenDocument;
 use crate::design_form::{classify_root_form_node, DesignForm};
 use crate::issue::Issue;
 
+pub mod design_rules;
 pub mod empty_filled_panel;
 pub mod shader_budget;
 pub mod siblings;
@@ -30,6 +31,7 @@ mod siblings_tests;
 #[cfg(test)]
 mod spacing_edge_tests;
 
+pub use design_rules::*;
 pub use empty_filled_panel::*;
 pub use shader_budget::*;
 pub use siblings::*;

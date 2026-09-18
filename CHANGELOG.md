@@ -88,6 +88,20 @@ here at a glance.
   a round ends the loop instead of buying another one). `OPENPENCIL_VERIFY_ROUNDS`
   bounds it: 2 by default, 1 disables the extra round (issues #249, #252, #253).
 
+### Added
+
+- **The generation canon, and detectors for its deterministic half.** The rules
+  the product generates by were 8.8 KB of prose, and the prompt took two `do`
+  and one `don't` per kit type — a rule nobody could check is a preference.
+  `design/design-rules-canon.md` states 28 rules as `id · level · wording · how it
+  is checked`, and `detect_design_rule_violations` answers the deterministic ones
+  from the document itself: Java as a button fill (`C-02`), an accent button that
+  is not Bondi (`C-01`), an input that is not 32 px (`K-02`), a sidebar that is
+  not 251 px (`L-03`), a second app shell on the page (`L-02`), an empty
+  top-level frame (`G-03`), a kit control drawn as a frame instead of a `ref`
+  (`G-01`). Each finding carries its rule id into the transcript and into the
+  correction round (issues #249, #252, #253).
+
 ## [0.10.5] — 2026-09-17
 
 ### Fixed

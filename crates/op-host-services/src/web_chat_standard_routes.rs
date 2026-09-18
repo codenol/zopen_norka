@@ -828,6 +828,33 @@ pub(super) fn stream_new_design_route<W: Write>(
         // minutes), so the tree check is what actually closes the loop. It runs
         // when the vision round produced nothing and the turn drew something —
         // one text call, against a model that already answers text.
+        // The canon, checked against the document itself (design/design-rules-canon.md):
+        // these are facts, not opinions, so they come before the model's look and
+        // they carry the rule id into the transcript and the correction round.
+        let rule_notes = {
+            let guard = target
+                .state
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            op_design_lint::detect_design_rule_violations(guard.editor.active_children())
+                .into_iter()
+                .map(|issue| issue.reason)
+                .collect::<Vec<_>>()
+        };
+        if !rule_notes.is_empty() {
+            write_delta_event(
+                out,
+                &format!(
+                    "\n\n📐 Проверка по правилам: {} нарушени(й)",
+                    rule_notes.len()
+                ),
+            )?;
+            fresh.extend(
+                rule_notes
+                    .into_iter()
+                    .filter(|note| !reported_issues.iter().any(|seen| seen == note)),
+            );
+        }
         if fresh.is_empty() && summary.paintable_nodes > 0 && !abort.is_set() {
             let (dump, roots) = {
                 let guard = target

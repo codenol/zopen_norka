@@ -66,6 +66,15 @@ pub fn node_id(node: &PenNode) -> &str {
     base(node).id.as_str()
 }
 
+/// Borrow a node's display name (`PenNodeBase.name`), `None` when absent or blank.
+pub fn node_name(node: &PenNode) -> Option<&str> {
+    base(node)
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+}
+
 /// The node's kind discriminant.
 pub fn node_kind(node: &PenNode) -> NodeKind {
     match node {
