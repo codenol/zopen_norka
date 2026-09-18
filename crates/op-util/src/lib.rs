@@ -13,6 +13,7 @@ pub mod hex_color;
 pub mod image_dimensions;
 pub mod json_escape;
 pub mod prompt_dump;
+pub mod screen_intent;
 pub mod xml_escape;
 
 pub use image_dimensions::{

@@ -97,7 +97,11 @@ fn normalize_groups_subtasks_by_screen_when_multiple_screens_present() {
             subtask_with_screen("home-feat", "Home Features", Some("Home")),
         ],
     );
-    normalize(&mut p, &req());
+    // The request has to ASK for several screens: the grouping is gated on it
+    // (one request, one screen — see `plan_normalize::normalize`).
+    let mut multi = req();
+    multi.prompt = "Сделай несколько экранов приложения: профиль и главная".into();
+    normalize(&mut p, &multi);
 
     let home_parent = p.subtasks[0].parent_frame_id.clone();
     let profile_parent = p.subtasks[1].parent_frame_id.clone();
@@ -249,4 +253,37 @@ fn continuation_artboards_are_not_shrunk_by_dashboard_section_heuristics() {
         .subtasks
         .iter()
         .all(|task| (task.region.width, task.region.height) == (390.0, 844.0)));
+}
+
+/// The rule the product states as `S-01` (design/design-rules-canon.md): one
+/// request, one screen. A plan that tagged its subtasks with several screen
+/// labels used to build one root per label — measured on a live turn, six
+/// subtasks became six roots for a one-screen request, and the screen rule then
+/// reported the product's own output as violations.
+#[test]
+fn a_one_screen_request_keeps_one_root_whatever_the_labels_say() {
+    let mut p = plan(
+        1200.0,
+        vec![
+            subtask_with_screen("hero", "Hero", Some("Home")),
+            subtask_with_screen("table", "Table", Some("Pakov")),
+        ],
+    );
+    // `req()`'s prompt ("x") asks for one screen.
+    normalize(&mut p, &req());
+
+    let roots: std::collections::BTreeSet<String> = p
+        .subtasks
+        .iter()
+        .map(|st| st.parent_frame_id.clone().expect("parent assigned"))
+        .collect();
+    assert_eq!(
+        roots.len(),
+        1,
+        "one request, one screen — screen labels must not fan out roots: {roots:?}"
+    );
+    assert!(
+        roots.contains("root"),
+        "and the one root is the plan's own root frame: {roots:?}"
+    );
 }

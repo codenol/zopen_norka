@@ -184,7 +184,20 @@ pub fn normalize(plan: &mut OrchestratorPlan, req: &DesignRequest) -> NormInfo {
     // `groups.len() <= 1` — the `else` branch below, byte-identical to
     // today's single-root assignment (regression lock).
     let groups = crate::screen_groups::group_subtasks_by_screen(&plan.subtasks);
-    if groups.len() > 1 {
+    // A plan's per-screen labels only become SEVERAL roots when the request
+    // asked for several screens. The rule is "one request, one screen": without
+    // this, a plan that tagged six subtasks with six labels drew six roots for a
+    // one-screen request — measured on a live turn, and the product's own screen
+    // rule then reported its own output as violations.
+    let many_screens = op_util::screen_intent::request_asks_for_many_screens(&req.prompt);
+    // A deck is the exception the rule must not eat: its slides ARE separate
+    // artboards. Detected from the PROMPT above and from the BOARD itself — a
+    // 16:9 projector is a deck whatever the wording says, and the fallback path
+    // builds exactly such a board without naming slides in the prompt.
+    let board_is_deck = plan.root_frame.width >= 1600.0
+        && plan.root_frame.height > 0.0
+        && ((plan.root_frame.width / plan.root_frame.height) - 16.0 / 9.0).abs() < 0.05;
+    if groups.len() > 1 && (many_screens || is_deck || board_is_deck) {
         for group in &groups {
             let group_root_id = format!("{root_id}-{}", group.screen);
             for &idx in &group.indices {

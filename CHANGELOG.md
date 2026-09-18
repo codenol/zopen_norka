@@ -88,6 +88,16 @@ here at a glance.
   a round ends the loop instead of buying another one). `OPENPENCIL_VERIFY_ROUNDS`
   bounds it: 2 by default, 1 disables the extra round (issues #249, #252, #253).
 
+### Fixed
+
+- **A one-screen request builds one screen.** The plan normaliser turned every
+  distinct `screen` label into its own root, so a turn whose subtasks carried six
+  labels built six screens for a request that asked for one — and the product's
+  own screen rule then reported its own output. The labels now fan out only when
+  the request asks for several screens (or the board is a deck, whose slides ARE
+  separate artboards); the predicate that decides it is shared by the plan
+  normaliser and the screen rule, so the two cannot disagree (`S-01`).
+
 ### Added
 
 - **One screen per request, enforced.** A second generation round drew another
