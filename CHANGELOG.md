@@ -41,6 +41,14 @@ here at a glance.
   the person had now comes back whenever a drawing turn ends with an empty page
   (issues #215, #216); a turn that drew anything is untouched.
 
+- **A design answer that arrives on the talking route is applied instead of
+  discarded.** The classifier picks the conversational route when its own model
+  call times out, and the model then answers the design request anyway — 2 of 24
+  measured corpus turns streamed a complete screen as text, reported `done`, and
+  left the document untouched. A reply that composes screens is now applied
+  whatever route it arrived on; a reply that is not a screen stays a reply, and
+  a cut one is still refused (issues #215, #205).
+
 ## [0.10.5] — 2026-09-17
 
 ### Fixed

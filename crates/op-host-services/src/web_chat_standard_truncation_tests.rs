@@ -234,6 +234,8 @@ fn a_chat_reply_cut_at_the_output_budget_says_so() {
         stop_reason: StopReason::MaxTokens,
     };
     let mut out = Vec::new();
+    let state = Mutex::new(WebCanvasState::new(EditorState::starter(), 3100));
+    let hub = SseHub::default();
 
     stream_chat_route(
         &mut out,
@@ -241,6 +243,11 @@ fn a_chat_reply_cut_at_the_output_budget_says_so() {
         &EditorState::starter(),
         &provider,
         None,
+        CanvasWriteTarget {
+            state: &state,
+            hub: &hub,
+            write_barrier: None,
+        },
     )
     .expect("the chat route answers");
 
@@ -262,6 +269,8 @@ fn the_control_a_whole_chat_reply_is_not_reported_as_cut_off() {
         stop_reason: StopReason::EndTurn,
     };
     let mut out = Vec::new();
+    let state = Mutex::new(WebCanvasState::new(EditorState::starter(), 3100));
+    let hub = SseHub::default();
 
     stream_chat_route(
         &mut out,
@@ -269,6 +278,11 @@ fn the_control_a_whole_chat_reply_is_not_reported_as_cut_off() {
         &EditorState::starter(),
         &provider,
         None,
+        CanvasWriteTarget {
+            state: &state,
+            hub: &hub,
+            write_barrier: None,
+        },
     )
     .expect("the chat route answers");
 
@@ -309,4 +323,54 @@ fn the_truncation_rule_reads_braces_outside_strings() {
         Some(Truncation::OutputBudget)
     );
     assert_eq!(truncation_of("all done.", Some(StopReason::EndTurn)), None);
+}
+
+#[test]
+fn a_talking_route_answered_with_a_screen_still_puts_it_on_the_canvas() {
+    // Issue #215, measured: 2 of 24 corpus turns were answered with a complete
+    // design payload on the talking route — `done` reported, version unmoved,
+    // `pages[0]` still the untouched starter. The classifier picks "chat" when
+    // its own model call times out, so the screen has to be applied whatever
+    // route it arrived on.
+    let provider = StoppedProvider {
+        response: "Here is the screen you asked for:\n\n```json\n[{\"id\":\"login-screen\",\
+                   \"type\":\"frame\",\"name\":\"login-screen\",\"x\":0,\"y\":0,\
+                   \"width\":1440,\"height\":900,\"children\":[]}]\n```\n"
+            .to_string(),
+        stop_reason: StopReason::EndTurn,
+    };
+    let mut out = Vec::new();
+    let state = Mutex::new(WebCanvasState::new(EditorState::starter(), 3100));
+    let hub = SseHub::default();
+
+    stream_chat_route(
+        &mut out,
+        &design_turn("what is a frame?", Vec::new()),
+        &EditorState::starter(),
+        &provider,
+        None,
+        CanvasWriteTarget {
+            state: &state,
+            hub: &hub,
+            write_barrier: None,
+        },
+    )
+    .expect("the chat route answers");
+
+    let streamed = String::from_utf8(out).expect("utf8 sse");
+    assert!(
+        streamed.contains(r#""done":true"#),
+        "the turn still ends normally: {streamed}"
+    );
+    let live = state.lock().unwrap();
+    let roots = live.editor.active_children();
+    assert_eq!(
+        roots.len(),
+        1,
+        "the reply's screen is on the page, and the blank starter it replaced is not: {:?}",
+        roots
+            .iter()
+            .map(|node| op_editor_core::PenNodeExt::id_str(node).to_string())
+            .collect::<Vec<_>>()
+    );
 }

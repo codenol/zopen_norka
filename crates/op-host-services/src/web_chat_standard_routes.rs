@@ -64,6 +64,7 @@ pub(super) fn stream_chat_route<W: Write>(
     state: &EditorState,
     provider: &dyn ChatProvider,
     model: Option<String>,
+    target: CanvasWriteTarget<'_>,
 ) -> std::io::Result<()> {
     let chat_req = ChatRequest {
         system_prompt: crate::chat_system_prompt::build_chat_system_prompt(state, &req.ai.user),
@@ -82,12 +83,14 @@ pub(super) fn stream_chat_route<W: Write>(
     // are exactly that: 16 384 deltas, the request's whole output budget, ending
     // on `"width": "fill_container",` or `"fontWeight`. The user is told.
     let mut reply = String::new();
+    let mut stop_reason_seen: Option<StopReason> = None;
     for delta in provider.send(chat_req) {
         if let ChatDelta::TextDelta(text) = &delta {
             reply.push_str(text);
         }
         if let ChatDelta::Done { stop_reason } = &delta {
             let stop_reason = *stop_reason;
+            stop_reason_seen = Some(stop_reason);
             if let Some(truncation) = truncation_of(&reply, Some(stop_reason)) {
                 write_delta_event(out, &chat_cut_short_notice(truncation))?;
             }
@@ -103,6 +106,94 @@ pub(super) fn stream_chat_route<W: Write>(
             break;
         }
     }
+    // A route that talks can still be answered with a SCREEN: the classifier
+    // picks "chat" when its own model call times out or reads the prompt as
+    // conversation, and the model then answers the design request anyway (issue
+    // #215: 2 of 24 corpus turns — a complete payload, streamed as text, `done`
+    // reported, the document untouched). A reply that composes screens is
+    // applied here, whatever route it arrived on.
+    apply_composed_reply_from_chat(out, state, &reply, stop_reason_seen, target)?;
+    Ok(())
+}
+
+/// Apply the screens a talking route's reply composed (issue #215).
+///
+/// Deliberately narrow: only ops that are a screen of their own — a root-level
+/// node with an id the document does not have ([`split_composed_screens`]) — are
+/// applied. A conversational answer that happens to quote a JSON snippet stays
+/// a conversational answer.
+fn apply_composed_reply_from_chat<W: Write>(
+    out: &mut W,
+    snapshot: &EditorState,
+    reply: &str,
+    stop_reason: Option<StopReason>,
+    target: CanvasWriteTarget<'_>,
+) -> std::io::Result<()> {
+    // A cut reply is not a screen (#205): the same refusal the modify route
+    // makes, so a half-written tree cannot become canvas content just because it
+    // arrived on the talking route.
+    if truncation_of(reply, stop_reason).is_some() {
+        return Ok(());
+    }
+    let nodes = crate::chat_intent::parse_modify_nodes(reply);
+    if nodes.is_empty() {
+        return Ok(());
+    }
+    let (screens, _) = split_composed_screens(snapshot, nodes, &[]);
+    if screens.is_empty() {
+        return Ok(());
+    }
+
+    let (applied, tick, starter_children) = {
+        let mut guard = target
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let refused = guard
+            .gate_daemon_mutation(
+                op_editor_core::CollabGateAction::Document(
+                    op_editor_core::CollabDocumentMutation::NodePropertyBatch,
+                ),
+                op_editor_core::CollabEditSource::Ai,
+            )
+            .is_err()
+            || admit_document_write(target.write_barrier).is_err();
+        if refused {
+            // Nothing is applied, so nothing is taken away either.
+            (0, None, None)
+        } else {
+            // The blank starter frame goes only now that there IS a screen to
+            // put beside it — clearing it up front is what left an empty page
+            // when the turn then drew nothing (#216). Taken first so the frame
+            // can be handed back if the insert does not land.
+            let starter_children = super::starter::blank_starter_children(&guard);
+            if starter_children.is_some() {
+                super::clear_fresh_starter_frame_for_design(&mut guard.editor);
+            }
+            let (applied, mutated) = insert_composed_screens(&mut guard.editor, &screens);
+            let tick = if mutated {
+                guard.version += 1;
+                guard.note_daemon_draw();
+                Some(guard.sse_tick())
+            } else {
+                None
+            };
+            (applied, tick, starter_children)
+        }
+    };
+    if let Some(tick) = tick {
+        target.hub.broadcast(tick);
+    }
+    if applied == 0 {
+        // The insert did not land: give back the frame the clear took.
+        super::starter::restore_starter_frame_if_page_empty(
+            target.state,
+            target.hub,
+            starter_children.as_deref(),
+        );
+        return Ok(());
+    }
+    write_delta_event(out, "\n\n<!-- APPLIED -->")?;
     Ok(())
 }
 

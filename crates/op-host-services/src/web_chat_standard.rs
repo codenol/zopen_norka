@@ -431,7 +431,18 @@ pub fn stream_standard_turn<W: Write>(
                     guard.editor.clone()
                 };
             }
-            stream_chat_route(out, &req, &snapshot, chat_provider.as_ref(), model)
+            stream_chat_route(
+                out,
+                &req,
+                &snapshot,
+                chat_provider.as_ref(),
+                model,
+                CanvasWriteTarget {
+                    state,
+                    hub,
+                    write_barrier,
+                },
+            )
         }
         crate::chat_intent::DesignIntent::Modify => {
             let plan = modify_plan.expect("route checked has_modify_plan");

@@ -240,8 +240,22 @@ fn stream_chat_route_passes_history_and_attachments_to_provider() {
     let seen = Arc::new(Mutex::new(None));
     let provider = CaptureProvider { seen: seen.clone() };
     let mut out = Vec::new();
+    let state = Mutex::new(WebCanvasState::new(EditorState::new(), 3100));
+    let hub = SseHub::default();
 
-    stream_chat_route(&mut out, &req, &EditorState::new(), &provider, None).expect("stream chat");
+    stream_chat_route(
+        &mut out,
+        &req,
+        &EditorState::new(),
+        &provider,
+        None,
+        CanvasWriteTarget {
+            state: &state,
+            hub: &hub,
+            write_barrier: None,
+        },
+    )
+    .expect("stream chat");
 
     let captured = seen
         .lock()
