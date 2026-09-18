@@ -385,6 +385,120 @@ pub(super) fn stream_modify_route<W: Write>(
     write_error_event(out, &message)
 }
 
+/// A layer-tree dump for the verifier: id, kind, name and box, indented.
+///
+/// Deliberately small — the verifier needs to see WHAT is on the page and how it
+/// nests, not every property. A dump that mirrors the whole document costs more
+/// prompt than the design did.
+pub(super) fn layer_tree_dump(state: &EditorState) -> String {
+    use op_editor_core::PenNodeExt;
+    fn walk(node: &jian_ops_schema::node::PenNode, depth: usize, out: &mut String) {
+        if depth > 6 {
+            return;
+        }
+        let base = node.base();
+        let name = base.name.as_deref().unwrap_or("");
+        let debug = format!("{:?}", node);
+        let kind = debug.split(' ').next().unwrap_or("node");
+        out.push_str(&format!(
+            "{}{} [{}] {}{}\n",
+            "  ".repeat(depth),
+            node.id_str(),
+            kind,
+            name,
+            match (node.width_px(), node.height_px()) {
+                (Some(w), Some(h)) => format!(" {w:.0}x{h:.0}"),
+                _ => String::new(),
+            }
+        ));
+        for child in node.children().into_iter().flatten() {
+            walk(child, depth + 1, out);
+        }
+    }
+    let mut out = String::new();
+    for root in state.active_children() {
+        walk(root, 0, &mut out);
+    }
+    out
+}
+
+/// The verifier that needs no picture (issues #252/#253).
+///
+/// The screenshot round depends on a vision call that, on this deployment,
+/// never returns — measured: "Vision round 1 started" and then nothing, for
+/// nine minutes, on three separate turns. A critique the product can ALWAYS get
+/// is the request against the layer tree: it names what the request asked for
+/// and the canvas does not have, and what is on the canvas nobody asked for.
+/// That is exactly the material a correction round needs, and it costs one text
+/// call to a model that already answers text.
+fn tree_verifier_issues(
+    provider: &dyn ChatProvider,
+    model: Option<&str>,
+    request_prompt: &str,
+    dump: &str,
+) -> Vec<String> {
+    const SYSTEM: &str = "You are the checker in a two-model design loop. You are given the \
+person's request and the layer tree of what the builder actually put on the canvas. Judge the \
+canvas against the REQUEST: name every element the request asks for that the tree does not \
+contain, anything in the tree the request did not ask for (an extra screen, a leftover empty \
+frame, an import root nobody wanted), and any requested thing present but wrong (a table with \
+no rows, a toggle that is not a toggle). Judge only what the tree shows; do not invent layout \
+opinions. Return ONLY a JSON object: {\"issues\":[string],\"qualityScore\":number} where \
+qualityScore is 1-10. An empty issues array with a high score means the canvas answers the \
+request.";
+    let request = ChatRequest {
+        system_prompt: SYSTEM.to_string(),
+        user_message: format!(
+            "The person asked for:\n\"{request_prompt}\"\n\nThe canvas layer tree:\n```\n{dump}\n```"
+        ),
+        history: Vec::new(),
+        max_output_tokens: 4096,
+        thinking: op_ai::chat_provider::ThinkingMode::Disabled,
+        effort: op_ai::chat_provider::EffortLevel::Low,
+        attachments: Vec::new(),
+        model: model.map(str::to_string),
+    };
+    let mut text = String::new();
+    for delta in provider.send(request) {
+        match delta {
+            ChatDelta::TextDelta(chunk) => text.push_str(&chunk),
+            ChatDelta::Done { .. } => break,
+            ChatDelta::Error(_) => return Vec::new(),
+            ChatDelta::Thinking(_) | ChatDelta::ToolUse { .. } => {}
+        }
+    }
+    parse_verifier_issues(&text)
+}
+
+/// Pull `issues` out of a verifier reply, tolerating prose around the JSON.
+pub(super) fn parse_verifier_issues(text: &str) -> Vec<String> {
+    let Some(start) = text.find('{') else {
+        return Vec::new();
+    };
+    let Some(end) = text.rfind('}') else {
+        return Vec::new();
+    };
+    if end <= start {
+        return Vec::new();
+    }
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text[start..=end]) else {
+        return Vec::new();
+    };
+    value
+        .get("issues")
+        .and_then(|issues| issues.as_array())
+        .map(|issues| {
+            issues
+                .iter()
+                .filter_map(|issue| issue.as_str())
+                .map(str::trim)
+                .filter(|issue| !issue.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// How many generation rounds a turn may run (issues #249/#252/#253).
 ///
 /// 1 disables the verifier's second round; 2 (the default) allows one
@@ -618,12 +732,36 @@ pub(super) fn stream_new_design_route<W: Write>(
             }
         };
 
-        let fresh: Vec<String> = summary
+        let mut fresh: Vec<String> = summary
             .validation_issues
             .iter()
             .filter(|issue| !reported_issues.iter().any(|seen| seen == *issue))
             .cloned()
             .collect();
+        // The screenshot round is skipped or never returns on this deployment
+        // (measured: "Vision round 1 started" and nothing after it for nine
+        // minutes), so the tree check is what actually closes the loop. It runs
+        // when the vision round produced nothing and the turn drew something —
+        // one text call, against a model that already answers text.
+        if fresh.is_empty() && summary.paintable_nodes > 0 && !abort.is_set() {
+            let dump = {
+                let guard = target
+                    .state
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                layer_tree_dump(&guard.editor)
+            };
+            write_delta_event(out, "\n\n🔎 Проверяю результат по дереву слоёв…")?;
+            fresh = tree_verifier_issues(
+                provider_arc.as_ref(),
+                model.as_deref(),
+                &original_prompt,
+                &dump,
+            )
+            .into_iter()
+            .filter(|issue| !reported_issues.iter().any(|seen| seen == issue))
+            .collect();
+        }
         // Nothing new to correct — either the validator is content, or it is
         // repeating itself (a second round would burn time for the same note).
         if fresh.is_empty() || round >= max_rounds || abort.is_set() {

@@ -978,3 +978,38 @@ fn the_number_of_verification_rounds_is_capped() {
         "one correction round by default"
     );
 }
+
+#[test]
+fn the_tree_verifier_reads_issues_out_of_a_chatty_reply() {
+    // The verifier is a chat model: it wraps the JSON in a sentence or a fence
+    // often enough that the parse has to survive it (issue #252).
+    let issues = super::routes::parse_verifier_issues(
+        "Here is my verdict:\n```json\n{\"issues\":[\"в таблице нет строк\",\" \
+         лишний пустой фрейм\"],\"qualityScore\":5}\n```\nHope that helps.",
+    );
+    assert_eq!(
+        issues,
+        vec![
+            "в таблице нет строк".to_string(),
+            "лишний пустой фрейм".to_string()
+        ]
+    );
+    assert!(super::routes::parse_verifier_issues("no json here").is_empty());
+    assert!(super::routes::parse_verifier_issues("{\"issues\":[]}").is_empty());
+}
+
+#[test]
+fn the_layer_tree_dump_names_what_is_on_the_page() {
+    // The verifier judges the request against this dump, so it has to carry the
+    // ids and names a correction round can act on.
+    let state = EditorState::starter();
+    let dump = super::routes::layer_tree_dump(&state);
+    assert!(
+        dump.contains("Frame") || dump.contains("frame"),
+        "the starter frame is in the dump: {dump}"
+    );
+    assert!(
+        dump.lines().count() >= 1,
+        "at least the page's own node: {dump}"
+    );
+}
