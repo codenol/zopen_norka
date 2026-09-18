@@ -10,6 +10,16 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.8] — 2026-09-18
+
+### Added
+
+- **The assembly order is a canon rule (S-02).** Recipe first, then a kit
+  component, and from-scratch only when neither fits — with the G-06 pink
+  stroke as the visible marker of the last resort. The operator's standing
+  rule («генерация с нуля — зло») is now a line the generation prompt carries
+  and the checker can cite by id, not a preference stated in conversation.
+
 ## [0.10.7] — 2026-09-18
 
 ### Added

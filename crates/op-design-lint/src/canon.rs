@@ -267,6 +267,12 @@ pub const CANON: &[CanonRule] = &[
         checking: RuleCheck::NotDeterministic,
     },
     CanonRule {
+        id: "S-02",
+        level: RuleLevel::Required,
+        text: "assembly order: recipe, then kit component, then custom (G-06) — from-scratch only when neither fits, and hand-building what the kit already has is a violation",
+        checking: RuleCheck::NotDeterministic,
+    },
+    CanonRule {
         id: "S-01",
         level: RuleLevel::Required,
         text: "one request, one screen — a second root only when the request names several",
