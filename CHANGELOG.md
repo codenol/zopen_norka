@@ -23,6 +23,24 @@ here at a glance.
 
 ### Fixed
 
+- **An ops screen about nodes, hosts or clusters now gets the kit's recipe.** The
+  deterministic recipe gate only knew `сервер`/`коммутатор`/`устройств` and their
+  English twins, so «таблица узлов с чекбоксами» — the ops list screen the kit
+  ships ready-made — fell through to the from-scratch route and the model
+  hand-drew the table, the pagination and the shell the recipe already composes.
+  `ops-servers-screen` now answers to узел/узлы/узлов, хост…, кластер and
+  node/nodes, host/hosts, cluster; the matcher tests carry the measured prompt.
+  Issue #249 step 4.
+- **A long Cyrillic request no longer panics the recipe route.** The optional-
+  block search in `requested_hidden_blocks` found a subject by BYTE offset into
+  the lowercased prompt and then indexed the CHAR vector with it; in Russian the
+  two diverge two-to-one, so any prompt with «поиск» past its own char length
+  («поиск» at byte 781 of a 486-char request) killed the connection thread
+  mid-turn — the recipe landed, the adaptation never streamed. The search is
+  char-indexed end to end now, with the measured prompt as the regression test.
+
+### Fixed
+
 - **The model roles survive the settings file and reach every tenant.** The roles
   were stored in the editor state but absent from the file format: writing them
   by hand made the daemon refuse the whole file (`unknown settings field in

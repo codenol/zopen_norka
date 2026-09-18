@@ -407,15 +407,22 @@ pub fn requested_hidden_blocks(
         .iter()
         .filter(|optional| {
             optional.subjects.iter().any(|subject| {
-                let subject = subject.to_lowercase();
-                if subject.is_empty() {
+                let subject: Vec<char> = subject.to_lowercase().chars().collect();
+                if subject.is_empty() || subject.len() > chars.len() {
                     return false;
                 }
                 // Every place the subject appears; a negation near any of them
-                // means this block is the one being dismissed.
+                // means this block is the one being dismissed. All indexing
+                // stays in CHARS: a byte offset into `haystack` is not an
+                // index into `chars`, and in a Cyrillic request the two
+                // diverge two-to-one — mixing them panicked the recipe route
+                // on any prompt long enough (measured: «поиск» at byte 781
+                // of a 486-char request, range end out of bounds).
                 let mut from = 0usize;
-                while let Some(found) = haystack[from..].find(&subject) {
-                    let at = from + found;
+                while from + subject.len() <= chars.len() {
+                    let Some(at) = find_char_subslice(&chars, &subject, from) else {
+                        break;
+                    };
                     from = at + subject.len();
                     let start = at.saturating_sub(NEGATION_WINDOW);
                     let end = (at + subject.len() + NEGATION_WINDOW).min(chars.len());
@@ -433,6 +440,13 @@ pub fn requested_hidden_blocks(
         })
         .map(|optional| optional.block.clone())
         .collect()
+}
+
+/// First position at or after `from` where `needle` occurs in `haystack`,
+/// both already lowercase char vectors.
+fn find_char_subslice(haystack: &[char], needle: &[char], from: usize) -> Option<usize> {
+    (from..=haystack.len().saturating_sub(needle.len()))
+        .find(|&i| haystack[i..i + needle.len()] == *needle)
 }
 
 /// How far from a subject word a negation still counts as "this one".
@@ -536,6 +550,38 @@ mod optional_block_tests {
             .find(|r| r.id == "ops-servers-screen")
             .expect("the ops recipe");
         assert!(requested_hidden_blocks("список коммутаторов", recipe).is_empty());
+    }
+
+    /// Measured 2026-09-18: the first real long Cyrillic request through the
+    /// recipe route PANICKED the connection thread — the subject's byte
+    /// offset («поиск» at byte 781) was used to index the 486-char vector.
+    /// A subject sitting in the back half of any Cyrillic prompt reproduces
+    /// it; the window arithmetic must stay in chars end to end.
+    #[test]
+    fn a_long_cyrillic_request_does_not_panic_the_search() {
+        let kit = crate::session_kit();
+        let recipe = kit
+            .recipes
+            .iter()
+            .find(|r| r.id == "ops-servers-screen")
+            .expect("the ops recipe");
+        // The baseline prompt, verbatim: «поиск» sits past the char length
+        // in bytes, with no negation — nothing is hidden, nobody crashes.
+        let baseline = "Экран «Установка ОС» для системы ГЕНОМ: слева сайдбар с навигацией \
+                        (Сценарии, Сессии сценариев, Обновления, Командная строка), сверху \
+                        хлебные крошки «Управление • Сценарии • s3m-03b02-msk44 • Установка ОС», \
+                        строка поиска, справа кнопки «Отмена» и «Продолжить». Информационная \
+                        плашка: «Выберите узлы, на которых будет устанавливаться ОС (не более \
+                        10). Выбрано: 10». Таблица узлов с чекбоксами: колонки «Имя узла» и \
+                        «IP узла», 10 строк, часть строк отмечена. Внизу пагинация 1 2 3 4 … 45.";
+        assert!(requested_hidden_blocks(baseline, recipe).is_empty());
+        // The same length, but the negation reaches «пагинация» — Footer goes.
+        let mut negated = baseline.to_string();
+        negated.push_str(" Пагинация не нужна.");
+        assert_eq!(
+            requested_hidden_blocks(&negated, recipe),
+            vec!["Footer".to_string()]
+        );
     }
 }
 

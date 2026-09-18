@@ -112,6 +112,28 @@ fn the_kits_own_subject_wins() {
     assert_eq!(selected.template, "tpl-recipe-ops-servers");
 }
 
+/// Measured 2026-09-18 (baseline turn through the web daemon): an
+/// «Установка ОС» screen — a checkbox table of cluster NODES — went the
+/// no-recipe route because its subject words (`узлы`, `узлов`) were in
+/// nobody's vocabulary, and the model hand-drew the table the recipe
+/// already composes. Nodes, hosts and clusters are the same screen.
+#[test]
+fn a_node_list_is_the_ops_screen_too() {
+    for prompt in [
+        "Экран «Установка ОС»: таблица узлов с чекбоксами, колонки «Имя узла» и «IP узла», внизу пагинация",
+        "Собери экран выбора узлов для установки ОС: таблица с чекбоксами и поиском",
+        "Список хостов кластера с их IP",
+        "Таблица узлов кластера с фильтром",
+    ] {
+        let selected = crate::select_recipe(prompt, kit())
+            .unwrap_or_else(|| panic!("this request names the ops screen: {prompt}"));
+        assert_eq!(selected.id, "ops-servers-screen");
+    }
+    // A whole-word needle stays whole-word: «узел» inside a longer word is
+    // not a mention («узелковый», «вузлище»-class words carry nothing here).
+    assert!(!selects("Нарисуй экран вузлища с карточками"));
+}
+
 /// A Russian stem carrying an ending still matches — the reason a needle is
 /// allowed to be a stem at all.
 #[test]
