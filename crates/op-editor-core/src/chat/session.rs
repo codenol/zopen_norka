@@ -151,11 +151,17 @@ impl ChatState {
         self.collapsed = false;
     }
 
-    /// Flip between the compact bar and the normal panel. A streaming
-    /// turn always expands — hiding a reply as it arrives reads as the
-    /// turn having been lost.
+    /// Flip between the compact bar and the normal panel.
+    ///
+    /// A streaming turn does NOT change the direction: the control does what it
+    /// says (issue #255). The old rule — a streaming turn always expands — left
+    /// the chevron unable to collapse for the whole length of a turn (100-300 s
+    /// on a design turn), and a button that promises to collapse and expands
+    /// instead reads as broken rather than as disabled. The bar carries the
+    /// in-progress state instead: `ai_chat_panel_minimized` shows
+    /// "Generating…" while a reply is coming, so collapsing hides no work.
     pub fn toggle_minimized(&mut self) {
-        if self.has_streaming_turn() || self.is_minimized() {
+        if self.is_minimized() {
             self.expand();
         } else {
             self.minimize();

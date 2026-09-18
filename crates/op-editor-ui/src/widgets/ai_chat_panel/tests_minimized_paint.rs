@@ -143,3 +143,40 @@ fn paint_minimized_bar_hover_adds_visible_feedback_across_the_bar() {
         "hovering the minimized bar should wash its whole surface — the bar is one button"
     );
 }
+
+#[test]
+fn a_minimized_bar_says_a_reply_is_still_coming() {
+    // Issue #255: the panel may be collapsed mid-turn, so the bar has to carry
+    // the in-progress state — otherwise collapsing hides the fact that work is
+    // happening, which is what the old "streaming always expands" rule was
+    // protecting, at the cost of the control doing the opposite of its label.
+    let mut s = EditorState::new();
+    s.chat.minimize();
+    s.chat
+        .messages
+        .push(op_editor_core::ChatMessage::assistant_streaming());
+    let panel = AIChatPlaceholder::from_editor(&s);
+    let rect = Rect::xywh(0.0, 0.0, AI_CHAT_WIDTH, AI_CHAT_MINIMIZED_HEIGHT);
+    let mut backend = PanelPaintBackend::default();
+    let mut cx = PaintCx {
+        backend: &mut backend,
+    };
+
+    panel.paint(&mut cx, rect);
+
+    assert!(
+        backend
+            .texts
+            .iter()
+            .any(|(text, _, _, _)| text == &panel.label_generating),
+        "a streaming turn shows «{}» in the bar",
+        panel.label_generating
+    );
+    assert!(
+        !backend
+            .texts
+            .iter()
+            .any(|(text, _, _, _)| text == &panel.label_input_placeholder),
+        "the idle placeholder must not stand in for work in progress"
+    );
+}

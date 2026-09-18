@@ -161,11 +161,17 @@ pub(crate) fn paint_minimized_bar(
         1.6,
     );
 
-    // Draft first, placeholder second — a user who typed and then
-    // minimized must still see what they were writing.
+    // A reply in flight is the bar's own state, and it outranks the
+    // placeholder: the panel can be collapsed at any point during a turn
+    // (issue #255), so the bar has to say that work is happening rather than
+    // look idle. A draft still wins over both — a user who typed and then
+    // minimized must see what they were writing.
     let draft = draft_line(widget.state.input.text());
     let (label, label_color) = match draft {
         Some(line) => (line, theme.foreground),
+        None if widget.state.has_streaming_turn() => {
+            (widget.label_generating.as_str(), theme.foreground)
+        }
         None => (
             widget.label_input_placeholder.as_str(),
             theme.muted_foreground,

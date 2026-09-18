@@ -34,7 +34,12 @@ fn vscode_embed_has_no_chat_rect() {
 }
 
 #[test]
-fn ai_chat_collapse_click_stays_expanded_while_streaming_like_ts() {
+fn ai_chat_collapse_click_minimizes_while_streaming() {
+    // Issue #255: the chevron collapses during a turn as well. The old
+    // behaviour — re-opening instead, inherited from the TS editor — made the
+    // control unable to do the one thing it is labelled for, for the whole
+    // length of a design turn. The bar shows "Generating…" so the running reply
+    // is not lost from sight.
     let mut host = WidgetHost::new();
     host.editor_state
         .chat
@@ -54,7 +59,7 @@ fn ai_chat_collapse_click_stays_expanded_while_streaming_like_ts() {
     ));
 
     assert!(
-        !host.editor_state.chat.is_minimized(),
-        "TS immediately reopens a minimized chat while a response is streaming"
+        host.editor_state.chat.is_minimized(),
+        "the collapse chevron collapses while a response is streaming (issue #255)"
     );
 }

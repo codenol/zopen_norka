@@ -22,6 +22,12 @@ here at a glance.
   a result the body does not carry, and a copy that does carry it lands and
   settles the divergence (issues #247, #248). An explicit Save is unchanged —
   "save" means "what I see" (#169).
+- **The chat's collapse chevron collapses while a reply is streaming.** A
+  streaming turn forced the panel back open, so for the whole length of a design
+  turn (100–300 s) the control did the opposite of what it is labelled for — it
+  read as broken rather than as disabled. The collapsed bar now carries the
+  in-progress state itself («Генерация…»), so folding the panel away hides no
+  work (issue #255).
 
 ## [0.10.5] — 2026-09-17
 

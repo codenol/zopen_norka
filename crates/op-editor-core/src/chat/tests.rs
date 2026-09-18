@@ -87,7 +87,12 @@ fn toggling_walks_between_exactly_two_forms_and_clears_the_legacy_flag() {
 }
 
 #[test]
-fn a_streaming_turn_refuses_to_minimize() {
+fn a_streaming_turn_can_still_be_minimized() {
+    // Issue #255: the collapse control does what it says during a turn too. The
+    // turn used to force the panel back open, which left the chevron unable to
+    // collapse for the whole 100-300 s of a design turn — a button that reads as
+    // broken. What keeps a running reply from being lost is the bar's own
+    // "Generating…" label (see `ai_chat_panel_minimized`), not a refusal here.
     let mut chat = ChatState::default();
     chat.set_input_text("design a pricing page");
     assert!(chat.begin_send());
@@ -95,9 +100,14 @@ fn a_streaming_turn_refuses_to_minimize() {
     chat.toggle_minimized();
 
     assert!(
-        !chat.is_minimized(),
-        "a reply arriving must not be hidden behind the bar"
+        chat.is_minimized(),
+        "a streaming turn must not turn the collapse control into an expand"
     );
+    assert!(chat.has_streaming_turn(), "the turn itself is untouched");
+
+    // And the flip still works in the other direction while it streams.
+    chat.toggle_minimized();
+    assert!(!chat.is_minimized());
 }
 
 #[test]

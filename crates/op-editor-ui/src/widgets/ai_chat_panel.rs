@@ -83,6 +83,10 @@ pub struct AIChatPlaceholder<'a> {
     pub now_ms: u64,
     pub label_start_with_ai: String,
     pub label_input_placeholder: String,
+    /// Shown in the minimized bar while a reply is streaming, in place of the
+    /// idle placeholder — the panel may be collapsed mid-turn (issue #255), so
+    /// the bar has to say the turn is still running.
+    pub label_generating: String,
     pub label_tip_select_elements: String,
     pub label_no_models: String,
     /// Number of currently selected canvas nodes.
@@ -195,6 +199,7 @@ impl<'a> AIChatPlaceholder<'a> {
             now_ms,
             label_start_with_ai: translate(ui, "ai.tryExample").to_string(),
             label_input_placeholder: translate(ui, "ai.designWithAgent").to_string(),
+            label_generating: translate(ui, "ai.generating").to_string(),
             label_tip_select_elements: translate(ui, "ai.tipSelectElements").to_string(),
             label_no_models: translate(ui, "ai.noModelsConnected").to_string(),
             selected_count: state.selection_count(),
