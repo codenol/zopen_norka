@@ -10,6 +10,8 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.6] — 2026-09-18
+
 ### Added
 
 - **The canon now reaches the generation prompt, by id.** The rules the product
@@ -1471,7 +1473,8 @@ here at a glance.
   compared against seconds) and no longer quantizes its blink phase to whole
   seconds.
 
-[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.5...HEAD
+[Unreleased]: https://github.com/codenol/zopen_norka/compare/v0.10.6...HEAD
+[0.10.6]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.6
 [0.10.5]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.5
 [0.10.4]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.4
 [0.10.3]: https://github.com/codenol/zopen_norka/releases/tag/v0.10.3

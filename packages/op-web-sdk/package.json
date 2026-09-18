@@ -1,6 +1,6 @@
 {
   "name": "@zseven-w/op-web-sdk",
-  "version": "0.10.5",
+  "version": "0.10.6",
   "description": "Read-only OpenPencil .op viewer SDK for the web (wasm-backed)",
   "license": "MIT",
   "type": "module",
