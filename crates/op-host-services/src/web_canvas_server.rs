@@ -272,6 +272,53 @@ impl WebCanvasState {
         self.turn_result.note_turn_result(roots);
     }
 
+    /// The daemon has just changed this document by itself — an AI turn's
+    /// command, a recipe placement, a composed screen.
+    ///
+    /// Two things follow, and BOTH used to be missing on every path that is not
+    /// the live-MCP one (issues #247/#248):
+    ///
+    /// 1. the turn-result guard is armed, so an autosave from a tab that never
+    ///    took this document is refused instead of replacing it;
+    /// 2. the result is written to the file it belongs to, so closing the tab
+    ///    does not leave the starter on disk.
+    ///
+    /// A turn that runs through the editor's own agent loop applies its commands
+    /// through [`WebDesignDocSink`](crate::web_chat_standard) and never touches
+    /// the MCP connection, which is why arming this only there left the guard
+    /// down during a real design turn: measured, an autosave of the pre-turn
+    /// copy was accepted (200) while the turn was drawing.
+    pub(crate) fn note_daemon_draw(&mut self) {
+        self.note_turn_result();
+        self.persist_turn_result();
+    }
+
+    /// Write the document the daemon just drew to the file it belongs to.
+    ///
+    /// Best effort by design: a document with no key — a bare `--file` session,
+    /// a brand-new account — has no file to write, and a failed write must not
+    /// undo a turn that already landed in memory. The failure is reported rather
+    /// than swallowed, because "the screen did not reach the disk" is the kind
+    /// of thing a person needs to be able to find out afterwards.
+    pub(crate) fn persist_turn_result(&self) {
+        let Some(key) = self.editor.editor_ui.file_key.clone() else {
+            return;
+        };
+        let Some(store) = self.documents.as_ref() else {
+            return;
+        };
+        let path = match crate::document_store::path_for(store.dir(), &key) {
+            Ok(path) => path,
+            Err(error) => {
+                eprintln!("openpencil: turn result not written: bad key {key}: {error}");
+                return;
+            }
+        };
+        if let Err(error) = crate::doc_io::save_to_path(&self.editor, &path) {
+            eprintln!("openpencil: turn result not written to {key}: {error}");
+        }
+    }
+
     /// Idempotent wrapper around [`Self::reset_document`] for
     /// `POST /api/mcp/sync-reset`: the first SUCCESSFUL reset in this
     /// process's lifetime consumes `reset_consumed`; every call after that

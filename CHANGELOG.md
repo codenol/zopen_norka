@@ -20,8 +20,13 @@ here at a glance.
   `pages[0]` and then none. What settles the guard now is the write's own
   content: an autosave is refused (`409 stale-autosave`) while the daemon holds
   a result the body does not carry, and a copy that does carry it lands and
-  settles the divergence (issues #247, #248). An explicit Save is unchanged —
-  "save" means "what I see" (#169).
+  settles the divergence (issues #247, #248). The guard is armed by every path
+  the daemon draws through — the agent loop's own design sink, a recipe
+  placement, a composed screen, the live-MCP connection — and the turn's result
+  is written to its file at the end of the turn, since arming only the MCP path
+  left a real design turn unprotected (measured: an autosave of the pre-turn
+  copy accepted with `200` while the turn was drawing). An explicit Save is
+  unchanged — "save" means "what I see" (#169).
 - **The chat's collapse chevron collapses while a reply is streaming.** A
   streaming turn forced the panel back open, so for the whole length of a design
   turn (100–300 s) the control did the opposite of what it is labelled for — it

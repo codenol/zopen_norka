@@ -544,17 +544,12 @@ pub(super) fn dispatch<S: Read + Write>(
         if applied_any {
             guard.version += 1;
             // The daemon drew this document itself, and no tab has taken the
-            // result yet: remember WHICH nodes it drew, so an autosave that does
-            // not carry them can be told apart from one that does (issues
-            // #247/#248 — the boolean this replaced was cleared by any read, and
-            // the loss came back).
-            guard.note_turn_result();
-            // And the turn's result has to reach the FILE, not only memory —
-            // otherwise closing the tab before it takes the document leaves the
-            // starter on disk and the screen is gone (measured: 211 nodes in
-            // memory, one empty frame in the file). The tab cannot be relied on
-            // for this write: it is the copy that is behind.
-            save_turn_result_to_file(&guard);
+            // result yet: arm the guard with the nodes it drew, and put the
+            // result in its file so closing the tab does not leave the starter
+            // there (issues #247/#248). Shared with the editor's own agent loop,
+            // which applies its commands without going through this connection
+            // at all — see `WebCanvasState::note_daemon_draw`.
+            guard.note_daemon_draw();
         }
         // Atomic bump+broadcast under the state lock (see the REST path) so SSE
         // version events stay monotonic across concurrent mutations.
@@ -669,31 +664,4 @@ pub(super) fn write_sse_event<S: Write>(stream: &mut S, tick: SseTick) -> Result
     stream
         .flush()
         .map_err(|e| WebCanvasError::Transport(format!("sse flush: {e}")))
-}
-
-/// Write the document the daemon just moved to the file it belongs to.
-///
-/// Called after the agent's own tools commit (issue #247). Best effort by
-/// design: a document with no key — a bare `--file` session, a brand-new
-/// account — has no file to write, and a failed write must not undo a turn that
-/// already landed in memory. The failure is reported rather than swallowed,
-/// because "the screen did not reach the disk" is the kind of thing a person
-/// needs to be able to find out afterwards.
-fn save_turn_result_to_file(state: &WebCanvasState) {
-    let Some(key) = state.editor.editor_ui.file_key.clone() else {
-        return;
-    };
-    let Some(store) = state.documents.as_ref() else {
-        return;
-    };
-    let path = match crate::document_store::path_for(store.dir(), &key) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("openpencil: turn result not written: bad key {key}: {error}");
-            return;
-        }
-    };
-    if let Err(error) = crate::doc_io::save_to_path(&state.editor, &path) {
-        eprintln!("openpencil: turn result not written to {key}: {error}");
-    }
 }

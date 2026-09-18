@@ -245,6 +245,12 @@ pub(super) fn stream_modify_route<W: Write>(
                 };
                 let tick = if mutated {
                     guard.version += 1;
+                    // The daemon applied a composed/modified screen by itself:
+                    // arm the guard and put the result in its file, since this
+                    // is the end of the turn (issues #247/#248). The whole-doc
+                    // path that also runs a tool loop arms it per command and
+                    // writes the file below, after the turn.
+                    guard.note_daemon_draw();
                     Some(guard.sse_tick())
                 } else {
                     None
@@ -452,6 +458,15 @@ pub(super) fn stream_new_design_route<W: Write>(
             &providers,
         ))
     };
+    // The turn is over. Its commands armed the turn-result guard as they were
+    // applied; what is left is putting the result in the document's own file,
+    // once, instead of on every command (issues #247/#248 — a file left holding
+    // the starter is what "the AI does not build anything" looks like from
+    // outside). Best effort: a brand-new account has no key yet.
+    {
+        let mut guard = target.state.lock().unwrap_or_else(|p| p.into_inner());
+        guard.note_daemon_draw();
+    }
     // Natural completion drains the queued reveals gracefully; an
     // aborted turn tears the overlay down at once.
     if abort.is_set() {

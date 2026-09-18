@@ -259,6 +259,10 @@ pub(super) fn place_recipe_base(
     // counted: the selection — turn state, not document content — and the
     // starter clear, which was already gone under the prune.
     guard.version += 1 + u64::from(hidden > 0) + u64::from(pruned);
+    // A recipe placement is the daemon drawing by itself, before the model
+    // ever runs: arm the turn-result guard so a tab that has not taken this
+    // document cannot autosave its older copy over it (issues #247/#248).
+    guard.note_turn_result();
     let tick = guard.sse_tick();
     drop(guard);
     hub.broadcast(tick);

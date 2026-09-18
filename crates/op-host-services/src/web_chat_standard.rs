@@ -514,6 +514,15 @@ impl DocSink for WebDesignDocSink<'_> {
                     900.0,
                 );
                 guard.version += 1;
+                // This is the daemon drawing on its own, and it is THE path a
+                // design turn takes (the MCP connection is not involved), so the
+                // turn-result guard has to be armed here: an autosave from a tab
+                // that never took the screen must be refused rather than allowed
+                // to replace it mid-turn (issues #247/#248, measured — the guard
+                // armed only on the MCP path left a real turn unprotected). The
+                // file write is not per command; the route does it once at the
+                // end of the turn.
+                guard.note_turn_result();
                 Some(guard.sse_tick())
             } else {
                 None

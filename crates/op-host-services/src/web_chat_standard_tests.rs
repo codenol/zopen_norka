@@ -311,6 +311,48 @@ fn design_doc_sink_applies_and_bumps_version() {
 }
 
 #[test]
+fn a_command_the_sink_applies_arms_the_turn_result_guard() {
+    // Issues #247/#248. The editor's own agent loop applies its commands
+    // through this sink and never touches the MCP connection, so arming the
+    // guard only on the MCP path left a real design turn unprotected — measured,
+    // an autosave of the pre-turn copy was accepted (200) while the turn drew.
+    let state = Mutex::new(WebCanvasState::new(EditorState::new(), 3100));
+    let hub = SseHub::default();
+    let mirror = state.lock().unwrap().editor.clone();
+    let mut sink = WebDesignDocSink::new(&state, &hub, None, mirror);
+
+    assert!(!state.lock().unwrap().turn_result.is_ahead());
+    assert!(sink.apply(EditorCommand::InsertNode {
+        kind: "rect".into(),
+        name: "Generated".into(),
+        x: 10,
+        y: 20,
+        width: 100,
+        height: 50,
+        fill_hex: Some("#ff0000".into()),
+        target_parent: NodeId::NONE,
+        page_id: None,
+    }));
+
+    let live = state.lock().unwrap();
+    assert!(
+        live.turn_result.is_ahead(),
+        "the daemon drew this document, so a tab that never took it must not be \
+         allowed to autosave over it"
+    );
+    let written_back: std::collections::BTreeSet<String> = live
+        .editor
+        .active_children()
+        .iter()
+        .map(|node| op_editor_core::PenNodeExt::id_str(node).to_string())
+        .collect();
+    assert!(
+        !live.turn_result.refuses(&written_back),
+        "the copy that carries what was drawn is the one that may be written back"
+    );
+}
+
+#[test]
 fn starter_clear_marks_content_dirty_after_stale_save_ack() {
     let mut state = EditorState::starter();
     state.mark_saved_revision();
