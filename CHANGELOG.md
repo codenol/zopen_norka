@@ -75,6 +75,19 @@ here at a glance.
   #230. Writers now compare first, so a no-op fix costs no revision, no version
   and no document refetch (issue #230).
 
+### Changed
+
+- **A design turn now runs until the verifier is satisfied, within a bounded
+  number of rounds.** The post-generation validator received the screenshot and
+  the node tree but never the request, so it could judge the picture against
+  itself and not see that the screen was the wrong screen, that a kit component
+  had been re-drawn by hand, or that something sat on the canvas nobody asked
+  for. The request now travels with the critique, the validator's notes are
+  carried out of the loop instead of discarded, and a turn that still has notes
+  runs one correction round that fixes exactly those (a note that repeats after
+  a round ends the loop instead of buying another one). `OPENPENCIL_VERIFY_ROUNDS`
+  bounds it: 2 by default, 1 disables the extra round (issues #249, #252, #253).
+
 ## [0.10.5] — 2026-09-17
 
 ### Fixed

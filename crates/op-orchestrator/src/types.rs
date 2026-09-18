@@ -438,6 +438,12 @@ pub struct RunSummary {
     /// suffix) before this summary is built, so a caller that only reads
     /// this field and one that only looks at the canvas see the same story.
     pub unfilled_screens: Vec<String>,
+    /// What the post-generation validator reported and could not fix in place
+    /// (issues #252/#253). Empty when validation did not run or found nothing.
+    /// This is the material a second generation round works from.
+    pub validation_issues: Vec<String>,
+    /// The validator's last quality score (1-10), when it produced one.
+    pub quality_score: Option<u8>,
 }
 
 /// `run()` 的失败。

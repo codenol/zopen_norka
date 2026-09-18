@@ -944,3 +944,37 @@ fn an_open_write_barrier_still_switches_the_active_page() {
         "an open barrier must apply the requested page switch"
     );
 }
+
+#[test]
+fn a_correction_round_is_told_to_fix_the_notes_not_redraw_the_screen() {
+    // Issues #252/#253: the second round exists to answer the verifier's notes.
+    // The screen is already on the canvas and the person is looking at it, so
+    // the prompt has to keep the request AND say "these exact things, without
+    // rebuilding what is already right".
+    let prompt = super::routes::correction_prompt(
+        "Собери экран с таблицей ПАКов",
+        &[
+            "в таблице нет строк".to_string(),
+            "лишний пустой фрейм справа".to_string(),
+        ],
+    );
+    assert!(prompt.contains("Собери экран с таблицей ПАКов"));
+    assert!(prompt.contains("- в таблице нет строк"));
+    assert!(prompt.contains("- лишний пустой фрейм справа"));
+    assert!(
+        prompt.contains("не перерисовывая экран заново"),
+        "a correction round must not throw away what was right: {prompt}"
+    );
+}
+
+#[test]
+fn the_number_of_verification_rounds_is_capped() {
+    // "Go until it is right" must not mean "go forever": the cap is what bounds
+    // cost and time, and a note that repeats after a round is not corrected by
+    // running another one.
+    assert_eq!(
+        super::routes::verify_rounds(),
+        2,
+        "one correction round by default"
+    );
+}

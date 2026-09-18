@@ -123,8 +123,8 @@ pub(super) fn close_run(
     // -- 阶段 5:视觉校验 (S3c D1) — 在 cleanup 后、返回 RunSummary 前 --
     // Port of `orchestrator.ts:1247-1292`.
     // 守卫: request.validation_enabled && !abort.is_set().
-    if request.validation_enabled && !abort.is_set() {
-        let _ = run_post_generation_validation(
+    let validation = if request.validation_enabled && !abort.is_set() {
+        run_post_generation_validation(
             sink,
             providers.pre_validator,
             providers.screenshot,
@@ -133,8 +133,11 @@ pub(super) fn close_run(
             request,
             on_progress,
             abort,
-        );
-    }
+        )
+        .unwrap_or_default()
+    } else {
+        crate::validation::ValidationSummary::default()
+    };
 
     // -- 阶段 6:承诺-交付不变量(classic 路径的诚实上报,与 loop 路径共享检测器)--
     // Runs AFTER cleanup + validation so a screen a structural pass or
@@ -169,5 +172,7 @@ pub(super) fn close_run(
         total_nodes,
         paintable_nodes,
         unfilled_screens,
+        validation_issues: validation.issues,
+        quality_score: validation.quality_score,
     }
 }

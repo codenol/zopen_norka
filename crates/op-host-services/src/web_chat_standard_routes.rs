@@ -385,6 +385,40 @@ pub(super) fn stream_modify_route<W: Write>(
     write_error_event(out, &message)
 }
 
+/// How many generation rounds a turn may run (issues #249/#252/#253).
+///
+/// 1 disables the verifier's second round; 2 (the default) allows one
+/// correction round after the validator's notes; 3 allows two. The cap is what
+/// keeps "go until it is right" from meaning "go forever" — a note that does
+/// not change after a round is not corrected by repeating it.
+pub(super) fn verify_rounds() -> u8 {
+    std::env::var("OPENPENCIL_VERIFY_ROUNDS")
+        .ok()
+        .and_then(|value| value.trim().parse::<u8>().ok())
+        .map(|rounds| rounds.clamp(1, 4))
+        .unwrap_or(2)
+}
+
+/// The prompt for a correction round: the request, unchanged, plus what the
+/// verifier saw and the builder did not deliver.
+///
+/// Deliberately not a rewrite instruction. The screen is already on the canvas
+/// and the person is looking at it; a round that rebuilds from scratch throws
+/// away what was right, so the notes are framed as the smallest set of fixes
+/// that answers them.
+pub(super) fn correction_prompt(original: &str, issues: &[String]) -> String {
+    format!(
+        "{original}\n\n---\nПроверяющий посмотрел на то, что уже нарисовано, и вернул замечания. \
+         Исправь ИМЕННО их, точечно, не перерисовывая экран заново и не убирая то, что уже \
+         соответствует запросу:\n{notes}",
+        notes = issues
+            .iter()
+            .map(|issue| format!("- {issue}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
+}
+
 pub(super) fn stream_new_design_route<W: Write>(
     out: &mut W,
     req: WebStandardTurnRequest,
@@ -535,19 +569,90 @@ pub(super) fn stream_new_design_route<W: Write>(
     write_agent_identity_event(out, &identity)?;
     let epoch = op_editor_core::agent_indicators::begin();
     op_editor_core::agent_indicators::confirm_cursor_agent(epoch, &identity.color, &identity.name);
-    let summary = {
-        let out_ref = &mut *out;
-        let mut on_progress = move |p: Progress| {
-            let _ = write_thinking_event(out_ref, &format!("\n{}", progress_label(&p)));
+    // Every generation round the verifier may send the builder back. The turn
+    // is not "done" while the validator is still naming things the request
+    // asked for and the screen does not have (issues #252/#253).
+    let original_prompt = request.prompt.clone();
+    let max_rounds = verify_rounds();
+    let mut round: u8 = 1;
+    let mut reported_issues: Vec<String> = Vec::new();
+    let summary = loop {
+        let round_request = DesignRequest {
+            prompt: if round == 1 {
+                original_prompt.clone()
+            } else {
+                correction_prompt(&original_prompt, &reported_issues)
+            },
+            ..request.clone()
         };
-        crate::chat_runtime::block_on_anywhere(Orchestrator::new().with_indicator_epoch(epoch).run(
-            request,
-            &mut sink,
-            &llm,
-            &mut on_progress,
-            &abort,
-            &providers,
-        ))
+        let result = {
+            let out_ref = &mut *out;
+            let mut on_progress = move |p: Progress| {
+                let _ = write_thinking_event(out_ref, &format!("\n{}", progress_label(&p)));
+            };
+            crate::chat_runtime::block_on_anywhere(
+                Orchestrator::new().with_indicator_epoch(epoch).run(
+                    round_request,
+                    &mut sink,
+                    &llm,
+                    &mut on_progress,
+                    &abort,
+                    &providers,
+                ),
+            )
+        };
+
+        let summary = match result {
+            Ok(summary) => summary,
+            Err(error) => {
+                if round > 1 {
+                    // The corrected round failed; the first round's screen is
+                    // still on the canvas, so the turn reports rather than dies.
+                    write_delta_event(
+                        out,
+                        &format!("\n\n⚠ Round {round} failed: {error}. The previous round's screen stands."),
+                    )?;
+                    break Err(error);
+                }
+                break Err(error);
+            }
+        };
+
+        let fresh: Vec<String> = summary
+            .validation_issues
+            .iter()
+            .filter(|issue| !reported_issues.iter().any(|seen| seen == *issue))
+            .cloned()
+            .collect();
+        // Nothing new to correct — either the validator is content, or it is
+        // repeating itself (a second round would burn time for the same note).
+        if fresh.is_empty() || round >= max_rounds || abort.is_set() {
+            if round > 1 && !fresh.is_empty() {
+                write_delta_event(
+                    out,
+                    &format!(
+                        "\n\nОсталось замечаний: {}. Круги проверки исчерпаны ({max_rounds}).",
+                        fresh.len()
+                    ),
+                )?;
+            }
+            break Ok(summary);
+        }
+        reported_issues.extend(fresh.iter().cloned());
+        write_delta_event(
+            out,
+            &format!(
+                "\n\n🔁 Проверяющий нашёл {} замечани(й) — правлю (круг {}/{max_rounds}):\n{}",
+                fresh.len(),
+                round + 1,
+                fresh
+                    .iter()
+                    .map(|issue| format!("• {issue}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+        )?;
+        round += 1;
     };
     // The turn is over. Its commands armed the turn-result guard as they were
     // applied; what is left is putting the result in the document's own file,

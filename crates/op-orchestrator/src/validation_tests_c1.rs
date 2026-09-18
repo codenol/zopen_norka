@@ -212,6 +212,7 @@ fn build_vision_request_round1_no_reference() {
         None,
         None,
         1,
+        "build a login screen",
     );
     assert_eq!(req.system, "system prompt");
     assert_eq!(req.images.len(), 1);
@@ -247,6 +248,7 @@ fn build_vision_request_reference_is_carried_not_just_announced() {
         None,
         Some("reference-img-b64"),
         1,
+        "",
     );
     assert_eq!(
         req.timeout,
@@ -284,14 +286,32 @@ fn build_vision_request_reference_is_carried_not_just_announced() {
 /// Round > 1: "This is validation round N" instruction injected.
 #[test]
 fn build_vision_request_round2_instruction_injected() {
-    let req = build_vision_request("sys", "img", "tree", None, None, None, 2);
+    let req = build_vision_request(
+        "sys",
+        "img",
+        "tree",
+        None,
+        None,
+        None,
+        2,
+        "make it a dashboard",
+    );
     assert!(req.message.contains("validation round 2"));
 }
 
 /// `model` and `provider` are forwarded into `VisionCallRequest`.
 #[test]
 fn build_vision_request_forwards_model_and_provider() {
-    let req = build_vision_request("sys", "img", "tree", Some("gpt-5"), Some("openai"), None, 1);
+    let req = build_vision_request(
+        "sys",
+        "img",
+        "tree",
+        Some("gpt-5"),
+        Some("openai"),
+        None,
+        1,
+        "",
+    );
     assert_eq!(req.model.as_deref(), Some("gpt-5"));
     assert_eq!(req.provider.as_deref(), Some("openai"));
 }
@@ -314,6 +334,7 @@ fn validate_screenshot_happy_path_parses_response() {
         None,
         None,
         1,
+        "",
     );
 
     assert!(!result.skipped);
@@ -333,7 +354,7 @@ fn validate_screenshot_happy_path_parses_response() {
 fn validate_screenshot_skipped_response_propagated() {
     let client = CapturingVisionClient::with_skipped(Some("no vision provider".to_string()));
 
-    let result = validate_design_screenshot(&client, "sys", "img", "tree", None, None, None, 1);
+    let result = validate_design_screenshot(&client, "sys", "img", "tree", None, None, None, 1, "");
 
     assert!(result.skipped);
     assert!(result.response.is_none());
@@ -344,7 +365,7 @@ fn validate_screenshot_skipped_response_propagated() {
 #[test]
 fn validate_screenshot_skipped_no_reason() {
     let client = CapturingVisionClient::with_skipped(None);
-    let result = validate_design_screenshot(&client, "sys", "img", "tree", None, None, None, 1);
+    let result = validate_design_screenshot(&client, "sys", "img", "tree", None, None, None, 1, "");
     assert!(result.skipped);
     assert!(result.error.is_none());
 }
@@ -355,4 +376,35 @@ fn validation_result_default() {
     let r: ValidationResult = ValidationResult::default();
     assert!(!r.skipped);
     assert!(r.response.is_none());
+}
+
+#[test]
+fn the_vision_request_carries_what_the_person_asked_for() {
+    // Issue #252: without the request the validator judges the picture against
+    // itself — it cannot see that the screen is the WRONG screen, that a kit
+    // component was re-drawn by hand, or that something sits on the canvas
+    // nobody asked for.
+    let req = build_vision_request(
+        "sys",
+        "img",
+        "tree",
+        None,
+        None,
+        None,
+        1,
+        "Собери экран с таблицей ПАКов: узлы, кластеры, ВМ",
+    );
+    assert!(
+        req.message.contains("Собери экран с таблицей ПАКов"),
+        "the request travels with the critique"
+    );
+    assert!(
+        req.message.contains("the request did NOT ask for"),
+        "and so does what to look for beyond pixels"
+    );
+
+    // No request text, no block: a turn without one must not gain an empty
+    // rubric that invites the model to invent a subject.
+    let plain = build_vision_request("sys", "img", "tree", None, None, None, 1, "   ");
+    assert!(!plain.message.contains("The person asked for"));
 }

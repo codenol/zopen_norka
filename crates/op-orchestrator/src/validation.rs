@@ -271,6 +271,7 @@ fn extract_json_object(text: &str) -> Option<&str> {
 ///
 /// Tests assert on the returned `VisionCallRequest` directly (no LLM call
 /// needed to verify message/timeout/model/provider construction).
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_vision_request(
     system_prompt: &str,
     image_base64: &str,
@@ -279,6 +280,7 @@ pub(crate) fn build_vision_request(
     provider: Option<&str>,
     reference_screenshot: Option<&str>,
     round: u8,
+    user_request: &str,
 ) -> VisionCallRequest {
     // Picture list, in the order the message below counts them.
     let mut images = vec![VisionImage::new(VisionRole::Design, image_base64)];
@@ -312,6 +314,26 @@ photographic or generated image content; compare only whether image slots render
         _ => String::new(),
     };
 
+    // What the design is FOR. Without it the validator can only judge the
+    // picture against itself — it cannot see that the screen is the wrong
+    // screen, that a kit component was re-drawn by hand, or that something sits
+    // on the canvas nobody asked for (issue #252).
+    let request_instruction = if user_request.trim().is_empty() {
+        String::new()
+    } else {
+        format!(
+            "\n\nThe person asked for:\n\"{}\"\n\nJudge the design against that request, not \
+             only against itself. In `issues`, name: every element the request asks for that \
+             the screenshot does not show; anything on the canvas the request did NOT ask for \
+             (a second screen, a leftover empty frame, an orphaned import root); and any place \
+             the requested content is present but wrong (a table with no rows, a toggle that \
+             does not read as a toggle). Keep `fixes`/`structuralFixes` for what you can \
+             correct directly, as before, and return an empty issues array with a high \
+             qualityScore when the design does fulfil the request.",
+            user_request.trim()
+        )
+    };
+
     // Round-specific instruction (port of TS L155-158).
     let round_instruction = if round > 1 {
         format!(
@@ -331,7 +353,7 @@ Image review is limited to rendering integrity: presence, one image per intended
 bounds, crop/fit, clipping, radius, and overlay order. Do not judge or replace image \
 content, relevance, aesthetics, perceived quality, resolution, tone, search, or generation. \
 Return JSON fixes using real node IDs from the tree.\
-{reference_instruction}{round_instruction}"
+{request_instruction}{reference_instruction}{round_instruction}"
     );
 
     // Timeout doubled when a second picture is in the request (TS L147-149) —
@@ -374,6 +396,7 @@ pub(crate) fn validate_design_screenshot(
     provider: Option<&str>,
     reference_screenshot: Option<&str>,
     round: u8,
+    user_request: &str,
 ) -> ValidationResult {
     let req = build_vision_request(
         system_prompt,
@@ -383,6 +406,7 @@ pub(crate) fn validate_design_screenshot(
         provider,
         reference_screenshot,
         round,
+        user_request,
     );
 
     match vision_client.validate(req) {
@@ -415,6 +439,13 @@ pub(crate) fn validate_design_screenshot(
 pub struct ValidationSummary {
     pub total_applied: usize,
     pub rounds_run: u8,
+    /// What the validator SAW and could not fix in place — the material a
+    /// second generation round works from (issue #252/#253). Collected across
+    /// rounds, deduplicated, and carried even when the loop stopped because the
+    /// score was acceptable or the fixes ran out.
+    pub issues: Vec<String>,
+    /// The last quality score the validator returned, when it returned one.
+    pub quality_score: Option<u8>,
 }
 
 // ── C2: run_post_generation_validation ───────────────────────────────────────
@@ -465,6 +496,10 @@ pub fn run_post_generation_validation(
 ) -> Result<ValidationSummary, OrchestratorError> {
     let mut total_applied: usize = 0;
     let mut rounds_run: u8 = 0;
+    // The verdict, kept for the caller: fixes are what THIS loop can do, issues
+    // are what the design still says wrong (issues #252/#253).
+    let mut issues: Vec<String> = Vec::new();
+    let mut quality_score: Option<u8> = None;
 
     // ── Step 1: signal that validation phase started ──────────────────────────
     on_progress(Progress::ValidationStarted);
@@ -483,6 +518,8 @@ pub fn run_post_generation_validation(
         return Ok(ValidationSummary {
             total_applied,
             rounds_run,
+            issues,
+            quality_score,
         });
     }
 
@@ -493,6 +530,8 @@ pub fn run_post_generation_validation(
         return Ok(ValidationSummary {
             total_applied,
             rounds_run,
+            issues,
+            quality_score,
         });
     }
 
@@ -536,6 +575,7 @@ pub fn run_post_generation_validation(
             request.provider.as_deref(),
             reference_screenshot.as_deref(),
             round,
+            request.prompt.as_str(),
         );
 
         // 5f: skipped → break (round 1 or subsequent).
@@ -565,6 +605,16 @@ pub fn run_post_generation_validation(
                     score = response.quality_score
                 )],
             });
+        }
+
+        // Keep what the validator said. The loop below may apply fixes and go
+        // round again, but the issues are what a SECOND generation round needs:
+        // "the screen is the wrong screen" is not a property fix.
+        quality_score = Some(response.quality_score);
+        for issue in &response.issues {
+            if !issues.iter().any(|seen| seen == issue) {
+                issues.push(issue.clone());
+            }
         }
 
         // 5g: quality_score==0 && issues.is_empty() → parse failure → break.
@@ -644,6 +694,8 @@ pub fn run_post_generation_validation(
     Ok(ValidationSummary {
         total_applied,
         rounds_run,
+        issues,
+        quality_score,
     })
 }
 
