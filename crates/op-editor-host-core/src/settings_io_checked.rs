@@ -24,6 +24,12 @@ pub(super) fn validate_payload_fields(raw: &serde_json::Value) -> Result<()> {
             "experimental_features_enabled",
             "connected",
             "builtin_agents",
+            // Which configured model builds a design turn and which one checks
+            // it (issues #249/#250). Without these two names here, a settings
+            // file that sets the roles is refused as an unknown-field file and
+            // the deployment offers no shared model at all — measured.
+            "builder_model",
+            "verifier_model",
             "acp_agents",
             "image_gen_profiles",
             "active_image_gen_profile_id",

@@ -92,6 +92,8 @@ fn design_session_drains_progress_and_command_requests() {
             total_nodes: 2,
             paintable_nodes: 2,
             unfilled_screens: Vec::new(),
+            validation_issues: Vec::new(),
+            quality_score: None,
         })))
         .expect("done");
 
@@ -129,6 +131,8 @@ fn design_session_drains_progress_queued_after_done_before_finishing() {
             total_nodes: 0,
             paintable_nodes: 0,
             unfilled_screens: Vec::new(),
+            validation_issues: Vec::new(),
+            quality_score: None,
         })))
         .expect("done");
     delta_tx
@@ -227,6 +231,8 @@ fn dropping_naturally_finished_design_session_does_not_abort_worker() {
             total_nodes: 0,
             paintable_nodes: 0,
             unfilled_screens: Vec::new(),
+            validation_issues: Vec::new(),
+            quality_score: None,
         })))
         .expect("done");
 

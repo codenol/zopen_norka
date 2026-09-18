@@ -757,3 +757,35 @@ fn explicit_saved_builtin_preset_is_preserved_during_load() {
         BuiltinAgentPresetKey::Doubao
     );
 }
+
+#[test]
+fn the_model_roles_survive_a_settings_round_trip() {
+    // Issues #249/#250: the roles have to live in the settings FILE. Measured:
+    // writing them by hand made the daemon print "unknown settings field in
+    // root" and offer no shared model at all — the format did not know them.
+    let mut state = op_editor_core::EditorState::default();
+    state.editor_ui.agent_settings.builder_model = Some("builtin:builtin-1:flash".into());
+    state.editor_ui.agent_settings.verifier_model = Some("builtin:builtin-2:vision".into());
+
+    let payload = to_payload(&state);
+    let mut restored = op_editor_core::EditorState::default();
+    apply_payload(&mut restored, payload);
+
+    assert_eq!(
+        restored.editor_ui.agent_settings.builder_model.as_deref(),
+        Some("builtin:builtin-1:flash")
+    );
+    assert_eq!(
+        restored.editor_ui.agent_settings.verifier_model.as_deref(),
+        Some("builtin:builtin-2:vision")
+    );
+
+    // A file written before the roles existed still loads: absent means "the
+    // shared model does both", which is the documented fallback.
+    let legacy = serde_json::json!({ "version": 1, "theme": "dark" });
+    let parsed: SettingsPayload = serde_json::from_value(legacy).expect("a legacy file loads");
+    let mut old = op_editor_core::EditorState::default();
+    apply_payload(&mut old, parsed);
+    assert_eq!(old.editor_ui.agent_settings.builder_model, None);
+    assert_eq!(old.editor_ui.agent_settings.verifier_model, None);
+}

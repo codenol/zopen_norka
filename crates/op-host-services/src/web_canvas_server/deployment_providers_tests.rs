@@ -217,3 +217,41 @@ fn the_startup_line_reports_the_shared_model_or_says_there_is_none() {
     let without = DeploymentProviders::default().startup_line();
     assert!(without.contains("no shared model is offered"), "{without}");
 }
+
+#[test]
+fn the_deployments_model_roles_reach_its_tenants() {
+    // Issues #249/#250, measured live: a tenant received BOTH shared models and
+    // still resolved the checker to the builder, because `apply_to` copied the
+    // agents and dropped the roles. The roles are deployment configuration and
+    // have to ride with the models they name.
+    let mut editor = deployment_editor();
+    editor.editor_ui.agent_settings.builder_model =
+        Some("builtin:deployment-1:deepseek-v4-flash".into());
+    editor.editor_ui.agent_settings.verifier_model =
+        Some("builtin:deployment-1:deepseek-v4-flash-vision-exp".into());
+    let providers = DeploymentProviders::from_editor(&editor);
+    let registry = registry_with(providers);
+
+    let lease = registry.lease_for(&identity("userA")).expect("lease");
+    let guard = lease.state().lock().unwrap_or_else(|p| p.into_inner());
+    assert_eq!(
+        guard
+            .editor
+            .editor_ui
+            .agent_settings
+            .verifier_model
+            .as_deref(),
+        Some("builtin:deployment-1:deepseek-v4-flash-vision-exp"),
+        "the checker role must reach the tenant"
+    );
+    assert_eq!(
+        guard
+            .editor
+            .editor_ui
+            .agent_settings
+            .builder_model
+            .as_deref(),
+        Some("builtin:deployment-1:deepseek-v4-flash"),
+        "and so must the builder role"
+    );
+}

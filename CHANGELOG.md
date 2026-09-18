@@ -10,6 +10,18 @@ here at a glance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The model roles survive the settings file and reach every tenant.** The roles
+  were stored in the editor state but absent from the file format: writing them
+  by hand made the daemon refuse the whole file (`unknown settings field in
+  root`) and offer no shared model at all. They are now part of the payload and
+  of the strict loader's field list, and the deployment carries them to each
+  tenant beside the models they name — without that last step a tenant received
+  both shared models and still resolved the checker to the builder (measured:
+  `builder=builtin-1 verifier=builtin-1 separate=false`, then `separate=true`
+  once the roles travelled). Issues #249, #250, #252.
+
 ### Changed
 
 - **The checker runs the verifier role's model, not the builder's.** The

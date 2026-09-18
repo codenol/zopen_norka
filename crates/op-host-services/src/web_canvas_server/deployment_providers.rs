@@ -55,6 +55,13 @@ use op_editor_core::{BuiltinAgentConfig, EditorState};
 #[derive(Clone, Default)]
 pub(crate) struct DeploymentProviders {
     agents: Vec<BuiltinAgentConfig>,
+    /// Which of the offered models BUILDS a design turn and which one CHECKS
+    /// it (issues #249/#250). Carried beside the agents because the roles are
+    /// deployment configuration too: a tenant that gets the shared models but
+    /// not the roles resolves both roles to "the first model" and the checker
+    /// silently becomes the builder.
+    builder_model: Option<String>,
+    verifier_model: Option<String>,
 }
 
 impl DeploymentProviders {
@@ -94,6 +101,8 @@ impl DeploymentProviders {
                 .filter(|agent| !crate::web_credentials::browser_owns_builtin_agent(agent))
                 .cloned()
                 .collect(),
+            builder_model: state.editor_ui.agent_settings.builder_model.clone(),
+            verifier_model: state.editor_ui.agent_settings.verifier_model.clone(),
         }
     }
 
@@ -109,6 +118,12 @@ impl DeploymentProviders {
             return;
         }
         editor.editor_ui.agent_settings.builtin_agents = self.agents.clone();
+        // The roles ride with the models they name. A role the deployment set
+        // survives into the tenant; an unset one stays unset, and the resolver
+        // falls back to the first offered model — the documented single-model
+        // behaviour.
+        editor.editor_ui.agent_settings.builder_model = self.builder_model.clone();
+        editor.editor_ui.agent_settings.verifier_model = self.verifier_model.clone();
         editor.rebuild_chat_models();
     }
 

@@ -67,6 +67,8 @@ pub struct Fingerprint {
     experimental_features_enabled: bool,
     connected: [bool; 7],
     builtin_agents: Vec<BuiltinAgentConfig>,
+    builder_model: Option<String>,
+    verifier_model: Option<String>,
     acp_agents: Vec<AcpAgentConfig>,
     image_gen_profiles: Vec<ImageGenProfile>,
     active_image_gen_profile_id: Option<String>,
@@ -88,6 +90,8 @@ pub fn fingerprint(state: &EditorState) -> Fingerprint {
         experimental_features_enabled: eui.agent_settings.experimental_features_enabled,
         connected: eui.agent_settings.connected,
         builtin_agents: eui.agent_settings.builtin_agents.clone(),
+        builder_model: eui.agent_settings.builder_model.clone(),
+        verifier_model: eui.agent_settings.verifier_model.clone(),
         acp_agents: eui.agent_settings.acp_agents.clone(),
         image_gen_profiles: eui.agent_settings.image_gen_profiles.clone(),
         active_image_gen_profile_id: eui.agent_settings.active_image_gen_profile_id.clone(),
@@ -133,6 +137,13 @@ struct SettingsPayload {
     connected: Option<Vec<bool>>,
     #[serde(default)]
     builtin_agents: Option<Vec<BuiltinAgentPayload>>,
+    /// Which configured model BUILDS a design turn and which one CHECKS it
+    /// (issues #249/#250). Absent in files predating the roles, and absent means
+    /// "the deployment's shared model does both".
+    #[serde(default)]
+    builder_model: Option<String>,
+    #[serde(default)]
+    verifier_model: Option<String>,
     #[serde(default)]
     acp_agents: Option<Vec<AcpAgentPayload>>,
     #[serde(default)]
@@ -187,6 +198,8 @@ fn to_payload(state: &EditorState) -> SettingsPayload {
         // single source of truth and they're re-imported every launch, so
         // persisting them would silently duplicate the source's API keys
         // into this settings.json.
+        builder_model: eui.agent_settings.builder_model.clone(),
+        verifier_model: eui.agent_settings.verifier_model.clone(),
         builtin_agents: Some(
             eui.agent_settings
                 .builtin_agents
@@ -265,6 +278,8 @@ fn apply_payload_with_options(
     if let Some(c) = payload.connected {
         eui.agent_settings.connected = migrate_connected_provider_flags(c);
     }
+    eui.agent_settings.builder_model = payload.builder_model;
+    eui.agent_settings.verifier_model = payload.verifier_model;
     if let Some(agents) = payload.builtin_agents {
         let agents = agents
             .into_iter()

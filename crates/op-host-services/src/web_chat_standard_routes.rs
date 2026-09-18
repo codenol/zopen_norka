@@ -740,6 +740,11 @@ pub(super) fn stream_new_design_route<W: Write>(
         .map(|roles| roles.builder.clone())
         .or(builder_id);
     eprintln!(
+        "openpencil: offered models — {} ({:?})",
+        offered.len(),
+        offered
+    );
+    eprintln!(
         "openpencil: turn models — builder={:?} verifier={:?} separate={}",
         builder_model,
         verifier_model,
