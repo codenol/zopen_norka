@@ -962,8 +962,12 @@ fn a_correction_round_is_told_to_fix_the_notes_not_redraw_the_screen() {
     assert!(prompt.contains("- в таблице нет строк"));
     assert!(prompt.contains("- лишний пустой фрейм справа"));
     assert!(
-        prompt.contains("не перерисовывая экран заново"),
+        prompt.contains("НЕ создавай новых корневых фреймов"),
         "a correction round must not throw away what was right: {prompt}"
+    );
+    assert!(
+        prompt.contains("НЕ добавляй второй сайдбар"),
+        "nor may it draw a second copy of the shell (measured: round 2 did): {prompt}"
     );
 }
 

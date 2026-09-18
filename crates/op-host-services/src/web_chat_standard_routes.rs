@@ -479,11 +479,17 @@ top-level frame (a root with no children) — leftover scaffolding, always an is
 duplicated section (the same panel twice). If you report no issues, qualityScore must be 9 or \
 10 AND the tree must show exactly the root(s) the request implies. Return ONLY a JSON object: \
 {\"issues\":[string],\"qualityScore\":number} where qualityScore is 1-10.";
+    // The rubric goes INTO the user message, not the system field: the
+    // CLI-backed providers have no per-turn system slot and drop
+    // `ChatRequest.system_prompt` silently — which is exactly why the first
+    // version of this check answered "looks good" to a page with three roots
+    // (measured: 30 characters, `{"issues":[],"qualityScore":9}`). Same prepend
+    // the vision client does, for the same reason.
     let request = ChatRequest {
-        system_prompt: SYSTEM.to_string(),
+        system_prompt: String::new(),
         user_message: format!(
-            "The person asked for:\n\"{request_prompt}\"\n\nTop-level roots on the page \
-             ({count}):\n{roots_summary}\n\nThe canvas layer tree:\n```\n{dump}\n```",
+            "{SYSTEM}\n\n---\n\nThe person asked for:\n\"{request_prompt}\"\n\nTop-level \
+             roots on the page ({count}):\n{roots_summary}\n\nThe canvas layer tree:\n```\n{dump}\n```",
             count = roots_summary.lines().count(),
         ),
         history: Vec::new(),
@@ -550,6 +556,26 @@ pub(super) fn parse_verifier_issues(text: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Whether the screen in `snapshot` is still the one on the canvas.
+///
+/// The rollback compares the two documents, not a flag: a round may have failed
+/// before touching anything (in which case there is nothing to undo) or the
+/// whole point may be moot. Node ids and top-level names are enough to tell.
+fn before_round_is_current(snapshot: &EditorState, state: &Mutex<WebCanvasState>) -> bool {
+    use op_editor_core::PenNodeExt;
+    let guard = state
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let ids = |editor: &EditorState| -> Vec<String> {
+        editor
+            .active_children()
+            .iter()
+            .map(|node| node.id_str().to_string())
+            .collect()
+    };
+    ids(snapshot) == ids(&guard.editor)
+}
+
 /// How many generation rounds a turn may run (issues #249/#252/#253).
 ///
 /// 1 disables the verifier's second round; 2 (the default) allows one
@@ -574,8 +600,11 @@ pub(super) fn verify_rounds() -> u8 {
 pub(super) fn correction_prompt(original: &str, issues: &[String]) -> String {
     format!(
         "{original}\n\n---\nПроверяющий посмотрел на то, что уже нарисовано, и вернул замечания. \
-         Исправь ИМЕННО их, точечно, не перерисовывая экран заново и не убирая то, что уже \
-         соответствует запросу:\n{notes}",
+         Это ПРАВКА существующего экрана, а не новая генерация:\n\
+         - НЕ создавай новых корневых фреймов и не рисуй экран заново;\n\
+         - НЕ добавляй второй сайдбар, вторую оболочку или дубль панели;\n\
+         - меняй только те узлы, которых касается замечание, и правь их на месте;\n\
+         - всё, что уже соответствует запросу, оставь как есть.\n\nЗамечания:\n{notes}",
         notes = issues
             .iter()
             .map(|issue| format!("- {issue}"))
@@ -741,6 +770,11 @@ pub(super) fn stream_new_design_route<W: Write>(
     let max_rounds = verify_rounds();
     let mut round: u8 = 1;
     let mut reported_issues: Vec<String> = Vec::new();
+    // The screen as it stood before the round now running, and how many notes
+    // the verifier had then — the two things a "was this round worth it?"
+    // decision needs.
+    let mut before_round: Option<EditorState> = None;
+    let mut issues_before_round: usize = 0;
     let summary = loop {
         let round_request = DesignRequest {
             prompt: if round == 1 {
@@ -814,6 +848,34 @@ pub(super) fn stream_new_design_route<W: Write>(
             .filter(|issue| !reported_issues.iter().any(|seen| seen == issue))
             .collect();
         }
+        // A correction round is judged by its outcome: if the verifier now has
+        // MORE to say than before the round, the round made the screen worse and
+        // the better version is the one to keep.
+        let round_made_it_worse = round > 1
+            && !fresh.is_empty()
+            && fresh.len() > issues_before_round
+            && before_round
+                .as_ref()
+                .is_some_and(|snapshot| !before_round_is_current(snapshot, target.state));
+        if round_made_it_worse {
+            {
+                let mut guard = target
+                    .state
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if let Some(snapshot) = before_round.take() {
+                    guard.adopt_document(snapshot);
+                }
+                guard.note_daemon_draw();
+            }
+            write_delta_event(
+                out,
+                "\n\n↩ Второй круг сделал хуже, чем было — оставляю предыдущий вариант \
+                 (он отвечал запросу лучше).",
+            )?;
+            break Ok(summary);
+        }
+
         // Nothing new to correct — either the validator is content, or it is
         // repeating itself (a second round would burn time for the same note).
         if fresh.is_empty() || round >= max_rounds || abort.is_set() {
@@ -829,6 +891,18 @@ pub(super) fn stream_new_design_route<W: Write>(
             break Ok(summary);
         }
         reported_issues.extend(fresh.iter().cloned());
+        // Before the correction round, keep the screen it is about to change:
+        // a round that makes the result WORSE must not be what the person is
+        // left looking at (measured: round 2 drew a second sidebar and the
+        // verifier's notes went 5 -> 7).
+        before_round = {
+            let guard = target
+                .state
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            Some(guard.editor.clone())
+        };
+        issues_before_round = fresh.len();
         write_delta_event(
             out,
             &format!(
