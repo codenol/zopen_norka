@@ -66,6 +66,8 @@ fn failed_run_summary() -> RunSummary {
         total_nodes: 12,
         paintable_nodes: 12,
         unfilled_screens: Vec::new(),
+        validation_issues: Vec::new(),
+        quality_score: None,
     }
 }
 

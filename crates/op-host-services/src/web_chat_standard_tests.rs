@@ -744,6 +744,51 @@ pub(super) fn modify_target_state() -> WebCanvasState {
     WebCanvasState::new(EditorState::from_document(loaded.value), 3100)
 }
 
+#[test]
+fn sole_screen_root_names_the_only_screen_and_refuses_to_guess() {
+    // One screen with content: the root is the edit's object.
+    let doc_json = serde_json::json!({
+        "version": "1.0.0",
+        "children": [{
+            "id": "n32", "type": "frame", "name": "Screen",
+            "x": 0, "y": 0, "width": 1440, "height": 850,
+            "children": [{"id": "n33", "type": "text", "name": "t", "content": "hi"}],
+        }],
+    })
+    .to_string();
+    let loaded = op_pen_loader::load_canonical(&doc_json).expect("fixture document loads");
+    let state = EditorState::from_document(loaded.value);
+    assert_eq!(sole_screen_root(&state), Some(NodeId::new("n32")));
+
+    // Two screens: no guessing between them.
+    let doc_json = serde_json::json!({
+        "version": "1.0.0",
+        "children": [
+            {"id": "n32", "type": "frame", "name": "A", "x": 0, "y": 0, "width": 100, "height": 100,
+             "children": [{"id": "n33", "type": "text", "name": "t", "content": "hi"}]},
+            {"id": "n40", "type": "frame", "name": "B", "x": 0, "y": 0, "width": 100, "height": 100,
+             "children": [{"id": "n41", "type": "text", "name": "t", "content": "hi"}]},
+        ],
+    })
+    .to_string();
+    let loaded = op_pen_loader::load_canonical(&doc_json).expect("fixture document loads");
+    let state = EditorState::from_document(loaded.value);
+    assert_eq!(sole_screen_root(&state), None);
+
+    // A blank frame is a starter, not a screen.
+    let doc_json = serde_json::json!({
+        "version": "1.0.0",
+        "children": [{
+            "id": "n217", "type": "frame", "name": "Card",
+            "x": 0, "y": 0, "width": 100, "height": 100, "children": [],
+        }],
+    })
+    .to_string();
+    let loaded = op_pen_loader::load_canonical(&doc_json).expect("fixture document loads");
+    let state = EditorState::from_document(loaded.value);
+    assert_eq!(sole_screen_root(&state), None);
+}
+
 pub(super) fn modify_plan() -> crate::chat_intent::ModifyPlan {
     crate::chat_intent::ModifyPlan {
         rewrites_a_placed_recipe: false,

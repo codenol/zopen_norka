@@ -176,6 +176,8 @@ fn worker_summary_finishes_all_messages_and_keeps_retry_on_owning_worker() {
             total_nodes: 0,
             paintable_nodes: 0,
             unfilled_screens: Vec::new(),
+            validation_issues: Vec::new(),
+            quality_score: None,
         })))
         .unwrap();
 
@@ -526,6 +528,8 @@ fn partial_summary_marks_omitted_active_rows_error() {
             total_nodes: 7,
             paintable_nodes: 7,
             unfilled_screens: Vec::new(),
+            validation_issues: Vec::new(),
+            quality_score: None,
         })))
         .unwrap();
     assert!(pump_progress(&mut host, &mut current, None));

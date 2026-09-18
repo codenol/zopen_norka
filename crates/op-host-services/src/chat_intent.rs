@@ -159,11 +159,44 @@ const MODIFY_CJK: &[&str] = &[
     "大一点",
 ];
 
+/// Russian edit verbs as stems (inflections share them: "поменяй/поменять/
+/// поменяю" all carry "поменя"). Matched by `contains` like the CJK list.
+/// "перегенер" is here on purpose: regenerating the screen on the canvas is
+/// an edit of that screen, so it must NOT read as a new-screen request.
+const MODIFY_VERB_RU: &[&str] = &[
+    "поменя",
+    "измени",
+    "замен",
+    "передел",
+    "перегенер",
+    "исправ",
+    "удали",
+    "добав",
+    "сдвин",
+    "увелич",
+    "уменьш",
+    "перекрас",
+    "подвин",
+    "обнови",
+];
+
 /// TS `CHAT_KEYWORDS` alternatives.
 const CHAT_KEYWORDS: &[&str] = &[
     "what is", "how do", "explain", "tell me", "help", "why", "can you", "question", "describe",
 ];
 const CHAT_CJK: &[&str] = &["是什么", "什么", "怎么", "为什么", "解释", "说明", "帮助"];
+/// Russian question phrases, matched by `contains` like the CJK list (the
+/// `\b` matcher is ASCII-only and cannot bound Cyrillic words).
+const CHAT_RU: &[&str] = &[
+    "что такое",
+    "почему",
+    "зачем",
+    "объясни",
+    "расскажи",
+    "помоги",
+    "как работает",
+    "что это",
+];
 
 fn is_word_char(c: char) -> bool {
     // JS `\w` — ASCII alphanumeric plus underscore.
@@ -208,10 +241,12 @@ pub fn is_non_request_text(text: &str) -> bool {
 /// TS `classifyByKeywords` — verbatim rule order.
 pub fn classify_by_keywords(text: &str) -> DesignIntent {
     let lower = text.to_lowercase();
-    let chat =
-        matches_any_word_phrase(&lower, CHAT_KEYWORDS) || CHAT_CJK.iter().any(|k| text.contains(k));
+    let chat = matches_any_word_phrase(&lower, CHAT_KEYWORDS)
+        || CHAT_CJK.iter().any(|k| text.contains(k))
+        || CHAT_RU.iter().any(|k| lower.contains(k));
     let modify = matches_any_word_phrase(&lower, MODIFY_KEYWORDS)
-        || MODIFY_CJK.iter().any(|k| text.contains(k));
+        || MODIFY_CJK.iter().any(|k| text.contains(k))
+        || MODIFY_VERB_RU.iter().any(|k| lower.contains(k));
     if chat && !modify {
         return DesignIntent::Chat;
     }
@@ -562,6 +597,61 @@ const DRAW_VERB_EN: &[&str] = &[
 /// the existing frame, not a new one.
 use op_chat_agent::screen_sets::EXISTING_SCREEN_CTX_CJK;
 
+/// Russian page/screen nouns as stems ("экран/экрана/экраны" share "экран").
+const PAGE_NOUN_RU: &[&str] = &["экран", "макет", "страниц"];
+/// Russian creation verbs as stems ("сделай/сделать/сделаю" share "сдела").
+/// "перегенерировать" is deliberately NOT here — it sits in MODIFY_VERB_RU:
+/// regenerating the screen on the canvas is an edit of that screen.
+const DRAW_VERB_RU: &[&str] = &[
+    "сдела",
+    "нарису",
+    "сгенер",
+    "созда",
+    "постро",
+    "собер",
+    "отрису",
+];
+/// Russian markers that the request points at the CURRENT screen — an edit,
+/// not a new frame ("поменяй фон на этом экране").
+const EXISTING_SCREEN_CTX_RU: &[&str] = &[
+    "этот экран",
+    "этого экрана",
+    "эту страниц",
+    "этой страниц",
+    "текущий экран",
+    "текущего экрана",
+    "текущей страниц",
+    "существующ",
+];
+
+/// Russian new-screen detection. The EN/CJK vocabularies do not cover the
+/// operator's language, so a Russian screen request fell through to the LLM
+/// classifier, which could read a full screen spec as conversation and answer
+/// with node JSON as chat text (issue #264). Three shapes count as a build
+/// request: a creation verb on a screen noun ("сделай экран настроек"), and a
+/// bare spec that OPENS with the screen noun ("Экран установки ОС ГЕНОМ …" —
+/// the verb is elided, the spec itself is the request). An edit-verb stem or
+/// a this/current-screen marker vetoes both: that request points at the
+/// screen already on the canvas.
+fn russian_requests_new_screen(prompt: &str) -> bool {
+    let lower = prompt.to_lowercase();
+    if !PAGE_NOUN_RU.iter().any(|n| lower.contains(n)) {
+        return false;
+    }
+    if MODIFY_VERB_RU.iter().any(|v| lower.contains(v))
+        || EXISTING_SCREEN_CTX_RU.iter().any(|k| lower.contains(k))
+    {
+        return false;
+    }
+    if DRAW_VERB_RU.iter().any(|v| lower.contains(v)) {
+        return true;
+    }
+    lower
+        .split(|c: char| !c.is_alphanumeric())
+        .find(|t| !t.is_empty())
+        .is_some_and(|first| PAGE_NOUN_RU.iter().any(|n| first.starts_with(n)))
+}
+
 /// True when the unit being drawn is a whole *page / screen* — "继续画一下
 /// search 页面", "再来一个登录页", "continue, add a settings screen". The named
 /// list (`is_named_follow_on_screen`) only covers a fixed vocabulary in a
@@ -591,6 +681,9 @@ pub fn requests_new_whole_screen(prompt: &str) -> bool {
     if EXISTING_SCREEN_CTX_CJK.iter().any(|k| prompt.contains(k)) {
         return false;
     }
+    if russian_requests_new_screen(prompt) {
+        return true;
+    }
     let cjk_page = ["页面", "页", "屏幕", "屏"]
         .iter()
         .any(|k| prompt.contains(k));
@@ -609,6 +702,9 @@ pub fn requests_new_whole_screen(prompt: &str) -> bool {
 /// design with a node selected routed to modify → M3 flat-JSONL → empty).
 pub fn has_new_screen_creation_signal(prompt: &str) -> bool {
     if requests_listed_whole_screens(prompt) {
+        return true;
+    }
+    if russian_requests_new_screen(prompt) {
         return true;
     }
     let cjk_page = ["页面", "页", "屏幕", "屏"]

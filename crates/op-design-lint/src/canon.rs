@@ -261,6 +261,12 @@ pub const CANON: &[CanonRule] = &[
         checking: RuleCheck::NotDeterministic,
     },
     CanonRule {
+        id: "G-06",
+        level: RuleLevel::Required,
+        text: "anything built without a kit master is custom: its subtree root carries a 1px #FF00A8 stroke so custom reads at a glance — never on a ref instance",
+        checking: RuleCheck::NotDeterministic,
+    },
+    CanonRule {
         id: "S-01",
         level: RuleLevel::Required,
         text: "one request, one screen — a second root only when the request names several",

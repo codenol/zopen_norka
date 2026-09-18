@@ -368,6 +368,12 @@ pub fn build_modify_plan_with(
              NODES — those nodes show you which blocks and kit components exist, not what to \
              write. Write the screen itself: the shell frame, the blocks this request names, and \
              the rows.\n\
+             SMALL is about the sample ROWS, not the shell. Every placed shell block survives \
+             in your reply exactly as placed unless the request names it for removal: the \
+             sidebar's minibar icon rail, the menu (with the Active variant on the item for \
+             this screen's section, Default on the rest), the breadcrumbs, the info message, \
+             the table chrome, and the footer's pagination INCLUDING its page-size selector. \
+             Dropping one of them is a wrong screen, not a smaller one.\n\
              WHAT NOT TO RETURN: statements naming a node *inside* the screen. \
              I(null, {{id:\"<an id below {}\", type:\"frame\", children:[…]}}) replaces that one \
              node and leaves the rest of the sample standing, so a reply built only of those has \

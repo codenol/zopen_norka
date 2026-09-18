@@ -69,6 +69,13 @@ const btnB = I(row, {"type":"ref","ref":"shadcn-btn-secondary","descendants":{"s
 - Repeating UI (button rows, card grids, list rows, nav items) is the
   strongest signal to reuse one component as several `ref` instances with
   per-instance `descendants`, rather than authoring each copy by hand.
+- Anything you build from scratch because NO available component fits is
+  CUSTOM (canon G-06): give the ROOT of that hand-built subtree a 1px
+  bright-pink stroke so a reviewer sees at a glance that it is not from the
+  kit —
+  `"stroke":{"thickness":1.0,"fill":[{"type":"solid","color":"#FF00A8"}]}`.
+  Only the subtree root carries it (not every node inside), and a `ref`
+  instance NEVER carries it — an instance is kit by construction.
 
 ## Kit chassis (desktop)
 

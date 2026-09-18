@@ -260,6 +260,23 @@ fn admit_document_write(
         .ok_or(WebChatStandardError::ShuttingDown)
 }
 
+/// The page's only screen root, when there is exactly one: a top-level frame
+/// with content. A blank starter frame (no children) is not a screen, and two
+/// or more roots mean the edit's object cannot be guessed — the caller keeps
+/// the degrade in that case.
+fn sole_screen_root(state: &EditorState) -> Option<NodeId> {
+    use op_editor_core::pen_node_ext::PenNodeExt as _;
+    let mut candidates = state.active_children().iter().filter(|node| {
+        matches!(node, jian_ops_schema::node::PenNode::Frame(_))
+            && node.children().is_some_and(|kids| !kids.is_empty())
+    });
+    let only = candidates.next()?;
+    if candidates.next().is_some() {
+        return None;
+    }
+    Some(NodeId::new(only.id_str()))
+}
+
 pub fn stream_standard_turn<W: Write>(
     out: &mut W,
     req: WebStandardTurnRequest,
@@ -350,12 +367,23 @@ pub fn stream_standard_turn<W: Write>(
     // The decision is taken on this route's own attachment list, which arrives
     // on the wire body: whether the turn carries a picture is known exactly
     // here, so nothing below guesses it from the prompt's words (issue #65).
+    //
+    // An edit-worded turn never gets a base at all: the placement runs before
+    // classification, so "поменяй заголовок колонки «Имя узла»" — which mentions
+    // the very nodes a recipe matches on — would otherwise CLONE the base onto
+    // the page beside the screen the user is editing, and the refused/cut
+    // rewrite would leave that duplicate standing (measured on the two-turn
+    // «Установка ОС» run: turn 2 placed a second `Recipe/Ops servers screen`
+    // root, then asked the model for a whole-screen rewrite of a one-word
+    // rename and ran out of output budget).
     let reference = reference_evidence(&req);
-    let placed_recipe = if recipe_base_to_place(&req.ai.user, reference, false).is_some() {
-        place_selected_recipe(&req.ai.user, state, hub, write_barrier)
-    } else {
-        None
-    };
+    let edit_worded = crate::chat_intent::looks_like_modify_request(&req.ai.user);
+    let placed_recipe =
+        if !edit_worded && recipe_base_to_place(&req.ai.user, reference, false).is_some() {
+            place_selected_recipe(&req.ai.user, state, hub, write_barrier)
+        } else {
+            None
+        };
     if placed_recipe.is_some() {
         snapshot = {
             let guard = state.lock().unwrap_or_else(|p| p.into_inner());
@@ -383,6 +411,34 @@ pub fn stream_standard_turn<W: Write>(
             });
     let modify_plan =
         crate::chat_intent::build_modify_plan_with(&snapshot, &req.ai.user, recipe_hint.as_ref());
+    // An edit turn whose selection never reached the daemon must not degrade
+    // into drawing a SECOND screen. The web request carries `selected_ids` and
+    // the server takes the selection from the wire alone, so a user who just
+    // generated a screen and types "поменяй заголовок колонки" without clicking
+    // anything arrives with an empty selection and no plan — and the degrade
+    // used to send that rename to the new-design route, which generated a
+    // whole second screen beside the first (measured on the two-turn
+    // «Установка ОС» run). When the page holds exactly one screen root, that
+    // root is the edit's only possible object: retarget the plan at it. Two
+    // or more roots stay a degrade — guessing between screens is the behaviour
+    // `selected_frame_ids` refuses on purpose.
+    let modify_plan = match modify_plan {
+        None if matches!(classified, crate::chat_intent::DesignIntent::Modify) => {
+            match sole_screen_root(&snapshot) {
+                Some(root) => {
+                    let mut retargeted = snapshot.clone();
+                    retargeted.set_single_selection(root);
+                    crate::chat_intent::build_modify_plan_with(
+                        &retargeted,
+                        &req.ai.user,
+                        recipe_hint.as_ref(),
+                    )
+                }
+                None => None,
+            }
+        }
+        plan => plan,
+    };
     let page_children_empty = snapshot.active_children().is_empty();
     let intent = if reference == op_editor_core::ReferenceEvidence::Attached {
         // "Make it like this picture" with the picture attached is a build

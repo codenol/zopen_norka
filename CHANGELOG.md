@@ -10,6 +10,67 @@ here at a glance.
 
 ## [Unreleased]
 
+## [0.10.7] — 2026-09-18
+
+### Added
+
+- **Custom-built nodes are marked with a 1px bright-pink stroke (canon G-06).**
+  Anything the model builds without a kit master — because no available
+  component fits — now carries `stroke {thickness: 1, #FF00A8}` on the custom
+  subtree's root, so what is not from the kit reads at a glance, to a person
+  and to the checker. The rule lives in the canon document, in
+  `op_design_lint::canon::CANON` (reaching the generation prompt by id), and in
+  the component-composition skill with the exact stroke syntax; a `ref`
+  instance never carries it.
+
+### Fixed
+
+- **A Russian screen request no longer depends on the LLM classifier's mood.**
+  The deterministic intent vocabularies were English + CJK only, so «Экран
+  установки ОС ГЕНОМ со списком узлов кластера» fell through to the 8-second
+  LLM guess — which on a non-empty document could answer CHAT, and the model
+  then printed node JSON as chat text until the output budget cut it (issue
+  #264). Russian creation verbs («сделай», «нарисуй», «сгенерируй», …), screen
+  nouns («экран», «макет», «страница») and a bare spec that opens with the
+  screen noun now route to New deterministically; Russian edit verbs
+  («поменяй», «перегенерируй», …) route to Modify; question phrases stay in
+  Chat.
+- **An edit-worded turn no longer clones a recipe base onto the page.** The
+  pre-classification placement matched on the prompt's nouns alone, so
+  «поменяй заголовок колонки "Имя узла"» — which says «узла» — placed a second
+  `Recipe/Ops servers screen` beside the screen being edited and then asked
+  the model to rewrite a whole screen for a one-word rename until the budget
+  cut it. Both placement doors (the pre-classification one and the new-design
+  route's fallback) now stand down for edit-worded turns.
+- **An edit with nothing selected repairs the one screen instead of drawing a
+  second one.** The web turn takes the selection from the wire
+  (`selected_ids`), so a user who generated a screen and types «поменяй …»
+  without clicking anything arrived with no selection, the modify plan came
+  back empty, and the degrade sent the rename to the new-design route — a
+  whole second screen. When the page holds exactly one screen root, the plan
+  now retargets to it; two or more roots keep the degrade, because guessing
+  between screens is what the no-inference rule exists to prevent.
+- **A recipe rewrite no longer dies at the 16384-token reply budget.** The
+  keep-the-shell-whole instruction (the minibar, the Active menu item and the
+  page-size selector must survive the rewrite) pushed real replies past the
+  budget, and the refusal path correctly applied nothing — one full turn
+  wasted. The recipe-rewrite budget is 32768; the plain modify budget is
+  unchanged.
+- **The desktop crates compile again.** `PropertyTab::Overview` landed without
+  its arm in the native tab-cycle match, and the desktop test fixtures missed
+  `RunSummary`'s `validation_issues` / `quality_score` — both fixed (issue
+  #266).
+
+### Changed
+
+- **A recipe turn keeps the placed shell whole.** The rewrite prompt used to
+  say "write it small" without saying what "it" excluded, so the model dropped
+  the sidebar's minibar icon rail, the menu's Active item and the pagination's
+  page-size selector on its way through (the gen4 render lost all three
+  against the reference). The `doc:recipe-base` rule and the modify preamble
+  now name the shell blocks that survive unless the request removes them, and
+  the measured two-turn run keeps them.
+
 ## [0.10.6] — 2026-09-18
 
 ### Added

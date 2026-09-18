@@ -599,6 +599,79 @@ fn english_determiner_decides_new_vs_existing_screen() {
 }
 
 #[test]
+fn russian_screen_requests_route_to_new_before_the_llm_classifier() {
+    // Issue #264: a Russian screen spec matched no EN/CJK vocabulary, so the
+    // route was the LLM classifier's call — and it could answer CHAT, leaving
+    // the model to print node JSON as chat text. These must route to New
+    // deterministically, even when the provider says CHAT.
+    let provider = Scripted::text("CHAT");
+    let state = state_with_page();
+    // A bare spec with the verb elided — the exact #264 shape.
+    assert_eq!(
+        classify_intent_for_standard_route(
+            &provider,
+            &state,
+            "Экран установки ОС ГЕНОМ со списком узлов кластера",
+            None
+        ),
+        DesignIntent::New,
+        "a spec that opens with the screen noun is a build request"
+    );
+    // A creation verb on a screen noun, in any inflection.
+    for prompt in [
+        "Сделай экран настроек",
+        "нарисуй макет страницы оплаты",
+        "сгенерируй страницу логина",
+        "создай экран со списком пользователей",
+    ] {
+        assert_eq!(
+            classify_intent_for_standard_route(&provider, &state, prompt, None),
+            DesignIntent::New,
+            "{prompt:?} is a new-screen request"
+        );
+    }
+}
+
+#[test]
+fn russian_edits_of_the_current_screen_stay_on_modify() {
+    let provider = Scripted::text("CHAT");
+    let state = state_with_page();
+    for prompt in [
+        "поменяй заголовок колонки на «Узел»",
+        "измени цвет кнопки",
+        "перегенерируй экран",
+        "переделай этот экран под тёмную тему",
+        "Экран настроек: поменяй тему на тёмную",
+    ] {
+        assert_eq!(
+            classify_intent_for_standard_route(&provider, &state, prompt, None),
+            DesignIntent::Modify,
+            "{prompt:?} edits the screen on the canvas"
+        );
+        assert!(
+            !requests_new_whole_screen(prompt),
+            "{prompt:?} must not read as a new-screen request"
+        );
+    }
+}
+
+#[test]
+fn russian_questions_stay_in_chat() {
+    // Without a selection a keyword-Chat still asks the LLM classifier; the
+    // point here is that nothing in the Russian wording pulls it to New.
+    let provider = Scripted::text("CHAT");
+    let state = state_with_page();
+    assert_eq!(
+        classify_intent_for_standard_route(&provider, &state, "что такое автолейаут?", None),
+        DesignIntent::Chat
+    );
+    assert_eq!(
+        classify_intent_for_standard_route(&provider, &state, "почему кнопка серая?", None),
+        DesignIntent::Chat
+    );
+}
+
+#[test]
 fn whole_screen_draw_requests_llm_design_md_extraction() {
     let state = state_with_page();
     assert!(

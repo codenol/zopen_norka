@@ -143,10 +143,14 @@ pub(crate) fn recipe_base_rule(
         title: format!("Recipe already placed: {}", recipe.name),
         instruction: format!(
             "The product already placed recipe `{}` as node `{}`. It is the base for \
-             this turn: keep its shell, table chrome and pagination, and adapt what \
-             it provides — retitle it for this product, replace the sample column \
-             data, delete or hide the blocks the request does not need. Do not \
-             compose this screen again and do not rebuild its structure.",
+             this turn: keep its shell WHOLE — the sidebar with its minibar icon rail, \
+             the menu with exactly one Active item (the section this screen belongs to), \
+             the breadcrumbs, the table chrome and the footer pagination with its \
+             page-size selector — and adapt what it provides: retitle it for this \
+             product, replace the sample column data, delete or hide only the blocks \
+             the request explicitly does not need. A block the request does not \
+             mention stays exactly as placed. Do not compose this screen again, do \
+             not rebuild its structure, and do not simplify shell blocks away.",
             recipe.id,
             node_id.as_str()
         ),

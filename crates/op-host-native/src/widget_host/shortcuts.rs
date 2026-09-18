@@ -415,6 +415,9 @@ impl WidgetHostNative {
             PropertyTab::Design => PropertyTab::Code,
             PropertyTab::Interact => PropertyTab::Code,
             PropertyTab::Code => PropertyTab::Design,
+            // A section's strip is «Обзор | Дизайн» (a711eb35d): cycling from
+            // the overview lands on the design tab (issue #266).
+            PropertyTab::Overview => PropertyTab::Design,
         };
         if ui.set_property_tab(next) {
             self.mark_dirty();

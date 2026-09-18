@@ -227,9 +227,13 @@ pub(super) fn stream_modify_route<W: Write>(
     let rewrites_a_placed_recipe = plan.rewrites_a_placed_recipe;
     // Rewriting a whole placed screen — every column header and every sample
     // row — does not fit in the default reply budget, and a reply cut short
-    // is what "it changed the headers but not the data" looks like.
+    // is what "it changed the headers but not the data" looks like. 16384 was
+    // measured enough for the sample-dropping shape; the keep-the-shell-whole
+    // wording (the minibar, the Active menu item, the page-size selector must
+    // survive in the reply) pushed real replies past it — a recipe rewrite cut
+    // at 16384 leaves the canvas untouched and the turn wasted (gen7 turn 1).
     let max_output_tokens = if plan.rewrites_a_placed_recipe {
-        16384
+        32768
     } else {
         8192
     };
@@ -672,6 +676,13 @@ pub(super) fn stream_new_design_route<W: Write>(
         // the state lock and nothing else, so the one placement that happens
         // when the first one refused was also the one write on this route that
         // bypassed all three (issue #199).
+        // An edit-worded turn gets no base here either: the pre-classification
+        // placement is already gated the same way, and this arm is its echo —
+        // "поменяй заголовок колонки" mentions the nodes a recipe matches on,
+        // so without the gate the fallback clones the base onto the page
+        // beside the screen being edited (the two-turn «Установка ОС» run left
+        // exactly that duplicate standing).
+        None if crate::chat_intent::looks_like_modify_request(&req.ai.user) => None,
         None => recipe_base_to_place(&req.ai.user, reference, false).and_then(|recipe| {
             place_recipe_base(
                 recipe,

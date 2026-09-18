@@ -235,8 +235,10 @@ fn a_recipe_turn_carries_the_recipe_base_rule_in_its_system_prompt() {
         plan.system_prompt
     );
     assert!(
-        plan.system_prompt
-            .contains("Do not compose this screen again and do not rebuild its structure"),
+        plan.system_prompt.contains(
+            "Do not compose this screen again, do not rebuild its structure, and do not \
+             simplify shell blocks away"
+        ),
         "the rule's instruction, not only its title, has to reach the model"
     );
     assert!(
