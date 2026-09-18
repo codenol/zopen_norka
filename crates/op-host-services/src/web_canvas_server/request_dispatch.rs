@@ -77,11 +77,14 @@ pub fn handle_web_canvas_request(
             ),
         },
         ("POST", "/api/mcp/server") => update_mcp_server_settings(body, state),
-        // Taking the document is what catches a tab up with a turn the daemon
-        // ran on its own, so the guard that keeps a stale autosave off it (issue
-        // #247) comes down here.
+        // READING the document is not TAKING it, and this route deliberately
+        // does not settle the turn-result guard (issues #247/#248). Every
+        // reader clears it — the tab's own sync poll, a second tab, an outside
+        // observer watching a run — so keying the guard on a read left it down
+        // almost all the time and the loss came back. What settles it is a
+        // write that actually carries the turn's own nodes (see
+        // [`super::turn_result_guard`]).
         ("GET", "/api/mcp/document") => {
-            state.daemon_document_ahead = false;
             match serde_json::to_string(&state.editor.doc) {
                 Ok(doc_json) => WebReply {
                     status: "200 OK",

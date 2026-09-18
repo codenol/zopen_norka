@@ -85,19 +85,22 @@ pub struct WebCanvasState {
     /// Monotonic sync version, bumped on every document mutation — the key the
     /// browser shell uses to detect that the live document changed.
     pub(crate) version: u64,
-    /// The DAEMON moved this document and no tab has taken the result yet.
+    /// The DAEMON drew this document and no tab has taken the result yet.
     ///
     /// Set when the agent's own tools commit (see the MCP write path) and
-    /// cleared when a tab takes the document (`GET /api/mcp/document`) or hands
-    /// one back through a save. While it is set, an AUTOSAVE from a tab is
-    /// refused: that body is the tab's older copy — the whole reason the
-    /// copy-status strip exists — and adopting it writes the starter over the
-    /// screen the turn just drew, in the file AND in memory (issue #247,
-    /// measured: a dashboard of 211 nodes left as one empty frame on disk).
+    /// cleared when a write that actually CARRIES the result is taken, or when
+    /// the document is replaced wholesale. While it is set, an autosave whose
+    /// document does not hold the turn's own top-level nodes is refused: that
+    /// body is a tab that never saw them — the whole reason the copy-status
+    /// strip exists — and adopting it writes its older copy over the screen the
+    /// turn just drew, in the file AND in memory (issues #247/#248, measured: a
+    /// dashboard of 211 nodes left as one empty frame on disk).
     ///
-    /// An explicit Save is still honoured, because "save" means "what I see",
-    /// and that is the operator's decision to make rather than a rule to guess.
-    pub(crate) daemon_document_ahead: bool,
+    /// Reading the document does NOT clear it. Keying the guard on a read was
+    /// the bug that brought #248 back: every reader cleared it — the tab's own
+    /// sync poll, a second tab, an outside observer watching the run — so the
+    /// guard was down almost all the time. See [`turn_result_guard`].
+    pub(crate) turn_result: turn_result_guard::TurnResultGuard,
     /// The bound port, reported by `GET /api/mcp/server` (TS `server.get.ts`
     /// parity).
     pub(crate) port: u16,
@@ -180,7 +183,7 @@ impl WebCanvasState {
             credential_persistence,
             current_path,
             version: 0,
-            daemon_document_ahead: false,
+            turn_result: turn_result_guard::TurnResultGuard::default(),
             port,
             managed_token: None,
             allow_origins: Vec::new(),
@@ -212,8 +215,25 @@ impl WebCanvasState {
     /// body), bump and return the new version.
     pub(crate) fn replace_document(&mut self, doc: jian_ops_schema::PenDocument) -> u64 {
         self.editor.replace_document(doc);
+        // A wholesale replacement — the document that was here is gone, so
+        // there is no turn result left for a tab to be behind on (#247/#248).
+        self.turn_result.clear();
         self.version += 1;
         self.version
+    }
+
+    /// Install a whole document the daemon just loaded or saved — a created
+    /// file, an opened one, or a Save that wrote its own body — and settle the
+    /// turn-result guard with it.
+    ///
+    /// The document the daemon was holding is gone, so nothing about it is
+    /// something a tab can still be behind on (issues #247/#248). Bumping the
+    /// version here keeps the one place that installs a document from drifting:
+    /// every caller that swapped `editor` by hand had to remember the bump.
+    pub(crate) fn adopt_document(&mut self, next: EditorState) {
+        self.editor = next;
+        self.turn_result.clear();
+        self.version += 1;
     }
 
     /// Clear the transient web-sync document back to the same starter document a
@@ -230,8 +250,26 @@ impl WebCanvasState {
             preserve_web_canvas_preferences(&self.editor, &mut next);
             self.editor = next;
         }
+        // The document was replaced wholesale: nothing about the previous one is
+        // something a tab has to be holding (issue #247).
+        self.turn_result.clear();
         self.version += 1;
         Ok(self.version)
+    }
+
+    /// Record what the daemon's own tools just committed: the top-level ids of
+    /// the active page, which every tab that takes this document will hold.
+    ///
+    /// Called where the agent's tools commit (see [`connection`]'s MCP write
+    /// path). From here until a write carrying these ids is taken, an autosave
+    /// that does not carry them is a tab that never saw the result.
+    pub(crate) fn note_turn_result(&mut self) {
+        let roots = self
+            .editor
+            .active_children()
+            .iter()
+            .map(|node| op_editor_core::PenNodeExt::id_str(node).to_string());
+        self.turn_result.note_turn_result(roots);
     }
 
     /// Idempotent wrapper around [`Self::reset_document`] for
@@ -512,6 +550,8 @@ mod doc_routes;
 mod document_writes;
 mod export_routes;
 mod files_routes;
+// The stale-autosave decision, beside `files_routes` for the 800-line cap.
+mod files_routes_autosave_guard;
 // Beside the spine for the 800-line cap: the claim route (its own authority,
 // #46) and the preview routes (a raster export rather than a rule about files).
 mod files_routes_claim;
@@ -530,6 +570,9 @@ mod section_rights;
 mod section_routes;
 mod serve_options;
 mod share_routes;
+// What keeps a tab that is behind from writing its older copy over the screen a
+// turn just drew (issues #247/#248) — see the module doc for the sequence.
+mod turn_result_guard;
 pub mod tenant;
 pub mod tenant_auth;
 mod tenant_registry;

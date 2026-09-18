@@ -507,9 +507,8 @@ fn create_document(
         Ok(entry) => {
             next.editor_ui.file_key = Some(entry.key.clone());
             next.editor_ui.file_name_display = Some(entry.name.clone());
-            state.editor = next;
+            state.adopt_document(next);
             state.current_path = None;
-            state.version += 1;
             refresh_thumbnail(state, store, &entry.key);
             remember_last_opened(store, &entry.key, owner);
             ok_json(serde_json::json!({
@@ -580,9 +579,8 @@ fn open_document(
             next.editor_ui.file_name_display = name.clone();
             // A restart should come back to this document, not to the kit.
             remember_last_opened(store, key, access.caller_id());
-            state.editor = next;
+            state.adopt_document(next);
             state.current_path = None;
-            state.version += 1;
             // The name comes back with the open so the browser can title the
             // tab and the file list row without a second request.
             ok_json(serde_json::json!({
@@ -606,8 +604,11 @@ fn open_document(
 }
 
 /// Whether a write also refreshes the stored preview.
+///
+/// `pub(super)` because the stale-autosave decision is made in
+/// [`super::files_routes_autosave_guard`], beside this file for the 800-line cap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum WriteKind {
+pub(super) enum WriteKind {
     /// A user asked: the preview is part of what they expect to see.
     Explicit,
     /// Autosave: the document only.
@@ -651,21 +652,13 @@ fn save_document(
         Err(error) => return store_error_reply(error),
     };
     let body = body.trim();
-    // An autosave is the tab's copy; if the daemon moved this document itself
-    // and no tab has taken the result, that copy is older — writing it would
-    // put the starter back over the screen a turn just drew, in the file and in
-    // memory (issue #247). An explicit Save is still honoured: "save" means
-    // "what I see", and that is the operator's call (#169), not a rule to guess.
-    if matches!(kind, WriteKind::Quiet) && !body.is_empty() && state.daemon_document_ahead {
-        return WebReply {
-            status: "409 Conflict",
-            body: serde_json::json!({
-                "ok": false,
-                "error": "stale-autosave",
-                "message": "the daemon holds a newer copy of this document than this tab; \n                            reload the page to take it before autosaving",
-            })
-            .to_string(),
-        };
+    // An autosave from a tab that never took the document the daemon drew is an
+    // older copy, and adopting it would put that copy over the screen, in the
+    // file and in memory (issues #247/#248). An explicit Save is not subject to
+    // this: "save" means "what I see", the operator's call (#169).
+    if let Some(refusal) = super::files_routes_autosave_guard::stale_autosave_refusal(state, kind, body)
+    {
+        return refusal;
     }
     // One error type for both branches: the caller only needs to know the
     // write failed and why.
@@ -673,13 +666,10 @@ fn save_document(
         crate::doc_io::save_to_path(&state.editor, &path).map_err(|error| error.to_string())
     } else {
         // The body is the browser's document; it is written to the file and
-        // adopted, so the daemon and the disk agree afterwards.
+        // adopted, so the daemon and the disk agree afterwards. Taken: this
+        // write carried the turn's own nodes, so the guard comes down with it.
         super::save_editor_from_body(body, &state.editor, &path)
-            .map(|next| {
-                state.editor = next;
-                state.version += 1;
-                state.daemon_document_ahead = false;
-            })
+            .map(|next| state.adopt_document(next))
             .map_err(|error| error.to_string())
     };
     if let Err(error) = saved {

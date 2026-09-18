@@ -543,10 +543,12 @@ pub(super) fn dispatch<S: Read + Write>(
         }
         if applied_any {
             guard.version += 1;
-            // The daemon moved the document itself; no tab has seen this yet,
-            // so an autosave from one must not be allowed to write its own
-            // older copy over it (issue #247).
-            guard.daemon_document_ahead = true;
+            // The daemon drew this document itself, and no tab has taken the
+            // result yet: remember WHICH nodes it drew, so an autosave that does
+            // not carry them can be told apart from one that does (issues
+            // #247/#248 — the boolean this replaced was cleared by any read, and
+            // the loss came back).
+            guard.note_turn_result();
             // And the turn's result has to reach the FILE, not only memory —
             // otherwise closing the tab before it takes the document leaves the
             // starter on disk and the screen is gone (measured: 211 nodes in

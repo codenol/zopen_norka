@@ -10,6 +10,19 @@ here at a glance.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A tab that is behind can no longer autosave its older copy over a screen a
+  turn just drew.** The guard that was meant to stop it keyed on a flag any
+  `GET /api/mcp/document` cleared — and every reader clears it (the tab's own
+  sync poll, a second tab, an outside observer watching a run), so the guard was
+  down almost all the time and the loss came back: measured, 230 nodes on
+  `pages[0]` and then none. What settles the guard now is the write's own
+  content: an autosave is refused (`409 stale-autosave`) while the daemon holds
+  a result the body does not carry, and a copy that does carry it lands and
+  settles the divergence (issues #247, #248). An explicit Save is unchanged —
+  "save" means "what I see" (#169).
+
 ## [0.10.5] — 2026-09-17
 
 ### Fixed

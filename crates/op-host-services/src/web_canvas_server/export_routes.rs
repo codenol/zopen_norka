@@ -248,8 +248,7 @@ pub(super) fn save_current_file(body: &str, state: &mut WebCanvasState) -> WebRe
     };
     match save_editor_from_body(body, &state.editor, &path) {
         Ok(next) => {
-            state.editor = next;
-            state.version += 1;
+            state.adopt_document(next);
             let file_name = path
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())
