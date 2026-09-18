@@ -10,6 +10,17 @@ here at a glance.
 
 ## [Unreleased]
 
+### Added
+
+- **The canon now reaches the generation prompt, by id.** The rules the product
+  generates by existed as 8.8 KB of design-system prose and, from the kit, two
+  `do` and one `don't` per type — so a finding could name `C-02` to a builder
+  that had never been shown it. The rules are now one list
+  (`op_design_lint::canon::CANON`), read from three sides: the generation prompt
+  (id, level, one sentence each), the detectors that report the same ids, and the
+  markdown document a test keeps in step. A rule that no detector answers says so.
+  Issues #249, #250, #252.
+
 ### Fixed
 
 - **The model roles survive the settings file and reach every tenant.** The roles

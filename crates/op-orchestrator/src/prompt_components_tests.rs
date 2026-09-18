@@ -590,3 +590,42 @@ fn kit_gap_rules_lock_the_magenta_fill_from_the_constant() {
     assert!(block.contains("KitGap /"));
     assert!(block.contains("type:\"ref\""));
 }
+
+/// The canon travels with the components manifest: the builder is told, by id,
+/// the rules its output will be judged by (issues #249/#250/#252). Before this
+/// the rules reached the model as design-system prose and as two `do` and one
+/// `don't` per kit type — a finding could name `C-02` while the builder had
+/// never been shown it.
+#[test]
+fn components_prompt_carries_the_design_canon_by_id() {
+    let lib = library_with(5);
+    let (cr, _) = build_subagent_prompt(
+        &subtask(),
+        &plan(),
+        &full_req(),
+        AbortFlag::new(),
+        false,
+        false,
+        &lib,
+    );
+    let sys = &cr.system_prompt;
+    assert!(
+        sys.contains("DESIGN CANON"),
+        "the canon block must be in the generation prompt"
+    );
+    assert!(
+        sys.contains("C-02 forbidden"),
+        "a forbidden rule must be stated as forbidden: expected `C-02 forbidden`"
+    );
+    assert!(
+        sys.contains("S-01 required"),
+        "including the one-screen rule"
+    );
+    for rule in op_design_lint::CANON {
+        assert!(
+            sys.contains(rule.id),
+            "{} is missing from the generation prompt",
+            rule.id
+        );
+    }
+}

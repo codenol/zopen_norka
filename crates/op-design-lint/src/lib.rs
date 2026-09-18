@@ -6,6 +6,7 @@
 
 #![recursion_limit = "512"]
 
+pub mod canon;
 pub mod color;
 pub mod design_form;
 pub mod detectors;
@@ -16,6 +17,7 @@ pub mod node_mut;
 pub mod node_util;
 pub mod plan;
 
+pub use canon::{prompt_block as canon_prompt_block, CanonRule, RuleCheck, RuleLevel, CANON};
 pub use color::{color_contrast, parse_hex_color, relative_luminance, Rgb};
 pub use detectors::{
     detect_absolute_positioning_share, detect_all, detect_design_rule_violations,

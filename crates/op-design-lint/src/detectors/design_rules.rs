@@ -18,6 +18,13 @@ use crate::node_util::{
     NodeKind,
 };
 
+/// The canon rules this detector answers, by id. Compared against
+/// [`crate::canon::CANON`] in a test, so a rule cannot claim a detector it does
+/// not have (and a detector cannot report an id the canon does not know).
+pub const IMPLEMENTED_RULE_IDS: &[&str] = &[
+    "C-01", "C-02", "K-02", "L-02", "L-03", "G-01", "G-03", "S-01",
+];
+
 /// Bondi — the action colour (`C-01`).
 const BONDI: &str = "#2d98b4";
 /// Java — identity only, never a button fill (`C-02`).

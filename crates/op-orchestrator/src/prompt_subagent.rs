@@ -358,6 +358,12 @@ pub(super) fn build_subagent_prompt_core(
         system_prompt.push_str(&session_recipe_block());
         system_prompt.push_str("\n\n");
         system_prompt.push_str(&kit_gap_rules_block());
+        // The canon, by id. It used to reach the model as 8.8 KB of design-system
+        // prose (and, from the kit, as two `do` and one `don't` per type); the
+        // rules a finding names are now the rules the builder was given, which is
+        // what makes "it followed the rules" mean anything (issues #249, #252).
+        system_prompt.push_str("\n\n");
+        system_prompt.push_str(&op_design_lint::canon_prompt_block());
     }
     system_prompt.push_str("\n\n");
     system_prompt.push_str(&session_variable_index_block());
