@@ -33,6 +33,13 @@ here at a glance.
   read as broken rather than as disabled. The collapsed bar now carries the
   in-progress state itself («Генерация…»), so folding the panel away hides no
   work (issue #255).
+- **A drawing turn that draws nothing no longer leaves a blank canvas.** The
+  blank starter frame is dropped before the model runs, so a turn that failed its
+  own self-check — or whose reply never became nodes — left `pages[0]` holding
+  zero nodes: emptier than the document the turn started from, with the version
+  already moved and `done` (or one transient error) as the only signal. The frame
+  the person had now comes back whenever a drawing turn ends with an empty page
+  (issues #215, #216); a turn that drew anything is untouched.
 
 ## [0.10.5] — 2026-09-17
 

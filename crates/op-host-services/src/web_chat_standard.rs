@@ -72,7 +72,10 @@ use routes::{
 #[path = "web_chat_standard_starter.rs"]
 mod starter;
 pub(crate) use starter::clear_fresh_starter_frame_for_design;
-use starter::{apply_request_snapshot, clear_starter_frame_for_design, inject_transient_builtin};
+use starter::{
+    apply_request_snapshot, blank_starter_children, clear_starter_frame_for_design,
+    inject_transient_builtin, restore_starter_frame_if_page_empty,
+};
 // Read only by the test modules below — the only reader the old path had. The
 // clear itself is called from `starter`, so nothing else needs the name.
 #[cfg(test)]
@@ -401,11 +404,22 @@ pub fn stream_standard_turn<W: Write>(
     // routes exactly as they were: a turn that did not match the design
     // keywords never had its starter frame cleared, and a modify turn against a
     // blank starter is the turn that rewrites that frame in place.
+    // What the page holds BEFORE the clear below: a drawing turn that draws
+    // nothing has not earned the deletion, and this is what puts the frame back
+    // (issues #215/#216 — measured: a failed self-check left `pages[0]` with 0
+    // nodes, emptier than the starter the turn started from, while the version
+    // had already moved).
+    let starter_children_before_clear = {
+        let guard = state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        blank_starter_children(&guard)
+    };
     if design_keyword && !matches!(intent, crate::chat_intent::DesignIntent::Chat) {
         clear_starter_frame_for_design(&mut snapshot, state, hub, write_barrier);
     }
 
-    match intent {
+    let outcome = match intent {
         crate::chat_intent::DesignIntent::Chat => {
             // The chat route writes nothing to the document, so the frame the
             // probe dropped from this turn's snapshot must still be on the
@@ -459,7 +473,12 @@ pub fn stream_standard_turn<W: Write>(
                 },
             )
         }
-    }
+    };
+    // The route is over, whatever it reported: if the page is empty and it was
+    // holding the blank starter before the turn, give it back. A turn that drew
+    // anything is left exactly as it is.
+    restore_starter_frame_if_page_empty(state, hub, starter_children_before_clear.as_deref());
+    outcome
 }
 
 struct WebDesignDocSink<'a> {

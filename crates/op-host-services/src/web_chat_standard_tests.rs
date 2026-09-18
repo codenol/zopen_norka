@@ -373,6 +373,51 @@ fn starter_clear_marks_content_dirty_after_stale_save_ack() {
 }
 
 #[test]
+fn a_drawing_turn_that_draws_nothing_gives_the_starter_frame_back() {
+    // Issues #215/#216, measured: the starter frame is dropped BEFORE the model
+    // runs, so a turn that fails its own self-check — or whose reply is streamed
+    // as text and never applied — left `pages[0]` holding ZERO nodes: emptier
+    // than the document the turn started from, with the version already moved.
+    let state = Mutex::new(WebCanvasState::new(EditorState::starter(), 3100));
+    let hub = SseHub::default();
+
+    let removed = {
+        let guard = state.lock().unwrap();
+        blank_starter_children(&guard)
+    };
+    assert!(
+        removed.is_some(),
+        "a fresh document holds the blank starter frame"
+    );
+
+    // The clear the drawing route performs before the model runs.
+    {
+        let mut guard = state.lock().unwrap();
+        assert!(clear_fresh_starter_frame_for_design(&mut guard.editor));
+        guard.version += 1;
+    }
+    assert!(state.lock().unwrap().editor.active_children().is_empty());
+
+    // The turn drew nothing — the page comes back as the person had it.
+    assert!(restore_starter_frame_if_page_empty(
+        &state,
+        &hub,
+        removed.as_deref()
+    ));
+    assert_eq!(
+        state.lock().unwrap().editor.active_children().len(),
+        1,
+        "the starter frame is back"
+    );
+
+    // And a turn that DID draw is left exactly as it is.
+    assert!(
+        !restore_starter_frame_if_page_empty(&state, &hub, removed.as_deref()),
+        "a page with content is never overwritten by the restore"
+    );
+}
+
+#[test]
 fn live_starter_clear_bumps_server_version_once_and_marks_document_dirty() {
     let mut state = WebCanvasState::new(EditorState::starter(), 3100);
     state.version = 41;

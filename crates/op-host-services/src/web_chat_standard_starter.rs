@@ -202,3 +202,60 @@ pub(super) fn clear_live_starter_frame_for_design(state: &mut WebCanvasState) ->
     state.version += 1;
     Some(state.version)
 }
+
+/// The blank starter frame of the active page, when that is all the page holds.
+///
+/// Taken BEFORE the clear above runs, so a turn that never draws can put the
+/// page back exactly as it found it (issues #215/#216).
+pub(super) fn blank_starter_children(
+    state: &WebCanvasState,
+) -> Option<Vec<jian_ops_schema::node::PenNode>> {
+    op_editor_core::blank_starter::active_page_is_blank_starter(&state.editor)
+        .then(|| state.editor.active_children().to_vec())
+        .filter(|nodes| !nodes.is_empty())
+}
+
+/// Put the blank starter frame back when a drawing turn left the page empty.
+///
+/// Issues #215 and #216, measured: the starter frame is dropped BEFORE the model
+/// runs (see [`clear_starter_frame_for_design`]), so a turn that fails its own
+/// self-check — or whose reply is streamed as text and never applied — leaves
+/// the page holding ZERO nodes. The document is then emptier than the one the
+/// turn started from, while its version has already moved: the user is told
+/// `done` (or gets one transient `error` event) and the canvas is blank.
+///
+/// The rule is about the OUTCOME, not about the error: whatever a route
+/// reported, a drawing turn that drew nothing has not earned the deletion, so
+/// the frame the person had comes back. A turn that did draw is untouched —
+/// this only fires on an empty page.
+pub(super) fn restore_starter_frame_if_page_empty(
+    state: &Mutex<WebCanvasState>,
+    hub: &SseHub,
+    removed: Option<&[jian_ops_schema::node::PenNode]>,
+) -> bool {
+    let Some(removed) = removed.filter(|nodes| !nodes.is_empty()) else {
+        return false;
+    };
+    let tick = {
+        let mut guard = state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if !guard.editor.active_children().is_empty() {
+            return false;
+        }
+        guard
+            .editor
+            .active_children_mut()
+            .extend(removed.iter().cloned());
+        // Raw `active_children_mut()` bypasses the command/history path, so the
+        // content revision is advanced explicitly — the same reason the clear
+        // above does it.
+        guard.editor.mark_document_changed();
+        guard.version += 1;
+        Some(guard.sse_tick())
+    };
+    if let Some(tick) = tick {
+        hub.broadcast(tick);
+    }
+    true
+}
