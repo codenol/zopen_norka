@@ -58,6 +58,14 @@ here at a glance.
   section now goes into the page's only container when it has exactly one, and
   onto the page itself otherwise, with the substitution reported (issue #245).
 
+- **The document version no longer moves for commands that change no content.**
+  The version is the only signal a browser polls, and every accepted
+  non-content command — a selection, a viewport fit — bumped it, so a tab
+  refetched the whole document for nothing. Measured in #230: one design turn
+  moved the version 53 times while `pages[0]` gained nothing. A turn's commit
+  now bumps the version only when the document's content revision actually
+  changed (issue #230).
+
 ## [0.10.5] — 2026-09-17
 
 ### Fixed

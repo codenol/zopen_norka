@@ -367,6 +367,54 @@ fn a_command_the_sink_applies_arms_the_turn_result_guard() {
 }
 
 #[test]
+fn a_non_content_command_does_not_move_the_version_the_browser_polls() {
+    // Issue #230, measured: one design turn moved the document version 53 times
+    // while `pages[0]` gained nothing. The version is the only signal the
+    // browser polls, so every accepted NON-content command (a selection, a
+    // viewport fit) used to cost a full document refetch for no change at all.
+    let state = Mutex::new(WebCanvasState::new(EditorState::starter(), 3100));
+    let hub = SseHub::default();
+    let sub = hub.subscribe();
+    let mirror = state.lock().unwrap().editor.clone();
+    let mut sink = WebDesignDocSink::new(&state, &hub, None, mirror);
+
+    let starter_id = {
+        let guard = state.lock().unwrap();
+        op_editor_core::PenNodeExt::id_str(&guard.editor.active_children()[0]).to_string()
+    };
+    assert!(
+        sink.apply(EditorCommand::SetSelection {
+            node_id: NodeId::new(starter_id),
+        }),
+        "the editor accepts the selection"
+    );
+    assert_eq!(
+        state.lock().unwrap().version,
+        0,
+        "a selection changes no content, so the version the browser polls must not move"
+    );
+    assert!(
+        sub.pending().is_none(),
+        "and nothing is published to the tabs"
+    );
+
+    // A real insert still moves it.
+    assert!(sink.apply(EditorCommand::InsertNode {
+        kind: "rect".into(),
+        name: "Generated".into(),
+        x: 10,
+        y: 20,
+        width: 100,
+        height: 50,
+        fill_hex: Some("#ff0000".into()),
+        target_parent: NodeId::NONE,
+        page_id: None,
+    }));
+    assert_eq!(state.lock().unwrap().version, 1);
+    assert_eq!(sub.pending().expect("published").version, 1);
+}
+
+#[test]
 fn starter_clear_marks_content_dirty_after_stale_save_ack() {
     let mut state = EditorState::starter();
     state.mark_saved_revision();

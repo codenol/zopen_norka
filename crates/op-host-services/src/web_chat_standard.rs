@@ -534,10 +534,18 @@ impl DocSink for WebDesignDocSink<'_> {
             // A refusal and a no-op both ack `false` to the generator, which is
             // the existing contract; the difference is visible in the session
             // notice the gate raises, not in this return value.
+            // Whether the DOCUMENT changed, not merely whether the command was
+            // accepted: a turn applies selection, viewport and other non-content
+            // commands too, and every one of those used to bump the version the
+            // browser polls. Measured in #230: a design turn moved the version
+            // 53 times while `pages[0]` gained nothing — the counter moved
+            // without a document change, and the browser refetched for each one.
+            let revision_before = guard.editor.document_revision();
             let applied = guard
                 .apply_gated(cmd, op_editor_core::CollabEditSource::Ai)
                 .unwrap_or(false);
-            let tick = if applied {
+            let content_changed = guard.editor.document_revision() != revision_before;
+            let tick = if applied && content_changed {
                 crate::design_session::fit_design_viewport_to_content(
                     &mut guard.editor,
                     1440.0,
