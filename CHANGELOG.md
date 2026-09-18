@@ -49,6 +49,15 @@ here at a glance.
   whatever route it arrived on; a reply that is not a screen stays a reply, and
   a cut one is still refused (issues #215, #205).
 
+- **A section whose parent id does not resolve is re-homed instead of refused.**
+  A plan can name a parent the page does not have — an id from another
+  subtask's reply, from a page the turn never opened, or one the model invented
+  — and refusing the insert there loses the whole section: the English
+  pricing-page prompt ran 110 s, spent 9 329 characters of reasoning, and ended
+  with `pages[0]` holding nothing because one parent did not resolve. The
+  section now goes into the page's only container when it has exactly one, and
+  onto the page itself otherwise, with the substitution reported (issue #245).
+
 ## [0.10.5] — 2026-09-17
 
 ### Fixed

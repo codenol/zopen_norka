@@ -13,7 +13,7 @@ use crate::types::{AbortFlag, DesignRequest, DocSink, LlmChunk, LlmClient, Subta
 use futures::StreamExt;
 use jian_ops_schema::node::PenNode;
 use jian_ops_schema::sizing::{SizingBehavior, SizingKeyword};
-use op_editor_core::{EditorCommand, NodeId, PenNodeExt};
+use op_editor_core::{EditorCommand, EditorState, NodeId, PenNodeExt};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// 执行一个 subtask。总是返回 [`SubtaskOutcome`];调用方据
@@ -348,10 +348,31 @@ pub(crate) async fn run_subtask_with_reveal_at(
 
     // Apply InsertSubtree via the root-id-returning path so we capture
     // the post-remap ids for Component 11 (append-mode cleanup scoping).
-    let parent_id = match &subtask.parent_frame_id {
+    let wanted_parent = match &subtask.parent_frame_id {
         Some(id) => NodeId::new(id.clone()),
         None => NodeId::NONE,
     };
+    // Issue #245: a plan can name a parent the page does not have — an id from
+    // another subtask's reply, from a page the turn never opened, or one the
+    // model invented. Refusing the insert there loses the WHOLE section: the
+    // English pricing-page prompt ran 110 s, spent 9 329 characters of
+    // reasoning, and ended with `pages[0]` holding nothing because one parent id
+    // did not resolve.
+    //
+    // A section that lands one level too high is worth more than a section that
+    // does not land at all, so an unresolvable parent is re-homed instead of
+    // refused: into the page's only container when it has exactly one (the
+    // scaffold page-root the sections are meant to hang under), and onto the
+    // page itself otherwise. The substitution is reported, not silent.
+    let (parent_id, parent_substituted) = resolve_subtask_parent(sink.state(), &wanted_parent);
+    if let Some(status) = parent_substituted {
+        tracing::warn!(
+            subtask = %subtask.id,
+            wanted = %wanted_parent.as_str(),
+            status,
+            "subagent parent unavailable; the section is re-homed"
+        );
+    }
     let Some(inserted_root_ids) = apply_insert_subtree_with_reveal(
         sink,
         nodes,
@@ -461,6 +482,30 @@ pub(crate) fn apply_command_with_reveal(
 /// (`None` = rejected). Same reveal bookkeeping as
 /// [`apply_command_with_reveal`], but routes through the typed apply path
 /// so it can surface the remapped ids onto the `SubtaskOutcome` (Component 11).
+/// The parent a subtask's tree is actually inserted under, and why it is not
+/// the one the plan named (issue #245).
+///
+/// `None` in the status means the wanted parent was usable. The fallback keeps
+/// the tree on the ACTIVE page: an id that resolves on another page is still
+/// "missing" here, because a section placed where the person is not looking is
+/// the same loss as one not placed at all.
+fn resolve_subtask_parent(state: &EditorState, wanted: &NodeId) -> (NodeId, Option<&'static str>) {
+    if !wanted.is_real() {
+        return (wanted.clone(), None);
+    }
+    let status = match op_editor_core::walkers::find_node(state.active_children(), wanted) {
+        Some(node) if node.is_container() => return (wanted.clone(), None),
+        Some(_) => "non-container",
+        None => "missing",
+    };
+    let roots = state.active_children();
+    let rehomed = match roots {
+        [only] if only.is_container() => NodeId::new(only.id_str()),
+        _ => NodeId::NONE,
+    };
+    (rehomed, Some(status))
+}
+
 pub(crate) fn apply_insert_subtree_with_reveal(
     sink: &mut dyn DocSink,
     nodes: Vec<PenNode>,

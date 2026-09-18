@@ -72,3 +72,39 @@ const NODE_SCRIPT: &str = r#"I(null, {"type":"frame","name":"Card","x":0,"y":0,"
 mod coalesce_tests;
 #[path = "subagent_run_subtask_tests.rs"]
 mod run_subtask_tests;
+
+#[test]
+fn a_section_whose_named_parent_is_gone_is_re_homed_not_refused() {
+    // Issue #245, measured on the English pricing-page prompt: the turn ran
+    // 110 s, spent 9 329 characters of reasoning, and ended with `pages[0]`
+    // holding nothing because one `parent_id` the plan named was not on the
+    // page. A section that lands a level too high is worth more than a section
+    // that does not land at all.
+    let state = EditorState::starter();
+    let wanted = NodeId::new("n36");
+
+    // The page's only container is what the sections hang under.
+    let (parent, status) = super::resolve_subtask_parent(&state, &wanted);
+    assert_eq!(status, Some("missing"));
+    assert_eq!(
+        parent.as_str(),
+        state.active_children()[0].id_str(),
+        "the section is re-homed into the page's only container"
+    );
+
+    // A page with no container at all takes the section at its root.
+    let mut empty = EditorState::starter();
+    empty.active_children_mut().clear();
+    let (parent, status) = super::resolve_subtask_parent(&empty, &wanted);
+    assert_eq!(status, Some("missing"));
+    assert!(
+        !parent.is_real(),
+        "an empty page takes the section at the page root"
+    );
+
+    // A parent that IS on the page is left exactly alone.
+    let live = NodeId::new(state.active_children()[0].id_str());
+    let (parent, status) = super::resolve_subtask_parent(&state, &live);
+    assert_eq!(status, None);
+    assert_eq!(parent.as_str(), live.as_str());
+}
