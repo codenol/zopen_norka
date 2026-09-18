@@ -96,7 +96,12 @@ here at a glance.
   own screen rule then reported its own output. The labels now fan out only when
   the request asks for several screens (or the board is a deck, whose slides ARE
   separate artboards); the predicate that decides it is shared by the plan
-  normaliser and the screen rule, so the two cannot disagree (`S-01`).
+  normaliser and the screen rule, so the two cannot disagree (`S-01`). The
+  scaffold phase is gated on the same predicate — it built one root per screen
+  label regardless, so a one-screen request still ended with three
+  `Layout/Default` roots on the page after the plan itself was correct. Decks
+  (whose slides are separate artboards) and continuations (which name their
+  sibling screens as data) keep their fan-out.
 
 ### Added
 

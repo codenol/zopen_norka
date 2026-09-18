@@ -205,7 +205,22 @@ impl Orchestrator {
         } else {
             let effective_is_mobile = norm.is_mobile && !append_result.skip_status_bar;
 
-            if groups.len() > 1 {
+            // Only a request that ASKS for several screens fans the plan out into
+            // several scaffold roots (issue #249's loop, rule `S-01`). Without
+            // this gate the plan could collapse correctly and the scaffold would
+            // still build one root per screen label — measured: a one-screen
+            // request ended with three `Layout/Default` roots on the page.
+            let many_screens =
+                op_util::screen_intent::request_asks_for_many_screens(&request.prompt);
+            let slides = crate::design_type::detect_design_type(&request.prompt).type_
+                == crate::design_type::DesignType::Slides;
+            let board_is_deck = plan.root_frame.width >= 1600.0
+                && plan.root_frame.height > 0.0
+                && ((plan.root_frame.width / plan.root_frame.height) - 16.0 / 9.0).abs() < 0.05;
+            // A continuation names the sibling artboards it inherits — that is a
+            // multi-screen request stated as data rather than as wording.
+            let continuation = request.continuation_context.is_some();
+            if groups.len() > 1 && (many_screens || slides || board_is_deck || continuation) {
                 match insert_screen_group_roots(
                     &mut plan,
                     &groups,
