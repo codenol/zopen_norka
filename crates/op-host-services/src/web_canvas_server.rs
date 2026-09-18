@@ -572,12 +572,12 @@ mod serve_options;
 mod share_routes;
 // What keeps a tab that is behind from writing its older copy over the screen a
 // turn just drew (issues #247/#248) — see the module doc for the sequence.
-mod turn_result_guard;
 pub mod tenant;
 pub mod tenant_auth;
 mod tenant_registry;
 pub mod tenant_store;
 mod tool_scopes;
+mod turn_result_guard;
 mod workspace_settings;
 
 pub use account_routes::{AccountAuth, AccountReply};

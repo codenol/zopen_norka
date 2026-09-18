@@ -656,7 +656,8 @@ fn save_document(
     // older copy, and adopting it would put that copy over the screen, in the
     // file and in memory (issues #247/#248). An explicit Save is not subject to
     // this: "save" means "what I see", the operator's call (#169).
-    if let Some(refusal) = super::files_routes_autosave_guard::stale_autosave_refusal(state, kind, body)
+    if let Some(refusal) =
+        super::files_routes_autosave_guard::stale_autosave_refusal(state, kind, body)
     {
         return refusal;
     }
